@@ -300,5 +300,18 @@ export const underConstruction = [
             "long":176.85587901848913
         },
         "link": "https://www.genesisenergy.co.nz/about/news/genesis-reaches-final-investment-decision-for-edgecumbe-solar-farm"
+    },
+    {
+        "name": "Rangimarie",
+        "fuel": "Solar",
+        "operator": "NewPower Energy",
+        "status": "Under Construction",
+        "capacityMWp": 12.4,
+        "capacityMW": 10,
+        "openBy": "2026-04-31",
+        "location": {
+            "lat": -37.27559991938551,
+            "long": 175.17434285059372
+        }
     }
 ]
