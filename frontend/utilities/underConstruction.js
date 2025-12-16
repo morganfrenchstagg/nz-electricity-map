@@ -312,6 +312,7 @@ export const underConstruction = [
         "location": {
             "lat": -37.27559991938551,
             "long": 175.17434285059372
-        }
+        },
+        "link": "https://newpowerenergy.co.nz/asset/rangimarie/"
     }
 ]
