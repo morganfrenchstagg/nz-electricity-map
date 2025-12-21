@@ -667,6 +667,14 @@
         "name": "TOPP2",
         "unitCode": "TOP2",
         "node": "KAW2201 TOP2",
+        "capacity": 0,
+        "fuel": "Geothermal",
+        "fuelCode": "GEO"
+      },
+      {
+        "name": "TOPP2",
+        "unitCode": "TOP2",
+        "node": "KAW2201 KAW0",
         "capacity": 49,
         "fuel": "Geothermal",
         "fuelCode": "GEO"
