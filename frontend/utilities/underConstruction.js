@@ -68,7 +68,7 @@ export const underConstruction = [
         "substation": "Kawerau",
         "fuel": "Geothermal",
         "operator": "Eastland Generation",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "capacityMW": 49,
         "yearlyGenerationGWh": 407, //estimate assuming 95% capacity factor
         "openBy": "2025-12-30",
