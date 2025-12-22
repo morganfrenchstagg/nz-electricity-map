@@ -314,5 +314,19 @@ export const underConstruction = [
             "long": 175.17434285059372
         },
         "link": "https://newpowerenergy.co.nz/asset/rangimarie/"
+    },
+    {
+        "name": "Mt Cass",
+        "fuel": "Wind",
+        "operator": "Yinson Renewables",
+        "status": "Committed",
+        "capacityMW": 94.6,
+        "openBy": "2028-01-31",
+        "yearlyGenerationGWh": 300,
+        "location": {
+            "lat": -43.0833501605339,
+            "long":172.8166609356564
+        },
+        "link": "https://www.yinsonrenewables.co.nz/project-sites-mt-cass/"
     }
 ]
