@@ -199,8 +199,8 @@ export const underConstruction = [
         "yearlyGenerationGWh": 43,
         "openBy": "2026-09-30",
         "location": {
-            "lat": -44.1911373684292,
-            "long": 171.37590869305927
+            "lat": -44.19057439138792,
+            "long": 171.40868907547915
         },
         "link": "https://lodestoneenergy.co.nz/canterbury-solar-farm-project-underway/"
     },
