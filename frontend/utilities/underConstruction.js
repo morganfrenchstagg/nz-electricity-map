@@ -39,7 +39,7 @@ export const underConstruction = [
         "costMillionDollars": 486,
         "capacityMW": 155,
         "yearlyGenerationGWh": 525,
-        "openBy": "2026-11-30",
+        "openBy": "2026-03-30",
         "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/kaiwera-downs-wind-farm"
     },
     {
