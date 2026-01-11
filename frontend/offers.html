@@ -89,18 +89,14 @@
     </div>
     <div class="pb-4 px-2">
       <div class="input-group pt-2 px-3" id="filters">
+        <select class="form-select" id="generator-select">
+          <option value="" selected>Select Generator</option>
+        </select>
         <select class="form-select" id="power-station-select">
           <option value="" selected>Select Power Station</option>
         </select>
-        <select class="form-select" id="region-select">
-          <option value="" selected>Select Region</option>
-          <option value="NI">North Island</option>
-          <option value="UNI">-- Upper North Island</option>
-          <option value="CNI">-- Central North Island</option>
-          <option value="LNI">-- Lower North Island</option>
-          <option value="SI">South Island</option>
-          <option value="USI">-- Upper South Island</option>
-          <option value="LSI">-- Lower South Island</option>
+        <select class="form-select" id="trading-period-select">
+          <option value="" selected>Select Trading Period</option>
         </select>
         <span id="graph-status" class="input-group-text">Loading...</span>
         <div>

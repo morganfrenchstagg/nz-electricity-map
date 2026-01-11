@@ -1,16 +1,7 @@
 import { getColourForFuel } from '../utilities/colours.js';
 import { FUELS_KEY, SKIP_LIST } from '../utilities/units.js';
 
-/**
- * Builds supply curve data from offers for a specific trading period
- * @param {Object} offers - Offers data for a specific timestamp
- * @param {Object} liveGenData - Live generation data with site/fuel info
- * @param {Array} siteFilter - Sites to filter to
- * @param {Array} islandFilter - Islands to filter to
- * @param {Array} zoneFilter - Zones to filter to
- * @returns {Array} Highcharts series data for supply curve
- */
-export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [], islandFilter = [], zoneFilter = []) {
+export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [], zoneFilter = [], operatorFilter = []) {
     if (!offers || offers.length === 0) {
         return [];
     }
@@ -24,10 +15,10 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
         if (siteFilter.length > 0 && !siteFilter.includes(generator.site)) {
             return;
         }
-        if (islandFilter.length > 0 && genInfo && !islandFilter.includes(genInfo.island)) {
+        if (zoneFilter.length > 0 && genInfo && !zoneFilter.includes(genInfo.gridZone)) {
             return;
         }
-        if (zoneFilter.length > 0 && genInfo && !zoneFilter.includes(genInfo.gridZone)) {
+        if (operatorFilter.length > 0 && genInfo && !operatorFilter.includes(genInfo.operator)) {
             return;
         }
         if (SKIP_LIST.includes(generator.site)) {
@@ -43,7 +34,8 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
                     megawatts: tranche.megawatts,
                     price: tranche.price,
                     fuel: genInfo ? genInfo.units[0]?.fuelCode : 'UNKNOWN',
-                    name: genInfo ? genInfo.name : generator.site
+                    name: genInfo ? genInfo.name : generator.site,
+                    operator: genInfo ? genInfo.operator : 'Unknown'
                 });
             }
         });
@@ -99,15 +91,17 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
                 currentSegment.data.push(null);
             }
 
-            // Add starting point for new segment (no marker)
+            // Add starting point for new segment
             currentSegment.data.push({
                 x: startMW,
                 y: tranche.price,
                 marker: {
-                    enabled: false,
+                    enabled: true,
+                    radius: 3,
+                    symbol: 'circle',
                     states: {
                         hover: {
-                            enabled: false
+                            enabled: false,
                         }
                     }
                 }
@@ -116,15 +110,17 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
             // Same fuel but price changed - insert null to break vertical line
             currentSegment.data.push(null);
 
-            // Add starting point at new price (no marker)
+            // Add starting point at new price
             currentSegment.data.push({
                 x: startMW,
                 y: tranche.price,
                 marker: {
-                    enabled: false,
+                    enabled: true,
+                    radius: 3,
+                    symbol: 'circle',
                     states: {
                         hover: {
-                            enabled: false
+                            enabled: false,
                         }
                     }
                 }
@@ -141,17 +137,15 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
             tranche: tranche.tranche,
             megawatts: tranche.megawatts,
             fuel: tranche.fuel,
+            operator: tranche.operator,
             marker: {
-                enabled: true,
-                radius: 3,
-                symbol: 'circle',
+                enabled: false,
                 states: {
                     hover: {
-                        enabled: true,
-                        radius: 6
+                        enabled: false
                     }
                 }
-            },
+            }
         });
 
         // Add end point of this tranche (no marker)
@@ -159,10 +153,12 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
             x: endMW,
             y: tranche.price,
             marker: {
-                enabled: false,
+                enabled: true,
+                radius: 3,
+                symbol: 'circle',
                 states: {
                     hover: {
-                        enabled: false
+                        enabled: false,
                     }
                 }
             }
@@ -190,16 +186,19 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
 }
 
 export function getSupplyCurveTooltip() {
-    if (!this.point) return '';
+    if (!this.point) return false;
 
     const point = this.point;
 
+    // Only show tooltip for points with full metadata (middle points)
+    if (!point.megawatts || !point.tranche) return false;
+
     return `
         <b>${point.name || point.site} - ${point.unit}</b><br>
+        Operator: ${point.operator || 'Unknown'}<br>
         Tranche ${point.tranche}<br>
         Price: <b>$${point.y.toFixed(2)}/MWh</b><br>
         Quantity: <b>${point.megawatts.toFixed(1)} MW</b><br>
-        Cumulative: <b>${point.x.toFixed(1)} MW</b><br>
         Fuel: ${FUELS_KEY[point.fuel] || point.fuel}
     `;
 }

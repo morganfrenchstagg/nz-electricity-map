@@ -3,7 +3,8 @@ import { getLiveGenerationData, getTimeseriesOfferData } from '../utilities/api.
 import { getCurrentTimeInNZ } from '../utilities/units.js';
 
 const powerStationFilterDropdown = document.getElementById('power-station-select');
-const regionSelectDropdown = document.getElementById('region-select');
+const generatorFilterDropdown = document.getElementById('generator-select');
+const tradingPeriodDropdown = document.getElementById('trading-period-select');
 const clearButton = document.getElementById('clear-button');
 const statusSpan = document.getElementById("graph-status");
 
@@ -12,8 +13,9 @@ let currentTradingPeriod = 1;
 let allOfferData = {};
 let liveGenData = null;
 
-regionSelectDropdown.addEventListener('change', () => onRegionDropdownSelect(regionSelectDropdown));
+generatorFilterDropdown.addEventListener('change', () => onGeneratorFilterDropdownSelect(generatorFilterDropdown));
 powerStationFilterDropdown.addEventListener('change', () => onGeneratorDropdownSelect(powerStationFilterDropdown));
+tradingPeriodDropdown.addEventListener('change', () => onTradingPeriodSelect(tradingPeriodDropdown));
 clearButton.addEventListener('click', () => onClearButtonSelect());
 
 async function onGeneratorDropdownSelect(dropdownObject) {
@@ -22,21 +24,22 @@ async function onGeneratorDropdownSelect(dropdownObject) {
     updateSupplyCurve();
 }
 
-async function onRegionDropdownSelect(dropdownObject) {
-    var selectedRegion = dropdownObject.options[dropdownObject.selectedIndex].value;
+async function onTradingPeriodSelect(dropdownObject) {
+    var selectedTP = dropdownObject.options[dropdownObject.selectedIndex].value;
+    setQueryParam("tp", selectedTP);
+    currentTradingPeriod = parseInt(selectedTP);
+    updateSupplyCurve();
+}
 
-    if (selectedRegion.length === 2) {
-        setQueryParam("site", "");
-        setQueryParam("island", selectedRegion);
-        setQueryParam("zone", "");
-    } else if (selectedRegion.length === 3) {
-        setQueryParam("site", "");
-        setQueryParam("island", "");
-        setQueryParam("zone", selectedRegion);
-    } else {
-        setQueryParam("island", "");
-        setQueryParam("zone", "");
-    }
+async function onGeneratorFilterDropdownSelect(dropdownObject) {
+    var selectedOperator = dropdownObject.options[dropdownObject.selectedIndex].value;
+    setQueryParam("operator", selectedOperator);
+
+    // Re-populate station dropdown with filtered operators
+    const searchParams = new URLSearchParams(window.location.search);
+    const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
+    const operatorToFilterTo = selectedOperator ? [selectedOperator] : [];
+    setStationDropdown(allOfferData, liveGenData, zoneToFilterTo, operatorToFilterTo);
 
     updateSupplyCurve();
 }
@@ -58,8 +61,18 @@ function onClearButtonSelect() {
     window.location.search = "";
 }
 
-function setGeneratorDropdown(liveGenData, zoneToFilterTo = [], islandToFilterTo = []) {
-    let sortedGenerationData = liveGenData.generators.sort((a, b) => a.name.localeCompare(b.name));
+function setStationDropdown(allOfferData, liveGenData, zoneToFilterTo = [], operatorToFilterTo = []) {
+    const timestamps = Object.keys(allOfferData);
+    const currentTimestamp = timestamps[currentTradingPeriod - 1] || timestamps[0];
+    const generatorsBySite = new Map(liveGenData.generators.map(gen => [gen.site, gen]));
+    const offersForPeriod = allOfferData[currentTimestamp];
+
+    const uniqueSitesOffered = [...new Set(offersForPeriod.map(offer => offer.site))];
+
+    let uniqueGenerators = uniqueSitesOffered
+        .map(site => generatorsBySite.get(site))
+        .filter(g => g !== undefined)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     powerStationFilterDropdown.innerHTML = "";
     var defaultOption = document.createElement("option");
@@ -67,7 +80,15 @@ function setGeneratorDropdown(liveGenData, zoneToFilterTo = [], islandToFilterTo
     defaultOption.innerHTML = "Select Power Station";
     powerStationFilterDropdown.appendChild(defaultOption);
 
-    sortedGenerationData.forEach(generator => {
+    uniqueGenerators.forEach(generator => {
+        // Apply filters
+        if (zoneToFilterTo.length > 0 && !zoneToFilterTo.includes(generator.gridZone)) {
+            return;
+        }
+        if (operatorToFilterTo.length > 0 && !operatorToFilterTo.includes(generator.operator)) {
+            return;
+        }
+
         var thisUnitFuels = [];
 
         generator.units.forEach(unit => {
@@ -85,16 +106,89 @@ function setGeneratorDropdown(liveGenData, zoneToFilterTo = [], islandToFilterTo
         opt.value = generator.site;
         opt.innerHTML = `${generator.name} (${thisUnitFuels.join(", ")})`;
 
-        if (zoneToFilterTo.length > 0 && !zoneToFilterTo.includes(generator.gridZone)) {
-            return;
-        }
-
-        if (islandToFilterTo.length > 0 && !islandToFilterTo.includes(generator.island)) {
-            return;
-        }
-
         powerStationFilterDropdown.appendChild(opt);
     });
+}
+
+function setTradingPeriodDropdown() {
+    tradingPeriodDropdown.innerHTML = "";
+
+    // Add default option
+    var defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.innerHTML = "Select Trading Period";
+    tradingPeriodDropdown.appendChild(defaultOption);
+
+    // Add all 48 trading periods
+    for (let i = 1; i <= 48; i++) {
+        const periodStart = (i - 1) * 30;
+        const hours = Math.floor(periodStart / 60);
+        const minutes = periodStart % 60;
+        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        var opt = document.createElement("option");
+        opt.value = i;
+        opt.innerHTML = `TP ${i} (${timeStr})`;
+
+        if (i === currentTradingPeriod) {
+            opt.selected = true;
+        }
+
+        tradingPeriodDropdown.appendChild(opt);
+    }
+}
+
+function setOperatorDropdown(allOfferData, liveGenData) {
+    // Clear dropdown first
+    generatorFilterDropdown.innerHTML = "";
+
+    // Add default option
+    var defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.innerHTML = "Select Operator";
+    generatorFilterDropdown.appendChild(defaultOption);
+
+    // Early return if data is missing or empty
+    if (!allOfferData || !liveGenData || !liveGenData.generators) {
+        return;
+    }
+
+    const timestamps = Object.keys(allOfferData);
+    if (timestamps.length === 0) {
+        return;
+    }
+
+    const currentTimestamp = timestamps[currentTradingPeriod - 1] || timestamps[0];
+    const offersForPeriod = allOfferData[currentTimestamp];
+
+    if (!offersForPeriod || offersForPeriod.length === 0) {
+        return;
+    }
+
+    const generatorsBySite = new Map(liveGenData.generators.map(gen => [gen.site, gen]));
+
+    // Get unique operators from the current trading period's offers
+    const uniqueSitesOffered = [...new Set(offersForPeriod.map(offer => offer.site))];
+    const operatorsForPeriod = [...new Set(
+        uniqueSitesOffered
+            .map(site => generatorsBySite.get(site)?.operator)
+            .filter(op => op !== undefined)
+    )].sort();
+
+    // Add operators
+    operatorsForPeriod.forEach(operator => {
+        var opt = document.createElement("option");
+        opt.value = operator;
+        opt.innerHTML = operator;
+        generatorFilterDropdown.appendChild(opt);
+    });
+
+    // Set selected value from URL if present
+    const searchParams = new URLSearchParams(window.location.search);
+    const selectedOperator = searchParams.get("operator");
+    if (selectedOperator) {
+        generatorFilterDropdown.value = selectedOperator;
+    }
 }
 
 async function loadData() {
@@ -102,26 +196,29 @@ async function loadData() {
 
     // Get filters from URL
     const searchParams = new URLSearchParams(window.location.search);
+
     const dateParam = searchParams.get("date");
-    const periodParam = searchParams.get("period");
+    const tradingPeriodParam = searchParams.get("tp");
+
+    if (tradingPeriodParam) {
+        currentTradingPeriod = ((parseInt(tradingPeriodParam) - 1) % 48) + 1
+    }
 
     if (dateParam) {
         currentDate = new Date(dateParam);
+        liveGenData = await getLiveGenerationData(); //todo, does this need to get the generation data for the right date?
+        allOfferData = await getTimeseriesOfferData(currentDate);
+    } else {
+        liveGenData = await getLiveGenerationData();
+        allOfferData = await getTimeseriesOfferData();
     }
-    if (periodParam) {
-        currentTradingPeriod = parseInt(periodParam);
-    }
 
-    // Load live generator data for site info
-    liveGenData = await getLiveGenerationData();
-
-    // Load offer data for the selected date
-    allOfferData = await getTimeseriesOfferData(currentDate);
-
-    const islandToFilterTo = searchParams.get("island")?.split(',') || [];
     const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
+    const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
 
-    setGeneratorDropdown(liveGenData, zoneToFilterTo, islandToFilterTo);
+    setOperatorDropdown(allOfferData, liveGenData);
+    setStationDropdown(allOfferData, liveGenData, zoneToFilterTo, operatorToFilterTo);
+    setTradingPeriodDropdown();
 
     updateSupplyCurve();
 }
@@ -129,8 +226,9 @@ async function loadData() {
 function updateSupplyCurve() {
     const searchParams = new URLSearchParams(window.location.search);
     const siteToFilterTo = searchParams.get("site")?.split(',') || [];
-    const islandToFilterTo = searchParams.get("island")?.split(',') || [];
+    const tradingPeriodFilterTo = parseInt(searchParams.get("tp")) || currentTradingPeriod;
     const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
+    const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
 
     // Get the timestamp for the current trading period
     const timestamps = Object.keys(allOfferData);
@@ -139,8 +237,7 @@ function updateSupplyCurve() {
         return;
     }
 
-    // Use the first timestamp for now (we'll add period selector later)
-    const currentTimestamp = timestamps[currentTradingPeriod - 1] || timestamps[0];
+    const currentTimestamp = timestamps[tradingPeriodFilterTo - 1] || timestamps[0];
     const offersForPeriod = allOfferData[currentTimestamp];
 
     if (!offersForPeriod) {
@@ -153,15 +250,21 @@ function updateSupplyCurve() {
         offersForPeriod,
         liveGenData,
         siteToFilterTo,
-        islandToFilterTo,
-        zoneToFilterTo
+        zoneToFilterTo,
+        operatorToFilterTo
     );
 
     // Create the chart
-    const date = new Date(currentTimestamp);
-    const title = `Electricity Supply Curve - ${date.toLocaleDateString('en-NZ')} ${date.toLocaleTimeString('en-NZ', { hour: 'numeric', minute: 'numeric' })}`;
+    const startTime = new Date(currentTimestamp);
+    const endTime = new Date(startTime.getTime() + 30 * 60 * 1000); // Add 30 minutes
 
-    Highcharts.chart('generation-chart', {
+    const dateStr = startTime.toLocaleDateString('en-NZ');
+    const startTimeStr = startTime.toLocaleTimeString('en-NZ', { hour: 'numeric', minute: 'numeric' });
+    const endTimeStr = endTime.toLocaleTimeString('en-NZ', { hour: 'numeric', minute: 'numeric' });
+
+    const title = `Electricity Supply Curve - ${dateStr}, ${startTimeStr} - ${endTimeStr}`;
+
+    const chart = Highcharts.chart('generation-chart', {
         chart: {
             type: 'line',
             zoomType: 'xy'
@@ -170,7 +273,7 @@ function updateSupplyCurve() {
             text: title
         },
         subtitle: {
-            text: 'Trading Period ' + currentTradingPeriod
+            text: 'Trading Period ' + tradingPeriodFilterTo
         },
         xAxis: {
             title: {
@@ -190,7 +293,8 @@ function updateSupplyCurve() {
         },
         tooltip: {
             formatter: getSupplyCurveTooltip,
-            shared: false
+            shared: false,
+            snap: 10
         },
         legend: {
             enabled: false
@@ -198,6 +302,7 @@ function updateSupplyCurve() {
         plotOptions: {
             series: {
                 findNearestPointBy: 'xy',
+                stickyTracking: false,
                 states: {
                     inactive: {
                         opacity: 1
@@ -211,7 +316,7 @@ function updateSupplyCurve() {
         }
     });
 
-    statusSpan.innerHTML = `Showing Trading Period ${currentTradingPeriod}`;
+    statusSpan.innerHTML = `Showing Trading Period ${tradingPeriodFilterTo}`;
 }
 
 // Initialize

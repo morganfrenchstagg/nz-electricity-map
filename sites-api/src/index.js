@@ -20,22 +20,29 @@ export default {
 		}
 
 		try {
-			// GET /v1/offers/unit/:unitCode
-			// Example: /v1/offers/unit/TST0
-			if (url.pathname.startsWith('/v1/offers/unit/')) {
-				const unitCode = url.pathname.split('/').pop();
+			// GET /v1/offers/date?date=2025-12-30
+			// Example: /v1/offers/date?date=2025-12-30
+			// If date not provided, returns latest available day
+			if (url.pathname === '/v1/offers/date') {
+				let date = url.searchParams.get('date');
 
-				const results = await env.OFFERS_DB.prepare(
-					'SELECT * FROM offers WHERE Unit = ? ORDER BY TradingDate, TradingPeriod, Tranche LIMIT 100'
-				).bind(unitCode).all();
+				if (date) {
+					const result = await env.OFFERS_DB.prepare(
+						'SELECT EXISTS(SELECT 1 FROM offers WHERE TradingDate = ?)'
+					).bind(date).first();
 
-				return Response.json(results.results, { headers: corsHeaders });
-			}
-
-			// GET /v1/offers/date/:date
-			// Example: /v1/offers/date/2025-12-30
-			if (url.pathname.startsWith('/v1/offers/date/')) {
-				const date = url.pathname.split('/').pop();
+					if (!result.exists) {
+						const latestDateResult = await env.OFFERS_DB.prepare(
+							'SELECT MAX(TradingDate) as latest FROM offers'
+						).first();
+						date = latestDateResult.latest;
+					}
+				} else {
+					const latestDateResult = await env.OFFERS_DB.prepare(
+						'SELECT MAX(TradingDate) as latest FROM offers'
+					).first();
+					date = latestDateResult.latest;
+				}
 
 				const results = await env.OFFERS_DB.prepare(
 					'SELECT TradingPeriod, Site, Unit, Tranche, Megawatts, DollarsPerMegawattHour FROM offers WHERE TradingDate = ? ORDER BY TradingPeriod, Site, Unit, Tranche'
@@ -79,54 +86,11 @@ export default {
 				return Response.json(grouped, { headers: corsHeaders });
 			}
 
-			// GET /v1/offers/poc/:poc
-			// Example: /v1/offers/poc/TEST001
-			if (url.pathname.startsWith('/v1/offers/poc/')) {
-				const poc = url.pathname.split('/').pop();
-
-				const results = await env.OFFERS_DB.prepare(
-					'SELECT * FROM offers WHERE PointOfConnection = ? ORDER BY TradingDate, TradingPeriod, Tranche LIMIT 100'
-				).bind(poc).all();
-
-				return Response.json(results.results, { headers: corsHeaders });
-			}
-
-			// GET /v1/offers/generator?unit=TST0&date=2025-12-30
-			if (url.pathname === '/v1/offers/generator') {
-				const unit = url.searchParams.get('unit');
-				const date = url.searchParams.get('date');
-
-				if (!unit || !date) {
-					return Response.json({ error: 'Missing unit or date parameter' }, { status: 400, headers: corsHeaders });
-				}
-
-				const results = await env.OFFERS_DB.prepare(
-					'SELECT * FROM offers WHERE Unit = ? AND TradingDate = ? ORDER BY TradingPeriod, Tranche'
-				).bind(unit, date).all();
-
-				return Response.json(results.results, { headers: corsHeaders });
-			}
-
-			// GET /v1/offers/stats - Database stats
-			if (url.pathname === '/v1/offers/stats') {
-				const count = await env.OFFERS_DB.prepare('SELECT COUNT(*) as count FROM offers').first();
-				const latestDate = await env.OFFERS_DB.prepare('SELECT MAX(TradingDate) as latest FROM offers').first();
-
-				return Response.json({
-					totalOffers: count.count,
-					latestTradingDate: latestDate.latest
-				}, { headers: corsHeaders });
-			}
-
 			// Default response
 			return Response.json({
 				message: 'NZ Electricity Map - Offers API',
 				endpoints: [
-					'GET /v1/offers/unit/:unitCode',
-					'GET /v1/offers/date/:date',
-					'GET /v1/offers/poc/:pointOfConnection',
-					'GET /v1/offers/generator?unit=UNIT&date=YYYY-MM-DD',
-					'GET /v1/offers/stats'
+					'GET /v1/offers/date?date=YYYY-MM-DD (optional)',
 				]
 			}, { headers: corsHeaders });
 

@@ -84,14 +84,32 @@ export async function getLiveSubstationData(){
 }
 
 export async function getTimeseriesOfferData(date){
-    var dateStr = formatDate(date);
+    let url;
 
     if (!isProd) {
-        const response = await fetch(`http://localhost:8787/v1/offers/date/${dateStr}`);
-        return response.json();
+        if (date) {
+            const dateStr = formatDate(date);
+            url = `http://localhost:8787/v1/offers/date?date=${dateStr}`;
+        } else {
+            url = `http://localhost:8787/v1/offers/date`;
+        }
+        const response = await fetch(url);
+        if (response.status === 200) {
+            return response.json();
+        }
+        return {};
     }
 
     // Production endpoint would be on Cloudflare Worker
-    const response = await fetch(`https://sites-api.frenchsta.gg/v1/offers/date/${dateStr}`);
-    return response.json();
+    if (date) {
+        const dateStr = formatDate(date);
+        url = `https://sites-api.frenchsta.gg/v1/offers/date?date=${dateStr}`;
+    } else {
+        url = `https://sites-api.frenchsta.gg/v1/offers/date`;
+    }
+    const response = await fetch(url);
+    if (response.status === 200) {
+        return response.json();
+    }
+    return {};
 }
