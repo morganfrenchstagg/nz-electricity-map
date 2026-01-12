@@ -27,11 +27,11 @@ export default {
 				let date = url.searchParams.get('date');
 
 				if (date) {
-					const result = await env.OFFERS_DB.prepare(
-						'SELECT EXISTS(SELECT 1 FROM offers WHERE TradingDate = ?)'
+					const dateExists = await env.OFFERS_DB.prepare(
+						'SELECT 1 FROM offers WHERE TradingDate = ? LIMIT 1'
 					).bind(date).first();
 
-					if (!result.exists) {
+					if (!dateExists) {
 						const latestDateResult = await env.OFFERS_DB.prepare(
 							'SELECT MAX(TradingDate) as latest FROM offers'
 						).first();

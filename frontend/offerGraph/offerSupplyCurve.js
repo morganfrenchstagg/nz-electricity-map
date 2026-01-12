@@ -1,7 +1,7 @@
 import { getColourForFuel } from '../utilities/colours.js';
 import { FUELS_KEY, SKIP_LIST } from '../utilities/units.js';
 
-export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [], zoneFilter = [], operatorFilter = []) {
+export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [], operatorFilter = []) {
     if (!offers || offers.length === 0) {
         return [];
     }
@@ -13,9 +13,6 @@ export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [
         const genInfo = liveGenData.generators.find(g => g.site === generator.site);
 
         if (siteFilter.length > 0 && !siteFilter.includes(generator.site)) {
-            return;
-        }
-        if (zoneFilter.length > 0 && genInfo && !zoneFilter.includes(genInfo.gridZone)) {
             return;
         }
         if (operatorFilter.length > 0 && genInfo && !operatorFilter.includes(genInfo.operator)) {
