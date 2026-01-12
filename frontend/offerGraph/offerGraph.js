@@ -1,9 +1,9 @@
 import { buildSupplyCurveWithMetadata, getSupplyCurveTooltip } from './offerSupplyCurve.js';
 import { getLiveGenerationData, getTimeseriesOfferData } from '../utilities/api.js';
-import { getCurrentTimeInNZ } from '../utilities/units.js';
+import { OfferDateSelector } from './offerDateSelector.js';
 
-const powerStationFilterDropdown = document.getElementById('power-station-select');
-const generatorFilterDropdown = document.getElementById('generator-select');
+const siteFilterDropdown = document.getElementById('power-station-select');
+const operatorFilterDropdown = document.getElementById('operator-select');
 const tradingPeriodDropdown = document.getElementById('trading-period-select');
 const clearButton = document.getElementById('clear-button');
 const statusSpan = document.getElementById("graph-status");
@@ -12,13 +12,14 @@ let currentDate = new Date();
 let currentTradingPeriod = 1;
 let allOfferData = {};
 let liveGenData = null;
+let dateSelector = null;
 
-generatorFilterDropdown.addEventListener('change', () => onGeneratorFilterDropdownSelect(generatorFilterDropdown));
-powerStationFilterDropdown.addEventListener('change', () => onGeneratorDropdownSelect(powerStationFilterDropdown));
+operatorFilterDropdown.addEventListener('change', () => onOperatorFilterDropdownSelect(operatorFilterDropdown));
+siteFilterDropdown.addEventListener('change', () => onSiteDropdownSelect(siteFilterDropdown));
 tradingPeriodDropdown.addEventListener('change', () => onTradingPeriodSelect(tradingPeriodDropdown));
 clearButton.addEventListener('click', () => onClearButtonSelect());
 
-async function onGeneratorDropdownSelect(dropdownObject) {
+async function onSiteDropdownSelect(dropdownObject) {
     var selectedSiteCode = dropdownObject.options[dropdownObject.selectedIndex].value;
     setQueryParam("site", selectedSiteCode);
     updateSupplyCurve();
@@ -31,15 +32,13 @@ async function onTradingPeriodSelect(dropdownObject) {
     updateSupplyCurve();
 }
 
-async function onGeneratorFilterDropdownSelect(dropdownObject) {
+async function onOperatorFilterDropdownSelect(dropdownObject) {
     var selectedOperator = dropdownObject.options[dropdownObject.selectedIndex].value;
-    setQueryParam("operator", selectedOperator);
-
-    // Re-populate station dropdown with filtered operators
-    const searchParams = new URLSearchParams(window.location.search);
-    const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
     const operatorToFilterTo = selectedOperator ? [selectedOperator] : [];
-    setStationDropdown(allOfferData, liveGenData, zoneToFilterTo, operatorToFilterTo);
+    setStationDropdown(allOfferData, liveGenData, operatorToFilterTo);
+
+    setQueryParam('operator', selectedOperator);
+    setQueryParam('site', "");
 
     updateSupplyCurve();
 }
@@ -61,7 +60,7 @@ function onClearButtonSelect() {
     window.location.search = "";
 }
 
-function setStationDropdown(allOfferData, liveGenData, zoneToFilterTo = [], operatorToFilterTo = []) {
+function setStationDropdown(allOfferData, liveGenData, operatorToFilterTo = []) {
     const timestamps = Object.keys(allOfferData);
     const currentTimestamp = timestamps[currentTradingPeriod - 1] || timestamps[0];
     const generatorsBySite = new Map(liveGenData.generators.map(gen => [gen.site, gen]));
@@ -74,17 +73,14 @@ function setStationDropdown(allOfferData, liveGenData, zoneToFilterTo = [], oper
         .filter(g => g !== undefined)
         .sort((a, b) => a.name.localeCompare(b.name));
 
-    powerStationFilterDropdown.innerHTML = "";
+    siteFilterDropdown.innerHTML = "";
     var defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.innerHTML = "Select Power Station";
-    powerStationFilterDropdown.appendChild(defaultOption);
+    siteFilterDropdown.appendChild(defaultOption);
 
     uniqueGenerators.forEach(generator => {
-        // Apply filters
-        if (zoneToFilterTo.length > 0 && !zoneToFilterTo.includes(generator.gridZone)) {
-            return;
-        }
+        // Filter by operator if one is selected
         if (operatorToFilterTo.length > 0 && !operatorToFilterTo.includes(generator.operator)) {
             return;
         }
@@ -106,7 +102,7 @@ function setStationDropdown(allOfferData, liveGenData, zoneToFilterTo = [], oper
         opt.value = generator.site;
         opt.innerHTML = `${generator.name} (${thisUnitFuels.join(", ")})`;
 
-        powerStationFilterDropdown.appendChild(opt);
+        siteFilterDropdown.appendChild(opt);
     });
 }
 
@@ -140,13 +136,13 @@ function setTradingPeriodDropdown() {
 
 function setOperatorDropdown(allOfferData, liveGenData) {
     // Clear dropdown first
-    generatorFilterDropdown.innerHTML = "";
+    operatorFilterDropdown.innerHTML = "";
 
     // Add default option
     var defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.innerHTML = "Select Operator";
-    generatorFilterDropdown.appendChild(defaultOption);
+    operatorFilterDropdown.appendChild(defaultOption);
 
     // Early return if data is missing or empty
     if (!allOfferData || !liveGenData || !liveGenData.generators) {
@@ -180,18 +176,22 @@ function setOperatorDropdown(allOfferData, liveGenData) {
         var opt = document.createElement("option");
         opt.value = operator;
         opt.innerHTML = operator;
-        generatorFilterDropdown.appendChild(opt);
+        operatorFilterDropdown.appendChild(opt);
     });
 
     // Set selected value from URL if present
     const searchParams = new URLSearchParams(window.location.search);
     const selectedOperator = searchParams.get("operator");
     if (selectedOperator) {
-        generatorFilterDropdown.value = selectedOperator;
+        operatorFilterDropdown.value = selectedOperator;
     }
 }
 
 async function loadData() {
+    if (dateSelector) {
+        dateSelector.disableSelectionChanges();
+    }
+
     statusSpan.innerHTML = "Loading data...";
 
     // Get filters from URL
@@ -204,6 +204,12 @@ async function loadData() {
         currentTradingPeriod = ((parseInt(tradingPeriodParam) - 1) % 48) + 1
     }
 
+    // Initialize date selector
+    if (!dateSelector) {
+        dateSelector = new OfferDateSelector(dateParam);
+        dateSelector.subscribe(onDateChange);
+    }
+
     if (dateParam) {
         currentDate = new Date(dateParam);
         liveGenData = await getLiveGenerationData(); //todo, does this need to get the generation data for the right date?
@@ -213,21 +219,28 @@ async function loadData() {
         allOfferData = await getTimeseriesOfferData();
     }
 
-    const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
     const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
 
     setOperatorDropdown(allOfferData, liveGenData);
-    setStationDropdown(allOfferData, liveGenData, zoneToFilterTo, operatorToFilterTo);
+    setStationDropdown(allOfferData, liveGenData, operatorToFilterTo);
     setTradingPeriodDropdown();
 
     updateSupplyCurve();
+
+    if (dateSelector) {
+        dateSelector.enableSelectionChanges();
+    }
+}
+
+async function onDateChange(newDate) {
+    setQueryParam("date", newDate);
+    await loadData();
 }
 
 function updateSupplyCurve() {
     const searchParams = new URLSearchParams(window.location.search);
     const siteToFilterTo = searchParams.get("site")?.split(',') || [];
     const tradingPeriodFilterTo = parseInt(searchParams.get("tp")) || currentTradingPeriod;
-    const zoneToFilterTo = searchParams.get("zone")?.split(',') || [];
     const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
 
     // Get the timestamp for the current trading period
@@ -250,7 +263,6 @@ function updateSupplyCurve() {
         offersForPeriod,
         liveGenData,
         siteToFilterTo,
-        zoneToFilterTo,
         operatorToFilterTo
     );
 
