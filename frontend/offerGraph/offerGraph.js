@@ -204,12 +204,6 @@ async function loadData() {
         currentTradingPeriod = ((parseInt(tradingPeriodParam) - 1) % 48) + 1
     }
 
-    // Initialize date selector
-    if (!dateSelector) {
-        dateSelector = new OfferDateSelector(dateParam);
-        dateSelector.subscribe(onDateChange);
-    }
-
     if (dateParam) {
         currentDate = new Date(dateParam);
         liveGenData = await getLiveGenerationData(); //todo, does this need to get the generation data for the right date?
@@ -217,6 +211,17 @@ async function loadData() {
     } else {
         liveGenData = await getLiveGenerationData();
         allOfferData = await getTimeseriesOfferData();
+    }
+
+        // Initialize date selector
+    if (!dateSelector) {
+        const offerKeys = Object.keys(allOfferData);
+        if(offerKeys.length > 0){
+            dateSelector = new OfferDateSelector(offerKeys[0]);
+        } else {
+            dateSelector = new OfferDateSelector(dateParam);
+        }
+        dateSelector.subscribe(onDateChange);
     }
 
     const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
@@ -228,7 +233,12 @@ async function loadData() {
     updateSupplyCurve();
 
     if (dateSelector) {
+        const offerKeys = Object.keys(allOfferData);
+        const dataDate = offerKeys[0]
+
         dateSelector.enableSelectionChanges();
+        dateSelector.updateWithoutNotify(dataDate)
+        setQueryParam("date", formatDate(dataDate));
     }
 }
 
