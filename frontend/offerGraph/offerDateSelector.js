@@ -128,6 +128,16 @@ export class OfferDateSelector {
         this.notify();
     }
 
+    updateWithoutNotify(date) {
+        if (this.blockSelectionChanges) {
+            console.warn("blockSelectionChanges is true");
+            return;
+        }
+
+        this.selectedDate = date;
+        this.render();
+    }
+
     getSelectedDate() {
         return this.selectedDate;
     }
