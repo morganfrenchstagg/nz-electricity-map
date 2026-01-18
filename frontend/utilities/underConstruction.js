@@ -63,22 +63,6 @@ export const underConstruction = [
         "link": "https://contact.co.nz/aboutus/media-centre/2024/06/09/new-turbines-at-contacts-roxburgh-dam"
     },
     {
-        "name": "TOPP2",
-        "site": "",
-        "substation": "Kawerau",
-        "fuel": "Geothermal",
-        "operator": "Eastland Generation",
-        "status": "Commissioning",
-        "capacityMW": 49,
-        "yearlyGenerationGWh": 407, //estimate assuming 95% capacity factor
-        "openBy": "2025-12-30",
-        "location": {
-            "lat": -38.07497069187655,
-            "long": 176.69972269607476
-        },
-        "link": "https://eastlandgeneration.nz/renewable-generation/geothermal/"
-    },
-    {
         "name": "Papareireiā",
         "site": "",
         "substation": "Maungaturoto",
@@ -88,7 +72,7 @@ export const underConstruction = [
         "capacityMW": 17.6,
         "capacityMWp": 21,
         "yearlyGenerationGWh": 32,
-        "openBy": "2025-12-30",
+        "openBy": "2026-01-31",
         "location": {
             "lat": -36.08995575600482,
             "long": 174.34730610408738
@@ -168,7 +152,7 @@ export const underConstruction = [
         "openBy": "2026-04-30",
         "link": "https://www.nzherald.co.nz/business/companies/energy/harmony-clarus-to-build-nzs-biggest-solar-farm/WT6NL3WI3ZG6XBUAOXBNHWYUPY/",
         "location": {
-            "lat": -37.58021852639933, 
+            "lat": -37.58021852639933,
             "long": 175.71220320550398
         }
     },
@@ -249,8 +233,8 @@ export const underConstruction = [
         "openBy": "2027-06-31",
         "costMillionDollars": 236,
         "location": {
-            "lat": -37.96345685777786, 
-            "long":176.85587901848913
+            "lat": -37.96345685777786,
+            "long": 176.85587901848913
         },
         "link": "https://www.genesisenergy.co.nz/about/news/genesis-reaches-final-investment-decision-for-edgecumbe-solar-farm"
     },
@@ -278,7 +262,7 @@ export const underConstruction = [
         "yearlyGenerationGWh": 300,
         "location": {
             "lat": -43.0833501605339,
-            "long":172.8166609356564
+            "long": 172.8166609356564
         },
         "link": "https://www.yinsonrenewables.co.nz/project-sites-mt-cass/"
     },
