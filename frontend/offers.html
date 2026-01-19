@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width">
-  <title>NZ Electricity Map</title>
+  <title>NZ Electricity Map - Offers</title>
 
   <style>
     @media (max-width: 1500px) {
@@ -44,7 +44,7 @@
       <div class="collapse navbar-collapse" id="navbarCollapse">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
           <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="index.html">Graph</a>
+            <a class="nav-link" aria-current="page" href="index.html">Graph</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" aria-current="page" href="map.html">Map</a>
@@ -53,7 +53,7 @@
             <a class="nav-link" aria-current="page" href="summary.html">Live Summary</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" aria-current="page" href="offers.html">Offers</a>
+            <a class="nav-link active" aria-current="page" href="offers.html">Offers</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" aria-current="page" href="pipeline.html">Under Construction</a>
@@ -62,17 +62,17 @@
         <li class="navbar-nav nav-item dropdown">
           <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">Useful Links</a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" target=”_blank” href="https://app.em6.co.nz/">EM6</a></li>
-            <li><a class="dropdown-item" target=”_blank” href="https://www.emi.ea.govt.nz/">EMI</a></li>
-            <li><a class="dropdown-item" target=”_blank” href="https://customerportal.transpower.co.nz/pocp/outages?viewType=list">POCP</a></li>
-            <li><a class="dropdown-item" target=”_blank” href="https://www1.electricityinfo.co.nz/">WITS</a></li>
+            <li><a class="dropdown-item" target="_blank" href="https://app.em6.co.nz/">EM6</a></li>
+            <li><a class="dropdown-item" target="_blank" href="https://www.emi.ea.govt.nz/">EMI</a></li>
+            <li><a class="dropdown-item" target="_blank" href="https://customerportal.transpower.co.nz/pocp/outages?viewType=list">POCP</a></li>
+            <li><a class="dropdown-item" target="_blank" href="https://www1.electricityinfo.co.nz/">WITS</a></li>
           </ul>
         </li>
       </div>
     </div>
   </nav>
 
-  
+
   <div class="pt-2 px-2">
     <span id="back-link" style="display: none;">
       <form action="javascript:history.back()">
@@ -83,30 +83,25 @@
       <div class="text-center" style="padding-top: 30vh;">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Loading...</span>
-        </div><br> 
-        <div class="pt-4">Loading graph...</div>
+        </div><br>
+        <div class="pt-4">Loading offer graph...</div>
       </div>
     </div>
     <div class="pb-4 px-2">
       <div class="input-group pt-2 px-3" id="filters">
+        <select class="form-select" id="operator-select">
+          <option value="" selected>Select Generator</option>
+        </select>
         <select class="form-select" id="power-station-select">
           <option value="" selected>Select Power Station</option>
         </select>
-        <select class="form-select" id="region-select">
-          <option value="" selected>Select Region</option>
-          <option value="NI">North Island</option>
-          <option value="UNI">-- Upper North Island</option>
-          <option value="CNI">-- Central North Island</option>
-          <option value="LNI">-- Lower North Island</option>
-          <option value="SI">South Island</option>
-          <option value="USI">-- Upper South Island</option>
-          <option value="LSI">-- Lower South Island</option>
+        <select class="form-select" id="trading-period-select">
+          <option value="" selected>Select Trading Period</option>
         </select>
         <span id="graph-status" class="input-group-text">Loading...</span>
         <div>
-          <div id="timeframe-selector" class="input-group"></div>
+          <div id="date-selector" class="input-group"></div>
         </div>
-        <div class="datepicker"></div>
         <button class="btn btn-danger btn-sm" type="button" id="clear-button">Clear</button>
       </div>
     </div>
@@ -115,7 +110,7 @@
   <div class="pb-2 px-4 fixed-bottom">
     <a href="https://www.emi.ea.govt.nz" class="text-decoration-none"> Provided by the Electricity Authority (New
       Zealand) under CC BY 4.0</a>
-    |   
+    |
     <a href="https://www.transpower.co.nz/" class="text-decoration-none">Additional information provided by Transpower
       under CC-BY 4.0</a>
     <div class="credit" style="float: right;">
@@ -150,7 +145,7 @@
 
   <script src="https://code.highcharts.com/11.4.8/highcharts.js"></script>
 
-  <script type="module" src="graph/graph.js"></script>
+  <script type="module" src="offerGraph/offerGraph.js"></script>
 </body>
 
 </html>
