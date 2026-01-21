@@ -22,7 +22,7 @@ export const underConstruction = [
         "site": "NTM",
         "fuel": "Geothermal",
         "operator": "Mercury",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "costMillionDollars": 220,
         "capacityMW": 46,
         "yearlyGenerationGWh": 390,
