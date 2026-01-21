@@ -933,7 +933,7 @@
         "name": "Ngā Tamariki",
         "unitCode": "NTM0",
         "node": "NAP2202 NTM0",
-        "capacity": 86,
+        "capacity": 132,
         "fuel": "Geothermal",
         "fuelCode": "GEO"
       }
