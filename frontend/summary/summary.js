@@ -42,7 +42,8 @@ async function getStats() {
     var status = document.getElementById("status");
     status.innerHTML = "Last Updated: .. minutes ago";
 
-    const generationData = await getLiveGenerationData();
+    const generationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
+    const generationData = await generationDataResponse.json();
 
     var now = getCurrentTimeInNZ();
     var lastUpdatedDate = Date.parse(generationData.lastUpdate);
