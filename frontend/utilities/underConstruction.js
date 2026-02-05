@@ -278,5 +278,14 @@ export const underConstruction = [
             "long": 176.03669826644835
         },
         "link": "https://www.gamechangesolar.com/news/gamechange-solar-expands-into-new-zealand-with-bright-fern-energy-s-dannevirke-solar-farm"
+    },
+    {
+        "name": "Cambridge",
+        "fuel": "Solar",
+        "operator": "NewPower Energy",
+        "status": "Under Construction",
+        "capacityMWp": 30,
+        "capacityMW": 24,
+        "openBy": "2027-03-30",
     }
 ]
