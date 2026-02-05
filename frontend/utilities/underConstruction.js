@@ -287,5 +287,19 @@ export const underConstruction = [
         "capacityMWp": 30,
         "capacityMW": 24,
         "openBy": "2027-03-30",
+    },
+    {
+        "name": "Kapuni",
+        "fuel": "Wind",
+        "operator": "Hiringa",
+        "status": "Committed",
+        "capacityMW": 25.6,
+        "yearlyGenerationGWh": 100,
+        "openBy": "2027-12-31",
+        "location": {
+            "lat": -39.501263532129904,
+            "long": 174.14822718482242
+        },
+        "link": "https://www.hiringaenergy.com/post/kapuni-project-reaches-financial-close-unlocking-integrated-renewable-energy-and-green-hydrogen-pro"
     }
 ]
