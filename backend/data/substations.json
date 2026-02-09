@@ -4,1329 +4,1642 @@
         "lat": -36.739446186701,
         "siteId": "ALB",
         "description": "Albany",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 171.568897953066,
         "lat": -42.9490462912039,
         "siteId": "APS",
         "description": "Arthurs Pass",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 176.143035785305,
         "lat": -38.6158816220972,
         "siteId": "ARA",
         "description": "Aratiatia",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 173.202263113687,
         "lat": -41.6708510178546,
         "siteId": "ARG",
         "description": "Argyle",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 175.64305760814,
         "lat": -38.071752154401,
         "siteId": "ARI",
         "description": "Arapuni",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 171.802173372162,
         "lat": -43.9416643829809,
         "siteId": "ASB",
         "description": "Ashburton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 172.622661661296,
         "lat": -43.2624751504703,
         "siteId": "ASY",
         "description": "Ashley",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 176.022720801117,
         "lat": -38.392876623533,
         "siteId": "ATI",
         "description": "Atiamuri",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 170.800432533046,
         "lat": -44.2514758387243,
         "siteId": "ABY",
         "description": "Albury",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 170.354334937641,
         "lat": -44.658443020586,
         "siteId": "AVI",
         "description": "Aviemore",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 169.770867903525,
         "lat": -46.2277044005775,
         "siteId": "BAL",
         "description": "Balclutha",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 168.841744132543,
         "lat": -46.2244751915298,
         "siteId": "BDE",
         "description": "Brydone",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 170.194639409207,
         "lat": -44.5664147870745,
         "siteId": "BEN",
         "description": "Benmore AC",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 173.932545330642,
         "lat": -41.4985322594574,
         "siteId": "BLN",
         "description": "Blenheim",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 175.000369815938,
         "lat": -37.1887207494628,
         "siteId": "BOB",
         "description": "Bombay",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 174.959798041143,
         "lat": -36.9735888204098,
         "siteId": "BHL",
         "description": "Brownhill Road",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 170.957643993681,
         "lat": -44.8874167305608,
         "siteId": "BPD",
         "description": "Bells Pond",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 175.640549552694,
         "lat": -40.2813249750066,
         "siteId": "BPE",
         "description": "Bunnythorpe",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 170.799467253865,
         "lat": -44.8881509892241,
         "siteId": "BPT",
         "description": "Black Point",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 174.479885301631,
         "lat": -35.8490321588718,
         "siteId": "BRB",
         "description": "Bream Bay",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.050640130647,
         "lat": -39.8697114289589,
         "siteId": "BRK",
         "description": "Brunswick",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 172.698123520772,
         "lat": -43.5322835709355,
         "siteId": "BRY",
         "description": "Bromley",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 171.729771248312,
         "lat": -43.2132638896263,
         "siteId": "CLH",
         "description": "Castle Hill",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 169.191024944311,
         "lat": -45.0590015654094,
         "siteId": "CML",
         "description": "Cromwell",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 171.52697366059,
         "lat": -43.3637726928018,
         "siteId": "COL",
         "description": "Coleridge",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 174.769576650527,
         "lat": -41.300594549992,
         "siteId": "CPK",
         "description": "Central Park",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.087187572705,
         "lat": -39.081164231719,
         "siteId": "CST",
         "description": "Carrington Street",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 172.876146413608,
         "lat": -42.7188970796934,
         "siteId": "CUL",
         "description": "Culverden",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 169.306237727031,
         "lat": -45.1803819373439,
         "siteId": "CYD",
         "description": "Clyde",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 171.300928894481,
         "lat": -42.4532092414873,
         "siteId": "DOB",
         "description": "Dobson",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 174.960494215111,
         "lat": -37.1251807158667,
         "siteId": "DRY",
         "description": "Drury",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 176.030757385008,
         "lat": -40.1901122069535,
         "siteId": "DVK",
         "description": "Dannevirke",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 176.828871316464,
         "lat": -37.9872589210314,
         "siteId": "EDG",
         "description": "Edgecumbe",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 168.778401666806,
         "lat": -46.3114395317418,
         "siteId": "EDN",
         "description": "Edendale",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 176.762544516125,
         "lat": -39.5992983541946,
         "siteId": "FHL",
         "description": "Fernhill",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 168.740071684215,
         "lat": -45.0103858746997,
         "siteId": "FKN",
         "description": "Frankton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 174.917087061588,
         "lat": -41.2402796604975,
         "siteId": "GFD",
         "description": "Gracefield",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.731249878416,
         "lat": -37.203334379937,
         "siteId": "GLN",
         "description": "Glenbrook",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 171.214429528716,
         "lat": -42.4548838786398,
         "siteId": "GYM",
         "description": "Greymouth",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 175.437284110499,
         "lat": -41.1182496707079,
         "siteId": "GYT",
         "description": "Greytown",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.304950522995,
         "lat": -37.7793951017136,
         "siteId": "HAM",
         "description": "Hamilton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.981343613069,
         "lat": -41.1508668000067,
         "siteId": "HAY",
         "description": "Haywards AC",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.617529287645,
         "lat": -36.8409721729127,
         "siteId": "HEN",
         "description": "Henderson",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 174.660086441648,
         "lat": -36.8860120666732,
         "siteId": "HEP",
         "description": "Hepburn Road",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.765345864269,
         "lat": -37.9196351054278,
         "siteId": "HIN",
         "description": "Hinuera",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 168.911652183508,
         "lat": -46.1150913543336,
         "siteId": "GOR",
         "description": "Gore",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 170.983012226171,
         "lat": -42.7247679185799,
         "siteId": "HKK",
         "description": "Hokitika (Westpower)",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 175.151828826065,
         "lat": -37.5417405345557,
         "siteId": "HLY",
         "description": "Huntly",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.762191822817,
         "lat": -36.8452969096825,
         "siteId": "HOB",
         "description": "Hobson Street",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 171.981080449601,
         "lat": -43.5456548924265,
         "siteId": "HOR",
         "description": "Hororata",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 174.541214004271,
         "lat": -36.7603933046386,
         "siteId": "HPI",
         "description": "Huapai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.177950692598,
         "lat": -38.2515706082465,
         "siteId": "HTI",
         "description": "Hangatiki",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.237032072634,
         "lat": -39.0434291526236,
         "siteId": "HUI",
         "description": "Huirangi",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 174.31010504577,
         "lat": -39.566496634027,
         "siteId": "HWA",
         "description": "Hawera",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 170.47558197708,
         "lat": -45.8551957168122,
         "siteId": "HWB",
         "description": "Halfway Bush",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 171.953547394353,
         "lat": -41.8562739774748,
         "siteId": "IGH",
         "description": "Inangahua",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 168.392518110322,
         "lat": -46.392743093686,
         "siteId": "INV",
         "description": "Invercargill",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 172.511707102621,
         "lat": -43.5364206560028,
         "siteId": "ISL",
         "description": "Islington",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 172.638034397467,
         "lat": -43.3815922687189,
         "siteId": "KAI",
         "description": "Kaiapoi",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 176.722881319639,
         "lat": -38.07687527092,
         "siteId": "KAW",
         "description": "Kawerau",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 172.873906396579,
         "lat": -41.6734097730656,
         "siteId": "KIK",
         "description": "Kikiwa",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 175.883075349237,
         "lat": -38.2724416587401,
         "siteId": "KIN",
         "description": "Kinleith",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 175.537461494668,
         "lat": -37.9243493921812,
         "siteId": "KPO",
         "description": "Karapiro",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 175.601814786116,
         "lat": -37.1918129538094,
         "siteId": "KPU",
         "description": "Kopu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 171.19552834425,
         "lat": -42.6354886393011,
         "siteId": "KUM",
         "description": "Kumara",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 174.790548028906,
         "lat": -41.2590170817156,
         "siteId": "KWA",
         "description": "Kaiwharawhara",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.824119827531,
         "lat": -38.1335099711499,
         "siteId": "LFD",
         "description": "Lichfield",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 176.169087529658,
         "lat": -37.7394425634046,
         "siteId": "KMO",
         "description": "Kaitemako",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 173.810609911959,
         "lat": -35.3961981343351,
         "siteId": "KOE",
         "description": "Kaikohe",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 170.636499392691,
         "lat": -44.9330528105522,
         "siteId": "LIV",
         "description": "Livingstone",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 175.631428174305,
         "lat": -40.4104332328278,
         "siteId": "LTN",
         "description": "Linton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 167.278032220631,
         "lat": -45.5207959974056,
         "siteId": "MAN",
         "description": "Manapouri",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 176.814617067829,
         "lat": -38.1134292874162,
         "siteId": "MAT",
         "description": "Matahina",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 172.33690857532,
         "lat": -41.7888105586909,
         "siteId": "MCH",
         "description": "Murchison",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 174.466911683206,
         "lat": -35.8756960062743,
         "siteId": "MDN",
         "description": "Marsden",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.751861495761,
         "lat": -40.5173200338571,
         "siteId": "MGM",
         "description": "Mangamaire",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.448941978547,
         "lat": -40.5765750043424,
         "siteId": "MHO",
         "description": "Mangahao",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 174.916003433667,
         "lat": -41.2003146478276,
         "siteId": "MLG",
         "description": "Melling",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.82762695553,
         "lat": -36.9627792715412,
         "siteId": "MNG",
         "description": "Mangere",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 174.288222831649,
         "lat": -38.9939189677244,
         "siteId": "MNI",
         "description": "Motunui",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 174.207226207887,
         "lat": -35.7663881380906,
         "siteId": "MPE",
         "description": "Maungatapere",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.743872663552,
         "lat": -38.3525834281888,
         "siteId": "MTI",
         "description": "Maraetai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 176.214121735062,
         "lat": -37.6779016839687,
         "siteId": "MTM",
         "description": "Mt Maunganui",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.36053133392,
         "lat": -40.102991277839,
         "siteId": "MTN",
         "description": "Marton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 174.359190870393,
         "lat": -36.0866744732454,
         "siteId": "MTO",
         "description": "Maungaturoto",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.701966581362,
         "lat": -39.6578979784841,
         "siteId": "MTR",
         "description": "Mataroa",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 175.611594576867,
         "lat": -40.9773703703708,
         "siteId": "MST",
         "description": "Masterton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 176.183809946936,
         "lat": -38.6135259692747,
         "siteId": "NAP",
         "description": "Nga Awa Purua",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 168.359526133254,
         "lat": -46.3049407875409,
         "siteId": "NMA",
         "description": "North Makarewa",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 175.398730768565,
         "lat": -39.1579841150757,
         "siteId": "NPK",
         "description": "National Park",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 170.093349798903,
         "lat": -45.0332430710938,
         "siteId": "NSY",
         "description": "Naseby",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 170.917357237019,
         "lat": -45.0693294072924,
         "siteId": "OAM",
         "description": "Oamaru",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 170.029337671999,
         "lat": -44.2658570133698,
         "siteId": "OHA",
         "description": "Ohau A",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 170.110655520529,
         "lat": -44.3014618479026,
         "siteId": "OHB",
         "description": "Ohau B",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 170.179706388065,
         "lat": -44.3432691205569,
         "siteId": "OHC",
         "description": "Ohau C",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 176.085946654042,
         "lat": -38.407975903669,
         "siteId": "OHK",
         "description": "Ohakuri",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.29650290509,
         "lat": -37.4779871138225,
         "siteId": "OHW",
         "description": "Ohinewai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 176.340673056385,
         "lat": -38.0302581565503,
         "siteId": "OKE",
         "description": "Okere",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 176.292232243063,
         "lat": -38.5280480958881,
         "siteId": "OKI",
         "description": "Ohaaki",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.368138599222,
         "lat": -39.4267918698904,
         "siteId": "OKN",
         "description": "Ohakune",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 175.181876743608,
         "lat": -38.7456956231554,
         "siteId": "ONG",
         "description": "Ongarue",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 173.927316215564,
         "lat": -39.3925872376463,
         "siteId": "OPK",
         "description": "Opunake",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 174.862699006183,
         "lat": -36.955194815775,
         "siteId": "OTA",
         "description": "Otahuhu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 171.564768986514,
         "lat": -42.8317218094869,
         "siteId": "OTI",
         "description": "Otira",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 176.323296459428,
         "lat": -38.1299686079822,
         "siteId": "OWH",
         "description": "Owhata",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 174.906656710117,
         "lat": -36.9259433536049,
         "siteId": "PAK",
         "description": "Pakuranga",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 175.560790381519,
         "lat": -37.6507124020282,
         "siteId": "PAO",
         "description": "Piako",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.816878498848,
         "lat": -36.9046374987988,
         "siteId": "PEN",
         "description": "Penrose",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 174.918867560736,
         "lat": -41.1096894310912,
         "siteId": "PNI",
         "description": "Pauatahanui",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.012308984085,
         "lat": -40.9253789222455,
         "siteId": "PRM",
         "description": "Paraparaumu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 176.04125544944,
         "lat": -38.6298262196692,
         "siteId": "PPI",
         "description": "Poihipi",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 176.822084719219,
         "lat": -39.5514812971015,
         "siteId": "RDF",
         "description": "Redclyffe",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 174.725738220953,
         "lat": -36.913847394651,
         "siteId": "ROS",
         "description": "Mount Roskill",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 176.227053117214,
         "lat": -38.1482678314092,
         "siteId": "ROT",
         "description": "Rotorua",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 169.319135490154,
         "lat": -45.4772218924985,
         "siteId": "ROX",
         "description": "Roxburgh",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 175.837454320752,
         "lat": -39.1531848069173,
         "siteId": "RPO",
         "description": "Rangipo",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 171.844761645029,
         "lat": -42.0825557403676,
         "siteId": "RFN",
         "description": "Reefton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 172.598726432817,
         "lat": -43.3273439536577,
         "siteId": "SBK",
         "description": "Southbrook",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 175.42710843966367,
         "lat": -37.86948616885932,
         "siteId": "HTU",
         "description": "Hautapu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 175.42511843709696,
-        "lat": -37.86986984294279, 
+        "lat": -37.86986984294279,
         "siteId": "HTT",
         "description": "Hautapu Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 173.243155157162,
         "lat": -41.3151934818933,
         "siteId": "STK",
         "description": "Stoke",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 170.507522621625,
         "lat": -45.8907394098441,
         "siteId": "SDN",
         "description": "South Dunedin",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 174.320461655912,
         "lat": -39.334357939734,
         "siteId": "SFD",
         "description": "Stratford",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 171.137383393701,
         "lat": -44.7322773385717,
         "siteId": "STU",
         "description": "Studholme",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 174.683404258253,
         "lat": -36.6236289858472,
         "siteId": "SVL",
         "description": "Silverdale",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 174.827744530525,
         "lat": -36.9268146760233,
         "siteId": "SWN",
         "description": "Southdown",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 174.933642315226,
         "lat": -37.0390080104941,
         "siteId": "TAK",
         "description": "Takanini",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 171.230759711062,
         "lat": -44.3726338070168,
         "siteId": "TIM",
         "description": "Timaru",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 170.460789916721,
         "lat": -44.013832705938,
         "siteId": "TKA",
         "description": "Tekapo A",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 170.211724734036,
         "lat": -44.1251157053877,
         "siteId": "TKB",
         "description": "Tekapo B",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 176.130869830401,
         "lat": -37.7277248845064,
         "siteId": "TGA",
         "description": "Tauranga",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 174.871607757175,
         "lat": -41.1573234740155,
         "siteId": "TKR",
         "description": "Takapu Road",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.770224474117,
         "lat": -38.9817213214105,
         "siteId": "TKU",
         "description": "Tokaanu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 170.433448779912,
         "lat": -45.8565607396466,
         "siteId": "TMH",
         "description": "Three Mile Hill",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 176.339563368173,
         "lat": -37.8168787162182,
         "siteId": "TMI",
         "description": "Te Matai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 171.292219816792,
         "lat": -44.2236346664552,
         "siteId": "TMK",
         "description": "Temuka",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 175.326851744222,
         "lat": -38.88916728221,
         "siteId": "TMN",
         "description": "Taumarunui",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 175.320176840289,
         "lat": -38.0021422322313,
         "siteId": "TMU",
         "description": "Te Awamutu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 175.572545768014,
         "lat": -39.4654028238697,
         "siteId": "TNG",
         "description": "Tangiwai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 176.159634079146,
         "lat": -38.0738377731308,
         "siteId": "TRK",
         "description": "Tarukenga",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 177.151398922224,
         "lat": -38.8053542148106,
         "siteId": "TUI",
         "description": "Tuai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 175.773445951146,
         "lat": -40.3541009209416,
         "siteId": "TWC",
         "description": "Tararua Wind Central",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 175.123037525692,
         "lat": -37.7296817929898,
         "siteId": "TWH",
         "description": "Te Kowhai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 168.392617703291,
         "lat": -46.5897629055941,
         "siteId": "TWI",
         "description": "Tiwai",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 177.19215251255,
         "lat": -38.0251205054007,
         "siteId": "WAI",
         "description": "Waiotahe",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.856092620109,
         "lat": -40.315510243038,
         "siteId": "WDV",
         "description": "Woodville",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 174.513412619646,
         "lat": -36.2847629103285,
         "siteId": "WEL",
         "description": "Wellsford",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 175.11916852824,
         "lat": -39.938162592352,
         "siteId": "WGN",
         "description": "Whanganui",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 176.886767474199,
         "lat": -39.3820619790374,
         "siteId": "WHI",
         "description": "Whirinaki",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 175.683159525493,
         "lat": -37.5692169872085,
         "siteId": "WHU",
         "description": "Waihou",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.75954835334,
         "lat": -41.2585493892607,
         "siteId": "WIL",
         "description": "Wilton",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.884594739978,
         "lat": -36.9878191903504,
         "siteId": "WIR",
         "description": "Wiri",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 2,
+        "island": "north"
     },
     {
         "long": 175.80037418803,
         "lat": -38.4190816050185,
         "siteId": "WKM",
         "description": "Whakamaru",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.774856951536,
         "lat": -37.4158925220615,
         "siteId": "WKO",
         "description": "Waikino",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 170.100401566391,
         "lat": -44.2785418761504,
         "siteId": "TWZ",
         "description": "Twizel",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 175.09427627401,
         "lat": -41.0995355942241,
         "siteId": "UHT",
         "description": "Upper Hutt",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 175.683396408149,
         "lat": -38.2916611594744,
         "siteId": "WPA",
         "description": "Waipapa",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 172.756187843399,
         "lat": -43.0518903693018,
         "siteId": "WPR",
         "description": "Waipara",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 176.447045268973,
         "lat": -39.9187216655445,
         "siteId": "WPW",
         "description": "Waipawa",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 176.105091306213,
         "lat": -38.6258686344621,
         "siteId": "WRK",
         "description": "Wairakei",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 170.428899678996,
         "lat": -44.69188034693,
         "siteId": "WTK",
         "description": "Waitaki",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 176.881339161984,
         "lat": -39.6062919544723,
         "siteId": "WTU",
         "description": "Whakatu",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 174.635491127477,
         "lat": -39.7541065494277,
         "siteId": "WVY",
         "description": "Waverley",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 174.678806143002,
         "lat": -41.2706175754991,
         "siteId": "WWD",
         "description": "West Wind",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.746842322072,
         "lat": -36.7803467344773,
         "siteId": "WRD",
         "description": "Wairau Road",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 1,
+        "island": "north"
     },
     {
         "long": 172.084800495448,
         "lat": -43.4552305546176,
         "siteId": "KBY",
         "description": "Kimberley",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 176.047895453291,
         "lat": -38.6176230560534,
         "siteId": "THI",
         "description": "Te Mihi",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 175.709102498826,
         "lat": -40.3559438293536,
         "siteId": "TWT",
         "description": "Tararua Wind Central Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 171.844768669736,
         "lat": -42.0821685381116,
         "siteId": "RFC",
         "description": "Reefton Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 175.305686524644,
         "lat": -38.3228913186009,
         "siteId": "RTO",
         "description": "Rangitoto Hills Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 175.286290288352,
         "lat": -39.1771384920563,
         "siteId": "RTR",
         "description": "Retaruke Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 7,
+        "island": "north"
     },
     {
         "long": 176.1525621083,
         "lat": -37.7352821084685,
         "siteId": "PIE",
         "description": "Poike Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 171.609319256811,
         "lat": -41.7699286177796,
         "siteId": "ORO",
         "description": "Orowaiti Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 9, "island": "south"
     },
     {
         "long": 171.015371551911,
         "lat": -44.1937704325486,
         "siteId": "OPI",
         "description": "Opihi Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 10, "island": "south"
     },
     {
         "long": 172.083248152257,
         "lat": -43.4651305922686,
         "siteId": "KBT",
         "description": "Kimberley Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 12, "island": "south"
     },
     {
         "long": 174.157874065386,
         "lat": -39.3892596405143,
         "siteId": "KPA",
         "description": "Kaponga Tee",
-        "type": "TEE"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 175.578881624885,
         "lat": -37.6547334779486,
         "siteId": "MVE",
         "description": "Morrinsville Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 3,
+        "island": "north"
     },
     {
         "long": 174.290772568631,
         "lat": -39.0395397603062,
         "siteId": "MKT",
         "description": "McKee Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 174.70455423705,
         "lat": -41.2864258205579,
         "siteId": "MHT",
         "description": "Makara Heights Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 168.912971200225,
         "lat": -46.1334557216308,
         "siteId": "GOT",
         "description": "Gore Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 171.107372041213,
         "lat": -44.9225396198581,
         "siteId": "GNY",
         "description": "Glenavy",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 170.796431521789,
         "lat": -44.8631826642797,
         "siteId": "BPC",
         "description": "Black Point Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 13, "island": "south"
     },
     {
         "long": 175.019898196943,
         "lat": -40.9212794537568,
         "siteId": "PRT",
         "description": "Paraparaumu Tee",
-        "type": "TEE"
+        "type": "TEE",
+        "gridZone": 8,
+        "island": "north"
     },
     {
         "long": 174.103607134834,
         "lat": -39.1167422705206,
         "siteId": "JRD",
         "description": "Junction Road",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 176.163920046064,
         "lat": -38.665301669506,
         "siteId": "TAB",
         "description": "Tauhara",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 4,
+        "island": "north"
     },
     {
         "long": 176.683009336036,
         "lat": -39.2068492860128,
         "siteId": "HRP",
         "description": "Harapaki",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 5,
+        "island": "north"
     },
     {
         "long": 172.21442407064953,
         "lat": -43.6071438992154,
         "siteId": "NWD",
         "description": "Norwood",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 11, "island": "south"
     },
     {
         "long": 174.33649570224483,
         "lat": -39.09758321593004,
         "siteId": "MKE",
         "description": "McKee",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 6,
+        "island": "north"
     },
     {
         "long": 170.102209878491,
         "lat": -45.9404885200938,
         "siteId": "BWK",
         "description": "Berwick",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 14, "island": "south"
     },
     {
         "long": 175.483932619253,
         "lat": -37.8707054945911,
         "siteId": "CBG",
         "description": "Cambridge",
-        "type": "ACSTN"
+        "type": "ACSTN",
+        "gridZone": 3,
+        "island": "north"
     }
 ]
