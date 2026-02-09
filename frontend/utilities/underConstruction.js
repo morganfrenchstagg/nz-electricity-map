@@ -108,7 +108,7 @@ export const underConstruction = [
         "costMillionDollars": 150,
         "capacityMW": 100,
         "capacityMWh": 200,
-        "openBy": "2026-09-30",
+        "openBy": "2026-05-30",
         "link": "https://api.nzx.com/public/announcement/436601/attachment/425263/436601-425263.pdf"
     },
     {
