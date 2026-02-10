@@ -301,5 +301,19 @@ export const underConstruction = [
             "long": 174.14822718482242
         },
         "link": "https://www.hiringaenergy.com/post/kapuni-project-reaches-financial-close-unlocking-integrated-renewable-energy-and-green-hydrogen-pro"
+    },
+    {
+        "name": "Maungatapere",
+        "fuel": "Solar",
+        "operator": "Northpower",
+        "status": "Under Construction",
+        "capacityMW": 18,
+        "openBy": "2026-11-30",
+        "location": {
+            "lat": -35.76401439273073,
+            "long": 174.20655895653712
+        },
+        "link": "https://northpower.nz/news/northpower-breaks-ground-at-new-maungatapere-solar-farm/",
+        "costMillionDollars": 23,
     }
 ]
