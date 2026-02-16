@@ -1,5 +1,4 @@
 import { displayMegawattsOrGigawatts, RENEWABLE_FUELS, FUELS_KEY, SKIP_LIST, formatFuel, getCurrentTimeInNZ } from '../utilities/units.js';
-import { getLiveGenerationData } from '../utilities/api.js';
 
 const waitakiGeneratorSiteCodes = ["TKA", "TKB", "OHA", "OHB", "OHC", "BEN", "AVI", "WTK"];
 const waikatoHydroSiteCodes = ["ARA", "OHK", "ATI", "WKM", "MTI", "WPA", "ARI", "KPO"];
@@ -10,6 +9,23 @@ let lastUpdated = "";
 let isProd = (window.location.origin === 'https://electricitymap.frenchsta.gg');
 
 isProd = true;
+
+const gridZoneNames = {
+    1: "Northland",
+    2: "Auckland",
+    3: "Hamilton",
+    4: "Edgecumbe",
+    5: "Hawkes Bay",
+    6: "Taranaki",
+    7: "Bunnythorpe",
+    8: "Wellington",
+    9: "Nelson",
+    10: "Christchurch",
+    11: "Canterbury",
+    12: "West Coast",
+    13: "Otago",
+    14: "Southland"
+}
 
 async function getStats() {
     var nzGeneration = 0;
@@ -44,6 +60,23 @@ async function getStats() {
 
     const generationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
     const generationData = await generationDataResponse.json();
+
+    const substationDataResponse = await fetch('https://api.frenchsta.gg/v1/nzgrid');
+    const substationData = await substationDataResponse.json();;
+
+    let demandSummaryMap = new Map();
+    let generationSummaryMap = new Map();
+
+    let islandDemandSummaryMap = new Map();
+    let islandGenerationSummaryMap = new Map();
+
+    substationData.sites.forEach(site => {
+        incrementMapCounter(demandSummaryMap, site.gridZone, site.totalLoadMW)
+        incrementMapCounter(generationSummaryMap, site.gridZone, site.totalGenerationMW)
+
+        incrementMapCounter(islandDemandSummaryMap, site.island, site.totalLoadMW)
+        incrementMapCounter(islandGenerationSummaryMap, site.island, site.totalGenerationMW)
+    });
 
     var now = getCurrentTimeInNZ();
     var lastUpdatedDate = Date.parse(generationData.lastUpdate);
@@ -118,6 +151,35 @@ async function getStats() {
 
         gridZoneGenerationDiv.appendChild(zoneDiv);
     })
+
+    var spaceDiv = document.createElement('div');
+    spaceDiv.style.height = "10px";
+    gridZoneGenerationDiv.appendChild(spaceDiv);
+
+    for(let zone = 1; zone < 15; zone++) {
+        console.log(zone + ": Demand " + demandSummaryMap.get(zone) + "MW / Generation " + generationSummaryMap.get(zone) + "MW")
+
+        var zoneDiv = document.createElement('div');
+        zoneDiv.textContent = "Grid Zone " + zone + " (" + gridZoneNames[zone] + "): Demand " + displayMegawattsOrGigawatts(demandSummaryMap.get(zone)) + " / Generation " + displayMegawattsOrGigawatts(generationSummaryMap.get(zone)) + " ( Net " + displayMegawattsOrGigawatts(generationSummaryMap.get(zone) - demandSummaryMap.get(zone)) + " )";
+        gridZoneGenerationDiv.appendChild(zoneDiv);
+
+        if(zone == 8) {
+            var islandDiv = document.createElement('div');
+            islandDiv.style.fontWeight = "bold";
+            islandDiv.textContent = "North Island: Demand " + displayMegawattsOrGigawatts(islandDemandSummaryMap.get("north")) + " / Generation " + displayMegawattsOrGigawatts(islandGenerationSummaryMap.get("north")) + " ( Net " + displayMegawattsOrGigawatts(islandGenerationSummaryMap.get("north") - islandDemandSummaryMap.get("north")) + " )";
+            gridZoneGenerationDiv.appendChild(islandDiv);
+
+            //put space
+            var spaceDiv = document.createElement('div');
+            spaceDiv.style.height = "10px";
+            gridZoneGenerationDiv.appendChild(spaceDiv);
+        }
+    }
+
+    var islandDiv = document.createElement('div');
+    islandDiv.style.fontWeight = "bold";
+    islandDiv.textContent = "South Island: Demand " + displayMegawattsOrGigawatts(islandDemandSummaryMap.get("south")) + " / Generation " + displayMegawattsOrGigawatts(islandGenerationSummaryMap.get("south")) + " ( Net " + displayMegawattsOrGigawatts(islandGenerationSummaryMap.get("south") - islandDemandSummaryMap.get("south")) + " )";
+    gridZoneGenerationDiv.appendChild(islandDiv);
 
     var niGenByFuelTable = document.getElementById('ni-gen-by-fuel-table');
     niGenByFuelTable.innerHTML = "";
@@ -202,6 +264,10 @@ function addToObj(obj, key, value) {
     } else {
         obj[key] += value;
     }
+}
+
+function incrementMapCounter(map, key, amount){
+    map.set(key, map.get(key) ? map.get(key)+ amount : amount)
 }
 
 getStats();
