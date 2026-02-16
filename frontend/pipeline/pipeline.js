@@ -62,44 +62,46 @@ function populatePipelineTable(){
     var totalRow = table.insertRow();
     totalRow.style.fontWeight = "bold";
     totalRow.className = "table-info";
-    
-    addCell(totalRow, "Total");
-    addCell(totalRow, "");
-    addCell(totalRow, "");
-    addCell(totalRow, "");
-    addCell(totalRow, "");
-    addCell(totalRow, totalNameplateCapacity.toFixed(1) + " MW");
-    addCell(totalRow, "");
-    addCell(totalRow, totalAnnualGeneration + " GWh");
-    addCell(totalRow, "$" + (totalCost/1000).toFixed(2) + "b");
-    addCell(totalRow, "");
+
+    addRowToTable({
+        name: "Total",
+        operator: "",
+        fuel: "",
+        status: "",
+        commissioning: "",
+        capacityMW: totalNameplateCapacity,
+        capacityAlt: "",
+        annualGeneration: totalAnnualGeneration,
+        cost: totalCost,
+    }, totalRow);
+
+    addRowToTable();
 
     Object.keys(newGenerationGWhByYear).forEach(year => {
-        var yearRow = table.insertRow();
-        addCell(yearRow, `Total in ${year}`);
-        addCell(yearRow, "");
-        addCell(yearRow, "");
-        addCell(yearRow, "");
-        addCell(yearRow, "");
-        addCell(yearRow, nameplateCapacityByYear[year].toFixed(1) + " MW");
-        addCell(yearRow, "");
-        addCell(yearRow, newGenerationGWhByYear[year] + " GWh");
-        addCell(yearRow, "");
-        addCell(yearRow, "");
+        addRowToTable({
+            name: `Total in ${year}`,
+            operator: "",
+            fuel: "",
+            status: "",
+            commissioning: "",
+            capacityMW: nameplateCapacityByYear[year],
+            capacityAlt: "",
+            annualGeneration: newGenerationGWhByYear[year],
+        });
     });
 
+    addRowToTable();
+
     fuelMap.forEach((capacity, fuel) => {
-        var fuelRow = table.insertRow();
-        addCell(fuelRow, "Total for " +formatFuel(fuel));
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
-        addCell(fuelRow, capacity.toFixed(1) + " MW");
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
-        addCell(fuelRow, "");
+        addRowToTable({
+            name: "Total for " +formatFuel(fuel),
+            operator: "",
+            fuel: "",
+            status: "",
+            commissioning: "",
+            capacityMW: capacity,
+            capacityAlt: "",
+        });
     });
 }
 
@@ -143,6 +145,30 @@ function addRow(site){
     addCell(row, site.costMillionDollars ? `$${site.costMillionDollars}m` : '');
 
     row.insertCell().innerHTML = `<a href=${site.link} target='_blank'>↗</a>`
+}
+
+function addRowToTable(rowDetails, row){
+    var row = row || table.insertRow();
+    addCell(row, rowDetails?.name || "");
+    addCell(row, rowDetails?.operator || "");
+    addCell(row, rowDetails?.fuel || "");
+    addCell(row, rowDetails?.status || "");
+    addCell(row, rowDetails?.commissioning || "");
+    addCell(row, rowDetails?.capacityMW ? rowDetails?.capacityMW.toFixed(1) + " MW" : "");
+    addCell(row, rowDetails?.capacityAlt || "");
+    addCell(row, rowDetails?.annualGeneration ? rowDetails?.annualGeneration + " GWh" : "");
+    
+    if(rowDetails?.cost && rowDetails?.cost > 1000){
+        addCell(row, `$${(rowDetails?.cost/1000).toFixed(2)}b`);
+    } else {
+        addCell(row, rowDetails?.cost ? `$${rowDetails?.cost}m` : "");
+    }
+
+    if(rowDetails?.link){
+        row.insertCell().innerHTML = `<a href=${rowDetails.link} target='_blank'>↗</a>`
+    } else {
+        row.insertCell().innerHTML = "";
+    }
 }
 
 function addCell(row, text){
