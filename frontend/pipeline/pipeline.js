@@ -5,6 +5,7 @@ var table = document.getElementById('generation-pipeline-table');
 
 function populatePipelineTable(){
     const fuelMap = new Map();
+    const yearMap = new Map();
     
     table.innerHTML = "";
     
@@ -24,39 +25,27 @@ function populatePipelineTable(){
     addTitleCell(row, sortKey, "Annual Generation", "annualGeneration");
     addTitleCell(row, sortKey, "Cost", "cost");
     addCell(row, "More Info");
-    
-    let totalAnnualGeneration = 0;
-    let totalNameplateCapacity = 0;
-    let totalCost = 0;
-
-    let newGenerationGWhByYear = {};
-    let nameplateCapacityByYear = {};
 
     sortList(underConstruction, sortKey).forEach(site => {
         addRowToTable(mapToRowDetails(site));
-        
-        if(site.capacityMW){
-            fuelMap.set(site.fuel, (fuelMap.get(site.fuel) || 0) + site.capacityMW);
-        }
 
-        totalAnnualGeneration += site.yearlyGenerationGWh || 0;
-        totalNameplateCapacity += site.capacityMW || site.predictedCapacityMW || 0;
-        totalCost += (site.costMillionDollars !== undefined) ? site.costMillionDollars : 0;
+        fuelMap.set(site.fuel, (fuelMap.get(site.fuel) || 0) + (site.capacityMW || site.predictedCapacityMW || 0));
 
-        if(site.openBy){
-            let year = new Date(site.openBy).getFullYear();
-            if(newGenerationGWhByYear[year] === undefined){
-                newGenerationGWhByYear[year] = 0;
-            }
+        let year = new Date(site.openBy).getFullYear();
+        yearMap.set(year, {
+            capacity: (yearMap.get(year)?.capacity || 0) + (site.capacityMW || site.predictedCapacityMW || 0), 
+            generation: (yearMap.get(year)?.generation || 0) + (site.yearlyGenerationGWh || 0),
+            cost: (yearMap.get(year)?.cost || 0) + (site.costMillionDollars !== undefined ? site.costMillionDollars : 0)
+        });
+    });
 
-            newGenerationGWhByYear[year] += site.yearlyGenerationGWh || 0;
-
-            if(nameplateCapacityByYear[year] === undefined){
-                nameplateCapacityByYear[year] = 0;
-            }
-
-            nameplateCapacityByYear[year] += site.capacityMW || site.predictedCapacityMW || 0;
-        }
+    let totalCapacity = 0;
+    let totalGeneration = 0;
+    let totalCost = 0;
+    yearMap.forEach((value) => {
+        totalCapacity += value.capacity;
+        totalGeneration += value.generation;
+        totalCost += value.cost;
     });
     
     var totalRow = table.insertRow();
@@ -69,30 +58,32 @@ function populatePipelineTable(){
         fuel: "",
         status: "",
         commissioning: "",
-        capacityMW: totalNameplateCapacity,
+        capacityMW: totalCapacity,
         capacityAlt: "",
-        annualGeneration: totalAnnualGeneration,
+        annualGeneration: totalGeneration,
         cost: totalCost,
     }, totalRow);
 
     addRowToTable();
 
-    Object.keys(newGenerationGWhByYear).forEach(year => {
+    yearMap.forEach((value, year) => {
+        if(isNaN(year)) return;
         addRowToTable({
             name: `Total in ${year}`,
             operator: "",
             fuel: "",
             status: "",
             commissioning: "",
-            capacityMW: nameplateCapacityByYear[year],
-            capacityAlt: "",
-            annualGeneration: newGenerationGWhByYear[year],
+            capacityMW: value.capacity,
+            annualGeneration: value.generation,
+            cost: value.cost,
         });
     });
 
     addRowToTable();
 
     fuelMap.forEach((capacity, fuel) => {
+        if(capacity == 0) return;
         addRowToTable({
             name: "Total for " +formatFuel(fuel),
             operator: "",
