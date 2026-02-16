@@ -1,7 +1,7 @@
 export const underConstruction = [
     {
         "name": "Glenbrook-Ohurua",
-        "site": "",
+        "site": "GLB",
         "substation": "Glenbrook",
         "fuel": "Battery",
         "operator": "Contact Energy",
@@ -315,5 +315,23 @@ export const underConstruction = [
         },
         "link": "https://northpower.nz/news/northpower-breaks-ground-at-new-maungatapere-solar-farm/",
         "costMillionDollars": 23,
-    }
+    },
+    {
+        "name": "Glenbrook-Ohurua",
+        "site": "GLB",
+        "locationDescription": "Battery 2.0",
+        "substation": "Glenbrook",
+        "fuel": "Battery",
+        "operator": "Contact Energy",
+        "status": "Committed",
+        "costMillionDollars": 235,
+        "capacityMW": 200,
+        "capacityMWh": 400,
+        "openBy": "2028-03-31",
+        "location": {
+            "lat": -37.2006925645924,
+            "long": 174.73559645343832
+        },
+        "link": "https://www.nzx.com/announcements/467457"
+    },
 ]
