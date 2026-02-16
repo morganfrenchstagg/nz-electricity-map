@@ -334,4 +334,20 @@ export const underConstruction = [
         },
         "link": "https://www.nzx.com/announcements/467457"
     },
+    {
+        "name": "Glorit",
+        "fuel": "Solar",
+        "operator": "Contact Energy / Lightsource bp",
+        "status": "Committed",
+        "capacityMW": 150,
+        "capacityMWp": 160,
+        "yearlyGenerationGWh": 285,
+        "openBy": "2028-09-30",
+        "costMillionDollars": 305,
+        "location": {
+            "lat": -36.4539911223662,
+            "long": 174.4170733039791
+        },
+        "link": "https://contact.co.nz/about-us/sustainability/our-projects/glorit-solar-farm"
+    }
 ]
