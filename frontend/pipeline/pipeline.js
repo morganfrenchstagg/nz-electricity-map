@@ -27,7 +27,19 @@ function populatePipelineTable(){
     addCell(row, "More Info");
 
     sortList(underConstruction, sortKey).forEach(site => {
-        addRowToTable(mapToRowDetails(site));
+        addRowToTable({
+            name: site.name,
+            locationDescription: site.locationDescription,
+            operator: site.operator,
+            fuel: site.fuel,
+            status: site.status,
+            commissioning: site.openBy,
+            capacityMW: site.capacityMW || site.predictedCapacityMW,
+            capacityAlt: formatAdditionalCapacityInformation(site),
+            annualGeneration: site.yearlyGenerationGWh,
+            cost: site.costMillionDollars,
+            link: site.link,
+        });
 
         fuelMap.set(site.fuel, {
             capacity: (fuelMap.get(site.fuel)?.capacity || 0) + (site.capacityMW || site.predictedCapacityMW || 0), 
@@ -110,22 +122,6 @@ function addTitleCell(row, sortKey, name, key){
     } else {
         cell.innerHTML = `<a href="?sort=${key}" class="link-primary">${name}</a>`;;
     }
-}
-
-function mapToRowDetails(site){
-    return {
-        name: site.name,
-        locationDescription: site.locationDescription,
-        operator: site.operator,
-        fuel: site.fuel,
-        status: site.status,
-        commissioning: site.openBy,
-        capacityMW: site.capacityMW || site.predictedCapacityMW,
-        capacityAlt: formatAdditionalCapacityInformation(site),
-        annualGeneration: site.yearlyGenerationGWh,
-        cost: site.costMillionDollars,
-        link: site.link,
-    };
 }
 
 function addRowToTable(rowDetails, row){
