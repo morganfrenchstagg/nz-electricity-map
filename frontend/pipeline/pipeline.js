@@ -4,6 +4,8 @@ import { formatFuel } from "../utilities/units.js";
 var table = document.getElementById('generation-pipeline-table');
 
 function populatePipelineTable(){
+    const fuelMap = new Map();
+    
     table.innerHTML = "";
     
     var sortKey = window.location.search.split('sort=')[1] || 'opening';
@@ -32,6 +34,11 @@ function populatePipelineTable(){
 
     sortList(underConstruction, sortKey).forEach(site => {
         addRow(site);
+        
+        if(site.capacityMW){
+            fuelMap.set(site.fuel, (fuelMap.get(site.fuel) || 0) + site.capacityMW);
+        }
+
         totalAnnualGeneration += site.yearlyGenerationGWh || 0;
         totalNameplateCapacity += site.capacityMW || site.predictedCapacityMW || 0;
         totalCost += (site.costMillionDollars !== undefined) ? site.costMillionDollars : 0;
@@ -79,6 +86,20 @@ function populatePipelineTable(){
         addCell(yearRow, newGenerationGWhByYear[year] + " GWh");
         addCell(yearRow, "");
         addCell(yearRow, "");
+    });
+
+    fuelMap.forEach((capacity, fuel) => {
+        var fuelRow = table.insertRow();
+        addCell(fuelRow, "Total for " +formatFuel(fuel));
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
+        addCell(fuelRow, capacity.toFixed(1) + " MW");
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
+        addCell(fuelRow, "");
     });
 }
 
