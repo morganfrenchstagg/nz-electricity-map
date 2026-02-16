@@ -29,7 +29,11 @@ function populatePipelineTable(){
     sortList(underConstruction, sortKey).forEach(site => {
         addRowToTable(mapToRowDetails(site));
 
-        fuelMap.set(site.fuel, (fuelMap.get(site.fuel) || 0) + (site.capacityMW || site.predictedCapacityMW || 0));
+        fuelMap.set(site.fuel, {
+            capacity: (fuelMap.get(site.fuel)?.capacity || 0) + (site.capacityMW || site.predictedCapacityMW || 0), 
+            generation: (fuelMap.get(site.fuel)?.generation || 0) + (site.yearlyGenerationGWh || 0),
+            cost: (fuelMap.get(site.fuel)?.cost || 0) + (site.costMillionDollars !== undefined ? site.costMillionDollars : 0)
+        });
 
         let year = new Date(site.openBy).getFullYear();
         yearMap.set(year, {
@@ -82,16 +86,18 @@ function populatePipelineTable(){
 
     addRowToTable();
 
-    fuelMap.forEach((capacity, fuel) => {
-        if(capacity == 0) return;
+    fuelMap.forEach((value, fuel) => {
+        if(value.capacity == 0) return;
         addRowToTable({
             name: "Total for " +formatFuel(fuel),
             operator: "",
             fuel: "",
             status: "",
             commissioning: "",
-            capacityMW: capacity,
+            capacityMW: value.capacity,
             capacityAlt: "",
+            annualGeneration: value.generation,
+            cost: value.cost,
         });
     });
 }
