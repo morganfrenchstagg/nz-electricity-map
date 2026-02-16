@@ -33,7 +33,7 @@ function populatePipelineTable(){
     let nameplateCapacityByYear = {};
 
     sortList(underConstruction, sortKey).forEach(site => {
-        addRow(site);
+        addRowToTable(mapToRowDetails(site));
         
         if(site.capacityMW){
             fuelMap.set(site.fuel, (fuelMap.get(site.fuel) || 0) + site.capacityMW);
@@ -115,45 +115,43 @@ function addTitleCell(row, sortKey, name, key){
     }
 }
 
-function addRow(site){
-    var row = table.insertRow();
-
-    if(site.status == "Under Construction"){
-        row.className = "table-warning";
-    }
-
-    if(site.status == "Commissioning"){
-        row.className = "table-success";
-    }
-    
-    row.insertCell().innerHTML = `<b>${site.name}</b>${(site.locationDescription != undefined) ? ` ${site.locationDescription}` : ""}`
-    addCell(row, site.operator);
-    addCell(row, formatFuel(site.fuel));
-    addCell(row, site.status);
-    addCell(row, formatDate(site.openBy));
-    addCell(row, (site.capacityMW || site.predictedCapacityMW || '?') + " MW");
-    addCell(row, formatAdditionalCapacityInformation(site));
-    
-    if (site.fuel === "Battery") {
-        addCell(row, "N/A");
-    } else if(site.yearlyGenerationGWh === undefined){
-        addCell(row, "? GWh");
-    } else {
-        addCell(row, site.yearlyGenerationGWh + " GWh");
-    }
-
-    addCell(row, site.costMillionDollars ? `$${site.costMillionDollars}m` : '');
-
-    row.insertCell().innerHTML = `<a href=${site.link} target='_blank'>↗</a>`
+function mapToRowDetails(site){
+    return {
+        name: site.name,
+        locationDescription: site.locationDescription,
+        operator: site.operator,
+        fuel: site.fuel,
+        status: site.status,
+        commissioning: site.openBy,
+        capacityMW: site.capacityMW || site.predictedCapacityMW,
+        capacityAlt: formatAdditionalCapacityInformation(site),
+        annualGeneration: site.yearlyGenerationGWh,
+        cost: site.costMillionDollars,
+        link: site.link,
+    };
 }
 
 function addRowToTable(rowDetails, row){
     var row = row || table.insertRow();
-    addCell(row, rowDetails?.name || "");
+
+    if(rowDetails?.status == "Under Construction"){
+        row.className = "table-warning";
+    }
+
+    if(rowDetails?.status == "Commissioning"){
+        row.className = "table-success";
+    }
+
+    if(rowDetails?.name){
+        row.insertCell().innerHTML = `<b>${rowDetails?.name}</b>${(rowDetails?.locationDescription != undefined) ? ` ${rowDetails?.locationDescription}` : ""}`
+    } else {
+        row.insertCell().innerHTML = "";
+    }
+
     addCell(row, rowDetails?.operator || "");
-    addCell(row, rowDetails?.fuel || "");
+    addCell(row, rowDetails?.fuel ? formatFuel(rowDetails?.fuel) : "");
     addCell(row, rowDetails?.status || "");
-    addCell(row, rowDetails?.commissioning || "");
+    addCell(row, rowDetails?.commissioning ? formatDate(rowDetails?.commissioning) : "");
     addCell(row, rowDetails?.capacityMW ? rowDetails?.capacityMW.toFixed(1) + " MW" : "");
     addCell(row, rowDetails?.capacityAlt || "");
     addCell(row, rowDetails?.annualGeneration ? rowDetails?.annualGeneration + " GWh" : "");
