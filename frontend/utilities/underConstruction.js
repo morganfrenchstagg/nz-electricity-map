@@ -35,7 +35,7 @@ export const underConstruction = [
         "site": "KWD",
         "fuel": "Wind",
         "operator": "Mercury",
-        "status": "Under Construction",
+        "status": "Pre-Commissioning",
         "costMillionDollars": 486,
         "capacityMW": 155,
         "yearlyGenerationGWh": 525,
