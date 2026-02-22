@@ -2,6 +2,7 @@ import requests
 import os
 import json
 import datetime
+from pathlib import Path
 
 # This is the api powering the guages on the top of https://ngawhageneration.co.nz/
 ngawhaGenerationApiUrl = 'https://ngawhageneration.co.nz/api/ngawha/gauge'
@@ -19,9 +20,10 @@ class RealTimeDispatch:
         if(len(existingResponse) > 0):
             self.response = existingResponse
             return
-
         response = requests.get(emiApiUrl, headers={'Ocp-Apim-Subscription-Key': apiKey})
         print("getting rtd data from api...")
+        
+        Path("output").mkdir(parents=True, exist_ok=True)
 
         if response.status_code != 200:
             with open('output/error.log', 'a') as file:
