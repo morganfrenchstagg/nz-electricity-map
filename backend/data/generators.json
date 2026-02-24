@@ -948,7 +948,8 @@
         "node": "KOE1101 NGA0",
         "capacity": 27.5,
         "fuel": "Geothermal",
-        "fuelCode": "GEO"
+        "fuelCode": "GEO",
+        "active": false
       },
       {
         "name": "Ngāwhā Station 3",
