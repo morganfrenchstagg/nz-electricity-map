@@ -125,6 +125,15 @@
         "island": "north"
     },
     {
+        "lat": -37.18780805831866, 
+        "long":175.0012307779386,
+        "siteId": "BOT",
+        "description": "Bombay Tee",
+        "type": "TEE",
+        "gridZone": 2,
+        "island": "north"
+    },
+    {
         "long": 174.959798041143,
         "lat": -36.9735888204098,
         "siteId": "BHL",
