@@ -349,5 +349,34 @@ export const underConstruction = [
             "long": 174.4170733039791
         },
         "link": "https://contact.co.nz/about-us/sustainability/our-projects/glorit-solar-farm"
-    }
+    },
+    {
+        "name": "Te Rere Hau",
+        "fuel": "Wind",
+        "site": "NZW",
+        "operator": "Meridian Energy",
+        "status": "Early Works",
+        "capacityMW": 170,
+        "yearlyGenerationGWh": 750,
+        "openBy": "2029-12-31",
+        "costMillionDollars": 695,
+        "location": {
+            "lat": -40.392243948674505,
+            "long": 175.73159624290764
+        },
+        "link": "https://www.meridianenergy.co.nz/new-projects/te-rere-hau"
+    },
+    {
+        "name": "Foxton",
+        "fuel": "Solar",
+        "operator": "Aquila Clean Energy APAC",
+        "status": "Early Works",
+        "capacityMWp": 40,
+        "openBy": "2028-12-31",
+        "location": {
+            "lat": -40.45942811335417, 
+            "long":175.27174409437094
+        },
+        "link": "https://foxtonsolarfarm.co.nz/"
+    },
 ]
