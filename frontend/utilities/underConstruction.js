@@ -17,19 +17,6 @@ export const underConstruction = [
         "link": "https://contact.co.nz/aboutus/media-centre/2024/06/30/contact-to-develop-a-gridscale-100-mw-battery-in-auckland"
     },
     {
-        "name": "Ngā Tamariki",
-        "locationDescription": "Unit 5",
-        "site": "NTM",
-        "fuel": "Geothermal",
-        "operator": "Mercury",
-        "status": "Commissioning",
-        "costMillionDollars": 220,
-        "capacityMW": 46,
-        "yearlyGenerationGWh": 390,
-        "openBy": "2026-01-31",
-        "link": "https://www.mercury.co.nz/about-us/renewable-energy/geothermal/nga-tamariki-expansion"
-    },
-    {
         "name": "Kaiwera Downs",
         "locationDescription": "Stage 2",
         "site": "KWD",
@@ -352,6 +339,7 @@ export const underConstruction = [
     },
     {
         "name": "Te Rere Hau",
+        "locationDescription": "Repowering",
         "fuel": "Wind",
         "site": "NZW",
         "operator": "Meridian Energy",
