@@ -1834,7 +1834,7 @@
     },
     "gridZone": "UNI",
     "island": "NI",
-    "operator": "Far North Solar Farm"
+    "operator": "Aquila Clean Energy APAC"
   },
   {
     "site": "SZR",
@@ -2070,5 +2070,26 @@
     "gridZone": "CNI",
     "island": "NI",
     "operator": "Lodestone Energy"
+  },
+  {
+    "site": "EDS",
+    "name": "Omeheu",
+    "units": [
+      {
+        "name": "Omeheu",
+        "unitCode": "EDS0",
+        "node": "EDG0331 EDS0",
+        "capacity": 27,
+        "fuel": "Solar",
+        "fuelCode": "SOL"
+      }
+    ],
+    "location": {
+        "lat": -37.980200616946675,
+        "long": 176.85378338623394
+    },
+    "gridZone": "CNI",
+    "island": "NI",
+    "operator": "Aquila Clean Energy APAC"
   }
 ]
