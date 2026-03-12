@@ -181,7 +181,7 @@ export const underConstruction = [
         "substation": "Edgecumbe",
         "fuel": "Solar",
         "operator": "Far North Solar Farm",
-        "status": "Under Construction",
+        "status": "Pre-Commissioning",
         "capacityMWp": 38,
         "capacityMW": 27,
         "openBy": "2026-05-31",
