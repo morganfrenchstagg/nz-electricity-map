@@ -1650,5 +1650,14 @@
         "type": "ACSTN",
         "gridZone": 3,
         "island": "north"
+    },
+    {
+        "long": 169.0649784126162,
+        "lat": -46.21802344519026,
+        "siteId": "KIW",
+        "description": "Kaiwera Downs",
+        "type": "ACSTN",
+        "gridZone": 14,
+        "island": "south"
     }
 ]
