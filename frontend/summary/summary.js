@@ -58,7 +58,7 @@ async function getStats() {
     var status = document.getElementById("status");
     status.innerHTML = "Last Updated: .. minutes ago";
 
-    const generationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
+    const generationDataResponse = await fetch('https://api.frenchsta.gg/v1/generators');
     const generationData = await generationDataResponse.json();
 
     const substationDataResponse = await fetch('https://api.frenchsta.gg/v1/nzgrid');
