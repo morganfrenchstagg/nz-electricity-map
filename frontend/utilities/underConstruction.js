@@ -136,7 +136,7 @@ export const underConstruction = [
         "capacityMW": 150,
         "capacityMWp": 202,
         "yearlyGenerationGWh": 280,
-        "openBy": "2026-04-30",
+        "openBy": "2026-06-30",
         "link": "https://www.nzherald.co.nz/business/companies/energy/harmony-clarus-to-build-nzs-biggest-solar-farm/WT6NL3WI3ZG6XBUAOXBNHWYUPY/",
         "location": {
             "lat": -37.58021852639933,
