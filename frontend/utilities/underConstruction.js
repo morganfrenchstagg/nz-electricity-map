@@ -244,7 +244,7 @@ export const underConstruction = [
         "name": "Mt Cass",
         "fuel": "Wind",
         "operator": "Yinson Renewables",
-        "status": "Committed",
+        "status": "Under Construction",
         "capacityMW": 94.6,
         "openBy": "2028-01-31",
         "yearlyGenerationGWh": 300,
