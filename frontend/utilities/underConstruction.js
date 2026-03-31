@@ -33,23 +33,6 @@ export const underConstruction = [
         "link": "https://contact.co.nz/aboutus/media-centre/2024/06/09/new-turbines-at-contacts-roxburgh-dam"
     },
     {
-        "name": "Papareireiā",
-        "site": "",
-        "substation": "Maungaturoto",
-        "fuel": "Solar",
-        "operator": "Maungaturoto Solar Farm Project LP",
-        "status": "Commissioning",
-        "capacityMW": 17.6,
-        "capacityMWp": 21,
-        "yearlyGenerationGWh": 32,
-        "openBy": "2026-01-31",
-        "location": {
-            "lat": -36.08995575600482,
-            "long": 174.34730610408738
-        },
-        "link": "https://www.al.nz/17821-2/"
-    },
-    {
         "name": "Kōwhai Park",
         "locationDescription": "Phase 1",
         "site": "",
