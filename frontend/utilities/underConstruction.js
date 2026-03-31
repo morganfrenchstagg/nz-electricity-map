@@ -296,6 +296,7 @@ export const underConstruction = [
         "operator": "Northpower",
         "status": "Under Construction",
         "capacityMW": 18,
+        "capacityMWp": 20,
         "openBy": "2026-11-30",
         "location": {
             "lat": -35.76401439273073,
