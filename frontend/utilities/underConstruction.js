@@ -291,7 +291,7 @@ export const underConstruction = [
         "link": "https://www.hiringaenergy.com/post/kapuni-project-reaches-financial-close-unlocking-integrated-renewable-energy-and-green-hydrogen-pro"
     },
     {
-        "name": "Maungatapere",
+        "name": "Puna Komaru",
         "fuel": "Solar",
         "operator": "Northpower",
         "status": "Under Construction",
