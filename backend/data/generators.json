@@ -2091,5 +2091,26 @@
     "gridZone": "CNI",
     "island": "NI",
     "operator": "Aquila Clean Energy APAC"
+  },
+  {
+    "site": "TAH",
+    "name": "Tauhei",
+    "units": [
+      {
+        "name": "Tauhei",
+        "unitCode": "TAH0",
+        "node": "WHU1101 TAH0",
+        "capacity": 150,
+        "fuel": "Solar",
+        "fuelCode": "SOL"
+      }
+    ],
+    "location": {
+            "lat": -37.58021852639933,
+            "long": 175.71220320550398
+        },
+    "gridZone": "CNI",
+    "island": "NI",
+    "operator": "Harmoney Energy / First Renewables"
   }
 ]
