@@ -95,7 +95,7 @@ export const underConstruction = [
     },
     {
         "name": "Tauhei",
-        "site": "",
+        "site": "TAH",
         "fuel": "Solar",
         "operator": "Harmoney Energy / First Renewables",
         "status": "Pre-Commissioning",
