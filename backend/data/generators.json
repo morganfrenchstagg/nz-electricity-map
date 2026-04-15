@@ -491,6 +491,22 @@
         "capacity": 240,
         "fuel": "Coal/Gas",
         "fuelCode": "CLG"
+      },
+      {
+        "name": "Huntly BESS",
+        "unitCode": "HLY11",
+        "node": "HLY2201 HLY11",
+        "capacity": 100,
+        "fuel": "Battery (Discharging)",
+        "fuelCode": "BESS"
+      },
+      {
+        "name": "Huntly BESS",
+        "unitCode": "HLY11",
+        "node": "HLY2201 HLY91",
+        "capacity": -100,
+        "fuel": "Battery (Charging)",
+        "fuelCode": "BESS-C"
       }
     ],
     "location": {
