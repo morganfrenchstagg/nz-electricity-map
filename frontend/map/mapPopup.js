@@ -175,7 +175,7 @@ function populateGeneratorUnitList(generatorData) {
     let totalOutage = 0;
     let html = '';
 
-    generatorData.units.sort((a, b) => a.unitCode.localeCompare(b.unitCode)).forEach((unit) => {
+    generatorData.units.sort((a, b) => a.name.localeCompare(b.name)).forEach((unit) => {
         if (unit.generation === undefined || unit.generation === null) {
             return;
         }
