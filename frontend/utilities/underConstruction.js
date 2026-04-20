@@ -65,6 +65,19 @@ export const underConstruction = [
         "link": "https://api.nzx.com/public/announcement/436601/attachment/425263/436601-425263.pdf"
     },
     {
+        "name": "Huntly",
+        "locationDescription": "BESS Stage 2",
+        "site": "HLY",
+        "fuel": "Battery",
+        "operator": "Genesis Energy",
+        "status": "Committed",
+        "costMillionDollars": 106,
+        "capacityMW": 100,
+        "capacityMWh": 200,
+        "openBy": "2028-03-01",
+        "link": "https://api.nzx.com/public/announcement/471153/attachment/466779/471153-466779.pdf"
+    },
+    {
         "name": "Te Mihi",
         "locationDescription": "Stage 2a",
         "site": "THI",
