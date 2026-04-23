@@ -2,7 +2,7 @@ import { getCurrentTimeInNZ } from "./units.js";
 
 var statusSpan = document.getElementById("graph-status");
 
-let localUrl = (path) => `http://[::]:8000/backend/output/${path}`;
+let localUrl = (path) => `http://localhost:8080/backend/output/${path}`;
 let prodUrl = (path) => `https://api.frenchsta.gg/v1/${path}`;
 
 let isProd = (new URLSearchParams(window.location.search)).get('local') !== 'true';
@@ -56,6 +56,12 @@ export async function getTimeseriesGenerationData(date){
 
 export async function getTimeseriesPriceData(date){
     var dateStr = formatDate(date);
+
+    if(!isProd) {
+        const response = await (fetchJson(`5min/${dateStr}.price.json`))
+
+        return response;
+    }
     const response = await (fetchJson(`generator-history/5-min/${dateStr}.price.json`))
 
     return response;
@@ -75,4 +81,27 @@ export async function getLiveSubstationData(){
     }
 
     return fetchJson('nzgrid');
+}
+
+export async function getTimeseriesOfferData(date){
+    let url;
+
+    if (!isProd) {
+        const metadata = await fetchJson('offers/metadata.json');
+        const sortedDates = Object.keys(metadata).sort();
+        const targetDate = (date && metadata[formatDate(date)]) ? formatDate(date) : sortedDates[sortedDates.length - 1];
+        return fetchJson(`offers/${targetDate}.json`);
+    }
+
+    if (date) {
+        const dateStr = formatDate(date);
+        url = `https://sites-api.frenchsta.gg/v1/offers/date?date=${dateStr}`;
+    } else {
+        url = `https://sites-api.frenchsta.gg/v1/offers/date`;
+    }
+    const response = await fetch(url);
+    if (response.status === 200) {
+        return response.json();
+    }
+    return {};
 }
