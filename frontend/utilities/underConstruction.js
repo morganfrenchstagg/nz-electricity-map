@@ -99,7 +99,7 @@ export const underConstruction = [
         "costMillionDollars": 287,
         "capacityMW": 77,
         "yearlyGenerationGWh": 221,
-        "openBy": "2026-12-31",
+        "openBy": "2026-07-31",
         "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/kaiwaikawe-wind-farm",
         "location": {
             "lat": -35.89090838067845,
@@ -132,7 +132,7 @@ export const underConstruction = [
         "capacityMW": 130,
         "yearlyGenerationGWh": 216,
         "costMillionDollars": 227,
-        "openBy": "2027-03-31",
+        "openBy": "2026-10-31",
         "link": "https://meridianenergy.co.nz/public/Investors/Reports-and-presentations/Investor-presentations/2024/ruakaka-solar-announcement-March-2025.pdf",
         "location": {
             "lat": -35.847508029631044,
@@ -147,7 +147,7 @@ export const underConstruction = [
         "status": "Under Construction",
         "capacityMWp": 27.7,
         "yearlyGenerationGWh": 43,
-        "openBy": "2026-09-30",
+        "openBy": "2026-06-30",
         "location": {
             "lat": -44.19057439138792,
             "long": 171.40868907547915
