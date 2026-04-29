@@ -2128,5 +2128,26 @@
     "gridZone": "CNI",
     "island": "NI",
     "operator": "Harmoney Energy / First Renewables"
+  },
+  {
+    "site": "DVK",
+    "name": "Dannevirke",
+    "units": [
+      {
+        "name": "Dannevirke",
+        "unitCode": "DVK0",
+        "node": "DVK0111 DVK0",
+        "capacity": 19,
+        "fuel": "Solar",
+        "fuelCode": "SOL"
+      }
+    ],
+    "location": {
+      "lat": -40.19329473785136,
+      "long": 176.03669826644835
+    },
+    "gridZone": "LNI",
+    "island": "NI",
+    "operator": "BrightFern Energy"
   }
 ]
