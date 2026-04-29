@@ -239,6 +239,7 @@ export const underConstruction = [
         "fuel": "Solar",
         "operator": "BrightFern Energy",
         "status": "Pre-Commissioning",
+        "capacityMW": 19,
         "capacityMWp": 23,
         "openBy": "2026-04-30",
         "location": {
