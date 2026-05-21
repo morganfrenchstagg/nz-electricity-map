@@ -61,7 +61,7 @@ export const underConstruction = [
         "costMillionDollars": 150,
         "capacityMW": 100,
         "capacityMWh": 200,
-        "openBy": "2026-05-30",
+        "openBy": "2026-07-30",
         "link": "https://api.nzx.com/public/announcement/436601/attachment/425263/436601-425263.pdf"
     },
     {
@@ -161,7 +161,7 @@ export const underConstruction = [
         "substation": "Edgecumbe",
         "fuel": "Solar",
         "operator": "Far North Solar Farm",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "capacityMWp": 38,
         "capacityMW": 27,
         "openBy": "2026-05-31",
@@ -207,20 +207,6 @@ export const underConstruction = [
         "link": "https://www.genesisenergy.co.nz/about/news/genesis-reaches-final-investment-decision-for-edgecumbe-solar-farm"
     },
     {
-        "name": "Rangimarie",
-        "fuel": "Solar",
-        "operator": "NewPower Energy",
-        "status": "Under Construction",
-        "capacityMWp": 12.4,
-        "capacityMW": 10,
-        "openBy": "2026-04-31",
-        "location": {
-            "lat": -37.27559991938551,
-            "long": 175.17434285059372
-        },
-        "link": "https://newpowerenergy.co.nz/asset/rangimarie/"
-    },
-    {
         "name": "Mt Cass",
         "fuel": "Wind",
         "operator": "Yinson Renewables",
@@ -241,7 +227,7 @@ export const underConstruction = [
         "status": "Pre-Commissioning",
         "capacityMW": 19,
         "capacityMWp": 23,
-        "openBy": "2026-04-30",
+        "openBy": "2026-05-30",
         "location": {
             "lat": -40.19329473785136,
             "long": 176.03669826644835
