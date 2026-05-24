@@ -2,7 +2,7 @@ import { getCurrentTimeInNZ } from "./units.js";
 
 var statusSpan = document.getElementById("graph-status");
 
-let localUrl = (path) => `http://localhost:8080/backend/output/${path}`;
+let localUrl = (path) => `/backend/output/${path}`;
 let prodUrl = (path) => `https://api.frenchsta.gg/v1/${path}`;
 
 let isProd = (new URLSearchParams(window.location.search)).get('local') !== 'true';
