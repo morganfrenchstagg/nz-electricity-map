@@ -1,10 +1,12 @@
 import json
 from os import path
+from pathlib import Path
 from services.LiveGenerators import LiveGenerators
 from services.LiveSubstations import LiveSubstations
 from services.GeneratorDescriptions import GeneratorDescriptions
 from services.SubstationDescriptions import SubstationDescriptions
 from services.RealTimeDispatch import RealTimeDispatch
+from services.Offers import Offers
 from services.Outages import Outages
 
 pathPrefix = 'output/'
@@ -16,6 +18,7 @@ def __init__():
     substationDescriptions = SubstationDescriptions()
     realTimeDispatch = RealTimeDispatch()
     outages = Outages()
+    offers = Offers(genDesc)
     
     liveGenerators = LiveGenerators(genDesc, realTimeDispatch, outages)
     liveGenData = liveGenerators.getLiveGeneratorOutput()
@@ -23,16 +26,21 @@ def __init__():
     liveSubstations = LiveSubstations(realTimeDispatch, genDesc, substationDescriptions)
 
     createGeneratorOutputFile(liveGenData)
-    create5MinuteIntervalFile(liveGenerators, realTimeDispatch, liveGenData)
+    create5MinuteGenerationFile(liveGenerators, realTimeDispatch, liveGenData)
     create5MinutePriceFile(realTimeDispatch)
+    updateOffersTable(offers)
     createSubstationOutputFile(liveSubstations)
 
+def updateOffersTable(offers: Offers):
+    offers.updateOffers()
 
-def create5MinuteIntervalFile(liveGenerators: LiveGenerators, realTimeDispatch: RealTimeDispatch, liveGenData):
+def create5MinuteGenerationFile(liveGenerators: LiveGenerators, realTimeDispatch: RealTimeDispatch, liveGenData):
     lastUpdated = realTimeDispatch.lastUpdated()
 
     existingData = {}
     dailyFile = pathPrefix + '5min/' + lastUpdated.split('T')[0] + '.json'
+
+    Path(dailyFile).parent.mkdir(parents=True, exist_ok=True)
 
     if path.isfile(dailyFile) is True:
         with open(dailyFile) as fp:
