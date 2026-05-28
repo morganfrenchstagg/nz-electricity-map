@@ -335,6 +335,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
     var sunriseFound = false;
     var sunsetFound = false;
 
+    var previousTimestamp = new Date(tradingPeriodTimestamps[0]);
     tradingPeriodTimestamps.forEach((time, index) => {
         var currentTimestamp = new Date(time);
 
@@ -345,7 +346,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
                     minute: "numeric"
                 }));
 
-        if (isMidnight(time) && index > 0) {
+        if (currentTimestamp.getDate() != previousTimestamp.getDate()) {
             // adds a 'plotline' to the graph at Midnight to delineate when the date changes
             plotLines.push({
                 color: 'black',
@@ -379,6 +380,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
                 zIndex: 0
             })
         }
+        previousTimestamp = currentTimestamp;
     });
 
     let subtitle = getSubtitleText(tradingPeriodTimestamps[0], mostRecentTradingPeriodTimestamp);
