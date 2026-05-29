@@ -76,3 +76,12 @@ export async function getLiveSubstationData(){
 
     return fetchJson('nzgrid');
 }
+
+export async function getLiveData(){
+    const response = await fetch("https://api.electricitymap.frenchsta.gg/v1/dispatch/latest");
+    if(response.status === 200){
+        return response.json();
+    }
+
+    return {};
+}

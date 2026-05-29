@@ -1,4 +1,5 @@
 import { displayMegawattsOrGigawatts, RENEWABLE_FUELS, FUELS_KEY, SKIP_LIST, formatFuel, getCurrentTimeInNZ } from '../utilities/units.js';
+import { getLiveData } from '../utilities/api.js';
 
 const waitakiGeneratorSiteCodes = ["TKA", "TKB", "OHA", "OHB", "OHC", "BEN", "AVI", "WTK"];
 const waikatoHydroSiteCodes = ["ARA", "OHK", "ATI", "WKM", "MTI", "WPA", "ARI", "KPO"];
@@ -27,7 +28,63 @@ const gridZoneNames = {
     14: "Southland"
 }
 
+function processLiveData(liveData) {
+    let islands = {
+        NI: {
+        },
+        SI: {
+        }
+    };
+
+    let schemes = {};
+
+    for(let generatorKey in liveData.generators) {
+        const generator = liveData.generators[generatorKey];
+        for(let unitKey in generator.units) {
+            const unit = generator.units[unitKey];
+            islands[generator.island][unit.fuel] = islands[generator.island][unit.fuel] ? {
+                generation: islands[generator.island][unit.fuel].generation + unit.dispatch?.generation,
+                capacity: islands[generator.island][unit.fuel].capacity + unit.capacity
+            } : {
+                generation: unit.dispatch?.generation,
+                capacity: unit.capacity
+            };
+
+            if(generator.scheme){
+                schemes[generator.scheme] = schemes[generator.scheme] ? {
+                    generation: schemes[generator.scheme].generation + unit.dispatch?.generation,
+                    capacity: schemes[generator.scheme].capacity + unit.capacity
+                } : {
+                    generation: unit.dispatch?.generation,
+                    capacity: unit.capacity
+                };
+            }
+        }
+    }
+
+    let nz = {};
+    Object.keys(islands).forEach(island => {
+        Object.keys(islands[island]).forEach(fuel => {
+            nz[fuel] = nz[fuel] ? {
+                generation: nz[fuel].generation + islands[island][fuel].generation,
+                capacity: nz[fuel].capacity + islands[island][fuel].capacity
+            } : {
+                generation: islands[island][fuel].generation,
+                capacity: islands[island][fuel].capacity
+            };
+        })
+    })
+
+    console.log(islands);
+    console.log(nz);
+    console.log(schemes);
+}
+
 async function getStats() {
+
+    const liveData = await getLiveData();
+    processLiveData(liveData);
+
     var nzGeneration = 0;
     var nzCapacity = 0;
 
