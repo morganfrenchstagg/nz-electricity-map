@@ -1,7 +1,6 @@
 import { detemineMapColour } from "../utilities/colours.js";
 import { populateGeneratorPopup, populateSubstationPopup, newBuildGenerationCapacityString } from "./mapPopup.js";
 import { underConstruction } from "../utilities/underConstruction.js";
-import { getLiveGenerationData, getLiveSubstationData } from "../utilities/api.js";
 import { SKIP_LIST, formatFuel, getCurrentTimeInNZ } from "../utilities/units.js";
 import { distributed } from "../utilities/distributed.js";
 
@@ -235,7 +234,8 @@ function updateGenerationMap(generationData, generationLayer) {
 async function getGenerationData(substationMarkers) {
     setNavStatus(`Loading...`);
 
-    const generationData = await getLiveGenerationData();
+    const generationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
+    const generationData = await generationDataResponse.json();
     var now = getCurrentTimeInNZ();
 
     var lastUpdatedDate = Date.parse(generationData.lastUpdate);
