@@ -41,17 +41,12 @@ export async function getTimeseriesGenerationData(date){
 
     statusSpan.innerHTML = `${spinnerHtml} Fetching data for ${date.toLocaleDateString('en-NZ')}`;
 
-    if(!isProd){
-        const response = await fetchJson(`5min/${dateStr}.json`)
+    const response = await fetch(`https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/history/generation/${dateStr}`)
+    const json = response.json();
 
-        timeseriesGenerationDataCache[dateStr] = response;
-        return response;
-    }
-    const response = await fetchJson(`generator-history/5-min/${dateStr}.json`)
+    timeseriesGenerationDataCache[dateStr] = json;
 
-    timeseriesGenerationDataCache[dateStr] = response;
-
-    return response;
+    return json ;
 }
 
 export async function getTimeseriesPriceData(date){
@@ -63,6 +58,6 @@ export async function getTimeseriesPriceData(date){
 
 export async function getLiveGenerationData(){
     const response = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
-    
+
     return response.json();
 }
