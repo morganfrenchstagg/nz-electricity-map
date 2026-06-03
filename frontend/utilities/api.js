@@ -62,17 +62,7 @@ export async function getTimeseriesPriceData(date){
 }
 
 export async function getLiveGenerationData(){
-    if (!isProd) {
-        return fetchJson('generatorOutput.json');
-    }
+    const response = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
 
-    return fetchJson('generators');
-}
-
-export async function getLiveSubstationData(){
-    if (!isProd) {
-        return fetchJson('substationOutput.json');
-    }
-
-    return fetchJson('nzgrid');
+    return response.json();
 }
