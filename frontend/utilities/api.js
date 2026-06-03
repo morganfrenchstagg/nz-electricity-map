@@ -55,8 +55,7 @@ export async function getTimeseriesGenerationData(date){
 }
 
 export async function getTimeseriesPriceData(date){
-    var dateStr = formatDate(date);
-    const response = await (fetchJson(`generator-history/5-min/${dateStr}.price.json`))
+    const response = await fetch(`https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/history/generation/${formatDate(date)}`)
 
     return response;
 }
