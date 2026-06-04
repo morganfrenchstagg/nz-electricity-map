@@ -241,6 +241,10 @@ export const underConstruction = [
         "status": "Under Construction",
         "capacityMWp": 30,
         "capacityMW": 24,
+        "location": {
+            "lat": -37.80261591853313,
+            "long": 175.43521168285304
+        },
         "openBy": "2027-03-30",
     },
     {
