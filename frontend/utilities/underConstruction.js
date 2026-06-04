@@ -336,4 +336,18 @@ export const underConstruction = [
         },
         "link": "https://foxtonsolarfarm.co.nz/"
     },
+    {
+        "name": "Central Hawke's Bay",
+        "fuel": "Solar",
+        "operator": "Lodestone Energy / Centralines",
+        "status": "Early Works",
+        "capacityMWp": 31.5,
+        "yearlyGenerationGWh": 49,
+        "openBy": "2027-03-31",
+        "location": {
+            "lat": -39.931839993313126,
+            "long": 176.48699248669283
+        },
+        "link": "https://lodestoneenergy.co.nz/central-hawkes-bay-solar-farm/"
+    }
 ]
