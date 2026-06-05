@@ -224,7 +224,7 @@ export const underConstruction = [
         "name": "Dannevirke",
         "fuel": "Solar",
         "operator": "BrightFern Energy",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "capacityMW": 19,
         "capacityMWp": 23,
         "openBy": "2026-05-30",
