@@ -266,7 +266,7 @@
     },
     "gridZone": "USI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "ONU",
@@ -330,7 +330,7 @@
     },
     "gridZone": "USI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "COL",
@@ -351,7 +351,7 @@
     },
     "gridZone": "USI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "WPI",
@@ -380,7 +380,7 @@
     },
     "gridZone": "LSI",
     "island": "SI",
-    "operator": "Manawa Energy",
+    "operator": "Contact Energy",
     "alias": "BWK"
   },
   {
@@ -446,7 +446,7 @@
     },
     "gridZone": "USI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "HLY",
@@ -536,7 +536,7 @@
     },
     "gridZone": "LNI",
     "island": "NI",
-    "operator": "Todd Energy"
+    "operator": "Nova Energy"
   },
   {
     "site": "KUM",
@@ -557,7 +557,7 @@
     },
     "gridZone": "USI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "KMI",
@@ -578,7 +578,7 @@
     },
     "gridZone": "CNI",
     "island": "NI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "KTW",
@@ -800,8 +800,7 @@
     },
     "gridZone": "LNI",
     "island": "NI",
-    "operator": "Manawa Energy",
-    "secondaryOperator": "King Country Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "MTI",
@@ -844,7 +843,7 @@
     },
     "gridZone": "CNI",
     "island": "NI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "MKE",
@@ -865,7 +864,7 @@
     },
     "gridZone": "LNI",
     "island": "NI",
-    "operator": "Todd Energy"
+    "operator": "Nova Energy"
   },
   {
     "site": "MCK",
@@ -1004,7 +1003,7 @@
     },
     "gridZone": "LSI",
     "island": "SI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "PTA",
@@ -1041,7 +1040,7 @@
     },
     "gridZone": "LNI",
     "island": "NI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "PRI",
@@ -1350,7 +1349,7 @@
     },
     "gridZone": "LNI",
     "island": "NI",
-    "operator": "New Zealand Windfarms",
+    "operator": "Meridian Energy",
     "scheme": "Manawatū Wind"
   },
   {
@@ -1628,7 +1627,7 @@
     },
     "gridZone": "CNI",
     "island": "NI",
-    "operator": "Manawa Energy"
+    "operator": "Contact Energy"
   },
   {
     "site": "WHI",
