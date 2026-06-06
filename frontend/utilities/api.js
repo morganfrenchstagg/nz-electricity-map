@@ -51,13 +51,21 @@ export async function getTimeseriesGenerationData(date){
 
 export async function getTimeseriesPriceData(date){
     var dateStr = formatDate(date);
-    const response = await (fetchJson(`generator-history/5-min/${dateStr}.price.json`))
+    const response = await fetch(`https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/history/price/${dateStr}`);
+    const json = response.json();
 
-    return response;
+    return json;
 }
 
 export async function getLiveGenerationData(){
     const response = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
 
     return response.json();
+}
+
+export async function getTimeseriesOfferData(date){
+    console.log(date);
+    var dateStr = formatDate(date);
+    const result = fetch(`https://api.electricitymap.frenchsta.gg/v1/offers/${dateStr}`);
+    return (await result).json();
 }
