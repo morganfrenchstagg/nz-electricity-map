@@ -8,6 +8,8 @@ const apiKey = 'c01j05pv67hf1tcqnh8xn34jsba'; //for LINZ basemap
 const LOWER_PANE = 'lower';
 const UPPER_PANE = 'upper';
 
+let lastUpdatedTimestamp = "";
+
 setupMap();
 
 function setupMap() {
@@ -17,17 +19,17 @@ function setupMap() {
     const distributedSelection = getQueryParam("distributed") || '0';
 
     const startPos = [
-        getQueryParam("lat") || -40.5, 
+        getQueryParam("lat") || -40.5,
         getQueryParam("long") || 173
     ];
     const startZoom = getQueryParam("zoom") || 6;
 
     const linz = L.tileLayer(
-        'https://basemaps.linz.govt.nz/v1/tiles/aerial/EPSG:3857/{z}/{x}/{y}.webp?api=' + apiKey, 
+        'https://basemaps.linz.govt.nz/v1/tiles/aerial/EPSG:3857/{z}/{x}/{y}.webp?api=' + apiKey,
         { attribution: '<a href="https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution">LINZ CC BY 4.0 © Imagery Basemap contributors</a>' });
 
     const osm = L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', 
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
 
     const baseMaps = {
@@ -39,7 +41,7 @@ function setupMap() {
     const substationLayer = L.layerGroup();
     const underConstructionLayer = L.layerGroup();
     const distributedLayer = L.layerGroup();
-    
+
     const overlays = {
         "Power Stations": generatorMarkers,
         "Substations": substationLayer,
@@ -55,11 +57,11 @@ function setupMap() {
     /// Panes are used to ensure Generator Markers are always on top
     map.createPane(LOWER_PANE);
     map.getPane(LOWER_PANE).style.zIndex = 600;
-    
+
     map.createPane(UPPER_PANE);
-    map.getPane(UPPER_PANE).style.zIndex = 650;    
-    
-    if(basemapSelection === 'linz'){
+    map.getPane(UPPER_PANE).style.zIndex = 650;
+
+    if (basemapSelection === 'linz') {
         linz.addTo(map);
     } else {
         osm.addTo(map);
@@ -89,17 +91,17 @@ function setupMap() {
     map.on('overlayremove', (event) => onOverlayRemove(map, event));
 
     L.control.layers(baseMaps, overlays).addTo(map);
-    
+
     getSubstationData(substationLayer);
     window.setInterval(() => getSubstationData(substationLayer), 60000);
-    
+
     getGenerationData(generatorMarkers);
     window.setInterval(() => getGenerationData(generatorMarkers), 60000);
 }
 
-function addUnderConstructionSites(layer){
+function addUnderConstructionSites(layer) {
     underConstruction.forEach((site) => {
-        if(site.location === undefined || site.location === null || site.location.lat === undefined) return;
+        if (site.location === undefined || site.location === null || site.location.lat === undefined) return;
         L.circleMarker([site.location.lat, site.location.long], {
             color: '#000000',
             radius: 4,
@@ -109,24 +111,24 @@ function addUnderConstructionSites(layer){
             fillColor: detemineMapColour(site),
             pane: LOWER_PANE
         }).bindPopup(
-                `<h5>${site.name}</h5>` +
-                ((site.locationDescription) ? `<b>${site.locationDescription}</b><br>` : '' ) +
-                `<b>Type: </b>${formatFuel(site.fuel)}<br>` + 
-                `<b>Status: </b>${site.status}<br>` + 
-                `<b>Operator: </b>${site.operator}<br>` +
-                `<b> Capacity: </b>` +
-                newBuildGenerationCapacityString(site) +
-                `<br>` + 
-                (site.yearlyGenerationGWh ? `<b>Yearly Generation: </b>${site.yearlyGenerationGWh} GWh</br>` : '') +
-                `<b>Expected commissioning by: </b>${(site.openBy) ? new Date(site.openBy).toLocaleDateString('en-NZ', { year: 'numeric', month: 'long' }) : 'Unknown'}`,
+            `<h5>${site.name}</h5>` +
+            ((site.locationDescription) ? `<b>${site.locationDescription}</b><br>` : '') +
+            `<b>Type: </b>${formatFuel(site.fuel)}<br>` +
+            `<b>Status: </b>${site.status}<br>` +
+            `<b>Operator: </b>${site.operator}<br>` +
+            `<b> Capacity: </b>` +
+            newBuildGenerationCapacityString(site) +
+            `<br>` +
+            (site.yearlyGenerationGWh ? `<b>Yearly Generation: </b>${site.yearlyGenerationGWh} GWh</br>` : '') +
+            `<b>Expected commissioning by: </b>${(site.openBy) ? new Date(site.openBy).toLocaleDateString('en-NZ', { year: 'numeric', month: 'long' }) : 'Unknown'}`,
             { maxWidth: 800 })
-        .addTo(layer)
+            .addTo(layer)
     });
 }
 
-function addDistributedSites(layer){
+function addDistributedSites(layer) {
     distributed.forEach((site) => {
-        
+
         L.circleMarker([site.location.lat, site.location.long], {
             color: '#000000',
             radius: 4,
@@ -136,15 +138,15 @@ function addDistributedSites(layer){
             fillColor: detemineMapColour(site),
             pane: LOWER_PANE
         }).bindPopup(
-                `<p>${site.name}</p>` +
-                `<p>${site.fuel}</p>` + 
-                `<p><b>Capacity: </b>${site.capacity}MW`,
+            `<p>${site.name}</p>` +
+            `<p>${site.fuel}</p>` +
+            `<p><b>Capacity: </b>${site.capacity}MW`,
             { maxWidth: 800 })
-        .addTo(layer)
+            .addTo(layer)
     })
 }
 
-function onMapMove(map, event){
+function onMapMove(map, event) {
     let centerPoint = map.getCenter();
     let zoomLevel = event.target._zoom;
 
@@ -153,41 +155,41 @@ function onMapMove(map, event){
     setQueryParam('long', centerPoint.lng);
 }
 
-function onBaselayerChange(map, event){
-    if(event.name === 'Satellite'){
+function onBaselayerChange(map, event) {
+    if (event.name === 'Satellite') {
         setQueryParam('basemap', 'linz');
-    } else if (event.name === 'Streets'){
+    } else if (event.name === 'Streets') {
         setQueryParam('basemap', 'osm');
     }
 }
 
-function onOverlayAdd(map, event){
-    if(event.name === 'Power Stations'){
+function onOverlayAdd(map, event) {
+    if (event.name === 'Power Stations') {
         setQueryParam('generators', '1');
     }
 
-    if(event.name === 'Substations'){
+    if (event.name === 'Substations') {
         setQueryParam('substations', '1');
     }
 }
 
-function onOverlayRemove(map, event){
+function onOverlayRemove(map, event) {
     console.log("Overlay Removed")
     console.log(event);
 
-    if(event.name === 'Power Stations'){
+    if (event.name === 'Power Stations') {
         setQueryParam('generators', '0');
     }
 
-    if(event.name === 'Substations'){
+    if (event.name === 'Substations') {
         setQueryParam('substations', '0');
     }
 }
 
-function setQueryParam(param, value){
+function setQueryParam(param, value) {
     var searchParams = new URLSearchParams(window.location.search);
 
-    if(value === ""){
+    if (value === "") {
         searchParams.delete(param);
     } else {
         searchParams.set(param, value);
@@ -197,7 +199,7 @@ function setQueryParam(param, value){
     history.replaceState(null, '', newRelativePathQuery);
 }
 
-function getQueryParam(param){
+function getQueryParam(param) {
     var searchParams = new URLSearchParams(window.location.search);
     return searchParams.get(param);
 }
@@ -214,7 +216,7 @@ function updateGenerationMap(generationData, generationLayer) {
             return;
         }
 
-        if(SKIP_LIST.includes(generator.site)) return;
+        if (SKIP_LIST.includes(generator.site)) return;
 
         var markerColour = detemineMapColour(generator.units[0]);
         var generatorHtml = populateGeneratorPopup(generator, formattedLastUpdated);
@@ -232,28 +234,42 @@ function updateGenerationMap(generationData, generationLayer) {
 }
 
 async function getGenerationData(substationMarkers) {
+    var now = getCurrentTimeInNZ();
+
+    const previousUpdatedMinutesAgo = Math.round((now - Date.parse(lastUpdatedTimestamp)) / 1000 / 60);
+    if (lastUpdatedTimestamp && previousUpdatedMinutesAgo <= 5) {
+        return;
+    }
+
     setNavStatus(`Loading...`);
 
     const generationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/generators');
     const generationData = await generationDataResponse.json();
-    var now = getCurrentTimeInNZ();
 
     var lastUpdatedDate = Date.parse(generationData.lastUpdate);
     var updatedMinutesAgo = Math.round((now - lastUpdatedDate) / 1000 / 60);
     setNavStatus(`Last Updated: ${updatedMinutesAgo} minutes ago`);
 
+    lastUpdatedTimestamp = generationData.lastUpdate;
+
     updateGenerationMap(generationData, substationMarkers);
 }
 
-function setNavStatus(value){
+function setNavStatus(value) {
     var status = document.getElementById("status");
     status.innerHTML = value;
 }
 
 async function getSubstationData(substationLayer) {
+    var now = getCurrentTimeInNZ();
+
+    const updatedMinutesAgo = Math.round((now - Date.parse(lastUpdatedTimestamp)) / 1000 / 60);
+    if (lastUpdatedTimestamp && updatedMinutesAgo <= 5) {
+        return;
+    }
     const substationDataResponse = await fetch('https://api.electricitymap.frenchsta.gg/v1/dispatch/legacy/nzgrid');
     const substationData = await substationDataResponse.json();
-    
+
     updateSubstationMap(substationData, substationLayer);
 }
 
@@ -263,10 +279,10 @@ function updateSubstationMap(substationData, substationLayer) {
     substationLayer.clearLayers();
 
     substationData.sites.forEach((substation) => {
-        if(substation.type !== 'ACSTN'  && substation.totalLoadMW == 0){
+        if (substation.type !== 'ACSTN' && substation.totalLoadMW == 0) {
             return;
-          }
-        
+        }
+
         var substationHtml = populateSubstationPopup(substation, lastUpdated);
 
         L.circleMarker([substation.lat, substation.long], {
