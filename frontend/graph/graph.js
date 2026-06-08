@@ -198,6 +198,13 @@ async function getTradingPeriodStats(forceUpdate = false) {
         return;
     }
 
+    let graphUpdatedMinutesAgo = Math.round((getCurrentTimeInNZ() - Date.parse(graphLastUpdatedTimestamp)) / 1000 / 60);
+
+    if (graphLastUpdatedTimestamp && graphUpdatedMinutesAgo <= 5) {
+        statusSpan.innerHTML = `Last Updated: ${graphUpdatedMinutesAgo} minutes ago`;
+        return;
+    }
+
     updateInProgress = true;
     timeframeSelector.toggleBlockSelectionChanges();
     console.debug("Updating trading period stats graph");
@@ -246,7 +253,8 @@ async function getTradingPeriodStats(forceUpdate = false) {
 
     // populate 'Last updated x minutes ago' on statusbar
     var lastUpdatedDate = Date.parse(tradingPeriodTimestamps[tradingPeriodTimestamps.length - 1]);
-    var lastUpdatedString = `Last Updated: ${Math.round((getCurrentTimeInNZ() - lastUpdatedDate) / 1000 / 60)} minutes ago`;
+    var lastUpdatedMinutesAgo = Math.round((getCurrentTimeInNZ() - lastUpdatedDate) / 1000 / 60);
+    var lastUpdatedString = `Last Updated: ${lastUpdatedMinutesAgo} minutes ago`;
 
     //show back button if this request was directed from the map
     var redirect = (new URLSearchParams(window.location.search)).get("redirect");
@@ -415,4 +423,4 @@ function onRedraw(event) {
 }
 
 getTradingPeriodStats();
-window.setInterval(() => getTradingPeriodStats(), 30000);
+window.setInterval(() => getTradingPeriodStats(), 60000);
