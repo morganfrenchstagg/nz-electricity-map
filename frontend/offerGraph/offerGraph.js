@@ -1,5 +1,5 @@
 import { buildSupplyCurveWithMetadata, getSupplyCurveTooltip } from './offerSupplyCurve.js';
-import { getLiveGenerationData, getTimeseriesOfferData } from '../utilities/api.js';
+import { getStaticGeneratorData, getTimeseriesOfferData } from '../utilities/api.js';
 import { OfferDateSelector } from './offerDateSelector.js';
 import { formatDate } from '../utilities/units.js';
 
@@ -13,7 +13,7 @@ let currentDate = new Date();
 let currentTradingPeriod = 1;
 let allOfferData = {};
 let apiTimestamp;
-let liveGenData = null;
+let generatorDefinitions = null;
 let dateSelector = null;
 
 operatorFilterDropdown.addEventListener('change', () => onOperatorFilterDropdownSelect(operatorFilterDropdown));
@@ -37,7 +37,7 @@ async function onTradingPeriodSelect(dropdownObject) {
 async function onOperatorFilterDropdownSelect(dropdownObject) {
     var selectedOperator = dropdownObject.options[dropdownObject.selectedIndex].value;
     const operatorToFilterTo = selectedOperator ? [selectedOperator] : [];
-    setStationDropdown(allOfferData, liveGenData, operatorToFilterTo);
+    setStationDropdown(allOfferData, generatorDefinitions, operatorToFilterTo);
 
     setQueryParam('operator', selectedOperator);
     setQueryParam('site', "");
@@ -62,7 +62,7 @@ function onClearButtonSelect() {
     window.location.search = "";
 }
 
-function setStationDropdown(allOfferData, liveGenData, operatorToFilterTo = []) {
+function setStationDropdown(allOfferData, generatorDefinitions, operatorToFilterTo = []) {
     const timestamps = Object.keys(allOfferData);
     const currentTimestamp = timestamps[currentTradingPeriod - 1] || timestamps[0];
 
@@ -72,7 +72,7 @@ function setStationDropdown(allOfferData, liveGenData, operatorToFilterTo = []) 
     defaultOption.innerHTML = "Select Power Station";
     siteFilterDropdown.appendChild(defaultOption);
 
-    liveGenData.generators.sort((a, b) => a.name.localeCompare(b.name)).forEach(generator => {
+    generatorDefinitions.sort((a, b) => a.name.localeCompare(b.name)).forEach(generator => {
         var opt = document.createElement("option");
         opt.value = generator.site;
         opt.innerHTML = `${generator.name}`;
@@ -109,7 +109,7 @@ function setTradingPeriodDropdown() {
     }
 }
 
-function setOperatorDropdown(allOfferData, liveGenData) {
+function setOperatorDropdown(allOfferData, generatorDefinitions) {
     // Clear dropdown first
     operatorFilterDropdown.innerHTML = "";
 
@@ -120,7 +120,7 @@ function setOperatorDropdown(allOfferData, liveGenData) {
     operatorFilterDropdown.appendChild(defaultOption);
 
     // Early return if data is missing or empty
-    if (!allOfferData || !liveGenData || !liveGenData.generators) {
+    if (!allOfferData || !generatorDefinitions) {
         return;
     }
 
@@ -136,8 +136,8 @@ function setOperatorDropdown(allOfferData, liveGenData) {
         return;
     }
 
-    const generatorsBySite = new Map(liveGenData.generators.map(gen => [gen.site, gen]));
-    const uniqueOperators = [... new Set(liveGenData.generators.map(generator => generator.operator))];
+    const generatorsBySite = new Map(generatorDefinitions.map(gen => [gen.site, gen]));
+    const uniqueOperators = [... new Set(generatorDefinitions.map(generator => generator.operator))];
     uniqueOperators.forEach(operator => {
         var opt = document.createElement("option");
         opt.value = operator;
@@ -165,11 +165,11 @@ async function loadData() {
 
     if (dateParam) {
         currentDate = new Date(dateParam);
-        liveGenData = await getLiveGenerationData(); //todo, does this need to get the generation data for the right date?
+        generatorDefinitions = await getStaticGeneratorData(); //todo, does this need to get the generation data for the right date?
         let offerData = await getTimeseriesOfferData(currentDate);
         allOfferData = offerData.data;
     } else {
-        liveGenData = await getLiveGenerationData();
+        generatorDefinitions = await getStaticGeneratorData();
         let offerData = await getTimeseriesOfferData();
         allOfferData = offerData.data;
         apiTimestamp = offerData.date.substr(0, 4) + '-' + offerData.date.substr(4, 2) + '-' + offerData.date.substr(6);
@@ -183,8 +183,8 @@ async function loadData() {
 
     const operatorToFilterTo = searchParams.get("operator")?.split(',') || [];
 
-    setOperatorDropdown(allOfferData, liveGenData);
-    setStationDropdown(allOfferData, liveGenData, operatorToFilterTo);
+    setOperatorDropdown(allOfferData, generatorDefinitions);
+    setStationDropdown(allOfferData, generatorDefinitions, operatorToFilterTo);
     setTradingPeriodDropdown();
 
     updateSupplyCurve();
@@ -225,7 +225,7 @@ function updateSupplyCurve() {
     // Build supply curve data
     const seriesData = buildSupplyCurveWithMetadata(
         offersForPeriod,
-        liveGenData,
+        generatorDefinitions,
         siteToFilterTo,
         operatorToFilterTo
     );

@@ -1,18 +1,18 @@
 import { getColourForFuel } from '../utilities/colours.js';
 import { FUELS_KEY, SKIP_LIST } from '../utilities/units.js';
 
-export function buildSupplyCurveWithMetadata(offers, liveGenData, siteFilter = [], operatorFilter = []) {
+export function buildSupplyCurveWithMetadata(offers, generatorDefinitions, siteFilter = [], operatorFilter = []) {
     if (!offers || offers.length === 0) {
         return [];
     }
 
-    let generatorsByUnit = liveGenData.generators.flatMap(generator => generator.units);
+    let generatorsByUnit = generatorDefinitions.flatMap(generator => generator.units);
 
     // Collect all tranches
     let allTranches = [];
 
     Object.keys(offers).forEach(node => {
-        const generator = liveGenData.generators.find(g => g.units.find(unit => unit.node === node));
+        const generator = generatorDefinitions.find(g => g.units.find(unit => unit.node === node));
 
         if (siteFilter.length > 0 && !siteFilter.includes(generator.site)) return;
         if (operatorFilter.length > 0 && generator && !operatorFilter.includes(generator.operator)) return;

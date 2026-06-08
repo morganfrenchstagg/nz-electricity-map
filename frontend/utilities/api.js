@@ -73,6 +73,11 @@ export async function getLiveGenerationData() {
     return response.json();
 }
 
+export async function getStaticGeneratorData() {
+    const response = await fetch("https://api.electricitymap.frenchsta.gg/v1/generators");
+    return response.json();
+}
+
 export async function getTimeseriesOfferData(date) {
     var dateStr = date ? formatDate(date) : "latest";
 
