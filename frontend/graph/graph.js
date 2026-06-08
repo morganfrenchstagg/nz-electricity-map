@@ -273,7 +273,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
         powerStationFilterDropdown.value = siteToFilterTo[0];
 
         siteToFilterTo.forEach(site => {
-            var liveGeneratorData = (liveGenData.generators.filter((gen) => gen.site === site))[0];
+            var liveGeneratorData = (generatorData.generators.filter((gen) => gen.site === site))[0];
             if (liveGeneratorData)
                 filterDescription += (filterDescription != "") ? ", " + liveGeneratorData.name : liveGeneratorData.name;
         });
