@@ -16,13 +16,13 @@ const timeframeSelector = new TimeFrameSelector(queryParamsNew.timeframe, queryP
 
 timeframeSelector.subscribe(updateQueryParams)
 
-function updateQueryParams(){
-    if(timeframeSelector.selectionType == "relative"){
+function updateQueryParams() {
+    if (timeframeSelector.selectionType == "relative") {
         queryParamsNew.setRelativeTimeframe(timeframeSelector.relativeTimeframe);
-    } else if(timeframeSelector.selectionType == "absolute") {
+    } else if (timeframeSelector.selectionType == "absolute") {
         queryParamsNew.setAbsoluteTimeframe(timeframeSelector.absoluteTimeframe);
     }
-    
+
     getTradingPeriodStats(true)
 }
 
@@ -37,6 +37,8 @@ const statusSpan = document.getElementById("graph-status");
 regionSelectDropdown.addEventListener('change', () => onRegionDropdownSelect(regionSelectDropdown));
 powerStationFilterDropdown.addEventListener('change', () => onGeneratorDropdownSelect(powerStationFilterDropdown));
 clearButton.addEventListener('click', () => onClearButtonSelect());
+
+const generatorData = await getLiveGenerationData();
 
 function isMidnight(time) {
     return time.split("T")[1] === "00:00:00";
@@ -212,21 +214,21 @@ async function getTradingPeriodStats(forceUpdate = false) {
 
     let data = {};
     let pricing = {};
-    if(date){
+    if (date) {
         data = await getTimeseriesGenerationData(new Date(date));
         pricing = await getTimeseriesPriceData(new Date(date));
     } else {
         let output = await getRelativeTimeseriesData(timeframe);
 
-        if(output == undefined){
+        if (output == undefined) {
             updateInProgress = false;
             statusSpan.innerHTML = "Error Loading data"
 
             let chartHTML = document.getElementById("generation-chart");
-            chartHTML.innerHTML = ""+
-                "<div class=\"text-center\" style=\"padding-top: 30vh;\">"+
-                    "<div class=\"pt-4\">Error loading chart data</div>"+
-                    "<div class=\"pt-4\">Please try again later</div>"+
+            chartHTML.innerHTML = "" +
+                "<div class=\"text-center\" style=\"padding-top: 30vh;\">" +
+                "<div class=\"pt-4\">Error loading chart data</div>" +
+                "<div class=\"pt-4\">Please try again later</div>" +
                 "</div>"
 
             return;
@@ -236,8 +238,6 @@ async function getTradingPeriodStats(forceUpdate = false) {
         pricing = output[1]
     }
 
-    const liveGenData = await getLiveGenerationData();
-
     statusSpan.innerHTML = "Updating graph...";
 
     data = fillInGaps(data);
@@ -245,7 +245,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
     const tradingPeriodTimestamps = Object.keys(data);
 
     // populate 'Last updated x minutes ago' on statusbar
-    var lastUpdatedDate = Date.parse(liveGenData.lastUpdate);
+    var lastUpdatedDate = Date.parse(tradingPeriodTimestamps[tradingPeriodTimestamps.length - 1]);
     var lastUpdatedString = `Last Updated: ${Math.round((getCurrentTimeInNZ() - lastUpdatedDate) / 1000 / 60)} minutes ago`;
 
     //show back button if this request was directed from the map
@@ -257,7 +257,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
         backButton.style.display = "none";
     }
 
-    setGeneratorDropdown(liveGenData, zoneToFilterTo, islandToFilterTo);
+    setGeneratorDropdown(generatorData, zoneToFilterTo, islandToFilterTo);
 
     // Build up a string that contains the sites we are filtering to
     let filterDescription = "";
@@ -361,7 +361,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
             });
         }
 
-        if(timeframe == "-0d" && !sunriseFound && (currentTimestamp.getTime() > sunrise.getTime())){
+        if (timeframe == "-0d" && !sunriseFound && (currentTimestamp.getTime() > sunrise.getTime())) {
             sunriseFound = true;
             plotBands.push({
                 color: NIGHTTIME_SHADING,
@@ -371,7 +371,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
             })
         }
 
-        if(timeframe == "-0d" && !sunsetFound && (currentTimestamp.getTime() > sunset.getTime())){
+        if (timeframe == "-0d" && !sunsetFound && (currentTimestamp.getTime() > sunset.getTime())) {
             sunsetFound = true;
             plotBands.push({
                 color: NIGHTTIME_SHADING,
@@ -386,10 +386,10 @@ async function getTradingPeriodStats(forceUpdate = false) {
     let subtitle = getSubtitleText(tradingPeriodTimestamps[0], mostRecentTradingPeriodTimestamp);
 
     decomissioned.forEach((decomissionedGenerator) => {
-        liveGenData.generators.push(decomissionedGenerator)
+        generatorData.generators.push(decomissionedGenerator)
     })
 
-    let seriesData = await getChartSeriesDataByFuel(liveGenData, data, pricing, siteToFilterTo, islandToFilterTo, zoneToFilterTo, fuelsToFilterTo);
+    let seriesData = await getChartSeriesDataByFuel(generatorData, data, pricing, siteToFilterTo, islandToFilterTo, zoneToFilterTo, fuelsToFilterTo);
 
     let title = `NZ Electricity Generation ${(filterDescription !== "") ? " - " + filterDescription : ""}`;
     createHighchart(title, subtitle, xAxisLabels, seriesData, plotLines, plotBands, getTooltipForFuelFilteredGraph, onRedraw);
@@ -399,7 +399,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
     statusSpan.innerHTML = lastUpdatedString;
 }
 
-function onRedraw(event){
+function onRedraw(event) {
     // if the user has manually hidden a series, update the URL query parameter to reflect this
     let visibleSeriesCommaSeparatedString = "";
     const series = this.userOptions.series;
