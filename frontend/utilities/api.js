@@ -74,8 +74,8 @@ export async function getLiveGenerationData() {
 }
 
 export async function getTimeseriesOfferData(date) {
-    console.log(date);
-    var dateStr = formatDate(date);
-    const result = fetch(`https://api.electricitymap.frenchsta.gg/v1/offers/${dateStr}`);
-    return (await result).json();
+    var dateStr = date ? formatDate(date) : "latest";
+
+    const result = await fetch(`https://api.electricitymap.frenchsta.gg/v1/offers/${dateStr}`);
+    return result.json();
 }
