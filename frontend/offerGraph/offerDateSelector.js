@@ -1,6 +1,6 @@
 import { formatDate, getCurrentTimeInNZ } from "../utilities/units.js";
 
-const MIN_DATE = '2025-01-01'; // Earliest date with offer data
+const MIN_DATE = '2020-01-02'; // Earliest date with offer data
 
 export class OfferDateSelector {
     constructor(initialDate) {
@@ -10,7 +10,7 @@ export class OfferDateSelector {
         this.render();
     }
 
-    disableSelectionChanges(){
+    disableSelectionChanges() {
         this.blockSelectionChanges = true;
     }
 
