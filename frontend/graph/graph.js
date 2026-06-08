@@ -200,7 +200,7 @@ async function getTradingPeriodStats(forceUpdate = false) {
 
     let graphUpdatedMinutesAgo = Math.round((getCurrentTimeInNZ() - Date.parse(graphLastUpdatedTimestamp)) / 1000 / 60);
 
-    if (graphLastUpdatedTimestamp && graphUpdatedMinutesAgo <= 5) {
+    if (!forceUpdate && graphLastUpdatedTimestamp && graphUpdatedMinutesAgo <= 5) {
         statusSpan.innerHTML = `Last Updated: ${graphUpdatedMinutesAgo} minutes ago`;
         return;
     }
