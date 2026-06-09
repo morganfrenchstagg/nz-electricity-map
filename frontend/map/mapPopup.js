@@ -1,19 +1,19 @@
 import { underConstruction } from '../utilities/underConstruction.js';
 import { displayMegawattsOrGigawatts, formatFuel } from '../utilities/units.js';
 
-export function newBuildGenerationCapacityString(newBuild){
+export function newBuildGenerationCapacityString(newBuild) {
     var output = '';
 
-    if(newBuild.capacityMW){
+    if (newBuild.capacityMW) {
         output += `${newBuild.capacityMW} MW`;
     }
 
-    if(newBuild.capacityMWp){
+    if (newBuild.capacityMWp) {
         output != '' ? output += ' / ' : '';
         output += `${newBuild.capacityMWp} MWp`;
     }
 
-    if(newBuild.capacityMWh){
+    if (newBuild.capacityMWh) {
         output != '' ? output += ' / ' : '';
         output += `${newBuild.capacityMWh} MWh`;
     }
@@ -55,10 +55,10 @@ export function populateGeneratorPopup(generatorData, lastUpdated) {
         ${generatorData.operator} ${(generatorData.secondaryOperator) ? `<br> ${generatorData.secondaryOperator}` : ''} <span class="badge text-bg-primary">${generatorData.site}</span><br><br>
         ${populateGenerationData(generatorData)}
         <i> Last Updated: ${lastUpdated}</i>
-        <br><a href="index.html?site=${generatorData.site}&timeframe=-24h&redirect=true">View Generation Chart</a>
+        <br><a href="index.html?site=${generatorData.site}&timeframe=-24h&redirect=true">View Generation Chart</a> | <a href="offers.html?site=${generatorData.site}">View Offer Chart</a>
             `;
 
-    if(generatorData.units.some((unit) => unit.outage.length > 0)){
+    if (generatorData.units.some((unit) => unit.outage.length > 0)) {
         let pocpPrePopulatedSearch = `https://customerportal.transpower.co.nz/pocp/outages?displayedFilters=%7B%22category%22%3Atrue%2C%22planningStatus%22%3Atrue%7D&filter=%7B%22dateOption%22%3A%22relative%22%2C%22nextUnit%22%3A%22weeks%22%2C%22nextCount%22%3A4%2C%22planningStatus%22%3A%5B%22CONFIRMED%22%5D%2C%22q%22%3A%22${generatorData.site}%22%2C%22category%22%3A%5B%22GENERATION%22%2C%22EMBEDDED_GENERATION%22%5D%7D&order=ASC&page=1&perPage=10&sort=timeStart&viewType=list`;
 
         popup += `| <a href="${pocpPrePopulatedSearch}" target="_blank">View Outage Info</a>`
@@ -66,17 +66,17 @@ export function populateGeneratorPopup(generatorData, lastUpdated) {
 
 
     let underConstructionUnits = underConstruction.filter((uc) => uc.site === generatorData.site);
-    
-    if(underConstructionUnits.length > 0){
+
+    if (underConstructionUnits.length > 0) {
         underConstructionUnits.forEach(unit => {
-            popup += `<br><br>`+
-            `<b>${unit.status}:</b> ${(unit.locationDescription != undefined) ? ` ${unit.locationDescription}` : ""}<br>` + 
-            `<b>Capacity: </b>${newBuildGenerationCapacityString(unit)}<br>` + 
-            (unit.yearlyGenerationGWh ? `<b>Yearly Generation: </b>${unit.yearlyGenerationGWh} GWh</br>` : '') + 
-            `<b>Expected commissioning by: </b>${(unit.openBy) ? new Date(unit.openBy).toLocaleDateString('en-NZ', { year: 'numeric', month: 'long' }) : ''}`
+            popup += `<br><br>` +
+                `<b>${unit.status}:</b> ${(unit.locationDescription != undefined) ? ` ${unit.locationDescription}` : ""}<br>` +
+                `<b>Capacity: </b>${newBuildGenerationCapacityString(unit)}<br>` +
+                (unit.yearlyGenerationGWh ? `<b>Yearly Generation: </b>${unit.yearlyGenerationGWh} GWh</br>` : '') +
+                `<b>Expected commissioning by: </b>${(unit.openBy) ? new Date(unit.openBy).toLocaleDateString('en-NZ', { year: 'numeric', month: 'long' }) : ''}`
         })
     }
-    
+
     return popup;
 }
 
@@ -95,7 +95,7 @@ function populateGenerationUnit(unit, showName = true) {
     let outageLoss = calculateOutageLoss(unit.outage);
     let unitCapacity = Math.abs(unit.capacity);
 
-    if(outageLoss > unitCapacity){
+    if (outageLoss > unitCapacity) {
         // outage figures can sometimes sum up to more than the capacity of the unit, let's assume that in that situation the unit is just fully in outage.
         console.warn(`Outage loss (${outageLoss}MW) for ${unit.name} is greater than the capacity (${unitCapacity}MW) of the unit, assuming the unit is fully in outage.`);
         outageLoss = unitCapacity;
@@ -103,7 +103,7 @@ function populateGenerationUnit(unit, showName = true) {
 
     let totalCapacityIncludingOutage = unitCapacity - outageLoss;
 
-    if("installedCapacity" in unit){
+    if ("installedCapacity" in unit) {
         // outages are sometimes calculated based off the installed capacity, not the actual maximum service generation capacity of the unit
         // example is Manapouri, which has an installed capacity of 896MW across all units but is only allowed to generate 800MW through resource consent limits.
         // in that scenario we use the installed capacity to calculate the total capacity including outage
@@ -112,7 +112,7 @@ function populateGenerationUnit(unit, showName = true) {
 
     let hasOutage = outageLoss > 0;
 
-    if(hasOutage && unit.generation.toFixed(2) > totalCapacityIncludingOutage){
+    if (hasOutage && unit.generation.toFixed(2) > totalCapacityIncludingOutage) {
         // sometimes the outage figures make absolutely no sense (e.g 65MW generation, 120MW capacity, 70MW outage)
         // so in those situations we just ignore the outage, since it would result in > 100% generation
         console.warn(`Generation (${unit.generation}MW) for ${unit.name} is greater than the capacity (${totalCapacityIncludingOutage}MW) of the unit, ignoring outage (${outageLoss}MW).`);
@@ -122,19 +122,19 @@ function populateGenerationUnit(unit, showName = true) {
 
     let capacityText = `${displayMegawattsOrGigawatts(unit.capacity)}`;
 
-    if(hasOutage){
-        let outages = filterOutages(unit.outage).sort((a,b) => new Date(a.until) - new Date(b.until));
+    if (hasOutage) {
+        let outages = filterOutages(unit.outage).sort((a, b) => new Date(a.until) - new Date(b.until));
         let outageEndDate = new Date(outages[0].until);
         let formattedOutageEndDate = outageEndDate.toLocaleDateString('en-NZ', { year: "numeric", month: "short", day: "numeric" });
 
         let today = new Date();
 
-        if(today.getFullYear() == outageEndDate.getFullYear() && today.getMonth() == outageEndDate.getMonth() && today.getDate() == outageEndDate.getDate()){
+        if (today.getFullYear() == outageEndDate.getFullYear() && today.getMonth() == outageEndDate.getMonth() && today.getDate() == outageEndDate.getDate()) {
             formattedOutageEndDate = outageEndDate.toLocaleTimeString('en-NZ', { hour: "numeric", minute: "numeric" });
         }
 
-        capacityText = 
-            `<s>${displayMegawattsOrGigawatts(unit.capacity)}</s> ${displayMegawattsOrGigawatts(totalCapacityIncludingOutage)} ` + 
+        capacityText =
+            `<s>${displayMegawattsOrGigawatts(unit.capacity)}</s> ${displayMegawattsOrGigawatts(totalCapacityIncludingOutage)} ` +
             `<span class="badge text-bg-danger">${outageLoss}MW Outage until ${formattedOutageEndDate}</span>`;
     }
 
@@ -151,7 +151,7 @@ function calculateOutageLoss(outages) {
     return filterOutages(outages).reduce((total, outage) => total + outage.mwLost, 0);
 }
 
-function filterOutages(outages){
+function filterOutages(outages) {
     let seenOutages = [];
     return outages.filter((outage) => {
         var current = new Date(outage.from) < new Date() && new Date(outage.until) > new Date();
@@ -159,10 +159,10 @@ function filterOutages(outages){
         var outageKey = outage.outageBlock + "_" + outage.from + "_" + outage.mwLost;
         var duplicateOutage = seenOutages.includes(outageKey);
 
-        if(current && duplicateOutage){
+        if (current && duplicateOutage) {
             console.log(`Duplicate outage found for ${outageKey}`);
         }
-        
+
         seenOutages.push(outageKey);
 
         return current && !duplicateOutage;
@@ -181,18 +181,18 @@ function populateGeneratorUnitList(generatorData) {
         }
 
         totalGeneration += unit.generation;
-        if (!chargingBattery(unit)){ //if we didn't check this, generators with both charging and discharging units would show as 0MW capacity (as they'd cancel eachother out).
-            totalCapacity += unit.capacity; 
+        if (!chargingBattery(unit)) { //if we didn't check this, generators with both charging and discharging units would show as 0MW capacity (as they'd cancel eachother out).
+            totalCapacity += unit.capacity;
         }
 
-        if(unit.fuelCode !== "BESS-C")
+        if (unit.fuelCode !== "BESS-C")
             totalOutage += calculateOutageLoss(unit.outage);
-        
+
         html += populateGenerationUnit(unit);
     })
 
-    let outageText = (totalOutage != 0) ? `<s>${displayMegawattsOrGigawatts(totalCapacity)}</s> ${displayMegawattsOrGigawatts(totalCapacity - totalOutage)} <span class="badge text-bg-danger">${totalOutage}MW Outage</span>` 
-    : `${displayMegawattsOrGigawatts(totalCapacity)}`;
+    let outageText = (totalOutage != 0) ? `<s>${displayMegawattsOrGigawatts(totalCapacity)}</s> ${displayMegawattsOrGigawatts(totalCapacity - totalOutage)} <span class="badge text-bg-danger">${totalOutage}MW Outage</span>`
+        : `${displayMegawattsOrGigawatts(totalCapacity)}`;
 
     html += `<br><b>Total:</b> ${displayMegawattsOrGigawatts(totalGeneration)} <br><b>Capacity:</b> ${outageText}</br>`
     html += populatePercentage(Math.round(Math.abs(totalGeneration) / (totalCapacity - totalOutage) * 100), true);
@@ -202,7 +202,7 @@ function populateGeneratorUnitList(generatorData) {
 
 let chargingBattery = (unit) => unit.fuel === "Battery (Charging)";
 
-function getSubstationBusbarRows(substationData){
+function getSubstationBusbarRows(substationData) {
     let html = '';
 
     Object.keys(substationData.busbars).forEach((busbar) => {
@@ -220,7 +220,7 @@ function getSubstationBusbarRows(substationData){
     return html;
 }
 
-function getSubstationGenerationRows(substationData){
+function getSubstationGenerationRows(substationData) {
     let html = '';
 
     let generationConnections = [];
@@ -229,7 +229,8 @@ function getSubstationGenerationRows(substationData){
             if (connection.generatorInfo.plantName != undefined) {
                 generationConnections.push(connection);
             }
-    })});
+        })
+    });
 
     generationConnections.sort((a, b) => a.generatorInfo.plantName.localeCompare(b.generatorInfo.plantName)).forEach(connection => {
         if (connection.generatorInfo.plantName != undefined) {
@@ -240,7 +241,7 @@ function getSubstationGenerationRows(substationData){
                 <td>${connection.generatorInfo.plantName}</td>
                 <td>${formatFuel(connection.generatorInfo.fuel)}</td>
                 <td>${displayMegawattsOrGigawatts(connection.generationMW || (-connection.loadMW))}</td>
-                <td>${(connection.generatorInfo.plantName != "Unknown") ? displayMegawattsOrGigawatts(connection.generatorInfo.nameplateCapacityMW): ""}</td>
+                <td>${(connection.generatorInfo.plantName != "Unknown") ? displayMegawattsOrGigawatts(connection.generatorInfo.nameplateCapacityMW) : ""}</td>
                 <td>
                         <div class="progress" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">
                         <div class="progress-bar bg-success" style="width: ${percentage}%">
@@ -288,8 +289,8 @@ export function populateSubstationPopup(substationData, lastUpdated) {
 
 
     var generationRows = getSubstationGenerationRows(substationData);
-    
-    if(generationRows != ''){
+
+    if (generationRows != '') {
         html += `
             <h6>Generation</h6>
             <table style="width:100%" class="table table-sm table-striped">
@@ -309,7 +310,7 @@ export function populateSubstationPopup(substationData, lastUpdated) {
                     <th>${Math.round(substationData.totalGenerationMW / substationData.totalGenerationCapacityMW * 100) || 0}%</td>
                 </tr>
             </table>`;
-        
+
         html += `
         <h6>Summary</h6>
         <table style="width:100%" class="table table-sm table-striped">
