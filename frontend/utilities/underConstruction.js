@@ -144,7 +144,7 @@ export const underConstruction = [
         "site": "CLB",
         "fuel": "Solar",
         "operator": "Lodestone Energy",
-        "status": "Under Construction",
+        "status": "Pre-Commissioning",
         "capacityMW": 24,
         "capacityMWp": 27.7,
         "yearlyGenerationGWh": 43,
@@ -335,8 +335,8 @@ export const underConstruction = [
         "capacityMWp": 40,
         "openBy": "2028-12-31",
         "location": {
-            "lat": -40.45942811335417, 
-            "long":175.27174409437094
+            "lat": -40.45942811335417,
+            "long": 175.27174409437094
         },
         "link": "https://foxtonsolarfarm.co.nz/"
     },
