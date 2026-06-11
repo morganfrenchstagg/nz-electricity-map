@@ -92,7 +92,7 @@ export const underConstruction = [
     },
     {
         "name": "Kaiwaikawe",
-        "site": "",
+        "site": "KWK",
         "fuel": "Wind",
         "operator": "Mercury",
         "status": "Pre-Commissioning",
