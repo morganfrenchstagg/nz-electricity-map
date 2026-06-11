@@ -1,6 +1,8 @@
 import { getColourForFuel } from '../utilities/colours.js';
 import { FUELS_KEY, SKIP_LIST } from '../utilities/units.js';
 
+const CHART_TYPE = "line"
+
 export function buildSupplyCurveWithMetadata(offers, generatorDefinitions, siteFilter = [], operatorFilter = []) {
     if (!offers || offers.length === 0) {
         return [];
@@ -13,6 +15,11 @@ export function buildSupplyCurveWithMetadata(offers, generatorDefinitions, siteF
 
     Object.keys(offers).forEach(node => {
         const generator = generatorDefinitions.find(g => g.units.find(unit => unit.node === node));
+
+        if (!generator) {
+            console.log("No unit data for " + node)
+            return;
+        }
 
         if (siteFilter.length > 0 && !siteFilter.includes(generator.site)) return;
         if (operatorFilter.length > 0 && generator && !operatorFilter.includes(generator.operator)) return;
@@ -63,7 +70,7 @@ export function buildSupplyCurveWithMetadata(offers, generatorDefinitions, siteF
                 // Save previous segment
                 series.push({
                     name: FUELS_KEY[currentSegment.fuel] || currentSegment.fuel,
-                    type: 'line',
+                    type: CHART_TYPE,
                     step: 'left',
                     data: currentSegment.data,
                     color: getColourForFuel(currentSegment.fuel),
@@ -165,7 +172,7 @@ export function buildSupplyCurveWithMetadata(offers, generatorDefinitions, siteF
     if (currentSegment) {
         series.push({
             name: FUELS_KEY[currentSegment.fuel] || currentSegment.fuel,
-            type: 'line',
+            type: CHART_TYPE,
             step: 'left',
             data: currentSegment.data,
             color: getColourForFuel(currentSegment.fuel),
