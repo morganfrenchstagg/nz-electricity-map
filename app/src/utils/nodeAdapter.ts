@@ -2,23 +2,14 @@ import type Highcharts from 'highcharts'
 import type { Generator, RecentData, Substation } from '../types'
 import type { ChartRow } from './chart'
 import { substationCodes } from './chart'
-import { fuelColour } from './colours'
+import { fuelColour, voltageColour } from './colours'
 
-const VOLTAGE_COLOURS: Record<number, string> = {
-  220: '#c0392b',
-  110: '#8e44ad',
-  66:  '#2471a3',
-  33:  '#27ae60',
-  11:  '#d68910',
-}
-const VOLTAGE_COLOUR_DEFAULT = '#7f8c8d'
-
-function voltageColour(code: string): string {
+function codeVoltageColour(code: string): string {
   if (code.length >= 4) {
-    const voltage = parseInt(code.slice(-4, -1), 10)
-    return VOLTAGE_COLOURS[voltage] ?? VOLTAGE_COLOUR_DEFAULT
+    const kv = parseInt(code.slice(-4, -1), 10)
+    return voltageColour(kv)
   }
-  return VOLTAGE_COLOUR_DEFAULT
+  return voltageColour(NaN)
 }
 
 export interface NodeAdapter {
@@ -123,7 +114,7 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
           if (unit) return fuelColour(unit.fuel)
         }
       }
-      return voltageColour(code)
+      return codeVoltageColour(code)
     },
 
     transformValue(val) { return -val },

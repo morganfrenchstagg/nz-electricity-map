@@ -3,10 +3,12 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { generatorsToGeoJson, substationsToGeoJson } from '../utils/geo'
-import { MAPLIBRE_COLOUR_EXPRESSION } from '../utils/colours'
+import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import type { Generator, Substation, SelectedNode } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+// todo - cache this in CF worker, so it's not as slow as arcgis is...
+const TRANSMISSION_LINES_URL = 'https://services3.arcgis.com/AkUq3zcWf7TVqyR9/arcgis/rest/services/TransmissionLines/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
@@ -47,6 +49,21 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
+      map.addSource('transmission-lines', {
+        type: 'geojson',
+        data: TRANSMISSION_LINES_URL,
+      })
+      map.addLayer({
+        id: 'transmission-lines-layer',
+        type: 'line',
+        source: 'transmission-lines',
+        paint: {
+          'line-color': MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION,
+          'line-width': 1.5,
+          'line-opacity': 0.7,
+        },
+      })
+
       map.addSource('substations', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
