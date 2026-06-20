@@ -1,13 +1,12 @@
 import { buildSupplyCurveWithMetadata, getSupplyCurveTooltip } from './offerSupplyCurve.js';
 import { getStaticGeneratorData, getTimeseriesOfferData } from '../utilities/api.js';
 import { OfferDateSelector } from './offerDateSelector.js';
+import { OfferTradingPeriodSelector } from './offerTradingPeriodSelector.js';
 import { formatDate } from '../utilities/units.js';
 
 const siteFilterDropdown = document.getElementById('power-station-select');
 const operatorFilterDropdown = document.getElementById('operator-select');
-const tradingPeriodDropdown = document.getElementById('trading-period-select');
 const clearButton = document.getElementById('clear-button');
-const statusSpan = document.getElementById("graph-status");
 
 let currentDate = new Date();
 let currentTradingPeriod = 1;
@@ -15,10 +14,10 @@ let allOfferData = {};
 let apiTimestamp;
 let generatorDefinitions = null;
 let dateSelector = null;
+let tradingPeriodSelector = null;
 
 operatorFilterDropdown.addEventListener('change', () => onOperatorFilterDropdownSelect(operatorFilterDropdown));
 siteFilterDropdown.addEventListener('change', () => onSiteDropdownSelect(siteFilterDropdown));
-tradingPeriodDropdown.addEventListener('change', () => onTradingPeriodSelect(tradingPeriodDropdown));
 clearButton.addEventListener('click', () => onClearButtonSelect());
 
 async function onSiteDropdownSelect(dropdownObject) {
@@ -27,10 +26,9 @@ async function onSiteDropdownSelect(dropdownObject) {
     updateSupplyCurve();
 }
 
-async function onTradingPeriodSelect(dropdownObject) {
-    var selectedTP = dropdownObject.options[dropdownObject.selectedIndex].value;
-    setQueryParam("tp", selectedTP);
-    currentTradingPeriod = parseInt(selectedTP);
+async function onTradingPeriodChange(selectedTradingPeriod) {
+    setQueryParam("tp", selectedTradingPeriod);
+    currentTradingPeriod = selectedTradingPeriod;
     updateSupplyCurve();
 }
 
@@ -81,34 +79,6 @@ function setStationDropdown(allOfferData, generatorDefinitions, operatorToFilter
     })
 }
 
-function setTradingPeriodDropdown() {
-    tradingPeriodDropdown.innerHTML = "";
-
-    // Add default option
-    var defaultOption = document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.innerHTML = "Select Trading Period";
-    tradingPeriodDropdown.appendChild(defaultOption);
-
-    // Add all 48 trading periods
-    for (let i = 1; i <= 48; i++) {
-        const periodStart = (i - 1) * 30;
-        const hours = Math.floor(periodStart / 60);
-        const minutes = periodStart % 60;
-        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-
-        var opt = document.createElement("option");
-        opt.value = i;
-        opt.innerHTML = `TP ${i} (${timeStr})`;
-
-        if (i === currentTradingPeriod) {
-            opt.selected = true;
-        }
-
-        tradingPeriodDropdown.appendChild(opt);
-    }
-}
-
 function setOperatorDropdown(allOfferData, generatorDefinitions) {
     // Clear dropdown first
     operatorFilterDropdown.innerHTML = "";
@@ -151,13 +121,16 @@ async function loadData() {
         dateSelector.disableSelectionChanges();
     }
 
-    statusSpan.innerHTML = "Loading data...";
-
     // Get filters from URL
     const searchParams = new URLSearchParams(window.location.search);
 
     const dateParam = searchParams.get("date");
     const tradingPeriodParam = searchParams.get("tp");
+
+    if (!tradingPeriodSelector) {
+        tradingPeriodSelector = new OfferTradingPeriodSelector(tradingPeriodParam);
+        tradingPeriodSelector.subscribe(onTradingPeriodChange)
+    }
 
     if (tradingPeriodParam) {
         currentTradingPeriod = ((parseInt(tradingPeriodParam) - 1) % 48) + 1
@@ -185,7 +158,6 @@ async function loadData() {
 
     setOperatorDropdown(allOfferData, generatorDefinitions);
     setStationDropdown(allOfferData, generatorDefinitions, operatorToFilterTo);
-    setTradingPeriodDropdown();
 
     updateSupplyCurve();
 
@@ -211,14 +183,12 @@ function updateSupplyCurve() {
     // Get the timestamp for the current trading period
     const timestamps = Object.keys(allOfferData);
     if (timestamps.length === 0) {
-        statusSpan.innerHTML = "No offer data available";
         return;
     }
 
     const offersForPeriod = allOfferData[tradingPeriodFilterTo];
 
     if (!offersForPeriod) {
-        statusSpan.innerHTML = "No offers for this period";
         return;
     }
 
@@ -239,7 +209,7 @@ function updateSupplyCurve() {
 
     const chart = Highcharts.chart('generation-chart', {
         chart: {
-            type: 'line',
+            type: 'area',
             zoomType: 'xy'
         },
         title: {
@@ -278,9 +248,10 @@ function updateSupplyCurve() {
                 stickyTracking: false,
                 states: {
                     inactive: {
-                        opacity: 1
+                        opacity: 0.5
                     }
-                }
+                },
+                animation: false
             }
         },
         series: seriesData,
@@ -288,8 +259,6 @@ function updateSupplyCurve() {
             enabled: false
         }
     });
-
-    statusSpan.innerHTML = `Showing Trading Period ${tradingPeriodFilterTo}`;
 }
 
 // Show back button if redirected from map

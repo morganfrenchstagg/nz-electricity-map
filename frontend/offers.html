@@ -9,22 +9,22 @@
   <style>
     @media (max-width: 1500px) {
       .fixed-bottom {
-        position: inherit!important;
+        position: inherit !important;
       }
 
       .credit {
-        float: none!important;
+        float: none !important;
       }
     }
 
-    @media (max-width: 720px){
+    @media (max-width: 720px) {
       .input-group {
-        padding-left: 0!important;
-        padding-right: 0!important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
       }
 
       .form-select {
-        min-width: 200px!important;
+        min-width: 200px !important;
       }
     }
   </style>
@@ -60,11 +60,13 @@
           </li>
         </ul>
         <li class="navbar-nav nav-item dropdown">
-          <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">Useful Links</a>
+          <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button"
+            aria-expanded="false">Useful Links</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" target="_blank" href="https://app.em6.co.nz/">EM6</a></li>
             <li><a class="dropdown-item" target="_blank" href="https://www.emi.ea.govt.nz/">EMI</a></li>
-            <li><a class="dropdown-item" target="_blank" href="https://customerportal.transpower.co.nz/pocp/outages?viewType=list">POCP</a></li>
+            <li><a class="dropdown-item" target="_blank"
+                href="https://customerportal.transpower.co.nz/pocp/outages?viewType=list">POCP</a></li>
             <li><a class="dropdown-item" target="_blank" href="https://www1.electricityinfo.co.nz/">WITS</a></li>
           </ul>
         </li>
@@ -95,10 +97,7 @@
         <select class="form-select" id="power-station-select">
           <option value="" selected>Select Power Station</option>
         </select>
-        <select class="form-select" id="trading-period-select">
-          <option value="" selected>Select Trading Period</option>
-        </select>
-        <span id="graph-status" class="input-group-text">Loading...</span>
+        <div class="input-group" id="trading-period-selector"></div>
         <div>
           <div id="date-selector" class="input-group"></div>
         </div>
@@ -140,8 +139,10 @@
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wwilsman/Datepicker.js@6f6be1d2a9a5ea0780ba0d27e23d02681ab0c018/dist/css/datepicker.material.css">
-  <script src="https://cdn.jsdelivr.net/gh/wwilsman/Datepicker.js@739716c27cb0bdd1327c2bd07e994459c1ca3082/dist/datepicker.js"></script>
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/wwilsman/Datepicker.js@6f6be1d2a9a5ea0780ba0d27e23d02681ab0c018/dist/css/datepicker.material.css">
+  <script
+    src="https://cdn.jsdelivr.net/gh/wwilsman/Datepicker.js@739716c27cb0bdd1327c2bd07e994459c1ca3082/dist/datepicker.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.8/highcharts.js"></script>
 
