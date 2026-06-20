@@ -1,4 +1,5 @@
 import type { Generator, Substation } from '../types'
+import type { UnderConstructionNode } from '../../../frontend/utilities/underConstruction'
 
 export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = generators.map((g) => {
@@ -41,6 +42,43 @@ export function substationsToGeoJson(substations: Substation[]): GeoJSON.Feature
       island: s.island,
     },
   }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+export function underConstructionToGeoJson(
+  nodes: UnderConstructionNode[],
+  generators: Generator[],
+): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = []
+
+  for (const node of nodes) {
+    let lat: number | undefined
+    let long: number | undefined
+
+    if (node.location) {
+      lat = node.location.lat
+      long = node.location.long
+    } else if (node.site) {
+      const gen = generators.find((g) => g.site === node.site)
+      if (gen) { lat = gen.location.lat; long = gen.location.long }
+    }
+
+    if (lat === undefined || long === undefined) continue
+
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [long, lat] },
+      properties: {
+        name: node.name,
+        locationDescription: node.locationDescription ?? null,
+        fuel: node.fuel,
+        operator: node.operator,
+        status: node.status,
+        capacityMW: node.capacityMW ?? null,
+      },
+    })
+  }
 
   return { type: 'FeatureCollection', features }
 }

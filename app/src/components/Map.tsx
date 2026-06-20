@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { generatorsToGeoJson, substationsToGeoJson } from '../utils/geo'
+import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
+import { underConstruction } from '../../../frontend/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import type { Generator, Substation, SelectedNode } from '../types'
 
@@ -64,6 +65,22 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
         },
       })
 
+      map.addSource('under-construction', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.addLayer({
+        id: 'under-construction-layer',
+        type: 'circle',
+        source: 'under-construction',
+        paint: {
+          'circle-color': MAPLIBRE_COLOUR_EXPRESSION,
+          'circle-radius': 5,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+
       map.addSource('substations', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -110,10 +127,30 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
           const siteId = subFeatures[0].properties?.siteId as string | undefined
           const substation = substationsRef.current.find((s) => s.siteId === siteId)
           if (substation) onSubstationClickRef.current(substation)
+          return
+        }
+
+        const ucFeatures = map.queryRenderedFeatures(e.point, { layers: ['under-construction-layer'] })
+        if (ucFeatures.length > 0) {
+          const p = ucFeatures[0].properties as Record<string, string | number | null>
+          const name = p.locationDescription ? `${p.name} <span style="font-weight:400;color:#666">(${p.locationDescription})</span>` : String(p.name)
+          const rows = [
+            ['Status', p.status],
+            ['Fuel', p.fuel],
+            ['Operator', p.operator],
+            p.capacityMW ? ['Capacity', `${p.capacityMW} MW`] : null,
+          ]
+            .filter(Boolean)
+            .map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:16px;margin-top:3px"><span style="color:#888">${k}</span><span>${v}</span></div>`)
+            .join('')
+          new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+            .setLngLat(ucFeatures[0].geometry.type === 'Point' ? (ucFeatures[0].geometry.coordinates as [number, number]) : e.lngLat)
+            .setHTML(`<div style="font-size:13px"><div style="font-weight:600;margin-bottom:6px">${name}</div>${rows}</div>`)
+            .addTo(map)
         }
       })
 
-      for (const layer of ['substations-layer', 'generators-layer']) {
+      for (const layer of ['substations-layer', 'generators-layer', 'under-construction-layer']) {
         map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
@@ -129,6 +166,16 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
     const update = () => {
       const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
       src?.setData(generatorsToGeoJson(generators))
+    }
+    map.isStyleLoaded() ? update() : map.once('load', update)
+  }, [generators])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || generators.length === 0) return
+    const update = () => {
+      const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
+      src?.setData(underConstructionToGeoJson(underConstruction, generators))
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
   }, [generators])
