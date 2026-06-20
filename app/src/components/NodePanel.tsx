@@ -3,6 +3,7 @@ import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode } from '../types'
 import { useRecentData } from '../hooks/useRecentData'
+import { useDefinitions } from '../hooks/useDefinitions'
 import { extractChartData, substationCodes } from '../utils/chart'
 import { fuelColour } from '../utils/colours'
 
@@ -33,6 +34,7 @@ interface Props {
 
 export default function NodePanel({ node, onClose }: Props) {
   const { recentData, loading, error } = useRecentData()
+  const { generators: allGenerators } = useDefinitions()
 
   const allCodes = useMemo(() => {
     if (!recentData) return []
@@ -53,7 +55,7 @@ export default function NodePanel({ node, onClose }: Props) {
     return extractChartData(recentData, allCodes)
   }, [recentData, allCodes])
 
-  const title = node.kind === 'generator' ? node.generator.name : node.substation.description
+  const title = node.kind === 'generator' ? node.generator.name : `${node.substation.description} Substation`
   const subtitle = node.kind === 'generator' ? node.generator.operator : node.substation.siteId
 
   function toggleCode(code: string) {
@@ -70,6 +72,22 @@ export default function NodePanel({ node, onClose }: Props) {
     if (node.kind === 'generator') {
       const unit = node.generator.units.find((u) => u.node === code)
       if (unit) return unit.name
+    }
+    if (node.kind === 'substation') {
+      // Generator node connected to this substation (code contains a space)
+      if (code.includes(' ')) {
+        for (const gen of allGenerators) {
+          const unit = gen.units.find((u) => u.node === code)
+          if (unit) return `${unit.name}`
+        }
+      }
+      // Regular busbar: decode VVVu suffix → e.g. "0331" → "33kV - 1"
+      if (code.length >= 4) {
+        const suffix = code.slice(-4)
+        const voltage = parseInt(suffix.slice(0, 3), 10)
+        const unit = parseInt(suffix.slice(3), 10)
+        return `${voltage}kV - ${unit}`
+      }
     }
     return code.includes(' ') ? code.split(' ')[1] : code
   }
@@ -92,11 +110,27 @@ export default function NodePanel({ node, onClose }: Props) {
       visible: effectiveCodes.has(code),
       data: chartData.rows.map((row) => [
         new Date((row.time as string) + 'Z').getTime(),
-        row[code] as number,
+        node.kind === 'substation' ? -(row[code] as number) : (row[code] as number),
       ]),
       marker: { enabled: false },
       animation: false,
     }))
+
+    if (node.kind === 'substation' && chartData.codes.some((c) => c.includes(' '))) {
+      series.push({
+        type: 'line',
+        name: 'Net',
+        color: '#222222',
+        lineWidth: 2,
+        zIndex: 5,
+        data: chartData.rows.map((row) => [
+          new Date((row.time as string) + 'Z').getTime(),
+          chartData.codes.reduce((sum, code) => sum + (-(row[code] as number)), 0),
+        ]),
+        marker: { enabled: false },
+        animation: false,
+      })
+    }
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
@@ -128,14 +162,14 @@ export default function NodePanel({ node, onClose }: Props) {
         plotLines: midnightPlotLines,
       },
       yAxis: {
-        title: { text: 'MW', style: { fontSize: '11px' } },
+        title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
       },
       tooltip: {
         shared: true,
         useHTML: true,
         formatter: function () {
-          const points = this.points ?? []
+          const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
           const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
           const rows = points
             .map((p) => {
