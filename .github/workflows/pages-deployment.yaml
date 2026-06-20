@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - 'frontend/**'
+      - 'app/**'
       - '.github/workflows/pages-deployment.yaml'
 jobs:
   deploy:
@@ -16,6 +17,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build React app
+        working-directory: app
+        run: |
+          npm install
+          npm run build
       - name: Publish
         uses: cloudflare/pages-action@1
         with:
