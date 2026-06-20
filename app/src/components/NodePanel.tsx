@@ -164,6 +164,7 @@ export default function NodePanel({ node, onClose }: Props) {
       yAxis: {
         title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
+        softMin: 0,
         ...(node.kind === 'generator' ? (() => {
           const totalCapacity = node.generator.units
             .filter((u) => u.active !== false)
