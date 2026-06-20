@@ -36,7 +36,11 @@ export function createGeneratorAdapter(generator: Generator): NodeAdapter {
     chartType: 'area',
 
     getCodes(recent) {
-      return activeUnits.map((u) => u.node).filter((c) => recent.series.includes(c))
+      return activeUnits
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((u) => u.node)
+        .filter((c) => recent.series.includes(c))
     },
 
     labelFor(code) {
