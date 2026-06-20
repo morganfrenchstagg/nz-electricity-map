@@ -1,7 +1,7 @@
 export const FUEL_COLOURS: Record<string, string> = {
   Wind: 'rgb(65, 117, 5)',
   Hydro: '#191970',
-  Geothermal: 'rgb(252, 3, 3)',
+  Geothermal: '#ffaf40',
   Solar: 'rgb(254, 213, 0)',
   Battery: '#76721E',
   'Battery (Discharging)': '#76721E',

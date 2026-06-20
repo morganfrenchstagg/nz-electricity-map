@@ -104,7 +104,7 @@ export default function NodePanel({ node, onClose }: Props) {
     if (!chartData) return null
 
     const series: Highcharts.SeriesLineOptions[] = chartData.codes.map((code, i) => ({
-      type: 'area',
+      type: node.kind === 'substation' ? 'line' : 'area',
       name: labelFor(code),
       color: colourFor(code, i),
       visible: effectiveCodes.has(code),
@@ -151,7 +151,7 @@ export default function NodePanel({ node, onClose }: Props) {
       }))
 
     return {
-      chart: { type: 'area', height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
+      chart: { type: node.kind === 'substation' ? 'line' : 'area', height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: chartData.codes.length > 1, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -164,6 +164,27 @@ export default function NodePanel({ node, onClose }: Props) {
       yAxis: {
         title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
+        ...(node.kind === 'generator' ? (() => {
+          const totalCapacity = node.generator.units
+            .filter((u) => u.active !== false)
+            .reduce((sum, u) => sum + u.capacity, 0)
+          return {
+            softMax: totalCapacity + 1,
+            plotLines: [{
+              value: totalCapacity,
+              color: '#999999',
+              width: 1,
+              dashStyle: 'Dash',
+              label: {
+                text: `Capacity: ${totalCapacity} MW`,
+                style: { color: '#999999', fontSize: '10px' },
+                align: 'right',
+                x: -4,
+              },
+              zIndex: 3,
+            }],
+          }
+        })() : {}),
       },
       tooltip: {
         shared: true,
