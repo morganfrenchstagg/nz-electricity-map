@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode } from '../types'
@@ -46,6 +46,8 @@ export default function NodePanel({ node, onClose }: Props) {
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const effectiveCodes = activeCodes ?? new Set(allCodes)
+
+  useEffect(() => { setActiveCodes(null) }, [node])
 
   const chartData = useMemo(() => {
     if (!recentData || allCodes.length === 0) return null
@@ -197,7 +199,7 @@ export default function NodePanel({ node, onClose }: Props) {
                   fontWeight: 500,
                 }}
               >
-                {code.includes(' ') ? code.split(' ')[1] : code}
+                {adapter.labelFor(code)}
               </button>
             )
           })}
