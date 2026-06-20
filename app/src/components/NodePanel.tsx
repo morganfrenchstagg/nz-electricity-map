@@ -4,6 +4,7 @@ import Highcharts from 'highcharts'
 import type { SelectedNode } from '../types'
 import { useRecentData } from '../hooks/useRecentData'
 import { useDefinitions } from '../hooks/useDefinitions'
+import { useOutages } from '../hooks/useOutages'
 import { extractChartData } from '../utils/chart'
 import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 
@@ -30,13 +31,14 @@ interface Props {
 export default function NodePanel({ node, onClose }: Props) {
   const { recentData, loading, error } = useRecentData()
   const { generators: allGenerators } = useDefinitions()
+  const outages = useOutages()
 
   const adapter = useMemo(
     () =>
       node.kind === 'generator'
-        ? createGeneratorAdapter(node.generator)
+        ? createGeneratorAdapter(node.generator, outages)
         : createSubstationAdapter(node.substation, allGenerators),
-    [node, allGenerators],
+    [node, allGenerators, outages],
   )
 
   const allCodes = useMemo(
@@ -101,6 +103,22 @@ export default function NodePanel({ node, onClose }: Props) {
     }))
 
     if (showGenerators) series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
+    const capSeries = adapter.capacitySeries(chartData.rows, effectiveCodes)
+    if (capSeries) series.push(capSeries)
+
+    // Step-left lookup: capacity at a given timestamp from the step-line data
+    const capPoints = capSeries
+      ? ((capSeries as Highcharts.SeriesLineOptions).data as { x: number; y: number }[])
+      : null
+    function capacityAt(ms: number): number | null {
+      if (!capPoints) return null
+      let val: number | null = null
+      for (const p of capPoints) {
+        if (p.x <= ms) val = p.y
+        else break
+      }
+      return val
+    }
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
@@ -111,7 +129,7 @@ export default function NodePanel({ node, onClose }: Props) {
         value: new Date((row.time as string) + 'Z').getTime(),
         color: '#aaaaaa',
         width: 1,
-        dashStyle: 'Dash',
+        dashStyle: 'Solid',
         label: {
           text: Highcharts.dateFormat('%e %b', new Date((row.time as string) + 'Z').getTime()),
           style: { color: '#888888', fontSize: '10px' },
@@ -164,7 +182,9 @@ export default function NodePanel({ node, onClose }: Props) {
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
           const totalRow = points.length > 1 ? `<br/><b>Total: ${total.toFixed(1)} MW</b>` : ''
-          return `<b>${time}</b><br/>${rows}${totalRow}`
+          const capMW = capacityAt(this.x as number)
+          const capRow = capMW !== null ? `<br/><span style="color:#222">─</span> Capacity: ${capMW.toFixed(0)} MW` : ''
+          return `<b>${time}</b><br/>${rows}${totalRow}${capRow}`
         },
       },
       plotOptions: {
@@ -196,9 +216,22 @@ export default function NodePanel({ node, onClose }: Props) {
                 if (!effectiveCodes.has(code)) return null
                 const lastRow = chartData?.rows[chartData.rows.length - 1]
                 const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
-                const pct = capacity > 0 ? (val / capacity) * 100 : 0
+                const outageMW = adapter.unitOutageMW(code)
+                const colour = adapter.colourFor(code, i)
+                const genPct = capacity > 0 ? (val / capacity) * 100 : 0
+                const outagePct = capacity > 0 ? (outageMW / capacity) * 100 : 0
                 return (
-                  <div key={code} style={{ height: '100%', width: `${pct}%`, flexShrink: 0, background: adapter.colourFor(code, i) }} />
+                  <span key={code} style={{ display: 'contents' }}>
+                    <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
+                    {outagePct > 0 && (
+                      <div style={{
+                        height: '100%',
+                        width: `${outagePct}%`,
+                        flexShrink: 0,
+                        background: `repeating-linear-gradient(45deg, ${colour} 0, ${colour} 2px, transparent 2px, transparent 5px)`,
+                      }} />
+                    )}
+                  </span>
                 )
               })}
             </div>
