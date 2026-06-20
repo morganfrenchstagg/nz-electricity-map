@@ -1,11 +1,12 @@
 export const FUEL_COLOURS: Record<string, string> = {
-  Wind: '#87CEEB',
-  Hydro: '#191970',
-  Geothermal: '#ffaf40',
-  Solar: '#ccff00',
+  Wind: 'rgb(65, 117, 5)',
+  Hydro: 'rgb(69, 130, 180)',
+  Geothermal: 'rgb(252, 3, 3)',
+  Solar: 'rgb(254, 213, 0)',
   Battery: '#76721E',
   'Battery (Discharging)': '#76721E',
   'Battery (Charging)': '#76721E',
+  'Coal/Gas': 'rgb(139, 87, 42)'
 }
 
 const DEFAULT_COLOUR = '#ff0000'

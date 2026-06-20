@@ -138,7 +138,11 @@ export default function NodePanel({ node, onClose }: Props) {
           const points = this.points ?? []
           const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
           const rows = points
-            .map((p) => `<span style="color:${String(p.color)}">●</span> ${p.series.name}: <b>${(p.y ?? 0).toFixed(1)} MW</b>`)
+            .map((p) => {
+              const val = `${(p.y ?? 0).toFixed(1)} MW`
+              const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
+              return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}`
+            })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
           const totalRow = points.length > 1 ? `<br/><b>Total: ${total.toFixed(1)} MW</b>` : ''
