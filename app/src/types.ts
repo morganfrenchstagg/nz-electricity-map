@@ -37,3 +37,13 @@ export interface DefinitionsResponse {
   generators: Generator[]
   substations: Substation[]
 }
+
+export interface RecentData {
+  series: string[]
+  data: (string | number)[][]
+}
+
+export type SelectedNode =
+  | { kind: 'generator'; generator: Generator }
+  | { kind: 'substation'; substation: Substation }
+  | null

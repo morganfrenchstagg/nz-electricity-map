@@ -4,15 +4,35 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { generatorsToGeoJson, substationsToGeoJson } from '../utils/geo'
 import { MAPLIBRE_COLOUR_EXPRESSION } from '../utils/colours'
+import type { Generator, Substation, SelectedNode } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
-export default function Map() {
+const PANEL_WIDTH_VW = 0.5
+
+interface Props {
+  onGeneratorClick: (generator: Generator) => void
+  onSubstationClick: (substation: Substation) => void
+  selectedNode: SelectedNode
+}
+
+export default function Map({ onGeneratorClick, onSubstationClick, selectedNode }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const { generators, substations } = useDefinitions()
+  const generatorsRef = useRef<Generator[]>(generators)
+  const substationsRef = useRef<Substation[]>(substations)
+
+  useEffect(() => { generatorsRef.current = generators }, [generators])
+  useEffect(() => { substationsRef.current = substations }, [substations])
+
+  // Keep callback refs so map event handlers always see the latest callbacks
+  const onGeneratorClickRef = useRef(onGeneratorClick)
+  const onSubstationClickRef = useRef(onSubstationClick)
+  useEffect(() => { onGeneratorClickRef.current = onGeneratorClick }, [onGeneratorClick])
+  useEffect(() => { onSubstationClickRef.current = onSubstationClick }, [onSubstationClick])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -31,7 +51,6 @@ export default function Map() {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
-
       map.addLayer({
         id: 'substations-layer',
         type: 'circle',
@@ -48,7 +67,6 @@ export default function Map() {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
-
       map.addLayer({
         id: 'generators-layer',
         type: 'circle',
@@ -61,57 +79,26 @@ export default function Map() {
         },
       })
 
-      map.on('click', 'substations-layer', (e) => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const p = feature.properties as {
-          siteId: string
-          description: string
-          type: string
-          island: string
+      map.on('click', (e) => {
+        // Generators take priority over substations when both overlap
+        const genFeatures = map.queryRenderedFeatures(e.point, { layers: ['generators-layer'] })
+        if (genFeatures.length > 0) {
+          const site = genFeatures[0].properties?.site as string | undefined
+          const generator = generatorsRef.current.find((g) => g.site === site)
+          if (generator) { onGeneratorClickRef.current(generator); return }
         }
-        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
 
-        new maplibregl.Popup()
-          .setLngLat(coords)
-          .setHTML(
-            `<strong>${p.description}</strong><br/>
-             <small>${p.siteId}</small><br/>
-             ${p.type} · ${p.island === 'north' ? 'North Island' : 'South Island'}`
-          )
-          .addTo(map)
-      })
-
-      map.on('click', 'generators-layer', (e) => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const p = feature.properties as {
-          name: string
-          operator: string
-          fuel: string
-          totalCapacityMW: number
-          site: string
+        const subFeatures = map.queryRenderedFeatures(e.point, { layers: ['substations-layer'] })
+        if (subFeatures.length > 0) {
+          const siteId = subFeatures[0].properties?.siteId as string | undefined
+          const substation = substationsRef.current.find((s) => s.siteId === siteId)
+          if (substation) onSubstationClickRef.current(substation)
         }
-        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
-
-        new maplibregl.Popup()
-          .setLngLat(coords)
-          .setHTML(
-            `<strong>${p.name}</strong><br/>
-             <small>${p.site}</small><br/>
-             ${p.operator}<br/>
-             ${p.fuel} · ${p.totalCapacityMW} MW`
-          )
-          .addTo(map)
       })
 
       for (const layer of ['substations-layer', 'generators-layer']) {
-        map.on('mouseenter', layer, () => {
-          map.getCanvas().style.cursor = 'pointer'
-        })
-        map.on('mouseleave', layer, () => {
-          map.getCanvas().style.cursor = ''
-        })
+        map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
     })
 
@@ -122,34 +109,44 @@ export default function Map() {
   useEffect(() => {
     const map = mapRef.current
     if (!map || generators.length === 0) return
-
-    const updateSource = () => {
-      const source = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
-      source?.setData(generatorsToGeoJson(generators))
+    const update = () => {
+      const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
+      src?.setData(generatorsToGeoJson(generators))
     }
-
-    if (map.isStyleLoaded()) {
-      updateSource()
-    } else {
-      map.once('load', updateSource)
-    }
+    map.isStyleLoaded() ? update() : map.once('load', update)
   }, [generators])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || substations.length === 0) return
-
-    const updateSource = () => {
-      const source = map.getSource('substations') as maplibregl.GeoJSONSource | undefined
-      source?.setData(substationsToGeoJson(substations))
+    const update = () => {
+      const src = map.getSource('substations') as maplibregl.GeoJSONSource | undefined
+      src?.setData(substationsToGeoJson(substations))
     }
-
-    if (map.isStyleLoaded()) {
-      updateSource()
-    } else {
-      map.once('load', updateSource)
-    }
+    map.isStyleLoaded() ? update() : map.once('load', update)
   }, [substations])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    if (selectedNode) {
+      const [lng, lat] = selectedNode.kind === 'generator'
+        ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
+        : [selectedNode.substation.long, selectedNode.substation.lat]
+
+      map.easeTo({
+        center: [lng, lat],
+        padding: { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 },
+        duration: 400,
+      })
+    } else {
+      map.easeTo({
+        padding: { left: 0, right: 0, top: 0, bottom: 0 },
+        duration: 300,
+      })
+    }
+  }, [selectedNode])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />
 }
