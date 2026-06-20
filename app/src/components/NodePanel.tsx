@@ -161,32 +161,35 @@ export default function NodePanel({ node, onClose }: Props) {
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: {
-        title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' } },
-        softMin: 0,
-        ...(node.kind === 'generator' ? (() => {
+      yAxis: (() => {
+        const base = {
+          title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
+          labels: { style: { fontSize: '10px' } },
+          softMin: 0,
+          plotLines: [] as Highcharts.YAxisPlotLinesOptions[],
+          softMax: undefined as number | undefined,
+        }
+        if (node.kind === 'generator') {
           const totalCapacity = node.generator.units
             .filter((u) => u.active !== false)
             .reduce((sum, u) => sum + u.capacity, 0)
-          return {
-            softMax: totalCapacity + 1,
-            plotLines: [{
-              value: totalCapacity,
-              color: '#999999',
-              width: 1,
-              dashStyle: 'Dash',
-              label: {
-                text: `Capacity: ${totalCapacity} MW`,
-                style: { color: '#999999', fontSize: '10px' },
-                align: 'right',
-                x: -4,
-              },
-              zIndex: 3,
-            }],
-          }
-        })() : {}),
-      },
+          base.softMax = totalCapacity + 1
+          base.plotLines = [{
+            value: totalCapacity,
+            color: '#999999',
+            width: 1,
+            dashStyle: 'Dash',
+            label: {
+              text: `Capacity: ${totalCapacity} MW`,
+              style: { color: '#999999', fontSize: '10px' },
+              align: 'right',
+              x: -4,
+            },
+            zIndex: 3,
+          }]
+        }
+        return base
+      })(),
       tooltip: {
         shared: true,
         useHTML: true,
