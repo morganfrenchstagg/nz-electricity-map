@@ -24,6 +24,7 @@ export interface NodeAdapter {
   extraSeries(rows: ChartRow[], codes: string[]): Highcharts.SeriesOptionsType[]
   stacking(numCodes: number): Highcharts.OptionsStackingValue | undefined
   showUnitSelector(numCodes: number): boolean
+  showLegend(numCodes: number): boolean
 }
 
 export function createGeneratorAdapter(generator: Generator): NodeAdapter {
@@ -83,6 +84,7 @@ export function createGeneratorAdapter(generator: Generator): NodeAdapter {
     stacking(numCodes) { return numCodes > 1 ? 'normal' : undefined },
 
     showUnitSelector(numCodes) { return numCodes > 1 },
+    showLegend(_numCodes) { return false },
   }
 }
 
@@ -153,5 +155,6 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     stacking(_numCodes) { return undefined },
 
     showUnitSelector(_numCodes) { return false },
+    showLegend(numCodes) { return numCodes > 1 },
   }
 }

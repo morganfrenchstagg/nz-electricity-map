@@ -115,7 +115,7 @@ export default function NodePanel({ node, onClose }: Props) {
       chart: { type: adapter.chartType, height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
-      legend: { enabled: chartData.codes.length > 1, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
+      legend: { enabled: adapter.showLegend(chartData.codes.length), itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
       xAxis: {
         type: 'datetime',
         labels: { style: { fontSize: '10px' } },
