@@ -4,13 +4,8 @@ import Highcharts from 'highcharts'
 import type { SelectedNode } from '../types'
 import { useRecentData } from '../hooks/useRecentData'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { extractChartData, substationCodes } from '../utils/chart'
-import { fuelColour } from '../utils/colours'
-
-const SUBSTATION_COLOURS = [
-  '#e15759', '#4e79a7', '#f28e2b', '#76b7b2',
-  '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-]
+import { extractChartData } from '../utils/chart'
+import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -36,16 +31,18 @@ export default function NodePanel({ node, onClose }: Props) {
   const { recentData, loading, error } = useRecentData()
   const { generators: allGenerators } = useDefinitions()
 
-  const allCodes = useMemo(() => {
-    if (!recentData) return []
-    if (node.kind === 'generator') {
-      return node.generator.units
-        .filter((u) => u.active !== false)
-        .map((u) => u.node)
-        .filter((c) => recentData.series.includes(c))
-    }
-    return substationCodes(recentData, node.substation.siteId)
-  }, [recentData, node])
+  const adapter = useMemo(
+    () =>
+      node.kind === 'generator'
+        ? createGeneratorAdapter(node.generator)
+        : createSubstationAdapter(node.substation, allGenerators),
+    [node, allGenerators],
+  )
+
+  const allCodes = useMemo(
+    () => (recentData ? adapter.getCodes(recentData) : []),
+    [recentData, adapter],
+  )
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const effectiveCodes = activeCodes ?? new Set(allCodes)
@@ -55,8 +52,7 @@ export default function NodePanel({ node, onClose }: Props) {
     return extractChartData(recentData, allCodes)
   }, [recentData, allCodes])
 
-  const title = node.kind === 'generator' ? node.generator.name : `${node.substation.description} Substation`
-  const subtitle = node.kind === 'generator' ? node.generator.operator : node.substation.siteId
+  const { title, subtitle } = adapter
 
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
@@ -68,69 +64,23 @@ export default function NodePanel({ node, onClose }: Props) {
     setActiveCodes(next)
   }
 
-  function labelFor(code: string): string {
-    if (node.kind === 'generator') {
-      const unit = node.generator.units.find((u) => u.node === code)
-      if (unit) return unit.name
-    }
-    if (node.kind === 'substation') {
-      // Generator node connected to this substation (code contains a space)
-      if (code.includes(' ')) {
-        for (const gen of allGenerators) {
-          const unit = gen.units.find((u) => u.node === code)
-          if (unit) return `${unit.name}`
-        }
-      }
-      // Regular busbar: decode VVVu suffix → e.g. "0331" → "33kV - 1"
-      if (code.length >= 4) {
-        const suffix = code.slice(-4)
-        const voltage = parseInt(suffix.slice(0, 3), 10)
-        const unit = parseInt(suffix.slice(3), 10)
-        return `${voltage}kV - ${unit}`
-      }
-    }
-    return code.includes(' ') ? code.split(' ')[1] : code
-  }
-
-  function colourFor(code: string, index: number): string {
-    if (node.kind === 'generator') {
-      const unit = node.generator.units.find((u) => u.node === code)
-      return unit ? fuelColour(unit.fuel) : SUBSTATION_COLOURS[index % SUBSTATION_COLOURS.length]
-    }
-    return SUBSTATION_COLOURS[index % SUBSTATION_COLOURS.length]
-  }
-
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
-    const series: Highcharts.SeriesLineOptions[] = chartData.codes.map((code, i) => ({
-      type: node.kind === 'substation' ? 'line' : 'area',
-      name: labelFor(code),
-      color: colourFor(code, i),
+    const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code, i) => ({
+      type: adapter.chartType,
+      name: adapter.labelFor(code),
+      color: adapter.colourFor(code, i),
       visible: effectiveCodes.has(code),
       data: chartData.rows.map((row) => [
         new Date((row.time as string) + 'Z').getTime(),
-        node.kind === 'substation' ? -(row[code] as number) : (row[code] as number),
+        adapter.transformValue(row[code] as number),
       ]),
       marker: { enabled: false },
       animation: false,
     }))
 
-    if (node.kind === 'substation' && chartData.codes.some((c) => c.includes(' '))) {
-      series.push({
-        type: 'line',
-        name: 'Net',
-        color: '#222222',
-        lineWidth: 2,
-        zIndex: 5,
-        data: chartData.rows.map((row) => [
-          new Date((row.time as string) + 'Z').getTime(),
-          chartData.codes.reduce((sum, code) => sum + (-(row[code] as number)), 0),
-        ]),
-        marker: { enabled: false },
-        animation: false,
-      })
-    }
+    series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
@@ -151,7 +101,7 @@ export default function NodePanel({ node, onClose }: Props) {
       }))
 
     return {
-      chart: { type: node.kind === 'substation' ? 'line' : 'area', height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
+      chart: { type: adapter.chartType, height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: chartData.codes.length > 1, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -161,35 +111,7 @@ export default function NodePanel({ node, onClose }: Props) {
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: (() => {
-        const base = {
-          title: { text: node.kind === 'substation' ? 'Load (MW)' : 'MW', style: { fontSize: '11px' } },
-          labels: { style: { fontSize: '10px' } },
-          softMin: 0,
-          plotLines: [] as Highcharts.YAxisPlotLinesOptions[],
-          softMax: undefined as number | undefined,
-        }
-        if (node.kind === 'generator') {
-          const totalCapacity = node.generator.units
-            .filter((u) => u.active !== false)
-            .reduce((sum, u) => sum + u.capacity, 0)
-          base.softMax = totalCapacity + 1
-          base.plotLines = [{
-            value: totalCapacity,
-            color: '#999999',
-            width: 1,
-            dashStyle: 'Dash',
-            label: {
-              text: `Capacity: ${totalCapacity} MW`,
-              style: { color: '#999999', fontSize: '10px' },
-              align: 'right',
-              x: -4,
-            },
-            zIndex: 3,
-          }]
-        }
-        return base
-      })(),
+      yAxis: adapter.yAxisOptions(),
       tooltip: {
         shared: true,
         useHTML: true,
@@ -197,7 +119,6 @@ export default function NodePanel({ node, onClose }: Props) {
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
           const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
 
-          // Build pricing lookup keyed by ms timestamp for the relevant codes
           const pricingByMs = new Map<number, Record<string, number>>()
           if (recentData?.pricing) {
             const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
@@ -230,12 +151,12 @@ export default function NodePanel({ node, onClose }: Props) {
         area: {
           lineWidth: 1.5,
           fillOpacity: 0.35,
-          stacking: node.kind === 'generator' && chartData.codes.length > 1 ? 'normal' : undefined,
+          stacking: adapter.stacking(chartData.codes.length),
         },
       },
       series,
     }
-  }, [chartData, effectiveCodes, node, recentData, allGenerators])
+  }, [chartData, effectiveCodes, adapter, recentData])
 
   return (
     <div style={PANEL_STYLE}>
@@ -255,11 +176,11 @@ export default function NodePanel({ node, onClose }: Props) {
       </div>
 
       {/* Unit selector (generators with multiple units) */}
-      {node.kind === 'generator' && allCodes.length > 1 && (
+      {adapter.showUnitSelector(allCodes.length) && (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {allCodes.map((code, i) => {
             const active = effectiveCodes.has(code)
-            const colour = colourFor(code, i)
+            const colour = adapter.colourFor(code, i)
             return (
               <button
                 key={code}
