@@ -91,12 +91,30 @@ export default function NodePanel({ node, onClose }: Props) {
       color: colourFor(code, i),
       visible: effectiveCodes.has(code),
       data: chartData.rows.map((row) => [
-        new Date(row.time as string).getTime(),
+        new Date((row.time as string) + 'Z').getTime(),
         row[code] as number,
       ]),
       marker: { enabled: false },
       animation: false,
     }))
+
+    const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
+      .filter((row, i) => {
+        if (i === 0) return false
+        return (row.time as string).slice(0, 10) !== (chartData.rows[i - 1].time as string).slice(0, 10)
+      })
+      .map((row) => ({
+        value: new Date((row.time as string) + 'Z').getTime(),
+        color: '#aaaaaa',
+        width: 1,
+        dashStyle: 'Dash',
+        label: {
+          text: Highcharts.dateFormat('%e %b', new Date((row.time as string) + 'Z').getTime()),
+          style: { color: '#888888', fontSize: '10px' },
+          y: 14,
+        },
+        zIndex: 3,
+      }))
 
     return {
       chart: { type: 'area', height: 360, margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
@@ -106,7 +124,8 @@ export default function NodePanel({ node, onClose }: Props) {
       xAxis: {
         type: 'datetime',
         labels: { style: { fontSize: '10px' } },
-        dateTimeLabelFormats: { day: '%e %b', hour: '%H:%M' },
+        dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
+        plotLines: midnightPlotLines,
       },
       yAxis: {
         title: { text: 'MW', style: { fontSize: '11px' } },
@@ -114,9 +133,17 @@ export default function NodePanel({ node, onClose }: Props) {
       },
       tooltip: {
         shared: true,
-        xDateFormat: '%e %b %H:%M',
-        valueSuffix: ' MW',
-        valueDecimals: 1,
+        useHTML: true,
+        formatter: function () {
+          const points = this.points ?? []
+          const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
+          const rows = points
+            .map((p) => `<span style="color:${String(p.color)}">●</span> ${p.series.name}: <b>${(p.y ?? 0).toFixed(1)} MW</b>`)
+            .join('<br/>')
+          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+          const totalRow = points.length > 1 ? `<br/><b>Total: ${total.toFixed(1)} MW</b>` : ''
+          return `<b>${time}</b><br/>${rows}${totalRow}`
+        },
       },
       plotOptions: { area: { lineWidth: 1.5, fillOpacity: 0.2 } },
       series,
