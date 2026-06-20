@@ -45,7 +45,8 @@ export function createGeneratorAdapter(generator: Generator): NodeAdapter {
 
     labelFor(code) {
       const unit = generator.units.find((u) => u.node === code)
-      return unit ? unit.name : (code.includes(' ') ? code.split(' ')[1] : code)
+      if (!unit) return code.includes(' ') ? code.split(' ')[1] : code
+      return unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
     },
 
     colourFor(code, index) {
