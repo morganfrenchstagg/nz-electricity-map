@@ -6,6 +6,8 @@ export interface UnderConstructionNode {
   operator: string
   status: string
   capacityMW?: number
+  capacityMWp?: number
+  capacityMWh?: number
   location?: { lat: number; long: number }
 }
 

@@ -134,14 +134,19 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
         if (ucFeatures.length > 0) {
           const p = ucFeatures[0].properties as Record<string, string | number | null>
           const name = p.locationDescription ? `${p.name} <span style="font-weight:400;color:#666">(${p.locationDescription})</span>` : String(p.name)
+          const capacityParts = [
+            p.capacityMW ? `${p.capacityMW} MW` : null,
+            p.capacityMWp ? `${p.capacityMWp} MWp` : null,
+            p.capacityMWh ? `${p.capacityMWh} MWh` : null,
+          ].filter(Boolean).join(' / ')
           const rows = [
             ['Status', p.status],
             ['Fuel', p.fuel],
             ['Operator', p.operator],
-            p.capacityMW ? ['Capacity', `${p.capacityMW} MW`] : null,
+            capacityParts ? ['Capacity', capacityParts] : null,
           ]
             .filter(Boolean)
-            .map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:16px;margin-top:3px"><span style="color:#888">${k}</span><span>${v}</span></div>`)
+            .map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:16px;margin-top:3px"><span style="color:#888;flex-shrink:0">${k}</span><span style="text-align:right">${v}</span></div>`)
             .join('')
           new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
             .setLngLat(ucFeatures[0].geometry.type === 'Point' ? (ucFeatures[0].geometry.coordinates as [number, number]) : e.lngLat)

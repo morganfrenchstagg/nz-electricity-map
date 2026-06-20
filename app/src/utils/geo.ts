@@ -76,6 +76,8 @@ export function underConstructionToGeoJson(
         operator: node.operator,
         status: node.status,
         capacityMW: node.capacityMW ?? null,
+        capacityMWp: node.capacityMWp ?? null,
+        capacityMWh: node.capacityMWh ?? null,
       },
     })
   }
