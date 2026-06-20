@@ -117,7 +117,7 @@ export default function NodePanel({ node, onClose }: Props) {
       }))
 
     return {
-      chart: { type: 'area', height: 360, margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
+      chart: { type: 'area', height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: chartData.codes.length > 1, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -149,7 +149,13 @@ export default function NodePanel({ node, onClose }: Props) {
           return `<b>${time}</b><br/>${rows}${totalRow}`
         },
       },
-      plotOptions: { area: { lineWidth: 1.5, fillOpacity: 0.2 } },
+      plotOptions: {
+        area: {
+          lineWidth: 1.5,
+          fillOpacity: 0.35,
+          stacking: node.kind === 'generator' && chartData.codes.length > 1 ? 'normal' : undefined,
+        },
+      },
       series,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
