@@ -204,7 +204,16 @@ export default function NodePanel({ node, onClose }: Props) {
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{title}</div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
+            <span>{subtitle}</span>
+            {adapter.subtitleFuels.map((f) => (
+              <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ marginRight: 3 }}>|</span>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
+                <span>{f.label}</span>
+              </span>
+            ))}
+          </div>
         </div>
         {capacity !== null && currentGeneration !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 130, flexShrink: 0 }}>

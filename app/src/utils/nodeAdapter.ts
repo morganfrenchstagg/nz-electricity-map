@@ -43,6 +43,7 @@ export interface NodeAdapter {
   capacityMW(effectiveCodes: Set<string>): number | null
   unitOutageMW(code: string): number
   capacitySeries(rows: ChartRow[], effectiveCodes: Set<string>): Highcharts.SeriesOptionsType | null
+  subtitleFuels: { label: string; colour: string }[]
 }
 
 export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): NodeAdapter {
@@ -66,6 +67,11 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     if (lost <= 0) return unit.capacity
     return Math.max(0, (unit.installedCapacity ?? unit.capacity) - lost)
   }
+
+  const subtitleFuels = [...new Set(activeUnits.map((u) => {
+    if (u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)') return 'Battery'
+    return u.fuel
+  }))].map((label) => ({ label, colour: fuelColour(label) }))
 
   return {
     title: generator.name,
@@ -92,6 +98,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     },
 
     transformValue(val) { return val },
+    subtitleFuels,
 
     yAxisOptions(effectiveCodes) {
       const units = effectiveCodes
@@ -279,5 +286,6 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     capacityMW(_effectiveCodes) { return null },
     unitOutageMW(_code) { return 0 },
     capacitySeries(_rows, _effectiveCodes) { return null },
+    subtitleFuels: [],
   }
 }
