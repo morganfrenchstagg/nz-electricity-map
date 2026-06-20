@@ -190,7 +190,7 @@ export default function NodePanel({ node, onClose }: Props) {
       plotOptions: {
         area: {
           lineWidth: 1.5,
-          fillOpacity: 0.35,
+          fillOpacity: 0.8,
           stacking: adapter.stacking(chartData.codes.length),
         },
       },
