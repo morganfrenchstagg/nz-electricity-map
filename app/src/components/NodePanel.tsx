@@ -45,9 +45,17 @@ export default function NodePanel({ node, onClose }: Props) {
   )
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
-  const effectiveCodes = activeCodes ?? new Set(allCodes)
+  const [showGenerators, setShowGenerators] = useState(true)
 
-  useEffect(() => { setActiveCodes(null) }, [node])
+  const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
+
+  const effectiveCodes = useMemo(() => {
+    const base = activeCodes ?? new Set(allCodes)
+    if (!showGenerators) return new Set([...base].filter(c => !c.includes(' ')))
+    return base
+  }, [activeCodes, allCodes, showGenerators])
+
+  useEffect(() => { setActiveCodes(null); setShowGenerators(true) }, [node])
 
   const chartData = useMemo(() => {
     if (!recentData || allCodes.length === 0) return null
@@ -83,7 +91,7 @@ export default function NodePanel({ node, onClose }: Props) {
       animation: false,
     }))
 
-    series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
+    if (showGenerators) series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
@@ -159,7 +167,7 @@ export default function NodePanel({ node, onClose }: Props) {
       },
       series,
     }
-  }, [chartData, effectiveCodes, adapter, recentData])
+  }, [chartData, effectiveCodes, adapter, recentData, showGenerators])
 
   return (
     <div style={PANEL_STYLE}>
@@ -177,6 +185,27 @@ export default function NodePanel({ node, onClose }: Props) {
           ×
         </button>
       </div>
+
+      {hasGeneratorCodes && (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <button
+            onClick={() => setShowGenerators(v => !v)}
+            style={{
+              marginTop: 6,
+              padding: '2px 8px',
+              borderRadius: 10,
+              border: '1px solid #ccc',
+              background: showGenerators ? '#f0f0f0' : 'white',
+              color: '#444',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          >
+            {showGenerators ? 'Hide generators' : 'Show generators'}
+          </button>
+        </div>
+      )}
 
       {/* Unit selector (generators with multiple units) */}
       {adapter.showUnitSelector(allCodes.length) && (
