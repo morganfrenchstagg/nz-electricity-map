@@ -4,10 +4,22 @@ import type { ChartRow } from './chart'
 import { substationCodes } from './chart'
 import { fuelColour } from './colours'
 
-const SUBSTATION_COLOURS = [
-  '#e15759', '#4e79a7', '#f28e2b', '#76b7b2',
-  '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-]
+const VOLTAGE_COLOURS: Record<number, string> = {
+  220: '#c0392b',
+  110: '#8e44ad',
+  66:  '#2471a3',
+  33:  '#27ae60',
+  11:  '#d68910',
+}
+const VOLTAGE_COLOUR_DEFAULT = '#7f8c8d'
+
+function voltageColour(code: string): string {
+  if (code.length >= 4) {
+    const voltage = parseInt(code.slice(-4, -1), 10)
+    return VOLTAGE_COLOURS[voltage] ?? VOLTAGE_COLOUR_DEFAULT
+  }
+  return VOLTAGE_COLOUR_DEFAULT
+}
 
 export interface NodeAdapter {
   title: string
@@ -104,8 +116,14 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
       return code.includes(' ') ? code.split(' ')[1] : code
     },
 
-    colourFor(_code, index) {
-      return SUBSTATION_COLOURS[index % SUBSTATION_COLOURS.length]
+    colourFor(code, _index) {
+      if (code.includes(' ')) {
+        for (const gen of allGenerators) {
+          const unit = gen.units.find((u) => u.node === code)
+          if (unit) return fuelColour(unit.fuel)
+        }
+      }
+      return voltageColour(code)
     },
 
     transformValue(val) { return -val },
