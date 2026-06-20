@@ -53,6 +53,7 @@ export default function NodePanel({ node, onClose }: Props) {
   }, [recentData, allCodes])
 
   const { title, subtitle } = adapter
+  const nodeKey = node.kind === 'generator' ? node.generator.site : node.substation.siteId
 
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
@@ -221,7 +222,7 @@ export default function NodePanel({ node, onClose }: Props) {
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact highcharts={Highcharts} options={chartOptions} />
+          <HighchartsReact key={nodeKey} highcharts={Highcharts} options={chartOptions} />
         )}
       </div>
     </div>
