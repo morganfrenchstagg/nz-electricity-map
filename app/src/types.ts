@@ -41,6 +41,7 @@ export interface DefinitionsResponse {
 export interface RecentData {
   series: string[]
   data: (string | number)[][]
+  pricing: (string | number)[][]
 }
 
 export type SelectedNode =

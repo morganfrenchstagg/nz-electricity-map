@@ -192,11 +192,29 @@ export default function NodePanel({ node, onClose }: Props) {
         formatter: function () {
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
           const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
+
+          // Build pricing lookup keyed by ms timestamp for the relevant codes
+          const pricingByMs = new Map<number, Record<string, number>>()
+          if (recentData?.pricing) {
+            const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
+            for (const row of recentData.pricing) {
+              const ms = new Date((row[0] as string) + 'Z').getTime()
+              const entry: Record<string, number> = {}
+              chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
+              pricingByMs.set(ms, entry)
+            }
+          }
+
+          const priceAtTime = pricingByMs.get(this.x as number)
+
           const rows = points
             .map((p) => {
               const val = `${(p.y ?? 0).toFixed(1)} MW`
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}`
+              const code = chartData.codes[p.series.index]
+              const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
+              const priceStr = price !== undefined ? ` <span style="color:#888">$${price.toFixed(2)}/MWh</span>` : ''
+              return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}${priceStr}`
             })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
@@ -213,8 +231,7 @@ export default function NodePanel({ node, onClose }: Props) {
       },
       series,
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartData, effectiveCodes])
+  }, [chartData, effectiveCodes, node, recentData, allGenerators])
 
   return (
     <div style={PANEL_STYLE}>
