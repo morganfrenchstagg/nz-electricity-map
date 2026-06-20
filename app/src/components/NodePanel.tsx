@@ -65,6 +65,15 @@ export default function NodePanel({ node, onClose }: Props) {
   const { title, subtitle } = adapter
   const nodeKey = node.kind === 'generator' ? node.generator.site : node.substation.siteId
 
+  const capacity = adapter.capacityMW(effectiveCodes)
+  const currentGeneration = useMemo(() => {
+    if (!chartData || chartData.rows.length === 0) return null
+    const lastRow = chartData.rows[chartData.rows.length - 1]
+    return [...effectiveCodes]
+      .filter(code => chartData.codes.includes(code))
+      .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
+  }, [chartData, effectiveCodes])
+
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
     if (next.has(code)) {
@@ -122,7 +131,7 @@ export default function NodePanel({ node, onClose }: Props) {
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: adapter.yAxisOptions(),
+      yAxis: adapter.yAxisOptions(effectiveCodes),
       tooltip: {
         shared: true,
         useHTML: true,
@@ -177,6 +186,24 @@ export default function NodePanel({ node, onClose }: Props) {
           <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{title}</div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{subtitle}</div>
         </div>
+        {capacity !== null && currentGeneration !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 130, flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap' }}>
+              {currentGeneration.toFixed(0)} / {capacity} MW ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)
+            </div>
+            <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+              {allCodes.map((code, i) => {
+                if (!effectiveCodes.has(code)) return null
+                const lastRow = chartData?.rows[chartData.rows.length - 1]
+                const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
+                const pct = capacity > 0 ? (val / capacity) * 100 : 0
+                return (
+                  <div key={code} style={{ height: '100%', width: `${pct}%`, flexShrink: 0, background: adapter.colourFor(code, i) }} />
+                )
+              })}
+            </div>
+          </div>
+        )}
         <button
           onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}

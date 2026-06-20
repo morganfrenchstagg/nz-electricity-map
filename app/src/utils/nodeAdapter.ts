@@ -20,11 +20,12 @@ export interface NodeAdapter {
   labelFor(code: string): string
   colourFor(code: string, index: number): string
   transformValue(val: number): number
-  yAxisOptions(): Highcharts.YAxisOptions
+  yAxisOptions(effectiveCodes?: Set<string>): Highcharts.YAxisOptions
   extraSeries(rows: ChartRow[], codes: string[]): Highcharts.SeriesOptionsType[]
   stacking(numCodes: number): Highcharts.OptionsStackingValue | undefined
   showUnitSelector(numCodes: number): boolean
   showLegend(numCodes: number): boolean
+  capacityMW(effectiveCodes: Set<string>): number | null
 }
 
 export function createGeneratorAdapter(generator: Generator): NodeAdapter {
@@ -57,19 +58,23 @@ export function createGeneratorAdapter(generator: Generator): NodeAdapter {
 
     transformValue(val) { return val },
 
-    yAxisOptions() {
+    yAxisOptions(effectiveCodes) {
+      const units = effectiveCodes
+        ? activeUnits.filter((u) => effectiveCodes.has(u.node))
+        : activeUnits
+      const capacity = units.reduce((sum, u) => sum + u.capacity, 0)
       return {
         title: { text: 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
         softMin: 0,
-        softMax: totalCapacity + 1,
+        softMax: capacity + 1,
         plotLines: [{
-          value: totalCapacity,
+          value: capacity,
           color: '#999999',
           width: 1,
           dashStyle: 'Dash',
           label: {
-            text: `Capacity: ${totalCapacity} MW`,
+            text: `Capacity: ${capacity} MW`,
             style: { color: '#999999', fontSize: '10px' },
             align: 'right',
             x: -4,
@@ -85,6 +90,11 @@ export function createGeneratorAdapter(generator: Generator): NodeAdapter {
 
     showUnitSelector(numCodes) { return numCodes > 1 },
     showLegend(_numCodes) { return false },
+    capacityMW(effectiveCodes) {
+      return activeUnits
+        .filter((u) => effectiveCodes.has(u.node))
+        .reduce((sum, u) => sum + u.capacity, 0)
+    },
   }
 }
 
@@ -126,7 +136,7 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
 
     transformValue(val) { return -val },
 
-    yAxisOptions() {
+    yAxisOptions(_effectiveCodes) {
       return {
         title: { text: 'Load (MW)', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
@@ -156,5 +166,6 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
 
     showUnitSelector(_numCodes) { return false },
     showLegend(numCodes) { return numCodes > 1 },
+    capacityMW(_effectiveCodes) { return null },
   }
 }
