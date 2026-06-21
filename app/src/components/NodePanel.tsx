@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode } from '../types'
-import { useRecentData } from '../hooks/useRecentData'
+import { useDispatchData, datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import { extractChartData } from '../utils/chart'
@@ -26,10 +27,12 @@ const PANEL_STYLE: React.CSSProperties = {
 interface Props {
   node: NonNullable<SelectedNode>
   onClose: () => void
+  dateMode: DateMode
+  onDateModeChange: (m: DateMode) => void
 }
 
-export default function NodePanel({ node, onClose }: Props) {
-  const { recentData, loading, error } = useRecentData()
+export default function NodePanel({ node, onClose, dateMode, onDateModeChange }: Props) {
+  const { recentData, loading, error } = useDispatchData(dateMode)
   const { generators: allGenerators } = useDefinitions()
   const outages = useOutages()
 
@@ -48,6 +51,52 @@ export default function NodePanel({ node, onClose }: Props) {
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const [showGenerators, setShowGenerators] = useState(true)
+
+  // Date picker local state — initialized from dateMode prop (which may come from URL)
+  const [fromDate, setFromDate] = useState(
+    dateMode.kind === 'date' ? dateMode.date
+    : dateMode.kind === 'range' ? dateMode.from
+    : ''
+  )
+  const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
+
+  const rangeError = useMemo(() => {
+    if (!fromDate || !toDate) return null
+    if (toDate < fromDate) return 'End date must be after start date'
+    const days = datesBetween(fromDate, toDate).length
+    if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
+    return null
+  }, [fromDate, toDate])
+
+  const handleFromChange = useCallback((val: string) => {
+    setFromDate(val)
+    if (!val) {
+      setToDate('')
+      onDateModeChange({ kind: 'recent' })
+    } else if (toDate && toDate >= val) {
+      const days = datesBetween(val, toDate).length
+      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
+    } else {
+      setToDate('')
+      onDateModeChange({ kind: 'date', date: val })
+    }
+  }, [toDate, onDateModeChange])
+
+  const handleToChange = useCallback((val: string) => {
+    setToDate(val)
+    if (!val) {
+      if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
+    } else if (fromDate && val >= fromDate) {
+      const days = datesBetween(fromDate, val).length
+      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
+    }
+  }, [fromDate, onDateModeChange])
+
+  const handleRecentClick = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'recent' })
+  }, [onDateModeChange])
 
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
 
@@ -279,6 +328,46 @@ export default function NodePanel({ node, onClose }: Props) {
         >
           ×
         </button>
+      </div>
+
+      {/* Date picker toolbar */}
+      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          onClick={handleRecentClick}
+          style={{
+            padding: '2px 10px',
+            borderRadius: 10,
+            border: '1px solid #ccc',
+            background: dateMode.kind === 'recent' ? '#f0f0f0' : 'white',
+            color: '#444',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: dateMode.kind === 'recent' ? 600 : 400,
+            flexShrink: 0,
+          }}
+        >
+          Recent
+        </button>
+        <input
+          type="date"
+          value={fromDate}
+          max={new Date().toISOString().slice(0, 10)}
+          onChange={e => handleFromChange(e.target.value)}
+          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
+        />
+        <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+        <input
+          type="date"
+          value={toDate}
+          min={fromDate || undefined}
+          max={new Date().toISOString().slice(0, 10)}
+          disabled={!fromDate}
+          onChange={e => handleToChange(e.target.value)}
+          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+        />
+        {rangeError && (
+          <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+        )}
       </div>
 
       {hasGeneratorCodes && (
