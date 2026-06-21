@@ -68,6 +68,11 @@ export default function NodePanel({ node, onClose }: Props) {
   const nodeKey = node.kind === 'generator' ? node.generator.site : node.substation.siteId
 
   const capacity = adapter.capacityMW(effectiveCodes)
+  const normalCapacity = adapter.normalCapacityMW(effectiveCodes)
+  const totalOutageMW = useMemo(
+    () => [...effectiveCodes].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0),
+    [effectiveCodes, adapter],
+  )
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
     const lastRow = chartData.rows[chartData.rows.length - 1]
@@ -149,7 +154,7 @@ export default function NodePanel({ node, onClose }: Props) {
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: adapter.yAxisOptions(effectiveCodes),
+      yAxis: adapter.yAxisOptions(effectiveCodes, chartData.rows),
       tooltip: {
         shared: true,
         useHTML: true,
@@ -215,10 +220,30 @@ export default function NodePanel({ node, onClose }: Props) {
             ))}
           </div>
         </div>
-        {capacity !== null && currentGeneration !== null && (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 130, flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap' }}>
-              {currentGeneration.toFixed(0)} / {capacity} MW ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)
+        {capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+              {totalOutageMW > 0 ? (
+                <>
+                  <span>{currentGeneration.toFixed(0)} /</span>
+                  <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
+                  <span>{capacity.toFixed(0)} MW</span>
+                  <span style={{
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    borderRadius: 4,
+                    padding: '0 5px',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    lineHeight: '16px',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {totalOutageMW.toFixed(1)} MW Outage
+                  </span>
+                </>
+              ) : (
+                <span>{currentGeneration.toFixed(0)} / {capacity.toFixed(0)} MW ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
+              )}
             </div>
             <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
               {allCodes.map((code, i) => {
@@ -227,8 +252,9 @@ export default function NodePanel({ node, onClose }: Props) {
                 const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
                 const outageMW = adapter.unitOutageMW(code)
                 const colour = adapter.colourFor(code, i)
-                const genPct = capacity > 0 ? (val / capacity) * 100 : 0
-                const outagePct = capacity > 0 ? (outageMW / capacity) * 100 : 0
+                const denom = normalCapacity > 0 ? normalCapacity : 1
+                const genPct = (val / denom) * 100
+                const outagePct = (outageMW / denom) * 100
                 return (
                   <span key={code} style={{ display: 'contents' }}>
                     <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
@@ -237,7 +263,7 @@ export default function NodePanel({ node, onClose }: Props) {
                         height: '100%',
                         width: `${outagePct}%`,
                         flexShrink: 0,
-                        background: `repeating-linear-gradient(45deg, ${colour} 0, ${colour} 2px, transparent 2px, transparent 5px)`,
+                        background: `repeating-linear-gradient(45deg, ${colour}66 0, ${colour}66 2px, transparent 2px, transparent 5px)`,
                       }} />
                     )}
                   </span>

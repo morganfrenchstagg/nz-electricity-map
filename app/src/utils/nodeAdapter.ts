@@ -35,12 +35,13 @@ export interface NodeAdapter {
   labelFor(code: string): string
   colourFor(code: string, index: number): string
   transformValue(val: number): number
-  yAxisOptions(effectiveCodes?: Set<string>): Highcharts.YAxisOptions
+  yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
   extraSeries(rows: ChartRow[], codes: string[]): Highcharts.SeriesOptionsType[]
   stacking(numCodes: number): Highcharts.OptionsStackingValue | undefined
   showUnitSelector(numCodes: number): boolean
   showLegend(numCodes: number): boolean
   capacityMW(effectiveCodes: Set<string>): number | null
+  normalCapacityMW(effectiveCodes: Set<string>): number | null
   unitOutageMW(code: string): number
   capacitySeries(rows: ChartRow[], effectiveCodes: Set<string>): Highcharts.SeriesOptionsType | null
   subtitleFuels: { label: string; colour: string }[]
@@ -100,17 +101,39 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     transformValue(val) { return val },
     subtitleFuels,
 
-    yAxisOptions(effectiveCodes) {
+    yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes
         ? activeUnits.filter((u) => effectiveCodes.has(u.node))
         : activeUnits
-      const installed = units.reduce((sum, u) => sum + (u.installedCapacity ?? u.capacity), 0)
       const adjusted = units.reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+
+      // softMax = maximum capacity the generator reaches over the chart period.
+      // Collect all outage-event timestamps within the chart window plus firstTime,
+      // evaluate totalCap at each, take the max.
+      let softMaxCap = units.reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
+      if (outages && rows && rows.length > 0) {
+        const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
+        const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+        const checkTs = new Set<number>([firstTime])
+        for (const unit of units) {
+          for (const rec of (outages[unit.node] ?? [])) {
+            const s = outageMs(rec.timeStart)
+            const e = outageMs(rec.timeEnd)
+            if (s > firstTime && s <= lastTime) checkTs.add(s)
+            if (e > firstTime && e <= lastTime) checkTs.add(e)
+          }
+        }
+        softMaxCap = 0
+        for (const t of checkTs) {
+          const cap = units.reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          if (cap > softMaxCap) softMaxCap = cap
+        }
+      }
       return {
         title: { text: 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
         softMin: 0,
-        softMax: installed + 1,
+        softMax: softMaxCap + 1,
         // when outage data is loaded, the step-line series replaces the static plotLine
         gridLineDashStyle: 'Dash',
         plotLines: outages ? [] : [{
@@ -139,6 +162,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       return activeUnits
         .filter((u) => effectiveCodes.has(u.node))
         .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+    },
+
+    normalCapacityMW(effectiveCodes) {
+      return activeUnits
+        .filter((u) => effectiveCodes.has(u.node))
+        .reduce((sum, u) => sum + u.capacity, 0)
     },
 
     unitOutageMW(code) {
@@ -252,7 +281,7 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
 
     transformValue(val) { return -val },
 
-    yAxisOptions(_effectiveCodes) {
+    yAxisOptions(_effectiveCodes, _rows) {
       return {
         title: { text: 'Load (MW)', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
@@ -284,6 +313,7 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     showUnitSelector(_numCodes) { return false },
     showLegend(numCodes) { return numCodes > 1 },
     capacityMW(_effectiveCodes) { return null },
+    normalCapacityMW(_effectiveCodes) { return null },
     unitOutageMW(_code) { return 0 },
     capacitySeries(_rows, _effectiveCodes) { return null },
     subtitleFuels: [],
