@@ -162,7 +162,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         ].filter(Boolean).join(' / ')
         return [
           capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Capacity</span><span>${capacityParts}</span></div>` : '',
-          u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
+          u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
           u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Expected open</span><span>${new Date(u.openBy).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
         ].filter(Boolean).join('')
       }
