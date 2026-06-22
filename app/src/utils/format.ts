@@ -5,12 +5,12 @@
 export function formatMW(value: number): string {
   const abs = Math.abs(value)
 
-  if (Number.isInteger(value)) {
-    return `${value} MW`;
-  }
-
   if (abs >= 1000) {
     return `${Math.round(value).toLocaleString('en-NZ')} MW`;
+  }
+
+  if (Number.isInteger(value)) {
+    return `${value} MW`;
   }
 
   if (abs >= 100) {
