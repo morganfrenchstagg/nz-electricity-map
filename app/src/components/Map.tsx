@@ -2,10 +2,12 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
+import { useDispatchData } from '../hooks/useDispatchData'
+import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, ucUnitsForSite } from '../utils/geo'
 import { underConstruction } from '../../../frontend/utilities/underConstruction'
-import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
-import type { Generator, Substation, SelectedNode } from '../types'
+import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour } from '../utils/colours'
+import { formatMW } from '../utils/format'
+import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 // todo - cache this in CF worker, so it's not as slow as arcgis is...
@@ -26,10 +28,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const { generators, substations } = useDefinitions()
+  const { recentData } = useDispatchData({ kind: 'recent' })
   const generatorsRef = useRef<Generator[]>(generators)
   const substationsRef = useRef<Substation[]>(substations)
+  const recentDataRef = useRef<RecentData | null>(null)
   const leftPanelOpenRef = useRef(leftPanelOpen)
   useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
+  useEffect(() => { recentDataRef.current = recentData }, [recentData])
 
   useEffect(() => { generatorsRef.current = generators }, [generators])
   useEffect(() => { substationsRef.current = substations }, [substations])
@@ -144,7 +149,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
 
-      let hoverPopup: maplibregl.Popup | null = null
+      const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
 
       const STATUS_PILL_COLOURS: Record<string, { bg: string; text: string }> = {
         'Commissioning': { bg: '#dcfce7', text: '#15803d' },
@@ -173,6 +178,86 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
           : ''
       }
+
+      map.on('mouseenter', 'generators-layer', (e) => {
+        const feature = e.features?.[0]
+        if (!feature) return
+        const site = feature.properties?.site as string | undefined
+        const generator = generatorsRef.current.find(g => g.site === site)
+        if (!generator) return
+
+        const lngLat = feature.geometry.type === 'Point'
+          ? (feature.geometry.coordinates as [number, number])
+          : e.lngLat
+
+        const data = recentDataRef.current
+        const lastRow = data?.data[data.data.length - 1]
+        const activeUnits = generator.units.filter(u => u.active !== false)
+
+        const unitRows = activeUnits.map(u => {
+          const idx = data ? data.series.indexOf(u.node) : -1
+          const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+          const pct = genMW !== null && u.capacity > 0 ? Math.min(100, Math.round((genMW / u.capacity) * 100)) : 0
+          const colour = fuelColour(u.fuel)
+          const genStr = genMW !== null ? formatMW(genMW) : '—'
+          const isGenerating = (genMW ?? 0) > 0
+          return `<div style="margin-bottom:5px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.name}</span>
+              <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}</span>
+            </div>
+            <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
+              <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>
+            </div>
+          </div>`
+        }).join('')
+
+        const totalGen = activeUnits.reduce((sum, u) => {
+          const idx = data ? data.series.indexOf(u.node) : -1
+          return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
+        }, 0)
+        const totalCap = activeUnits.reduce((sum, u) => sum + u.capacity, 0)
+        const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
+
+        const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
+        const ucSection = ucUnits.length > 0 ? `
+          <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
+            <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Under Construction</div>
+            ${ucUnits.map((u, i) => {
+              const label = u.locationDescription ?? `Unit ${i + 1}`
+              const stats = renderUnitStats(u)
+              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
+                </div>
+                ${stats}
+              </div>`
+            }).join('')}
+          </div>` : ''
+
+        const html = `<div style="font-size:12px;line-height:1.5;width:240px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
+            <span style="font-weight:600">${generator.name}</span>
+            <span style="background:#e8f0fe;color:#1a56db;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${generator.site}</span>
+          </div>
+          <div style="color:#888;margin-bottom:6px">${generator.operator}</div>
+          <div style="border-top:1px solid #eee;padding-top:6px;margin-bottom:4px">${unitRows}</div>
+          <div style="border-top:1px solid #eee;padding-top:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#888">Total</span>
+              <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:#888">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
+            </div>
+          </div>
+          ${ucSection}
+        </div>`
+
+        hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map)
+      })
+
+      map.on('mouseleave', 'generators-layer', () => {
+        hoverPopup.remove()
+      })
 
       map.on('mouseenter', 'under-construction-layer', (e) => {
         const feature = e.features?.[0]
@@ -212,15 +297,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           </div>`
         }
 
-        hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
-          .setLngLat(lngLat)
-          .setHTML(html)
-          .addTo(map)
+        hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map)
       })
 
       map.on('mouseleave', 'under-construction-layer', () => {
-        hoverPopup?.remove()
-        hoverPopup = null
+        hoverPopup.remove()
       })
     })
 

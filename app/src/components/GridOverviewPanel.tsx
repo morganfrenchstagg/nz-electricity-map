@@ -141,7 +141,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       })
       series.push({
         type: 'area',
-        name: 'HVDC Import',
+        name: 'HVDC export',
         color: '#6366f1',
         stack: 'positive',
         data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW < 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
@@ -151,7 +151,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       series.push({
         type: 'area',
-        name: 'HVDC export',
+        name: 'HVDC import',
         color: '#6366f1',
         stack: 'negative',
         data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW > 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
@@ -160,6 +160,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       } as Highcharts.SeriesLineOptions)
     }
       */
+
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = recentData.data
       .filter((row, i) => {

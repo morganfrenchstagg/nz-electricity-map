@@ -58,14 +58,36 @@ export interface UnderConstructionUnit {
   openBy: string | null
 }
 
+export function ucUnitsForSite(nodes: UnderConstructionNode[], site: string): UnderConstructionUnit[] {
+  if (!site) return []
+  return nodes
+    .filter(n => n.site === site)
+    .map(n => ({
+      locationDescription: n.locationDescription ?? null,
+      fuel: n.fuel,
+      operator: n.operator,
+      status: n.status,
+      capacityMW: n.capacityMW ?? null,
+      capacityMWp: n.capacityMWp ?? null,
+      capacityMWh: n.capacityMWh ?? null,
+      yearlyGenerationGWh: n.yearlyGenerationGWh ?? null,
+      openBy: n.openBy ?? null,
+    }))
+}
+
 export function underConstructionToGeoJson(
   nodes: UnderConstructionNode[],
   generators: Generator[],
 ): GeoJSON.FeatureCollection {
+  // Nodes whose site matches an existing generator are shown in the generator tooltip instead
+  const generatorSites = new Set(generators.map(g => g.site))
+
   // Group nodes by resolved coordinates so co-located units share one feature
   const grouped = new Map<string, { lat: number; long: number; name: string; fuel: string; units: UnderConstructionUnit[] }>()
 
   for (const node of nodes) {
+    if (node.site && generatorSites.has(node.site)) continue
+
     let lat: number | undefined
     let long: number | undefined
 

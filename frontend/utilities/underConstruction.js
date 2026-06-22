@@ -222,6 +222,7 @@ export const underConstruction = [
     },
     {
         "name": "Dannevirke",
+        "site": "DVK",
         "fuel": "Solar",
         "operator": "BrightFern Energy",
         "status": "Commissioning",
