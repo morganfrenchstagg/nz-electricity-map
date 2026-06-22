@@ -162,6 +162,22 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       */
 
 
+    // Build per-timestamp renewable percentage
+    const RENEWABLE_FUEL_CODES = new Set(['HYD', 'GEO', 'WIN', 'SOL', 'BESS'])
+    const renewableIndices = [...fuelToIndices.entries()]
+      .filter(([fuel]) => RENEWABLE_FUEL_CODES.has(fuel))
+      .flatMap(([, indices]) => indices)
+    const dispatchIndices = [...fuelToIndices.entries()]
+      .filter(([fuel]) => fuel !== 'BESS-C')
+      .flatMap(([, indices]) => indices)
+    const renewablePctByMs = new Map<number, number>()
+    for (const row of recentData.data) {
+      const ms = new Date((row[0] as string) + 'Z').getTime()
+      const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
+      const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
+      renewablePctByMs.set(ms, totalMW > 0 ? (renewableMW / totalMW) * 100 : 0)
+    }
+
     // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference)
     const otaIdx = recentData.series.findIndex(s => s.startsWith('OTA'))
     const benIdx = recentData.series.findIndex(s => s.startsWith('BEN'))
@@ -240,9 +256,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             prices?.ben != null ? `Benmore price: <b>$${(prices.ben as number).toFixed(2)}/MWh</b>` : null,
           ].filter(Boolean)
           const priceRow = priceParts.length > 0
-            ? `<br/><span>${priceParts.join('<br/>')}</span>`
+            ? `<br/><br/><span>${priceParts.join('<br/>')}</span>`
             : ''
-          return `<b>${time}</b><br/>${rows}<br/><br/>Total: <b>${formatMW(total)}</b><br/>${priceRow}`
+          const renewablePct = renewablePctByMs.get(this.x as number)
+          const renewableRow = renewablePct != null
+            ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
+            : ''
+          return `<b>${time}</b><br/>${rows}<br/><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
         },
       },
       series,
