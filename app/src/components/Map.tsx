@@ -137,35 +137,60 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           return
         }
 
-        const ucFeatures = map.queryRenderedFeatures(e.point, { layers: ['under-construction-layer'] })
-        if (ucFeatures.length > 0) {
-          const p = ucFeatures[0].properties as Record<string, string | number | null>
-          const name = p.locationDescription ? `${p.name} <span style="font-weight:400;color:#666">(${p.locationDescription})</span>` : String(p.name)
-          const capacityParts = [
-            p.capacityMW ? `${p.capacityMW} MW` : null,
-            p.capacityMWp ? `${p.capacityMWp} MWp` : null,
-            p.capacityMWh ? `${p.capacityMWh} MWh` : null,
-          ].filter(Boolean).join(' / ')
-          const rows = [
-            ['Status', p.status],
-            ['Fuel', p.fuel],
-            ['Operator', p.operator],
-            capacityParts ? ['Capacity', capacityParts] : null,
-          ]
-            .filter(Boolean)
-            .map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:16px;margin-top:3px"><span style="color:#888;flex-shrink:0">${k}</span><span style="text-align:right">${v}</span></div>`)
-            .join('')
-          new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
-            .setLngLat(ucFeatures[0].geometry.type === 'Point' ? (ucFeatures[0].geometry.coordinates as [number, number]) : e.lngLat)
-            .setHTML(`<div style="font-size:13px"><div style="font-weight:600;margin-bottom:6px">${name}</div>${rows}</div>`)
-            .addTo(map)
-        }
       })
 
       for (const layer of ['substations-layer', 'generators-layer', 'under-construction-layer']) {
         map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
+
+      let hoverPopup: maplibregl.Popup | null = null
+
+      const STATUS_PILL_COLOURS: Record<string, { bg: string; text: string }> = {
+        'Commissioning': { bg: '#dcfce7', text: '#15803d' },
+        'Pre-Commissioning': { bg: '#d1fae5', text: '#065f46' },
+        'Under Construction': { bg: '#fef3c7', text: '#92400e' },
+        'Early Works': { bg: '#ffedd5', text: '#c2410c' },
+        'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
+      }
+
+      map.on('mouseenter', 'under-construction-layer', (e) => {
+        const feature = e.features?.[0]
+        if (!feature) return
+        const p = feature.properties as Record<string, string | number | null>
+        const name = p.locationDescription
+          ? `${p.name} <span style="font-weight:400;color:#888">(${p.locationDescription})</span>`
+          : String(p.name)
+        const lngLat = feature.geometry.type === 'Point'
+          ? (feature.geometry.coordinates as [number, number])
+          : e.lngLat
+        const status = String(p.status ?? '')
+        const pillColour = STATUS_PILL_COLOURS[status] ?? { bg: '#f3f4f6', text: '#374151' }
+        const statusPill = status
+          ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
+          : ''
+        hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+          .setLngLat(lngLat)
+          .setHTML((() => {
+            const capacityParts = [
+              p.capacityMW ? `${p.capacityMW} MW` : null,
+              p.capacityMWp ? `${p.capacityMWp} MWp` : null,
+              p.capacityMWh ? `${p.capacityMWh} MWh` : null,
+            ].filter(Boolean).join(' / ')
+            const stats = [
+              capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Capacity</span><span>${capacityParts}</span></div>` : '',
+              p.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual generation</span><span>${p.yearlyGenerationGWh} GWh</span></div>` : '',
+              p.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Expected open</span><span>${new Date(String(p.openBy)).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
+            ].filter(Boolean).join('')
+            return `<div style="font-size:12px;line-height:1.6;min-width:160px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${name}</span>${statusPill}</div>${p.operator ? `<div style="color:#888">${p.operator}</div>` : ''}${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}</div>`
+          })())
+          .addTo(map)
+      })
+
+      map.on('mouseleave', 'under-construction-layer', () => {
+        hoverPopup?.remove()
+        hoverPopup = null
+      })
     })
 
     mapRef.current = map

@@ -78,6 +78,8 @@ export function underConstructionToGeoJson(
         capacityMW: node.capacityMW ?? null,
         capacityMWp: node.capacityMWp ?? null,
         capacityMWh: node.capacityMWh ?? null,
+        yearlyGenerationGWh: node.yearlyGenerationGWh ?? null,
+        openBy: node.openBy ?? null,
       },
     })
   }

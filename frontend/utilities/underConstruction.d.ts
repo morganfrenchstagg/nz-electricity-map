@@ -8,6 +8,8 @@ export interface UnderConstructionNode {
   capacityMW?: number
   capacityMWp?: number
   capacityMWh?: number
+  yearlyGenerationGWh?: number
+  openBy?: string
   location?: { lat: number; long: number }
 }
 
