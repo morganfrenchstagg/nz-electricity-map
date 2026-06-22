@@ -106,12 +106,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const units = effectiveCodes
         ? activeUnits.filter((u) => effectiveCodes.has(u.node))
         : activeUnits
-      const adjusted = units.reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const adjusted = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
 
       // softMax = maximum capacity the generator reaches over the chart period.
       // Collect all outage-event timestamps within the chart window plus firstTime,
       // evaluate totalCap at each, take the max.
-      let softMaxCap = units.reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
+      let softMaxCap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
       if (outages && rows && rows.length > 0) {
         const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
         const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
@@ -126,30 +126,54 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         }
         softMaxCap = 0
         for (const t of checkTs) {
-          const cap = units.reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          const cap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
+      const chargeCapacity = units.filter(u => u.fuelCode === 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+
+      const capacityPlotLines: Highcharts.YAxisPlotLinesOptions[] = []
+      if (!outages) {
+        if (adjusted > 0) {
+          capacityPlotLines.push({
+            value: adjusted,
+            color: '#222222',
+            width: 1,
+            dashStyle: 'Solid',
+            label: {
+              text: `${chargeCapacity > 0 ? 'Discharge' : 'Capacity'}: ${formatMW(adjusted)}`,
+              style: { color: '#222222', fontSize: '10px' },
+              align: 'right',
+              x: -4,
+            },
+            zIndex: 3,
+          })
+        }
+        if (chargeCapacity > 0) {
+          capacityPlotLines.push({
+            value: -chargeCapacity,
+            color: '#222222',
+            width: 1,
+            dashStyle: 'Solid',
+            label: {
+              text: `Charge: ${formatMW(chargeCapacity)}`,
+              style: { color: '#222222', fontSize: '10px' },
+              align: 'right',
+              x: -4,
+            },
+            zIndex: 3,
+          })
+        }
+      }
+
       return {
         title: { text: 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
-        softMin: 0,
+        softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
         softMax: softMaxCap + 1,
         // when outage data is loaded, the step-line series replaces the static plotLine
         gridLineDashStyle: 'Dash',
-        plotLines: outages ? [] : [{
-          value: adjusted,
-          color: '#222222',
-          width: 1,
-          dashStyle: 'Solid',
-          label: {
-            text: `Capacity: ${formatMW(adjusted)}`,
-            style: { color: '#222222', fontSize: '10px' },
-            align: 'right',
-            x: -4,
-          },
-          zIndex: 3,
-        }],
+        plotLines: capacityPlotLines,
       }
     },
 
@@ -161,13 +185,13 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     showLegend(_numCodes) { return false },
     capacityMW(effectiveCodes) {
       return activeUnits
-        .filter((u) => effectiveCodes.has(u.node))
+        .filter((u) => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
         .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
     },
 
     normalCapacityMW(effectiveCodes) {
       return activeUnits
-        .filter((u) => effectiveCodes.has(u.node))
+        .filter((u) => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
         .reduce((sum, u) => sum + u.capacity, 0)
     },
 
@@ -186,7 +210,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
 
       function totalCapAt(atMs: number): number {
-        return units.reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+        return units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
       }
 
       // Collect unique timestamps within the chart window where any unit's outage state changes.
@@ -232,7 +256,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         })),
         color: '#222222',
         dashStyle: 'Solid',
-        lineWidth: 1,
+        lineWidth: 2,
         step: 'left',
         marker: { enabled: false },
         animation: false,

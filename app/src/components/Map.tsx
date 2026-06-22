@@ -217,7 +217,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           const idx = data ? data.series.indexOf(u.node) : -1
           return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
         }, 0)
-        const totalCap = activeUnits.reduce((sum, u) => sum + u.capacity, 0)
+        const totalCap = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
         const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
 
         const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []

@@ -5,7 +5,7 @@ export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCol
   const features: GeoJSON.Feature[] = generators.map((g) => {
     const activeUnits = g.units.filter((u) => u.active !== false)
     const dominantFuel = activeUnits[0]?.fuel ?? g.units[0]?.fuel ?? 'Unknown'
-    const totalCapacityMW = activeUnits.reduce((sum, u) => sum + u.capacity, 0)
+    const totalCapacityMW = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
 
     return {
       type: 'Feature',
