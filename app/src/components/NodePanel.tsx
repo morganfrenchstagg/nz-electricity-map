@@ -8,6 +8,7 @@ import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import { extractChartData } from '../utils/chart'
 import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
+import { formatMW } from '../utils/format'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -226,7 +227,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
 
           const rows = points
             .map((p) => {
-              const val = `${(p.y ?? 0).toFixed(1)} MW`
+              const val = formatMW(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
               const code = chartData.codes[p.series.index]
               const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
@@ -235,9 +236,9 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
             })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
-          const totalRow = points.length > 1 ? `<br/><b>Total: ${total.toFixed(1)} MW</b>` : ''
+          const totalRow = points.length > 1 ? `<br/><b>Total: ${formatMW(total)}</b>` : ''
           const capMW = capacityAt(this.x as number)
-          const capRow = capMW !== null ? `<br/><span style="color:#222">─</span> Capacity: ${capMW.toFixed(0)} MW` : ''
+          const capRow = capMW !== null ? `<br/><span style="color:#222">─</span> Capacity: ${formatMW(capMW)}` : ''
           return `<b>${time}</b><br/>${rows}${totalRow}${capRow}`
         },
       },

@@ -6,6 +6,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
 import { substationCodes } from '../utils/chart'
+import { formatMW } from '../utils/format'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -214,7 +215,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const rows = points
             .slice()
             .map(p => {
-              const val = `${(p.y ?? 0).toFixed(1)} MW`
+              const val = formatMW(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
               return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}`
             })
@@ -229,7 +230,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             const breakdown = custom ? ` <span style="color:#999;font-size:10px">(load ${custom.loadMW.toFixed(0)} − gen ${custom.genMW.toFixed(0)})</span>` : ''
             hvdcRow = `<br/><span style="color:${String(hvdcPoint.color)}">●</span> HVDC: <b>${sign}${hvdcVal.toFixed(1)} MW</b>${breakdown}`
           }*/
-          return `<b>${time}</b><br/>${rows}<br/><b>Total: ${total.toFixed(1)} MW</b>`
+          return `<b>${time}</b><br/>${rows}<br/><b>Total: ${formatMW(total)}</b>`
         },
       },
       series,

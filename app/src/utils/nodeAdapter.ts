@@ -4,6 +4,7 @@ import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
 import { substationCodes } from './chart'
 import { fuelColour, voltageColour } from './colours'
+import { formatMW } from './format'
 
 // Outage timestamps include a timezone offset (e.g. +12:00). Chart row timestamps
 // are NZ local time treated as UTC (appending 'Z'). To compare them correctly,
@@ -142,7 +143,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
           width: 1,
           dashStyle: 'Solid',
           label: {
-            text: `Capacity: ${adjusted} MW`,
+            text: `Capacity: ${formatMW(adjusted)}`,
             style: { color: '#222222', fontSize: '10px' },
             align: 'right',
             x: -4,
@@ -221,7 +222,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
           y: point[1],
           dataLabels: i === lastIndex ? {
             enabled: true,
-            format: `Capacity: ${point[1]} MW`,
+            format: `Capacity: ${formatMW(point[1] as number)}`,
             align: 'right',
             style: { color: '#222222', fontSize: '10px', fontWeight: 'normal', textOutline: 'none' },
             crop: false,
