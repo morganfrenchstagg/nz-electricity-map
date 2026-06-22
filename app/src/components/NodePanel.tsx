@@ -225,21 +225,42 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
 
           const priceAtTime = pricingByMs.get(this.x as number)
 
-          const rows = points
-            .map((p) => {
-              const val = formatMW(p.y ?? 0)
-              const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              const code = chartData.codes[p.series.index]
-              const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
-              const priceStr = price !== undefined ? ` <span style="color:#888">$${price.toFixed(2)}/MWh</span>` : ''
-              return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}${priceStr}`
-            })
-            .join('<br/>')
-          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
-          const totalRow = points.length > 1 ? `<br/>Total: <b>${formatMW(total)}</b><br/><br/>` : '<br/>'
           const capMW = capacityAt(this.x as number)
-          const capRow = capMW !== null ? `Capacity: <b>${formatMW(capMW)}</b>` : ''
-          return `<b>${time}</b><br/>${rows}<br/>${totalRow}${capRow}`
+          const capRow = capMW !== null ? `<br/><br/>Capacity: <b>${formatMW(capMW)}</b>` : ''
+
+          let rows = "";
+
+          if (points.length > 1) {
+            rows = points
+              .map((p) => {
+                const val = formatMW(p.y ?? 0)
+                const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
+                const code = chartData.codes[p.series.index]
+                const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
+                const priceStr = price !== undefined ? ` <span style="color:#888">$${price.toFixed(2)}/MWh</span>` : ''
+                return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}${priceStr}`
+              })
+              .join('<br/>');
+          } else if (points.length === 1) {
+            const p = points[0];
+            const val = formatMW(p.y ?? 0)
+            const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
+            const code = chartData.codes[p.series.index]
+            const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
+            const priceStr = price !== undefined ? ` <span style="color:#888">$${price.toFixed(2)}/MWh</span>` : ''
+            const capacityRow = capMW !== null ? `<b>${formatMW(capMW)}</b>` : '';
+            rows += `<span style="color:${String(p.color)}">●</span> ${formatted} / ${capacityRow}${priceStr}`
+          }
+          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+          const totalRow = points.length > 1 ? `<br/><br/>Total: <b>${formatMW(total)}</b>` : ''
+
+          let resultHtml = `<b>${time}</b><br/>${rows}${totalRow}`;
+
+          if (points.length > 1) {
+            resultHtml += capRow;
+          }
+
+          return resultHtml;
         },
       },
       plotOptions: {
