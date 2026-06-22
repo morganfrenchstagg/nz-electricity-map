@@ -162,6 +162,18 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       */
 
 
+    // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference)
+    const otaIdx = recentData.series.findIndex(s => s.startsWith('OTA'))
+    const benIdx = recentData.series.findIndex(s => s.startsWith('BEN'))
+    const refPricingByMs = new Map<number, { ota: number | null; ben: number | null }>()
+    for (const row of (recentData.pricing ?? [])) {
+      const ms = new Date((row[0] as string) + 'Z').getTime()
+      refPricingByMs.set(ms, {
+        ota: otaIdx >= 0 ? (row[otaIdx + 1] as number ?? null) : null,
+        ben: benIdx >= 0 ? (row[benIdx + 1] as number ?? null) : null,
+      })
+    }
+
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = recentData.data
       .filter((row, i) => {
         if (i === 0) return false
@@ -222,16 +234,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
-          /*
-          let hvdcRow = ''
-          if (hvdcPoint) {
-            const custom = (hvdcPoint.point as { custom?: { genMW: number; loadMW: number } }).custom
-            const hvdcVal = (custom ? custom.loadMW - custom.genMW : hvdcPoint.y) ?? 0
-            const sign = hvdcVal >= 0 ? '+' : ''
-            const breakdown = custom ? ` <span style="color:#999;font-size:10px">(load ${custom.loadMW.toFixed(0)} − gen ${custom.genMW.toFixed(0)})</span>` : ''
-            hvdcRow = `<br/><span style="color:${String(hvdcPoint.color)}">●</span> HVDC: <b>${sign}${hvdcVal.toFixed(1)} MW</b>${breakdown}`
-          }*/
-          return `<b>${time}</b><br/>${rows}<br/><b>Total: ${formatMW(total)}</b>`
+          const prices = refPricingByMs.get(this.x as number)
+          const priceParts = [
+            prices?.ota != null ? `Ōtāhuhu $${(prices.ota as number).toFixed(2)}/MWh` : null,
+            prices?.ben != null ? `Benmore $${(prices.ben as number).toFixed(2)}/MWh` : null,
+          ].filter(Boolean)
+          const priceRow = priceParts.length > 0
+            ? `<br/><span style="color:#888;font-size:10px">${priceParts.join(' · ')}</span>`
+            : ''
+          return `<b>${time}</b><br/>${rows}<br/><b>Total: ${formatMW(total)}</b>${priceRow}`
         },
       },
       series,
