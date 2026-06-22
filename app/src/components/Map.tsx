@@ -197,10 +197,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         const unitRows = activeUnits.map(u => {
           const idx = data ? data.series.indexOf(u.node) : -1
           const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-          const pct = genMW !== null && u.capacity > 0 ? Math.min(100, Math.round((genMW / u.capacity) * 100)) : 0
+          const pct = genMW !== null && u.capacity !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(u.capacity)) * 100)) : 0
           const colour = fuelColour(u.fuel)
           const genStr = genMW !== null ? formatMW(genMW) : '—'
-          const isGenerating = (genMW ?? 0) > 0
+          const isGenerating = (genMW ?? 0) !== 0
           return `<div style="margin-bottom:5px">
             <div style="display:flex;align-items:center;gap:6px">
               <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>

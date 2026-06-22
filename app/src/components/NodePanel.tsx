@@ -303,7 +303,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
                 const outageMW = adapter.unitOutageMW(code)
                 const colour = adapter.colourFor(code, i)
                 const denom = normalCapacity > 0 ? normalCapacity : 1
-                const genPct = (val / denom) * 100
+                const genPct = (Math.abs(val) / denom) * 100
                 const outagePct = (outageMW / denom) * 100
                 return (
                   <span key={code} style={{ display: 'contents' }}>
