@@ -191,7 +191,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           const u = units[0]
           const label = u.locationDescription ? `${name} <span style="font-weight:400;color:#888">(${u.locationDescription})</span>` : name
           const stats = renderUnitStats(u)
-          html = `<div style="font-size:12px;line-height:1.6;min-width:160px">
+          html = `<div style="font-size:12px;line-height:1.6;width:260px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
             <div style="color:#888">${u.operator}</div>
             ${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}
@@ -205,14 +205,14 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
               ${stats}
             </div>`
           }).join('')
-          html = `<div style="font-size:12px;line-height:1.6;min-width:180px">
+          html = `<div style="font-size:12px;line-height:1.6;width:260px">
             <div style="font-weight:600;margin-bottom:2px">${name}</div>
             <div style="color:#888;margin-bottom:6px">${units[0].operator}</div>
             ${unitRows}
           </div>`
         }
 
-        hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+        hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
           .setLngLat(lngLat)
           .setHTML(html)
           .addTo(map)
