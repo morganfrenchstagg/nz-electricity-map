@@ -94,9 +94,9 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       return unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
     },
 
-    colourFor(code, index) {
+    colourFor(code) {
       const unit = generator.units.find((u) => u.node === code)
-      return unit ? fuelColour(unit.fuel) : SUBSTATION_COLOURS[index % SUBSTATION_COLOURS.length]
+      return unit ? fuelColour(unit.fuel) : ''
     },
 
     transformValue(val) { return val },
@@ -247,7 +247,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 export function createSubstationAdapter(substation: Substation, allGenerators: Generator[]): NodeAdapter {
   return {
     title: `${substation.description} Substation`,
-    subtitle: substation.siteId,
+    subtitle: '',
     chartType: 'line',
 
     getCodes(recent) {
