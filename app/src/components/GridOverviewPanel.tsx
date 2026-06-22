@@ -27,9 +27,10 @@ interface Props {
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
   onClose: () => void
+  visible: boolean
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible }: Props) {
   const { recentData, loading, error } = useDispatchData(dateMode)
   const { generators } = useDefinitions()
 
@@ -179,7 +180,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose 
   }, [recentData, generators])
 
   return (
-    <div style={PANEL_STYLE}>
+    <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none' }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</div>

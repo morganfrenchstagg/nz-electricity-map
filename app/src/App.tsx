@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Map from './components/Map'
 import NodePanel from './components/NodePanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
@@ -8,12 +8,12 @@ import type { DateMode } from './hooks/useDispatchData'
 export default function App() {
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
-  const prevSelectedNode = useRef(selectedNode)
-  useEffect(() => {
-    if (prevSelectedNode.current !== null && selectedNode === null) setGridPanelVisible(true)
-    prevSelectedNode.current = selectedNode
-  }, [selectedNode])
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
+
+  const closeNode = useCallback(() => {
+    setSelectedNode(null)
+    setGridPanelVisible(true)
+  }, [])
 
   const [dateMode, setDateMode] = useState<DateMode>(() => {
     const p = new URLSearchParams(window.location.search)
@@ -45,14 +45,17 @@ export default function App() {
       {selectedNode && (
         <NodePanel
           node={selectedNode}
-          onClose={() => setSelectedNode(null)}
+          onClose={closeNode}
           dateMode={dateMode}
           onDateModeChange={setDateMode}
         />
       )}
-      {!selectedNode && gridPanelVisible && (
-        <GridOverviewPanel dateMode={dateMode} onDateModeChange={setDateMode} onClose={() => setGridPanelVisible(false)} />
-      )}
+      <GridOverviewPanel
+        dateMode={dateMode}
+        onDateModeChange={setDateMode}
+        onClose={() => setGridPanelVisible(false)}
+        visible={!selectedNode && gridPanelVisible}
+      />
       {!selectedNode && !gridPanelVisible && (
         <button
           onClick={() => setGridPanelVisible(true)}
