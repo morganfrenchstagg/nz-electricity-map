@@ -236,13 +236,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
           const prices = refPricingByMs.get(this.x as number)
           const priceParts = [
-            prices?.ota != null ? `Ōtāhuhu $${(prices.ota as number).toFixed(2)}/MWh` : null,
-            prices?.ben != null ? `Benmore $${(prices.ben as number).toFixed(2)}/MWh` : null,
+            prices?.ota != null ? `Ōtāhuhu <b>$${(prices.ota as number).toFixed(2)}/MWh</b>` : null,
+            prices?.ben != null ? `Benmore <b>$${(prices.ben as number).toFixed(2)}/MWh</b>` : null,
           ].filter(Boolean)
           const priceRow = priceParts.length > 0
-            ? `<br/><span style="color:#888;font-size:10px">${priceParts.join(' · ')}</span>`
+            ? `<br/><span>${priceParts.join('<br/>')}</span>`
             : ''
-          return `<b>${time}</b><br/>${rows}<br/><b>Total: ${formatMW(total)}</b>${priceRow}`
+          return `<b>${time}</b><br/>${rows}<br/>Total: <b>${formatMW(total)}</b>${priceRow}`
         },
       },
       series,
