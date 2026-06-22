@@ -46,11 +46,24 @@ export function substationsToGeoJson(substations: Substation[]): GeoJSON.Feature
   return { type: 'FeatureCollection', features }
 }
 
+export interface UnderConstructionUnit {
+  locationDescription: string | null
+  fuel: string
+  operator: string
+  status: string
+  capacityMW: number | null
+  capacityMWp: number | null
+  capacityMWh: number | null
+  yearlyGenerationGWh: number | null
+  openBy: string | null
+}
+
 export function underConstructionToGeoJson(
   nodes: UnderConstructionNode[],
   generators: Generator[],
 ): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = []
+  // Group nodes by resolved coordinates so co-located units share one feature
+  const grouped = new Map<string, { lat: number; long: number; name: string; fuel: string; units: UnderConstructionUnit[] }>()
 
   for (const node of nodes) {
     let lat: number | undefined
@@ -66,23 +79,35 @@ export function underConstructionToGeoJson(
 
     if (lat === undefined || long === undefined) continue
 
-    features.push({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [long, lat] },
-      properties: {
-        name: node.name,
-        locationDescription: node.locationDescription ?? null,
-        fuel: node.fuel,
-        operator: node.operator,
-        status: node.status,
-        capacityMW: node.capacityMW ?? null,
-        capacityMWp: node.capacityMWp ?? null,
-        capacityMWh: node.capacityMWh ?? null,
-        yearlyGenerationGWh: node.yearlyGenerationGWh ?? null,
-        openBy: node.openBy ?? null,
-      },
-    })
+    const key = `${lat},${long}`
+    const existing = grouped.get(key)
+    const unit: UnderConstructionUnit = {
+      locationDescription: node.locationDescription ?? null,
+      fuel: node.fuel,
+      operator: node.operator,
+      status: node.status,
+      capacityMW: node.capacityMW ?? null,
+      capacityMWp: node.capacityMWp ?? null,
+      capacityMWh: node.capacityMWh ?? null,
+      yearlyGenerationGWh: node.yearlyGenerationGWh ?? null,
+      openBy: node.openBy ?? null,
+    }
+    if (existing) {
+      existing.units.push(unit)
+    } else {
+      grouped.set(key, { lat, long, name: node.name, fuel: node.fuel, units: [unit] })
+    }
   }
+
+  const features: GeoJSON.Feature[] = [...grouped.values()].map(({ lat, long, name, fuel, units }) => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [long, lat] },
+    properties: {
+      name,
+      fuel,
+      units: JSON.stringify(units),
+    },
+  }))
 
   return { type: 'FeatureCollection', features }
 }

@@ -154,36 +154,67 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
       }
 
+      const renderUnitStats = (u: { capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }) => {
+        const capacityParts = [
+          u.capacityMW ? `${u.capacityMW} MW` : null,
+          u.capacityMWp ? `${u.capacityMWp} MWp` : null,
+          u.capacityMWh ? `${u.capacityMWh} MWh` : null,
+        ].filter(Boolean).join(' / ')
+        return [
+          capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Capacity</span><span>${capacityParts}</span></div>` : '',
+          u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
+          u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Expected open</span><span>${new Date(u.openBy).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
+        ].filter(Boolean).join('')
+      }
+
+      const renderStatusPill = (status: string) => {
+        const pillColour = STATUS_PILL_COLOURS[status] ?? { bg: '#f3f4f6', text: '#374151' }
+        return status
+          ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
+          : ''
+      }
+
       map.on('mouseenter', 'under-construction-layer', (e) => {
         const feature = e.features?.[0]
         if (!feature) return
-        const p = feature.properties as Record<string, string | number | null>
-        const name = p.locationDescription
-          ? `${p.name} <span style="font-weight:400;color:#888">(${p.locationDescription})</span>`
-          : String(p.name)
+        const p = feature.properties as Record<string, string | null>
         const lngLat = feature.geometry.type === 'Point'
           ? (feature.geometry.coordinates as [number, number])
           : e.lngLat
-        const status = String(p.status ?? '')
-        const pillColour = STATUS_PILL_COLOURS[status] ?? { bg: '#f3f4f6', text: '#374151' }
-        const statusPill = status
-          ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
-          : ''
+
+        type Unit = { locationDescription: string | null; operator: string; status: string; capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }
+        const units: Unit[] = JSON.parse(p.units ?? '[]')
+        const name = String(p.name ?? '')
+
+        let html: string
+        if (units.length === 1) {
+          const u = units[0]
+          const label = u.locationDescription ? `${name} <span style="font-weight:400;color:#888">(${u.locationDescription})</span>` : name
+          const stats = renderUnitStats(u)
+          html = `<div style="font-size:12px;line-height:1.6;min-width:160px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
+            <div style="color:#888">${u.operator}</div>
+            ${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}
+          </div>`
+        } else {
+          const unitRows = units.map((u, i) => {
+            const label = u.locationDescription ?? `Unit ${i + 1}`
+            const stats = renderUnitStats(u)
+            return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #eee;padding-top:6px' : ''}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}</div>
+              ${stats}
+            </div>`
+          }).join('')
+          html = `<div style="font-size:12px;line-height:1.6;min-width:180px">
+            <div style="font-weight:600;margin-bottom:2px">${name}</div>
+            <div style="color:#888;margin-bottom:6px">${units[0].operator}</div>
+            ${unitRows}
+          </div>`
+        }
+
         hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
           .setLngLat(lngLat)
-          .setHTML((() => {
-            const capacityParts = [
-              p.capacityMW ? `${p.capacityMW} MW` : null,
-              p.capacityMWp ? `${p.capacityMWp} MWp` : null,
-              p.capacityMWh ? `${p.capacityMWh} MWh` : null,
-            ].filter(Boolean).join(' / ')
-            const stats = [
-              capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Capacity</span><span>${capacityParts}</span></div>` : '',
-              p.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual generation</span><span>${p.yearlyGenerationGWh} GWh</span></div>` : '',
-              p.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Expected open</span><span>${new Date(String(p.openBy)).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
-            ].filter(Boolean).join('')
-            return `<div style="font-size:12px;line-height:1.6;min-width:160px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${name}</span>${statusPill}</div>${p.operator ? `<div style="color:#888">${p.operator}</div>` : ''}${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}</div>`
-          })())
+          .setHTML(html)
           .addTo(map)
       })
 
