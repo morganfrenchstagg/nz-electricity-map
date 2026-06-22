@@ -6,7 +6,7 @@ export function formatMW(value: number): string {
   const abs = Math.abs(value)
 
   if (Number.isInteger(value)) {
-    return `${abs} MW`;
+    return `${value} MW`;
   }
 
   if (abs >= 1000) {

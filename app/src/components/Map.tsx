@@ -192,7 +192,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
 
         const data = recentDataRef.current
         const lastRow = data?.data[data.data.length - 1]
-        const activeUnits = generator.units.filter(u => u.active !== false)
+        const activeUnits = generator.units.filter(u => u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
 
         const unitRows = activeUnits.map(u => {
           const idx = data ? data.series.indexOf(u.node) : -1
@@ -204,7 +204,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           return `<div style="margin-bottom:5px">
             <div style="display:flex;align-items:center;gap:6px">
               <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.name}</span>
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.fuel === 'Battery (Charging)' ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
               <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}</span>
             </div>
             <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
