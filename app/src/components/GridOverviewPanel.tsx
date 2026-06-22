@@ -5,6 +5,7 @@ import { useDispatchData, datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispa
 import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
+import { substationCodes } from '../utils/chart'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -32,12 +33,13 @@ interface Props {
 
 export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible }: Props) {
   const { recentData, loading, error } = useDispatchData(dateMode)
-  const { generators } = useDefinitions()
+  const { generators, substations } = useDefinitions()
+  const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
 
   const [fromDate, setFromDate] = useState(
     dateMode.kind === 'date' ? dateMode.date
-    : dateMode.kind === 'range' ? dateMode.from
-    : ''
+      : dateMode.kind === 'range' ? dateMode.from
+        : ''
   )
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
@@ -85,6 +87,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     // Build fuel → column-index map (col 0 is timestamp, so series idx + 1)
     const fuelToIndices = new Map<string, number[]>()
     for (const gen of generators) {
+      if (island !== 'all' && gen.island !== island) continue
       for (const unit of gen.units) {
         if (unit.active === false) continue
         const idx = recentData.series.indexOf(unit.node)
@@ -104,6 +107,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       name: fuelCodeLabel(fuel),
       color: fuelCodeColour(fuel),
       stacking: 'normal',
+      stack: (fuel === "BESS-C") ? "positive" : "negative",
       fillOpacity: 0.8,
       lineWidth: 1,
       data: recentData.data.map(row => [
@@ -113,6 +117,48 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       marker: { enabled: false },
       animation: false,
     }))
+
+    /*
+    if (island !== 'all') {
+      const allGenIndices = [...fuelToIndices.values()].flat()
+      const islandSubstations = substations.filter(s =>
+        island === 'NI' ? s.island === 'north' : s.island === 'south'
+      )
+      const subIndices: number[] = []
+      for (const sub of islandSubstations) {
+        for (const code of substationCodes(recentData, sub.siteId)) {
+          const idx = recentData.series.indexOf(code)
+          if (idx !== -1) subIndices.push(idx + 1)
+        }
+      }
+      // Pre-compute per-row gen and load so tooltip can show both legs
+      const hvdcData = recentData.data.map(row => {
+        const genMW = allGenIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
+        const loadMW = subIndices.reduce((s, i) => s - ((row[i] as number) || 0), 0)
+        const hvdc = loadMW - genMW
+        return { ts: new Date((row[0] as string) + 'Z').getTime(), genMW, loadMW, hvdc }
+      })
+      series.push({
+        type: 'area',
+        name: 'HVDC Import',
+        color: '#6366f1',
+        stack: 'positive',
+        data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW < 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
+        marker: { enabled: false },
+        animation: false,
+      } as Highcharts.SeriesLineOptions)
+
+      series.push({
+        type: 'area',
+        name: 'HVDC export',
+        color: '#6366f1',
+        stack: 'negative',
+        data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW > 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
+        marker: { enabled: false },
+        animation: false,
+      } as Highcharts.SeriesLineOptions)
+    }
+      */
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = recentData.data
       .filter((row, i) => {
@@ -162,6 +208,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         formatter: function () {
           const points = this.points ?? []
           const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
+          //const isHvdc = (p: { series: { name: string } }) => p.series.name.startsWith('HVDC')
+          //const hvdcPoint = points.find(p => isHvdc(p) && (p.y ?? 0) !== 0)
+          //const fuelPoints = points.filter(p => !isHvdc(p))
           const rows = points
             .slice()
             .reverse()
@@ -172,12 +221,21 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+          /*
+          let hvdcRow = ''
+          if (hvdcPoint) {
+            const custom = (hvdcPoint.point as { custom?: { genMW: number; loadMW: number } }).custom
+            const hvdcVal = (custom ? custom.loadMW - custom.genMW : hvdcPoint.y) ?? 0
+            const sign = hvdcVal >= 0 ? '+' : ''
+            const breakdown = custom ? ` <span style="color:#999;font-size:10px">(load ${custom.loadMW.toFixed(0)} − gen ${custom.genMW.toFixed(0)})</span>` : ''
+            hvdcRow = `<br/><span style="color:${String(hvdcPoint.color)}">●</span> HVDC: <b>${sign}${hvdcVal.toFixed(1)} MW</b>${breakdown}`
+          }*/
           return `<b>${time}</b><br/>${rows}<br/><b>Total: ${total.toFixed(1)} MW</b>`
         },
       },
       series,
     }
-  }, [recentData, generators])
+  }, [recentData, generators, substations, island])
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none' }}>
@@ -193,8 +251,28 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         </button>
       </div>
 
-      {/* Date picker toolbar */}
+      {/* Island + date picker toolbar */}
       <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {(['all', 'NI', 'SI'] as const).map((opt) => (
+          <button
+            key={opt}
+            onClick={() => setIsland(opt)}
+            style={{
+              padding: '2px 10px',
+              borderRadius: 10,
+              border: '1px solid #ccc',
+              background: island === opt ? '#f0f0f0' : 'white',
+              color: '#444',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: island === opt ? 600 : 400,
+              flexShrink: 0,
+            }}
+          >
+            {opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island'}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
         <button
           onClick={handleRecentClick}
           style={{
