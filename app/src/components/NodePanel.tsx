@@ -248,8 +248,8 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
             const code = chartData.codes[p.series.index]
             const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
             const priceStr = price !== undefined ? ` <span style="color:#888">$${price.toFixed(2)}/MWh</span>` : ''
-            const capacityRow = capMW !== null ? `<b>${formatMW(capMW)}</b>` : '';
-            rows += `<span style="color:${String(p.color)}">●</span> ${formatted} / ${capacityRow}${priceStr}`
+            const capacityRow = capMW !== null ? ` / <b>${formatMW(capMW)}</b>` : '';
+            rows += `<span style="color:${String(p.color)}">●</span> ${formatted}${capacityRow}${priceStr}`
           }
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
           const totalRow = points.length > 1 ? `<br/><br/>Total: <b>${formatMW(total)}</b>` : ''
