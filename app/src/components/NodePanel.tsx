@@ -56,8 +56,8 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
   // Date picker local state — initialized from dateMode prop (which may come from URL)
   const [fromDate, setFromDate] = useState(
     dateMode.kind === 'date' ? dateMode.date
-    : dateMode.kind === 'range' ? dateMode.from
-    : ''
+      : dateMode.kind === 'range' ? dateMode.from
+        : ''
   )
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
@@ -236,10 +236,10 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
             })
             .join('<br/>')
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
-          const totalRow = points.length > 1 ? `<br/><b>Total: ${formatMW(total)}</b>` : ''
+          const totalRow = points.length > 1 ? `<br/>Total: <b>${formatMW(total)}</b><br/><br/>` : '<br/>'
           const capMW = capacityAt(this.x as number)
-          const capRow = capMW !== null ? `<br/><span style="color:#222">─</span> Capacity: ${formatMW(capMW)}` : ''
-          return `<b>${time}</b><br/>${rows}${totalRow}${capRow}`
+          const capRow = capMW !== null ? `Capacity: <b>${formatMW(capMW)}</b>` : ''
+          return `<b>${time}</b><br/>${rows}<br/>${totalRow}${capRow}`
         },
       },
       plotOptions: {
