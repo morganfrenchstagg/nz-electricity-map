@@ -19,14 +19,17 @@ interface Props {
   onGeneratorClick: (generator: Generator) => void
   onSubstationClick: (substation: Substation) => void
   selectedNode: SelectedNode
+  leftPanelOpen: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, selectedNode }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, selectedNode, leftPanelOpen }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const { generators, substations } = useDefinitions()
   const generatorsRef = useRef<Generator[]>(generators)
   const substationsRef = useRef<Substation[]>(substations)
+  const leftPanelOpenRef = useRef(leftPanelOpen)
+  useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
 
   useEffect(() => { generatorsRef.current = generators }, [generators])
   useEffect(() => { substationsRef.current = substations }, [substations])
@@ -50,6 +53,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
+      if (leftPanelOpenRef.current) {
+        map.setPadding({ left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 })
+      }
+
       map.addSource('transmission-lines', {
         type: 'geojson',
         data: TRANSMISSION_LINES_URL,
@@ -199,23 +206,19 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode 
     const map = mapRef.current
     if (!map) return
 
+    const panelPadding = { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 }
+    const zeroPadding = { left: 0, right: 0, top: 0, bottom: 0 }
+
     if (selectedNode) {
       const [lng, lat] = selectedNode.kind === 'generator'
         ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
         : [selectedNode.substation.long, selectedNode.substation.lat]
 
-      map.easeTo({
-        center: [lng, lat],
-        padding: { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 },
-        duration: 400,
-      })
+      map.easeTo({ center: [lng, lat], padding: panelPadding, duration: 400 })
     } else {
-      map.easeTo({
-        padding: { left: 0, right: 0, top: 0, bottom: 0 },
-        duration: 300,
-      })
+      map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }
-  }, [selectedNode])
+  }, [selectedNode, leftPanelOpen])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />
 }

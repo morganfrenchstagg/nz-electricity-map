@@ -1,18 +1,43 @@
-export const FUEL_COLOURS: Record<string, string> = {
-  Wind: 'rgb(65, 117, 5)',
-  Hydro: '#191970',
-  Geothermal: '#ffaf40',
-  Solar: 'rgb(254, 213, 0)',
-  Battery: '#76721E',
-  'Battery (Discharging)': '#76721E',
-  'Battery (Charging)': '#76721E',
-  'Coal/Gas': 'rgb(139, 87, 42)'
-}
+import type maplibregl from 'maplibre-gl'
 
 const DEFAULT_COLOUR = '#ff0000'
 
+// Single source of truth for fuel identity, display, and colour.
+// fuelNames lists all unit.fuel values that map to this fuel code
+// (used to build FUEL_COLOURS for MapLibre and the NodePanel adapter).
+const FUELS = [
+  { code: 'HYD', label: 'Hydro', colour: 'rgb(69, 130, 180)', fuelNames: ['Hydro'] },
+  { code: 'WIN', label: 'Wind', colour: 'rgb(65, 117, 5)', fuelNames: ['Wind'] },
+  { code: 'GEO', label: 'Geothermal', colour: '#ff0000', fuelNames: ['Geothermal'] },
+  { code: 'SOL', label: 'Solar', colour: 'rgb(254, 213, 0)', fuelNames: ['Solar'] },
+  { code: 'GAS', label: 'Gas', colour: 'rgb(253, 180, 98)', fuelNames: ['Gas'] },
+  { code: 'CLG', label: 'Coal / Gas', colour: 'rgb(139, 87, 42)', fuelNames: ['Coal/Gas'] },
+  { code: 'DIE', label: 'Diesel', colour: 'rgb(135, 72, 0)', fuelNames: ['Diesel'] },
+  { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'] },
+  { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'] },
+] as const
+
+// Derived lookups — all keyed by fuel code
+export const FUEL_CODE_COLOURS: Record<string, string> =
+  Object.fromEntries(FUELS.map(f => [f.code, f.colour]))
+
+export const FUEL_CODE_LABELS: Record<string, string> =
+  Object.fromEntries(FUELS.map(f => [f.code, f.label]))
+
+// Keyed by unit.fuel name — used by NodePanel adapter and MapLibre expression
+export const FUEL_COLOURS: Record<string, string> =
+  Object.fromEntries(FUELS.flatMap(f => f.fuelNames.map(name => [name, f.colour])))
+
 export function fuelColour(fuel: string): string {
   return FUEL_COLOURS[fuel] ?? DEFAULT_COLOUR
+}
+
+export function fuelCodeColour(code: string): string {
+  return FUEL_CODE_COLOURS[code] ?? DEFAULT_COLOUR
+}
+
+export function fuelCodeLabel(code: string): string {
+  return FUEL_CODE_LABELS[code] ?? code
 }
 
 export const MAPLIBRE_COLOUR_EXPRESSION: maplibregl.ExpressionSpecification = [
@@ -25,9 +50,9 @@ export const MAPLIBRE_COLOUR_EXPRESSION: maplibregl.ExpressionSpecification = [
 export const VOLTAGE_COLOURS: Record<number, string> = {
   220: '#c0392b',
   110: '#8e44ad',
-  66:  '#2471a3',
-  33:  '#27ae60',
-  11:  '#d68910',
+  66: '#2471a3',
+  33: '#27ae60',
+  11: '#d68910',
 }
 export const VOLTAGE_COLOUR_DEFAULT = '#7f8c8d'
 
