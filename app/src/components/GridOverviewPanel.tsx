@@ -213,7 +213,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           //const fuelPoints = points.filter(p => !isHvdc(p))
           const rows = points
             .slice()
-            .reverse()
             .map(p => {
               const val = `${(p.y ?? 0).toFixed(1)} MW`
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
