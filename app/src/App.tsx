@@ -13,7 +13,6 @@ export default function App() {
 
   const closeNode = useCallback(() => {
     setSelectedNode(null)
-    setGridPanelVisible(true)
   }, [])
 
   const [dateMode, setDateMode] = useState<DateMode>(() => {
