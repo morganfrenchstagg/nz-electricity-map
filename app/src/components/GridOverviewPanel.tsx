@@ -341,17 +341,27 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         {rangeError && (
           <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
         )}
-      </div>
-
-      {/* Chart area */}
-      <div style={{ padding: '8px 0 0' }}>
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>
             Loading…
           </div>
         )}
         {error && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#c00' }}>
+            Failed to load data
+          </div>
+        )}
+      </div>
+
+      {/* Chart area */}
+      <div style={{ padding: '8px 0 0' }}>
+        {loading && !recentData && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#888' }}>
+            Loading…
+          </div>
+        )}
+        {error && !recentData && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#c00' }}>
             Failed to load data
           </div>
         )}

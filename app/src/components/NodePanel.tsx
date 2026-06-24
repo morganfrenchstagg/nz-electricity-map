@@ -390,6 +390,16 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
         {rangeError && (
           <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
         )}
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>
+            Loading…
+          </div>
+        )}
+        {error && allCodes.length !== 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color:  '#c00', flexShrink: 0 }}>
+            Failed to load data
+          </div>
+        )}
       </div>
 
       {hasGeneratorCodes && (
@@ -443,12 +453,12 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange }:
 
       {/* Chart area */}
       <div style={{ padding: '8px 0 0' }}>
-        {loading && (
+        {loading && allCodes.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
             Loading…
           </div>
         )}
-        {error && (
+        {error && allCodes.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
             Failed to load data
           </div>
