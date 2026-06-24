@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { useDispatchData, datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
+import type { RecentData } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
 import { substationCodes } from '../utils/chart'
@@ -30,10 +31,12 @@ interface Props {
   onDateModeChange: (m: DateMode) => void
   onClose: () => void
   visible: boolean
+  recentData: RecentData | null
+  loading: boolean
+  error: string | null
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible }: Props) {
-  const { recentData, loading, error } = useDispatchData(dateMode)
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error }: Props) {
   const { generators, substations } = useDefinitions()
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
 

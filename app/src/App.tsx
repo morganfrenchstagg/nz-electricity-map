@@ -3,6 +3,7 @@ import Map from './components/Map'
 import NodePanel from './components/NodePanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { SelectedNode, Generator, Substation } from './types'
+import { useDispatchData } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
 
 export default function App() {
@@ -31,6 +32,11 @@ export default function App() {
     window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
   }, [dateMode])
 
+  // Single source of dispatch data for the date-driven panels, so both
+  // NodePanel and GridOverviewPanel share one fetch instead of each running
+  // their own hook (and firing duplicate requests on date changes).
+  const { recentData, loading, error } = useDispatchData(dateMode)
+
   const handleGeneratorClick = useCallback((generator: Generator) => {
     setSelectedNode({ kind: 'generator', generator })
   }, [])
@@ -48,6 +54,9 @@ export default function App() {
           onClose={closeNode}
           dateMode={dateMode}
           onDateModeChange={setDateMode}
+          recentData={recentData}
+          loading={loading}
+          error={error}
         />
       )}
       <GridOverviewPanel
@@ -55,6 +64,9 @@ export default function App() {
         onDateModeChange={setDateMode}
         onClose={() => setGridPanelVisible(false)}
         visible={!selectedNode && gridPanelVisible}
+        recentData={recentData}
+        loading={loading}
+        error={error}
       />
       {!selectedNode && !gridPanelVisible && (
         <button

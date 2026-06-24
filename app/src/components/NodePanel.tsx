@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import type { SelectedNode } from '../types'
-import { useDispatchData, datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import type { SelectedNode, RecentData } from '../types'
+import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
@@ -30,10 +30,12 @@ interface Props {
   onClose: () => void
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
+  recentData: RecentData | null
+  loading: boolean
+  error: string | null
 }
 
-export default function NodePanel({ node, onClose, dateMode, onDateModeChange }: Props) {
-  const { recentData, loading, error } = useDispatchData(dateMode)
+export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error }: Props) {
   const { generators: allGenerators } = useDefinitions()
   const outages = useOutages()
 
