@@ -12,12 +12,10 @@ import { formatMW } from '../utils/format'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
-  bottom: 24,
-  left: 24,
-  width: '50vw',
-  maxHeight: 'calc(100vh - 48px)',
+  bottom: 0,
+  width: '60vw',
+  height: '100%',
   background: 'white',
-  borderRadius: 8,
   boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
   display: 'flex',
   flexDirection: 'column',
@@ -196,7 +194,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
       }))
 
     return {
-      chart: { type: adapter.chartType, height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
+      chart: { type: adapter.chartType, height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: adapter.showLegend(chartData.codes.length), itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -454,7 +452,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
       )}
 
       {/* Chart area */}
-      <div style={{ padding: '8px 0 0' }}>
+      <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
         {loading && allCodes.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
             Loading…
@@ -471,7 +469,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact key={nodeKey} highcharts={Highcharts} options={chartOptions} />
+          <HighchartsReact key={nodeKey} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
     </div>
