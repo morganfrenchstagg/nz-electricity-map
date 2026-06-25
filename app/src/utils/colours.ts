@@ -24,6 +24,16 @@ export const FUEL_CODE_COLOURS: Record<string, string> =
 export const FUEL_CODE_LABELS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.label]))
 
+// Canonical display order for fuel codes (used in GridOverviewPanel and NodePanel)
+export const FUEL_CODE_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'GEO', 'BESS-C'] as const
+
+// Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
+export const FUEL_NAME_SORT_INDEX: Record<string, number> =
+  Object.fromEntries(FUELS.flatMap(f => {
+    const idx = FUEL_CODE_ORDER.indexOf(f.code as typeof FUEL_CODE_ORDER[number])
+    return f.fuelNames.map(name => [name, idx === -1 ? 99 : idx])
+  }))
+
 // Keyed by unit.fuel name — used by NodePanel adapter and MapLibre expression
 export const FUEL_COLOURS: Record<string, string> =
   Object.fromEntries(FUELS.flatMap(f => f.fuelNames.map(name => [name, f.colour])))

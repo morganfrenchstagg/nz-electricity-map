@@ -5,7 +5,7 @@ import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
 import { withGaps } from '../utils/chart'
 import { formatMW } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -24,7 +24,6 @@ const PANEL_STYLE: React.CSSProperties = {
   overflow: 'hidden',
 }
 
-const FUEL_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'GEO', 'BESS-C']
 
 interface Props {
   dateMode: DateMode
@@ -118,8 +117,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     }
 
     const fuels = [
-      ...FUEL_ORDER.filter(f => fuelToIndices.has(f)),
-      ...[...fuelToIndices.keys()].filter(f => !FUEL_ORDER.includes(f)),
+      ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
+      ...[...fuelToIndices.keys()].filter(f => !FUEL_CODE_ORDER.includes(f)),
     ]
 
     const series: Highcharts.SeriesOptionsType[] = fuels.map(fuel => ({

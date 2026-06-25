@@ -7,11 +7,10 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import { extractChartData, withGaps } from '../utils/chart'
-import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
+import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
 import { useLastUpdated } from '../hooks/useLastUpdated'
-
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
   bottom: 0,
@@ -55,13 +54,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
 
-  const adapter = useMemo(
-    () =>
-      node.kind === 'generator'
-        ? createGeneratorAdapter(node.generator, outages)
-        : createSubstationAdapter(node.substation, allGenerators),
-    [node, allGenerators, outages],
-  )
+  const adapter = useMemo(() => {
+    if (node.kind === 'generator') return createGeneratorAdapter(node.generator, outages)
+    if (node.kind === 'generators') return createMultiGeneratorAdapter(node.generators, outages)
+    return createSubstationAdapter(node.substation, allGenerators)
+  }, [node, allGenerators, outages])
 
   const allCodes = useMemo(
     () => (recentData ? adapter.getCodes(recentData) : []),
@@ -142,7 +139,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   }, [recentData, allCodes])
 
   const { title, subtitle } = adapter
-  const nodeKey = node.kind === 'generator' ? node.generator.site : node.substation.siteId
+  const nodeKey = node.kind === 'generator' ? node.generator.site
+    : node.kind === 'generators' ? node.generators.map(g => g.site).join(',')
+      : node.substation.siteId
 
   const capacity = adapter.capacityMW(effectiveCodes)
   const normalCapacity = adapter.normalCapacityMW(effectiveCodes)

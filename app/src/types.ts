@@ -46,5 +46,6 @@ export interface RecentData {
 
 export type SelectedNode =
   | { kind: 'generator'; generator: Generator }
+  | { kind: 'generators'; generators: Generator[] }
   | { kind: 'substation'; substation: Substation }
   | null

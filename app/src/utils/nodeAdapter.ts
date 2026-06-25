@@ -3,7 +3,7 @@ import type { Generator, RecentData, Substation } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
 import { substationCodes } from './chart'
-import { fuelColour, voltageColour } from './colours'
+import { fuelColour, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 
 // Outage timestamps include a timezone offset (e.g. +12:00). Chart row timestamps
@@ -73,7 +73,9 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   const subtitleFuels = [...new Set(activeUnits.map((u) => {
     if (u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)') return 'Battery'
     return u.fuel
-  }))].map((label) => ({ label, colour: fuelColour(label) }))
+  }))]
+    .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
+    .map((label) => ({ label, colour: fuelColour(label) }))
 
   return {
     title: generator.name,
@@ -83,7 +85,10 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     getCodes(recent) {
       return activeUnits
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => {
+          const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
+          return fi !== 0 ? fi : a.name.localeCompare(b.name)
+        })
         .map((u) => u.node)
         .filter((c) => recent.series.includes(c))
     },
@@ -263,6 +268,172 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         enableMouseTracking: false,
         showInLegend: false,
         zIndex: 3,
+      } as Highcharts.SeriesLineOptions
+    },
+  }
+}
+
+export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null): NodeAdapter {
+  const now = new Date(
+    new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
+  ).getTime()
+
+  const activeUnitsByGen = generators.map(g => ({
+    generator: g,
+    units: g.units.filter(u => u.active !== false),
+  }))
+  const allActiveUnits = activeUnitsByGen.flatMap(({ units }) => units)
+
+  function unitCapacityAt(unit: { node: string; capacity: number; installedCapacity?: number }, atMs: number): number {
+    if (!outages) return unit.capacity
+    const records = outages[unit.node] ?? []
+    const lost = records
+      .filter((r) => outageMs(r.timeStart) <= atMs && atMs < outageMs(r.timeEnd))
+      .reduce((s, r) => s + r.mwattLost, 0)
+    if (lost <= 0) return unit.capacity
+    return Math.max(0, (unit.installedCapacity ?? unit.capacity) - lost)
+  }
+
+  const genNameFor = (code: string) => {
+    for (const { generator, units } of activeUnitsByGen) {
+      if (units.some(u => u.node === code)) return generator.name
+    }
+    return null
+  }
+
+  const subtitleFuels = [...new Set(allActiveUnits.map(u =>
+    u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)' ? 'Battery' : u.fuel
+  ))]
+    .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
+    .map(label => ({ label, colour: fuelColour(label) }))
+
+  const title = generators.length <= 2
+    ? generators.map(g => g.name).join(', ')
+    : `${generators[0].name} +${generators.length - 1} more`
+
+  return {
+    title,
+    subtitle: [...new Set(generators.map(g => g.operator))].join(', '),
+    chartType: 'area',
+    subtitleFuels,
+
+    getCodes(recent) {
+      return activeUnitsByGen
+        .flatMap(({ units }) => units.map(u => u))
+        .filter(u => recent.series.includes(u.node))
+        .sort((a, b) => {
+          const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
+          return fi !== 0 ? fi : a.name.localeCompare(b.name)
+        })
+        .map(u => u.node)
+    },
+
+    labelFor(code) {
+      const unit = allActiveUnits.find(u => u.node === code)
+      if (!unit) return code
+      const suffix = unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
+      const prefix = genNameFor(code)
+      if (!prefix || prefix === unit.name) return suffix
+      return `${prefix} — ${suffix}`
+    },
+
+    colourFor(code) {
+      const unit = allActiveUnits.find(u => u.node === code)
+      return unit ? fuelColour(unit.fuel) : ''
+    },
+
+    transformValue(val) { return val },
+
+    yAxisOptions(effectiveCodes, rows) {
+      const units = effectiveCodes ? allActiveUnits.filter(u => effectiveCodes.has(u.node)) : allActiveUnits
+      const adjusted = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      let softMaxCap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
+      if (outages && rows && rows.length > 0) {
+        const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
+        const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+        const checkTs = new Set<number>([firstTime])
+        for (const unit of units) {
+          for (const rec of (outages[unit.node] ?? [])) {
+            const s = outageMs(rec.timeStart), e = outageMs(rec.timeEnd)
+            if (s > firstTime && s <= lastTime) checkTs.add(s)
+            if (e > firstTime && e <= lastTime) checkTs.add(e)
+          }
+        }
+        softMaxCap = 0
+        for (const t of checkTs) {
+          const cap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          if (cap > softMaxCap) softMaxCap = cap
+        }
+      }
+      const chargeCapacity = units.filter(u => u.fuelCode === 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      return {
+        title: { text: 'MW', style: { fontSize: '11px' } },
+        labels: { style: { fontSize: '10px' } },
+        softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
+        softMax: (adjusted > 0 ? adjusted : softMaxCap) + 1,
+        gridLineDashStyle: 'Dash',
+        plotLines: [],
+      }
+    },
+
+    extraSeries(_rows, _codes) { return [] },
+    stacking(numCodes) { return numCodes > 1 ? 'normal' : undefined },
+    showUnitSelector(numCodes) { return numCodes > 1 },
+    showLegend(_numCodes) { return true },
+
+    capacityMW(effectiveCodes) {
+      return allActiveUnits
+        .filter(u => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+    },
+
+    normalCapacityMW(effectiveCodes) {
+      return allActiveUnits
+        .filter(u => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .reduce((sum, u) => sum + u.capacity, 0)
+    },
+
+    unitOutageMW(code) {
+      if (!outages) return 0
+      return activeOutageMW(code, outages, now)
+    },
+
+    capacitySeries(rows, effectiveCodes) {
+      if (!outages || rows.length === 0) return null
+      const units = allActiveUnits.filter(u => effectiveCodes.has(u.node))
+      if (units.length === 0) return null
+      const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
+      const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+      function totalCapAt(atMs: number) {
+        return units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+      }
+      const timestamps = new Set<number>()
+      for (const unit of units) {
+        for (const rec of (outages[unit.node] ?? [])) {
+          const s = outageMs(rec.timeStart), e = outageMs(rec.timeEnd)
+          if (s > firstTime && s <= lastTime) timestamps.add(s)
+          if (e > firstTime && e <= lastTime) timestamps.add(e)
+        }
+      }
+      const data: [number, number][] = [[firstTime, totalCapAt(firstTime)]]
+      let prev = data[0][1]
+      for (const t of Array.from(timestamps).sort((a, b) => a - b)) {
+        const cap = totalCapAt(t)
+        if (Math.abs(cap - prev) > 0.001) { data.push([t, cap]); prev = cap }
+      }
+      data.push([lastTime, prev])
+      const lastIndex = data.length - 1
+      return {
+        type: 'line', name: 'Capacity',
+        data: data.map((point, i) => ({
+          x: point[0], y: point[1],
+          dataLabels: i === lastIndex
+            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: '#222222', fontSize: '10px', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
+            : { enabled: false },
+        })),
+        color: '#222222', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
+        marker: { enabled: false }, animation: false, enableMouseTracking: false,
+        showInLegend: false, zIndex: 3,
       } as Highcharts.SeriesLineOptions
     },
   }

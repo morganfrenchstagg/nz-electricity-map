@@ -29,6 +29,11 @@ export default function App() {
     if (raw.startsWith('generator:')) {
       const gen = generators.find(g => g.site === raw.slice('generator:'.length))
       if (gen) setSelectedNode({ kind: 'generator', generator: gen })
+    } else if (raw.startsWith('generators:')) {
+      const sites = raw.slice('generators:'.length).split(',')
+      const gens = sites.map(s => generators.find(g => g.site === s)).filter(Boolean) as Generator[]
+      if (gens.length === 1) setSelectedNode({ kind: 'generator', generator: gens[0] })
+      else if (gens.length > 1) setSelectedNode({ kind: 'generators', generators: gens })
     } else if (raw.startsWith('substation:')) {
       const sub = substations.find(s => s.siteId === raw.slice('substation:'.length))
       if (sub) setSelectedNode({ kind: 'substation', substation: sub })
@@ -40,6 +45,7 @@ export default function App() {
     const p = new URLSearchParams(window.location.search)
     if (selectedNode === null) p.delete('node')
     else if (selectedNode.kind === 'generator') p.set('node', `generator:${selectedNode.generator.site}`)
+    else if (selectedNode.kind === 'generators') p.set('node', `generators:${selectedNode.generators.map(g => g.site).join(',')}`)
     else p.set('node', `substation:${selectedNode.substation.siteId}`)
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
   }, [selectedNode])

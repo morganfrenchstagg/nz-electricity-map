@@ -450,10 +450,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      const [lng, lat] = selectedNode.kind === 'generator'
-        ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
-        : [selectedNode.substation.long, selectedNode.substation.lat]
-      src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }] })
+      const points: [number, number][] =
+        selectedNode.kind === 'generator' ? [[selectedNode.generator.location.long, selectedNode.generator.location.lat]]
+        : selectedNode.kind === 'generators' ? selectedNode.generators.map(g => [g.location.long, g.location.lat])
+        : [[selectedNode.substation.long, selectedNode.substation.lat]]
+      src.setData({ type: 'FeatureCollection', features: points.map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
   }, [selectedNode])
@@ -468,6 +469,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
     if (selectedNode) {
       const [lng, lat] = selectedNode.kind === 'generator'
         ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
+        : selectedNode.kind === 'generators'
+        ? [selectedNode.generators[0].location.long, selectedNode.generators[0].location.lat]
         : [selectedNode.substation.long, selectedNode.substation.lat]
 
       map.easeTo({ center: [lng, lat], padding: panelPadding, duration: 400 })
