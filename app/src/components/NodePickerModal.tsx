@@ -44,12 +44,13 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   // Reset search when switching tabs
   const handleTabChange = (t: Tab) => { setTab(t); setQuery('') }
 
-  const q = query.toLowerCase()
+  const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+  const q = norm(query)
   const filteredGenerators = generators
-    .filter(g => g.name.toLowerCase().includes(q) || g.operator.toLowerCase().includes(q))
+    .filter(g => norm(g.name).includes(q) || norm(g.operator).includes(q))
     .sort((a, b) => a.name.localeCompare(b.name))
   const filteredSubstations = substations
-    .filter(s => s.description.toLowerCase().includes(q) || s.siteId.toLowerCase().includes(q))
+    .filter(s => norm(s.description).includes(q) || s.siteId.toLowerCase().includes(q))
     .sort((a, b) => a.description.localeCompare(b.description))
 
   const currentKey = currentNode
