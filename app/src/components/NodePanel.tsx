@@ -390,8 +390,9 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
             flexShrink: 0,
           }}
         >
-          Recent
+          Last 3 days
         </button>
+        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
         <input
           type="date"
           value={fromDate}
@@ -418,7 +419,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
           </div>
         )}
         {error && allCodes.length !== 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color:  '#c00', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#c00', flexShrink: 0 }}>
             Failed to load data
           </div>
         )}

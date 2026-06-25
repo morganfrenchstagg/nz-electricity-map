@@ -342,8 +342,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             flexShrink: 0,
           }}
         >
-          Recent
+          Last 3 days
         </button>
+        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
         <input
           type="date"
           value={fromDate}
