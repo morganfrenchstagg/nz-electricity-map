@@ -1,12 +1,14 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Map from './components/Map'
 import NodePanel from './components/NodePanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { SelectedNode, Generator, Substation } from './types'
 import { useDispatchData } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
+import { useDefinitions } from './hooks/useDefinitions'
 
 export default function App() {
+  const { generators, substations } = useDefinitions()
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
@@ -14,6 +16,32 @@ export default function App() {
   const closeNode = useCallback(() => {
     setSelectedNode(null)
   }, [])
+
+  // Resolve ?node= from URL once definitions have loaded
+  const pendingNode = useRef(new URLSearchParams(window.location.search).get('node'))
+  const nodeResolved = useRef(false)
+  useEffect(() => {
+    if (nodeResolved.current || !pendingNode.current) return
+    if (generators.length === 0 && substations.length === 0) return
+    nodeResolved.current = true
+    const raw = pendingNode.current
+    if (raw.startsWith('generator:')) {
+      const gen = generators.find(g => g.site === raw.slice('generator:'.length))
+      if (gen) setSelectedNode({ kind: 'generator', generator: gen })
+    } else if (raw.startsWith('substation:')) {
+      const sub = substations.find(s => s.siteId === raw.slice('substation:'.length))
+      if (sub) setSelectedNode({ kind: 'substation', substation: sub })
+    }
+  }, [generators, substations])
+
+  // Sync selectedNode to URL, preserving other params
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (selectedNode === null) p.delete('node')
+    else if (selectedNode.kind === 'generator') p.set('node', `generator:${selectedNode.generator.site}`)
+    else p.set('node', `substation:${selectedNode.substation.siteId}`)
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
+  }, [selectedNode])
 
   const [dateMode, setDateMode] = useState<DateMode>(() => {
     const p = new URLSearchParams(window.location.search)
@@ -24,8 +52,10 @@ export default function App() {
     return { kind: 'today' }
   })
 
+  // Sync dateMode to URL, preserving other params
   useEffect(() => {
-    const p = new URLSearchParams()
+    const p = new URLSearchParams(window.location.search)
+    p.delete('mode'); p.delete('date'); p.delete('from'); p.delete('to')
     if (dateMode.kind === 'today') p.set('mode', 'today')
     else if (dateMode.kind === 'recent') p.set('mode', 'recent')
     else if (dateMode.kind === 'date') p.set('date', dateMode.date)
