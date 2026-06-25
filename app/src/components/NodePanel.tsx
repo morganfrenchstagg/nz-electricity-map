@@ -24,6 +24,15 @@ const PANEL_STYLE: React.CSSProperties = {
   overflow: 'hidden',
 }
 
+function formatOutageEnd(date: Date): string {
+  const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+  const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+  if (endNZ === todayNZ) {
+    return date.toLocaleTimeString('en-NZ', { timeZone: 'Pacific/Auckland', hour: 'numeric', minute: '2-digit' })
+  }
+  return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short' })
+}
+
 interface Props {
   node: NonNullable<SelectedNode>
   onClose: () => void
@@ -136,6 +145,20 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
     () => [...effectiveCodes].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0),
     [effectiveCodes, adapter],
   )
+
+  const soonestOutageEnd = useMemo(() => {
+    if (!outages || totalOutageMW <= 0) return null
+    const nowMs = Date.now()
+    let soonest: Date | null = null
+    for (const code of effectiveCodes) {
+      for (const rec of (outages[code] ?? [])) {
+        const endMs = new Date(rec.timeEnd.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
+        if (endMs <= nowMs) continue
+        if (soonest === null || endMs < soonest.getTime()) soonest = new Date(endMs)
+      }
+    }
+    return soonest
+  }, [outages, effectiveCodes, totalOutageMW])
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
     const lastRow = chartData.rows[chartData.rows.length - 1]
@@ -308,7 +331,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
                     lineHeight: '16px',
                     whiteSpace: 'nowrap',
                   }}>
-                    {totalOutageMW.toFixed(1)} MW Outage
+                    {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
                   </span>
                 </>
               ) : (
