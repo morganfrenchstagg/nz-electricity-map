@@ -6,6 +6,7 @@ import type { SelectedNode, Generator, Substation } from './types'
 import { useDispatchData } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
+import { useResizableWidth } from './hooks/useResizableWidth'
 
 export default function App() {
   const { generators, substations } = useDefinitions()
@@ -63,6 +64,8 @@ export default function App() {
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
   }, [dateMode])
 
+  const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(Math.round(window.innerWidth * 0.6))
+
   // Single source of dispatch data for the date-driven panels, so both
   // NodePanel and GridOverviewPanel share one fetch instead of each running
   // their own hook (and firing duplicate requests on date changes).
@@ -88,6 +91,8 @@ export default function App() {
           recentData={recentData}
           loading={loading}
           error={error}
+          panelWidth={panelWidth}
+          onResizeHandleMouseDown={onResizeHandleMouseDown}
         />
       )}
       <GridOverviewPanel
@@ -98,6 +103,8 @@ export default function App() {
         recentData={recentData}
         loading={loading}
         error={error}
+        panelWidth={panelWidth}
+        onResizeHandleMouseDown={onResizeHandleMouseDown}
       />
       {!selectedNode && !gridPanelVisible && (
         <button

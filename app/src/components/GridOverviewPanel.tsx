@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
@@ -32,11 +32,17 @@ interface Props {
   recentData: RecentData | null
   loading: boolean
   error: string | null
+  panelWidth: number
+  onResizeHandleMouseDown: (e: React.MouseEvent) => void
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
   const { generators, substations } = useDefinitions()
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
+  const [expanded, setExpanded] = useState(false)
+  const chartRef = useRef<HighchartsReact.RefObject>(null)
+
+  useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
 
   const [fromDate, setFromDate] = useState(
     dateMode.kind === 'date' ? dateMode.date
@@ -277,10 +283,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   }, [recentData, generators, substations, island])
 
   return (
-    <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none' }}>
+    <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</div>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? '⊠' : '⊞'}
+        </button>
         <button
           onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
@@ -390,9 +403,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+          <HighchartsReact ref={chartRef} key={String(expanded)} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
+      {!expanded && (
+        <div
+          onMouseDown={onResizeHandleMouseDown}
+          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
+        />
+      )}
     </div>
   )
 }

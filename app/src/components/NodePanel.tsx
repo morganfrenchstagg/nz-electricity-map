@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
@@ -31,9 +31,11 @@ interface Props {
   recentData: RecentData | null
   loading: boolean
   error: string | null
+  panelWidth: number
+  onResizeHandleMouseDown: (e: React.MouseEvent) => void
 }
 
-export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error }: Props) {
+export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
   const { generators: allGenerators } = useDefinitions()
   const outages = useOutages()
 
@@ -52,6 +54,9 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const [showGenerators, setShowGenerators] = useState(true)
+  const [expanded, setExpanded] = useState(false)
+  const chartRef = useRef<HighchartsReact.RefObject>(null)
+  useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
 
   // Date picker local state — initialized from dateMode prop (which may come from URL)
   const [fromDate, setFromDate] = useState(
@@ -281,7 +286,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
   }, [chartData, effectiveCodes, adapter, recentData, showGenerators])
 
   return (
-    <div style={PANEL_STYLE}>
+    <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -349,6 +354,13 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
             </div>
           </div>
         )}
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? '⊠' : '⊞'}
+        </button>
         <button
           onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
@@ -492,9 +504,15 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact key={nodeKey} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+          <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
+      {!expanded && (
+        <div
+          onMouseDown={onResizeHandleMouseDown}
+          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
+        />
+      )}
     </div>
   )
 }
