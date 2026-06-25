@@ -29,3 +29,16 @@ export function substationCodes(recent: RecentData, siteId: string): string[] {
   return recent.series.filter((s) => s.startsWith(siteId))
 }
 
+const GAP_MS = 20 * 60 * 1000
+
+export function withGaps(points: [number, number | null][]): [number, number | null][] {
+  const result: [number, number | null][] = []
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0 && points[i][0] - points[i - 1][0] > GAP_MS) {
+      result.push([points[i - 1][0] + 1, null])
+    }
+    result.push(points[i])
+  }
+  return result
+}
+

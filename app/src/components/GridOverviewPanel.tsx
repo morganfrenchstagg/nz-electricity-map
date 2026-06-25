@@ -6,6 +6,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import type { RecentData } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
+import { withGaps } from '../utils/chart'
 import { formatMW } from '../utils/format'
 
 const PANEL_STYLE: React.CSSProperties = {
@@ -117,10 +118,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       stack: (fuel === "BESS-C") ? "positive" : "negative",
       fillOpacity: 0.8,
       lineWidth: 1,
-      data: recentData.data.map(row => [
+      data: withGaps(recentData.data.map(row => [
         new Date((row[0] as string) + 'Z').getTime(),
         (fuelToIndices.get(fuel)!).reduce((sum, i) => sum + (((row[i] as number) || 0)), 0),
-      ]),
+      ])),
       marker: { enabled: false },
       animation: false,
     }))

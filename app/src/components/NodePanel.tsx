@@ -6,7 +6,7 @@ import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
-import { extractChartData } from '../utils/chart'
+import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
 
@@ -155,10 +155,10 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
       name: adapter.labelFor(code),
       color: adapter.colourFor(code, i),
       visible: effectiveCodes.has(code),
-      data: chartData.rows.map((row) => [
+      data: withGaps(chartData.rows.map((row) => [
         new Date((row.time as string) + 'Z').getTime(),
         adapter.transformValue(row[code] as number),
-      ]),
+      ])),
       marker: { enabled: false },
       animation: false,
     }))
