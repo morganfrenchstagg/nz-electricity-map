@@ -14,7 +14,7 @@ interface UseDefinitionsResult {
 }
 
 export function useDefinitions(): UseDefinitionsResult {
-  const [generators, setGenerators] = useState<Generator[]>(cachedData?.generators ?? [])
+  const [generators, setGenerators] = useState<Generator[]>(cachedData?.generators.filter(g => g.site !== 'SZR') ?? [])
   const [substations, setSubstations] = useState<Substation[]>(cachedData?.substations ?? [])
   const [loading, setLoading] = useState(cachedData === null)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +32,7 @@ export function useDefinitions(): UseDefinitionsResult {
     fetchPromise
       .then((data) => {
         cachedData = data
-        setGenerators(data.generators)
+        setGenerators(data.generators.filter(g => g.site !== 'SZR'))
         setSubstations(data.substations)
         setLoading(false)
       })
