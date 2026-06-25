@@ -7,6 +7,7 @@ export const MAX_RANGE_DAYS = 31
 
 export type DateMode =
   | { kind: 'recent' }
+  | { kind: 'today' }
   | { kind: 'date'; date: string }
   | { kind: 'range'; from: string; to: string }
 
@@ -79,7 +80,7 @@ export function useDispatchData(mode: DateMode): {
       setError(null)
       try {
         const keys =
-          mode.kind === 'recent' ? ['recent'] :
+          mode.kind === 'recent' || mode.kind === 'today' ? ['recent'] :
           mode.kind === 'date' ? [mode.date] :
           datesBetween(mode.from, mode.to)
 
@@ -91,7 +92,15 @@ export function useDispatchData(mode: DateMode): {
         }
 
         const days = keys.map(k => dayCache.get(k)!)
-        const merged = mergeData(days)
+        let merged = mergeData(days)
+        if (mode.kind === 'today') {
+          const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+          merged = {
+            ...merged,
+            data: merged.data.filter(row => (row[0] as string).slice(0, 10) === todayNZ),
+            pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === todayNZ),
+          }
+        }
         if (!cancelled) { setRecentData(merged); setLoading(false) }
       } catch (err) {
         if (!cancelled) {
@@ -103,7 +112,7 @@ export function useDispatchData(mode: DateMode): {
 
     load()
 
-    if (mode.kind === 'recent') {
+    if (mode.kind === 'recent' || mode.kind === 'today') {
       timerRef.current = setInterval(() => {
         dayCache.delete('recent')
         load()

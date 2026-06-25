@@ -99,6 +99,12 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
     onDateModeChange({ kind: 'recent' })
   }, [onDateModeChange])
 
+  const handleTodayClick = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'today' })
+  }, [onDateModeChange])
+
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
 
   const effectiveCodes = useMemo(() => {
@@ -354,6 +360,22 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
 
       {/* Date picker toolbar */}
       <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          onClick={handleTodayClick}
+          style={{
+            padding: '2px 10px',
+            borderRadius: 10,
+            border: '1px solid #ccc',
+            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white',
+            color: '#444',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: dateMode.kind === 'today' ? 600 : 400,
+            flexShrink: 0,
+          }}
+        >
+          Today
+        </button>
         <button
           onClick={handleRecentClick}
           style={{

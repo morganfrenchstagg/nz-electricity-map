@@ -17,18 +17,20 @@ export default function App() {
 
   const [dateMode, setDateMode] = useState<DateMode>(() => {
     const p = new URLSearchParams(window.location.search)
-    const from = p.get('from'), to = p.get('to'), date = p.get('date')
+    const from = p.get('from'), to = p.get('to'), date = p.get('date'), mode = p.get('mode')
     if (from && to) return { kind: 'range', from, to }
     if (date) return { kind: 'date', date }
-    return { kind: 'recent' }
+    if (mode === 'recent') return { kind: 'recent' }
+    return { kind: 'today' }
   })
 
   useEffect(() => {
     const p = new URLSearchParams()
-    if (dateMode.kind === 'date') p.set('date', dateMode.date)
+    if (dateMode.kind === 'today') p.set('mode', 'today')
+    else if (dateMode.kind === 'recent') p.set('mode', 'recent')
+    else if (dateMode.kind === 'date') p.set('date', dateMode.date)
     else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
-    const qs = p.toString()
-    window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
   }, [dateMode])
 
   // Single source of dispatch data for the date-driven panels, so both

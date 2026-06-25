@@ -82,6 +82,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     onDateModeChange({ kind: 'recent' })
   }, [onDateModeChange])
 
+  const handleTodayClick = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'today' })
+  }, [onDateModeChange])
+
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!recentData || generators.length === 0) return null
 
@@ -305,6 +311,22 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </button>
         ))}
         <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+        <button
+          onClick={handleTodayClick}
+          style={{
+            padding: '2px 10px',
+            borderRadius: 10,
+            border: '1px solid #ccc',
+            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white',
+            color: '#444',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontWeight: dateMode.kind === 'today' ? 600 : 400,
+            flexShrink: 0,
+          }}
+        >
+          Today
+        </button>
         <button
           onClick={handleRecentClick}
           style={{
