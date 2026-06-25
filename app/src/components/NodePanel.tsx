@@ -309,9 +309,9 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
             <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {totalOutageMW > 0 ? (
                 <>
-                  <span>{currentGeneration.toFixed(0)} /</span>
+                  <span>{formatMW(currentGeneration)} /</span>
                   <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
-                  <span>{capacity.toFixed(0)} MW ({capacity > 0 ? Math.round((currentGeneration / (capacity - totalOutageMW)) * 100) : 0}%)</span>
+                  <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
                   <span style={{
                     background: '#fee2e2',
                     color: '#b91c1c',
@@ -326,7 +326,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
                   </span>
                 </>
               ) : (
-                <span>{currentGeneration.toFixed(0)} / {capacity.toFixed(0)} MW ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
+                <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
               )}
             </div>
             <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
@@ -334,25 +334,23 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
                 if (!effectiveCodes.has(code)) return null
                 const lastRow = chartData?.rows[chartData.rows.length - 1]
                 const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
-                const outageMW = adapter.unitOutageMW(code)
                 const colour = adapter.colourFor(code, i)
-                const denom = normalCapacity > 0 ? normalCapacity : 1
+                const denom = (capacity > 0 ? capacity : 1) + totalOutageMW
                 const genPct = (Math.abs(val) / denom) * 100
-                const outagePct = (outageMW / denom) * 100
                 return (
                   <span key={code} style={{ display: 'contents' }}>
                     <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
-                    {outagePct > 0 && (
-                      <div style={{
-                        height: '100%',
-                        width: `${outagePct}%`,
-                        flexShrink: 0,
-                        background: `repeating-linear-gradient(45deg, ${colour}66 0, ${colour}66 2px, transparent 2px, transparent 5px)`,
-                      }} />
-                    )}
                   </span>
                 )
               })}
+              {
+                totalOutageMW > 0 && (
+                  <>
+                    <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
+                    <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
+                  </>
+                )
+              }
             </div>
           </div>
         )}

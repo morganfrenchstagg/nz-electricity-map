@@ -117,7 +117,6 @@ export function useDispatchData(mode: DateMode): {
       timerRef.current = setInterval(() => {
         const cached = dayCache.get('recent')
         if (cached) {
-          console.log('cached', cached)
           const last = cached.data[cached.data.length - 1]
           const ts = last ? new Date((last[0] as string)).getTime() : 0
           if (Date.now() - ts < STALE_MS) return
