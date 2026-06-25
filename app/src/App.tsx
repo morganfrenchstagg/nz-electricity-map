@@ -97,6 +97,7 @@ export default function App() {
         <NodePanel
           node={selectedNode}
           onClose={closeNode}
+          onClear={() => { setSelectedNode(null); setGridPanelVisible(true) }}
           dateMode={dateMode}
           onDateModeChange={setDateMode}
           recentData={recentData}
@@ -113,6 +114,7 @@ export default function App() {
         dateMode={dateMode}
         onDateModeChange={setDateMode}
         onClose={() => setGridPanelVisible(false)}
+        onNodeSelect={(node) => { setSelectedNode(node); setGridPanelVisible(false) }}
         visible={!selectedNode && gridPanelVisible}
         recentData={recentData}
         loading={loading}

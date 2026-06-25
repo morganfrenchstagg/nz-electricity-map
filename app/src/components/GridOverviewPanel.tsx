@@ -3,12 +3,13 @@ import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import type { RecentData } from '../types'
+import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
 import { withGaps } from '../utils/chart'
 import { formatMW } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
+import NodePickerModal from './NodePickerModal'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -29,6 +30,7 @@ interface Props {
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
   onClose: () => void
+  onNodeSelect: (node: NonNullable<SelectedNode>) => void
   visible: boolean
   recentData: RecentData | null
   loading: boolean
@@ -39,10 +41,11 @@ interface Props {
   onExpandedChange: (v: boolean) => void
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, onNodeSelect, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
@@ -269,7 +272,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
               return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td><td>${percentageStr}</td></tr>`
             })
             .join('')
-          
+
           const prices = refPricingByMs.get(this.x as number)
           const priceParts = [
             prices?.ota != null ? `Ōtāhuhu price: <b>$${(prices.ota as number).toFixed(2)}/MWh</b>` : null,
@@ -291,9 +294,26 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
+      {pickerOpen && (
+        <NodePickerModal
+          generators={generators}
+          substations={substations}
+          onSelect={(node) => { onNodeSelect(node); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</span>
+          <button
+            onClick={() => setPickerOpen(true)}
+            style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1 }}
+          >
+            ▾
+          </button>
+        </div>
         <button
           onClick={() => onExpandedChange(!expanded)}
           style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
@@ -301,13 +321,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         >
           {expanded ? 'Show map' : 'Expand'}
         </button>
-        <button
-          onClick={onClose}
-          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-          aria-label="Close"
-        >
-          Close
-        </button>
+        {!expanded && (
+          <button
+            onClick={onClose}
+            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+            aria-label="Close"
+          >
+            Close
+          </button>
+        )}
       </div>
 
       {/* Island + date picker toolbar */}

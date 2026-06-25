@@ -5,7 +5,7 @@ import { fuelColour } from '../utils/colours'
 interface Props {
   generators: Generator[]
   substations: Substation[]
-  currentNode: NonNullable<SelectedNode>
+  currentNode?: NonNullable<SelectedNode>
   onSelect: (node: NonNullable<SelectedNode>) => void
   onClose: () => void
 }
@@ -30,7 +30,7 @@ const GRID_ZONE_NAMES: Record<number, string> = {
 }
 
 export default function NodePickerModal({ generators, substations, currentNode, onSelect, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>(currentNode.kind === 'substation' ? 'substation' : 'generation')
+  const [tab, setTab] = useState<Tab>(currentNode?.kind === 'substation' ? 'substation' : 'generation')
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -52,17 +52,19 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     .filter(s => s.description.toLowerCase().includes(q) || s.siteId.toLowerCase().includes(q))
     .sort((a, b) => a.description.localeCompare(b.description))
 
-  const currentKey = currentNode.kind === 'generator'
-    ? `generator:${currentNode.generator.site}`
-    : `substation:${currentNode.substation.siteId}`
+  const currentKey = currentNode
+    ? currentNode.kind === 'generator'
+      ? `generator:${currentNode.generator.site}`
+      : `substation:${currentNode.substation.siteId}`
+    : null
 
   const itemStyle = (key: string): React.CSSProperties => ({
     padding: '7px 16px',
     cursor: 'pointer',
     fontSize: 13,
-    background: key === currentKey ? '#f0f4ff' : 'transparent',
-    fontWeight: key === currentKey ? 600 : 400,
-    borderLeft: key === currentKey ? '3px solid #3b82f6' : '3px solid transparent',
+    background: currentKey && key === currentKey ? '#f0f4ff' : 'transparent',
+    fontWeight: currentKey && key === currentKey ? 600 : 400,
+    borderLeft: currentKey && key === currentKey ? '3px solid #3b82f6' : '3px solid transparent',
   })
 
   const tabStyle = (t: Tab): React.CSSProperties => ({

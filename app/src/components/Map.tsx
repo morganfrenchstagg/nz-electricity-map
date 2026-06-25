@@ -125,6 +125,22 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
         },
       })
 
+      map.addSource('selected-node', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.addLayer({
+        id: 'selected-node-layer',
+        type: 'circle',
+        source: 'selected-node',
+        paint: {
+          'circle-color': 'transparent',
+          'circle-radius': 13,
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#3b82f6',
+        },
+      })
+
       map.on('click', (e) => {
         // Generators take priority over substations when both overlap
         const genFeatures = map.queryRenderedFeatures(e.point, { layers: ['generators-layer'] })
@@ -338,6 +354,24 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
   }, [substations])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const update = () => {
+      const src = map.getSource('selected-node') as maplibregl.GeoJSONSource | undefined
+      if (!src) return
+      if (!selectedNode) {
+        src.setData({ type: 'FeatureCollection', features: [] })
+        return
+      }
+      const [lng, lat] = selectedNode.kind === 'generator'
+        ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
+        : [selectedNode.substation.long, selectedNode.substation.lat]
+      src.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }] })
+    }
+    map.isStyleLoaded() ? update() : map.once('load', update)
+  }, [selectedNode])
 
   useEffect(() => {
     const map = mapRef.current

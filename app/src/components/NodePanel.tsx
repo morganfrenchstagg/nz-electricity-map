@@ -37,6 +37,7 @@ function formatOutageEnd(date: Date): string {
 interface Props {
   node: NonNullable<SelectedNode>
   onClose: () => void
+  onClear: () => void
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
   recentData: RecentData | null
@@ -49,7 +50,7 @@ interface Props {
   onNodeChange: (node: NonNullable<SelectedNode>) => void
 }
 
-export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, onNodeChange }: Props) {
+export default function NodePanel({ node, onClose, onClear, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, onNodeChange }: Props) {
   const { generators: allGenerators, substations: allSubstations } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
@@ -305,13 +306,22 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <button
-            onClick={() => setPickerOpen(true)}
-            style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
-          >
-            {title}
-            <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
-          </button>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setPickerOpen(true)}
+              style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              {title}
+              <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
+            </button>
+            <button
+              onClick={onClear}
+              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
+              aria-label='Clear'
+            >
+              Clear
+            </button>
+          </div>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
             <span>{subtitle}</span>
             {adapter.subtitleFuels.map((f) => (
@@ -380,13 +390,15 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
         >
           {expanded ? 'Show map' : 'Expand'}
         </button>
-        <button
-          onClick={onClose}
-          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-          aria-label="Close"
-        >
-          Close
-        </button>
+        {!expanded && (
+          <button
+            onClick={onClose}
+            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+            aria-label="Close"
+          >
+            Close
+          </button>
+        )}
       </div>
 
       {/* Date picker toolbar */}
