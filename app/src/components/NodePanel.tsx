@@ -43,9 +43,11 @@ interface Props {
   error: string | null
   panelWidth: number
   onResizeHandleMouseDown: (e: React.MouseEvent) => void
+  expanded: boolean
+  onExpandedChange: (v: boolean) => void
 }
 
-export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
+export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
   const { generators: allGenerators } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
@@ -65,7 +67,6 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const [showGenerators, setShowGenerators] = useState(true)
-  const [expanded, setExpanded] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
 
@@ -364,7 +365,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
           </div>
         )}
         <button
-          onClick={() => setExpanded(e => !e)}
+          onClick={() => onExpandedChange(!expanded)}
           style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >

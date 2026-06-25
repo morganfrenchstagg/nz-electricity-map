@@ -35,13 +35,14 @@ interface Props {
   error: string | null
   panelWidth: number
   onResizeHandleMouseDown: (e: React.MouseEvent) => void
+  expanded: boolean
+  onExpandedChange: (v: boolean) => void
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
-  const [expanded, setExpanded] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
@@ -294,7 +295,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</div>
         <button
-          onClick={() => setExpanded(e => !e)}
+          onClick={() => onExpandedChange(!expanded)}
           style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >

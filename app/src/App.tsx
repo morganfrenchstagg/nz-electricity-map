@@ -66,6 +66,15 @@ export default function App() {
 
   const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(Math.round(window.innerWidth * 0.6))
 
+  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get('expanded') === 'true')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (expanded) p.set('expanded', 'true')
+    else p.delete('expanded')
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
+  }, [expanded])
+
   // Single source of dispatch data for the date-driven panels, so both
   // NodePanel and GridOverviewPanel share one fetch instead of each running
   // their own hook (and firing duplicate requests on date changes).
@@ -95,6 +104,8 @@ export default function App() {
           error={error}
           panelWidth={panelWidth}
           onResizeHandleMouseDown={onResizeHandleMouseDown}
+          expanded={expanded}
+          onExpandedChange={setExpanded}
         />
       )}
       <GridOverviewPanel
@@ -107,6 +118,8 @@ export default function App() {
         error={error}
         panelWidth={panelWidth}
         onResizeHandleMouseDown={onResizeHandleMouseDown}
+        expanded={expanded}
+        onExpandedChange={setExpanded}
       />
       {!selectedNode && !gridPanelVisible && (
         <button
