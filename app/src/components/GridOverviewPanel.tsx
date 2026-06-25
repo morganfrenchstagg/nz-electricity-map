@@ -256,15 +256,19 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           //const isHvdc = (p: { series: { name: string } }) => p.series.name.startsWith('HVDC')
           //const hvdcPoint = points.find(p => isHvdc(p) && (p.y ?? 0) !== 0)
           //const fuelPoints = points.filter(p => !isHvdc(p))
+          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+
           const rows = points
             .slice()
             .map(p => {
               const val = formatMW(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              return `<span style="color:${String(p.color)}">●</span> ${p.series.name}: ${formatted}`
+              const ratioOfTotal = (p.y ?? 0) / total;
+              const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
+              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td><td>${percentageStr}</td></tr>`
             })
-            .join('<br/>')
-          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+            .join('')
+          
           const prices = refPricingByMs.get(this.x as number)
           const priceParts = [
             prices?.ota != null ? `Ōtāhuhu price: <b>$${(prices.ota as number).toFixed(2)}/MWh</b>` : null,
@@ -277,7 +281,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const renewableRow = renewablePct != null
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
-          return `<b>${time}</b><br/>${rows}<br/><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
+          return `<b>${time}</b><br/><table>${rows}</table><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
         },
       },
       series,
