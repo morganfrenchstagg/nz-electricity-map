@@ -6,17 +6,14 @@ import type { DateMode } from '../hooks/useDispatchData'
 import type { RecentData } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
-import { substationCodes } from '../utils/chart'
 import { formatMW } from '../utils/format'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
-  bottom: 24,
-  left: 24,
-  width: '50vw',
-  maxHeight: 'calc(100vh - 48px)',
+  bottom: 0,
+  width: '60vw',
+  height: '100%',
   background: 'white',
-  borderRadius: 8,
   boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
   display: 'flex',
   flexDirection: 'column',
@@ -212,7 +209,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       }))
 
     return {
-      chart: { type: 'area', height: '90%', margin: [8, 16, 40, 56], animation: false, darkMode: false, backgroundColor: '#ffffff' },
+      chart: { type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: true, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -357,7 +354,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       </div>
 
       {/* Chart area */}
-      <div style={{ padding: '8px 0 0' }}>
+      <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
         {loading && !recentData && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#888' }}>
             Loading…
@@ -369,7 +366,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact highcharts={Highcharts} options={chartOptions} />
+          <HighchartsReact highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
     </div>
