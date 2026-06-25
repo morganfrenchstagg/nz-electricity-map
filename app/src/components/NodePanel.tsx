@@ -311,7 +311,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
                 <>
                   <span>{currentGeneration.toFixed(0)} /</span>
                   <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
-                  <span>{capacity.toFixed(0)} MW</span>
+                  <span>{capacity.toFixed(0)} MW ({capacity > 0 ? Math.round((currentGeneration / (capacity - totalOutageMW)) * 100) : 0}%)</span>
                   <span style={{
                     background: '#fee2e2',
                     color: '#b91c1c',
