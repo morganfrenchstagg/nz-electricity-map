@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { RecentData } from '../types'
 
 const BASE = 'https://api.electricitymap.frenchsta.gg/v1/dispatch'
-const REFRESH_MS = 5 * 60 * 1000
+const POLL_MS = 60 * 1000
+const STALE_MS = 5 * 60 * 1000
 export const MAX_RANGE_DAYS = 31
 
 export type DateMode =
@@ -114,9 +115,16 @@ export function useDispatchData(mode: DateMode): {
 
     if (mode.kind === 'recent' || mode.kind === 'today') {
       timerRef.current = setInterval(() => {
+        const cached = dayCache.get('recent')
+        if (cached) {
+          console.log('cached', cached)
+          const last = cached.data[cached.data.length - 1]
+          const ts = last ? new Date((last[0] as string)).getTime() : 0
+          if (Date.now() - ts < STALE_MS) return
+        }
         dayCache.delete('recent')
         load()
-      }, REFRESH_MS)
+      }, POLL_MS)
     }
 
     return () => {
