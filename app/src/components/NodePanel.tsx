@@ -9,6 +9,7 @@ import { useOutages } from '../hooks/useOutages'
 import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -38,6 +39,7 @@ interface Props {
 export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
   const { generators: allGenerators } = useDefinitions()
   const outages = useOutages()
+  const lastUpdated = useLastUpdated(recentData, dateMode)
 
   const adapter = useMemo(
     () =>
@@ -424,6 +426,9 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
         />
         {rangeError && (
           <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+        )}
+        {lastUpdated && !loading && (
+          <span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span>
         )}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>

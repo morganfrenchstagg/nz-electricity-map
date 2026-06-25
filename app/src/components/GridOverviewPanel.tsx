@@ -8,6 +8,7 @@ import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel } from '../utils/colours'
 import { withGaps } from '../utils/chart'
 import { formatMW } from '../utils/format'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -38,6 +39,7 @@ interface Props {
 
 export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown }: Props) {
   const { generators, substations } = useDefinitions()
+  const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
   const [expanded, setExpanded] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
@@ -377,6 +379,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         />
         {rangeError && (
           <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+        )}
+        {lastUpdated && !loading && (
+          <span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span>
         )}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>
