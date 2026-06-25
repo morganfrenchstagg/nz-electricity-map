@@ -9,6 +9,7 @@ import { useOutages } from '../hooks/useOutages'
 import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
+import NodePickerModal from './NodePickerModal'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const PANEL_STYLE: React.CSSProperties = {
@@ -45,10 +46,11 @@ interface Props {
   onResizeHandleMouseDown: (e: React.MouseEvent) => void
   expanded: boolean
   onExpandedChange: (v: boolean) => void
+  onNodeChange: (node: NonNullable<SelectedNode>) => void
 }
 
-export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
-  const { generators: allGenerators } = useDefinitions()
+export default function NodePanel({ node, onClose, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, onNodeChange }: Props) {
+  const { generators: allGenerators, substations: allSubstations } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
 
@@ -69,6 +71,7 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
   const [showGenerators, setShowGenerators] = useState(true)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Date picker local state — initialized from dateMode prop (which may come from URL)
   const [fromDate, setFromDate] = useState(
@@ -302,7 +305,13 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{title}</div>
+          <button
+            onClick={() => setPickerOpen(true)}
+            style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            {title}
+            <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
+          </button>
           <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
             <span>{subtitle}</span>
             {adapter.subtitleFuels.map((f) => (
@@ -524,6 +533,15 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
         <div
           onMouseDown={onResizeHandleMouseDown}
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
+        />
+      )}
+      {pickerOpen && (
+        <NodePickerModal
+          generators={allGenerators}
+          substations={allSubstations}
+          currentNode={node}
+          onSelect={onNodeChange}
+          onClose={() => setPickerOpen(false)}
         />
       )}
     </div>

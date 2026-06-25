@@ -106,6 +106,7 @@ export default function App() {
           onResizeHandleMouseDown={onResizeHandleMouseDown}
           expanded={expanded}
           onExpandedChange={setExpanded}
+          onNodeChange={setSelectedNode}
         />
       )}
       <GridOverviewPanel
