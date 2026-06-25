@@ -356,17 +356,17 @@ export default function NodePanel({ node, onClose, dateMode, onDateModeChange, r
         )}
         <button
           onClick={() => setExpanded(e => !e)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
+          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
-          {expanded ? '⊠' : '⊞'}
+          {expanded ? 'Show map' : 'Expand'}
         </button>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: '#666', padding: '2px 4px', flexShrink: 0 }}
+          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
           aria-label="Close"
         >
-          ×
+          Close
         </button>
       </div>
 
