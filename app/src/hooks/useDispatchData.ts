@@ -82,8 +82,8 @@ export function useDispatchData(mode: DateMode): {
       try {
         const keys =
           mode.kind === 'recent' || mode.kind === 'today' ? ['recent'] :
-          mode.kind === 'date' ? [mode.date] :
-          datesBetween(mode.from, mode.to)
+            mode.kind === 'date' ? [mode.date] :
+              datesBetween(mode.from, mode.to)
 
         const missing = keys.filter(k => !dayCache.has(k))
         if (missing.length > 0) {

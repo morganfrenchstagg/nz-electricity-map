@@ -56,6 +56,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   )
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
+  const toMax = useMemo(() => {
+    if (!fromDate) return new Date().toISOString().slice(0, 10)
+    const d = new Date(fromDate + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
+    const cap = new Date().toISOString().slice(0, 10)
+    return d.toISOString().slice(0, 10) < cap ? d.toISOString().slice(0, 10) : cap
+  }, [fromDate])
+
   const rangeError = useMemo(() => {
     if (!fromDate || !toDate) return null
     if (toDate < fromDate) return 'End date must be after start date'
@@ -389,6 +397,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         <input
           type="date"
           value={fromDate}
+          min="2021-01-01"
           max={new Date().toISOString().slice(0, 10)}
           onChange={e => handleFromChange(e.target.value)}
           style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
@@ -398,7 +407,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           type="date"
           value={toDate}
           min={fromDate || undefined}
-          max={new Date().toISOString().slice(0, 10)}
+          max={toMax}
           disabled={!fromDate}
           onChange={e => handleToChange(e.target.value)}
           style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
