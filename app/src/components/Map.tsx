@@ -20,11 +20,12 @@ const PANEL_WIDTH_VW = 0.5
 interface Props {
   onGeneratorClick: (generator: Generator) => void
   onSubstationClick: (substation: Substation) => void
+  onClear: () => void
   selectedNode: SelectedNode
   leftPanelOpen: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, selectedNode, leftPanelOpen }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const { generators, substations } = useDefinitions()
@@ -42,8 +43,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
   // Keep callback refs so map event handlers always see the latest callbacks
   const onGeneratorClickRef = useRef(onGeneratorClick)
   const onSubstationClickRef = useRef(onSubstationClick)
+  const onClearRef = useRef(onClear)
   useEffect(() => { onGeneratorClickRef.current = onGeneratorClick }, [onGeneratorClick])
   useEffect(() => { onSubstationClickRef.current = onSubstationClick }, [onSubstationClick])
+  useEffect(() => { onClearRef.current = onClear }, [onClear])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -158,6 +161,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, selectedNode,
           return
         }
 
+        onClearRef.current()
       })
 
       for (const layer of ['substations-layer', 'generators-layer', 'under-construction-layer']) {

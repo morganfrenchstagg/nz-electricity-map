@@ -98,7 +98,7 @@ export default function App() {
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { setSelectedNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} />
       {selectedNode && (
         <NodePanel
           node={selectedNode}
