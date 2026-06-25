@@ -381,7 +381,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
         )}
         {lastUpdated && !loading && (
-          <span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span>
+          <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>
