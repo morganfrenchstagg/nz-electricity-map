@@ -397,7 +397,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         <input
           type="date"
           value={fromDate}
-          min="2021-01-01"
+          min="2020-09-11"
           max={new Date().toISOString().slice(0, 10)}
           onChange={e => handleFromChange(e.target.value)}
           style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
