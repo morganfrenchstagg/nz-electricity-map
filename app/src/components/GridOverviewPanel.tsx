@@ -57,10 +57,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
   const toMax = useMemo(() => {
-    if (!fromDate) return new Date().toISOString().slice(0, 10)
+    if (!fromDate) return new Date(Date.now() - 86400000).toISOString().slice(0, 10)
     const d = new Date(fromDate + 'T00:00:00Z')
     d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
-    const cap = new Date().toISOString().slice(0, 10)
+    const cap = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
     return d.toISOString().slice(0, 10) < cap ? d.toISOString().slice(0, 10) : cap
   }, [fromDate])
 
@@ -398,7 +398,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           type="date"
           value={fromDate}
           min="2020-09-11"
-          max={new Date().toISOString().slice(0, 10)}
+          max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
           onChange={e => handleFromChange(e.target.value)}
           style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
         />
