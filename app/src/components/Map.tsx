@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
@@ -10,6 +10,7 @@ import { formatMW } from '../utils/format'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
 // todo - cache this in CF worker, so it's not as slow as arcgis is...
 const TRANSMISSION_LINES_URL = 'https://services3.arcgis.com/AkUq3zcWf7TVqyR9/arcgis/rest/services/TransmissionLines/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
@@ -23,11 +24,13 @@ interface Props {
   onClear: () => void
   selectedNode: SelectedNode
   leftPanelOpen: boolean
+  panelWidth: number
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const [showAerial, setShowAerial] = useState(false)
   const { generators, substations } = useDefinitions()
   const { recentData } = useDispatchData({ kind: 'recent' })
   const generatorsRef = useRef<Generator[]>(generators)
@@ -64,6 +67,20 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       if (leftPanelOpenRef.current) {
         map.setPadding({ left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 })
       }
+
+      map.addSource('linz-aerial', {
+        type: 'raster',
+        tiles: [LINZ_AERIAL_URL],
+        tileSize: 256,
+        attribution: '© <a href="https://www.linz.govt.nz/crown-property/crown-copyright">LINZ CC BY 4.0</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+      })
+      map.addLayer({
+        id: 'linz-aerial-layer',
+        type: 'raster',
+        source: 'linz-aerial',
+        layout: { visibility: 'none' },
+        paint: { 'raster-opacity': 1 },
+      })
 
       map.addSource('transmission-lines', {
         type: 'geojson',
@@ -483,5 +500,50 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     }
   }, [selectedNode, leftPanelOpen])
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const set = () => {
+      if (map.getLayer('linz-aerial-layer')) {
+        map.setLayoutProperty('linz-aerial-layer', 'visibility', showAerial ? 'visible' : 'none')
+      }
+    }
+    map.isStyleLoaded() ? set() : map.once('load', set)
+  }, [showAerial])
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div style={{
+        position: 'absolute',
+        top: 10,
+        left: leftPanelOpen ? panelWidth + 10 : 10,
+        zIndex: 10,
+        display: 'flex',
+        borderRadius: 6,
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+        border: '1px solid #ccc',
+      }}>
+        {(['street', 'aerial'] as const).map((mode, i) => (
+          <button
+            key={mode}
+            onClick={() => setShowAerial(mode === 'aerial')}
+            style={{
+              padding: '8px 14px',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              border: 'none',
+              borderLeft: i > 0 ? '1px solid #ccc' : 'none',
+              background: (mode === 'aerial') === showAerial ? '#1d4ed8' : 'white',
+              color: (mode === 'aerial') === showAerial ? 'white' : '#333',
+            }}
+          >
+            {mode === 'street' ? 'Street' : 'Satellite'}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
