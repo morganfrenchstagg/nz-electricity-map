@@ -13,6 +13,7 @@ export type DateMode =
   | { kind: 'range'; from: string; to: string }
 
 const dayCache = new Map<string, RecentData>()
+const inFlight = new Map<string, Promise<RecentData>>()
 
 export function datesBetween(from: string, to: string): string[] {
   const dates: string[] = []
@@ -56,11 +57,14 @@ function mergeData(days: RecentData[]): RecentData {
   return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs) }
 }
 
-async function fetchOne(key: string): Promise<RecentData> {
+function fetchOne(key: string): Promise<RecentData> {
+  if (inFlight.has(key)) return inFlight.get(key)!
   const url = key === 'recent' ? `${BASE}/recent` : `${BASE}/${key}`
-  const r = await fetch(url)
-  if (!r.ok) throw new Error(`HTTP ${r.status}`)
-  return r.json() as Promise<RecentData>
+  const promise = fetch(url)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() as Promise<RecentData> })
+    .finally(() => inFlight.delete(key))
+  inFlight.set(key, promise)
+  return promise
 }
 
 export function useDispatchData(mode: DateMode): {

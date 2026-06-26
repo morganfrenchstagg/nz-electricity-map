@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { useDispatchData } from '../hooks/useDispatchData'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, ucUnitsForSite } from '../utils/geo'
 import { underConstruction } from '../../../frontend/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, voltageColour } from '../utils/colours'
@@ -19,20 +18,20 @@ const INITIAL_ZOOM = 5
 const PANEL_WIDTH_VW = 0.5
 
 interface Props {
-  onGeneratorClick: (generator: Generator) => void
+  onGeneratorClick: (generator: Generator, shiftKey: boolean) => void
   onSubstationClick: (substation: Substation) => void
   onClear: () => void
   selectedNode: SelectedNode
   leftPanelOpen: boolean
   panelWidth: number
+  recentData: RecentData | null
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
   const { generators, substations } = useDefinitions()
-  const { recentData } = useDispatchData({ kind: 'recent' })
   const generatorsRef = useRef<Generator[]>(generators)
   const substationsRef = useRef<Substation[]>(substations)
   const recentDataRef = useRef<RecentData | null>(null)
