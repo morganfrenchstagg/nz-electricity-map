@@ -291,7 +291,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
           // TOTAL
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0);
-          const capRow = capMW !== null ? ` / ${formatMW(capMW)} (${Math.round(total / capMW * 100)}%)` : ''
+          const capRow = capMW !== null ? ` / ${formatMW(capMW)} (${Math.round(total / capMW * 100) || 0}%)` : ''
           const totalRow = points.length > 1 ? `<tr><td></td></tr><tr><td>Total: <b>${formatMW(total)}${capRow}</td></tr>` : ''
           rows += totalRow;
           return `<b>${time}</b><br/><table>${rows}</table>`;
