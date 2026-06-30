@@ -111,7 +111,7 @@ export const underConstruction = [
         "site": "TAH",
         "fuel": "Solar",
         "operator": "Harmoney Energy / First Renewables",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "capacityMW": 150,
         "capacityMWp": 202,
         "yearlyGenerationGWh": 280,
