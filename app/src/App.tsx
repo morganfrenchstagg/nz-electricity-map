@@ -7,9 +7,11 @@ import { useDispatchData } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
+import { useIsMobile } from './hooks/useIsMobile'
 
 export default function App() {
   const { generators, substations } = useDefinitions()
+  const isMobile = useIsMobile()
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
@@ -96,9 +98,11 @@ export default function App() {
     setGridPanelVisible(false)
   }, [])
 
+  const effectivePanelWidth = isMobile ? window.innerWidth : panelWidth
+
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { setSelectedNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={panelWidth} recentData={recentData} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { setSelectedNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} isMobile={isMobile} />
       {selectedNode && (
         <NodePanel
           node={selectedNode}
@@ -109,11 +113,12 @@ export default function App() {
           recentData={recentData}
           loading={loading}
           error={error}
-          panelWidth={panelWidth}
+          panelWidth={effectivePanelWidth}
           onResizeHandleMouseDown={onResizeHandleMouseDown}
-          expanded={expanded}
+          expanded={isMobile ? true : expanded}
           onExpandedChange={setExpanded}
           onNodeChange={setSelectedNode}
+          isMobile={isMobile}
         />
       )}
       <GridOverviewPanel
@@ -125,26 +130,27 @@ export default function App() {
         recentData={recentData}
         loading={loading}
         error={error}
-        panelWidth={panelWidth}
+        panelWidth={effectivePanelWidth}
         onResizeHandleMouseDown={onResizeHandleMouseDown}
-        expanded={expanded}
+        expanded={isMobile ? true : expanded}
         onExpandedChange={setExpanded}
+        isMobile={isMobile}
       />
       {!selectedNode && !gridPanelVisible && (
         <button
           onClick={() => setGridPanelVisible(true)}
           style={{
             position: 'fixed',
-            bottom: 24,
+            bottom: isMobile ? 80 : 24,
             left: 24,
             zIndex: 10,
             background: 'white',
             border: '1px solid #ddd',
             borderRadius: 8,
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            padding: '8px 14px',
+            padding: isMobile ? '10px 18px' : '8px 14px',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: isMobile ? 15 : 13,
             color: '#333',
             fontWeight: 500,
           }}

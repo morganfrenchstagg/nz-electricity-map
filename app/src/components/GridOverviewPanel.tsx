@@ -38,9 +38,10 @@ interface Props {
   onResizeHandleMouseDown: (e: React.MouseEvent) => void
   expanded: boolean
   onExpandedChange: (v: boolean) => void
+  isMobile?: boolean
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, onNodeSelect, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, onNodeSelect, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
@@ -321,26 +322,38 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             ▾
           </button>
         </div>
-        <button
-          onClick={() => onExpandedChange(!expanded)}
-          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >
-          {expanded ? 'Show map' : 'Expand'}
-        </button>
-        {!expanded && (
+        {isMobile ? (
           <button
             onClick={onClose}
-            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-            aria-label="Close"
+            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '6px 10px', flexShrink: 0, borderRadius: 4 }}
+            aria-label="Show map"
           >
-            Close
+            Show map
           </button>
+        ) : (
+          <>
+            <button
+              onClick={() => onExpandedChange(!expanded)}
+              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+              aria-label={expanded ? 'Collapse' : 'Expand'}
+            >
+              {expanded ? 'Show map' : 'Expand'}
+            </button>
+            {!expanded && (
+              <button
+                onClick={onClose}
+                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+                aria-label="Close"
+              >
+                Close
+              </button>
+            )}
+          </>
         )}
       </div>
 
       {/* Island + date picker toolbar */}
-      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {(['all', 'NI', 'SI'] as const).map((opt) => (
           <button
             key={opt}
@@ -393,28 +406,30 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         >
           Last 3 days
         </button>
-        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
-        <input
-          type="date"
-          value={fromDate}
-          min="2020-09-11"
-          max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
-          onChange={e => handleFromChange(e.target.value)}
-          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
-        />
-        <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
-        <input
-          type="date"
-          value={toDate}
-          min={fromDate || undefined}
-          max={toMax}
-          disabled={!fromDate}
-          onChange={e => handleToChange(e.target.value)}
-          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
-        />
-        {rangeError && (
-          <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
-        )}
+        {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
+          <input
+            type="date"
+            value={fromDate}
+            min="2020-09-11"
+            max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
+            onChange={e => handleFromChange(e.target.value)}
+            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
+          />
+          <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            max={toMax}
+            disabled={!fromDate}
+            onChange={e => handleToChange(e.target.value)}
+            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+          />
+          {rangeError && (
+            <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+          )}
+        </div>
         {lastUpdated && !loading && (
           <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
@@ -446,7 +461,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           <HighchartsReact ref={chartRef} key={String(expanded)} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
-      {!expanded && (
+      {!expanded && !isMobile && (
         <div
           onMouseDown={onResizeHandleMouseDown}
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}

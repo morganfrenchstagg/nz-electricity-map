@@ -47,9 +47,10 @@ interface Props {
   expanded: boolean
   onExpandedChange: (v: boolean) => void
   onNodeChange: (node: NonNullable<SelectedNode>) => void
+  isMobile?: boolean
 }
 
-export default function NodePanel({ node, onClose, onClear, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, onNodeChange }: Props) {
+export default function NodePanel({ node, onClose, onClear, dateMode, onDateModeChange, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, onNodeChange, isMobile = false }: Props) {
   const { generators: allGenerators, substations: allSubstations } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
@@ -340,7 +341,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             ))}
           </div>
         </div>
-        {capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+        {!isMobile && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {totalOutageMW > 0 ? (
@@ -390,26 +391,38 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             </div>
           </div>
         )}
-        <button
-          onClick={() => onExpandedChange(!expanded)}
-          style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >
-          {expanded ? 'Show map' : 'Expand'}
-        </button>
-        {!expanded && (
+        {isMobile ? (
           <button
             onClick={onClose}
-            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-            aria-label="Close"
+            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '6px 10px', flexShrink: 0, borderRadius: 4 }}
+            aria-label="Show map"
           >
-            Close
+            Show map
           </button>
+        ) : (
+          <>
+            <button
+              onClick={() => onExpandedChange(!expanded)}
+              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+              aria-label={expanded ? 'Collapse' : 'Expand'}
+            >
+              {expanded ? 'Show map' : 'Expand'}
+            </button>
+            {!expanded && (
+              <button
+                onClick={onClose}
+                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
+                aria-label="Close"
+              >
+                Close
+              </button>
+            )}
+          </>
         )}
       </div>
 
       {/* Date picker toolbar */}
-      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <button
           onClick={handleTodayClick}
           style={{
@@ -442,28 +455,30 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         >
           Last 3 days
         </button>
-        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
-        <input
-          type="date"
-          value={fromDate}
-          min="2020-09-11"
-          max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
-          onChange={e => handleFromChange(e.target.value)}
-          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
-        />
-        <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
-        <input
-          type="date"
-          value={toDate}
-          min={fromDate || undefined}
-          max={toMax}
-          disabled={!fromDate}
-          onChange={e => handleToChange(e.target.value)}
-          style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
-        />
-        {rangeError && (
-          <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
-        )}
+        {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
+          <input
+            type="date"
+            value={fromDate}
+            min="2020-09-11"
+            max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
+            onChange={e => handleFromChange(e.target.value)}
+            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
+          />
+          <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            max={toMax}
+            disabled={!fromDate}
+            onChange={e => handleToChange(e.target.value)}
+            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+          />
+          {rangeError && (
+            <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+          )}
+        </div>
         {lastUpdated && !loading && (
           <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
@@ -502,7 +517,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
       {/* Unit selector (generators with multiple units) */}
       {adapter.showUnitSelector(allCodes.length) && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: isMobile ? 'nowrap' : 'wrap', gap: 6, overflowX: isMobile ? 'auto' : undefined }}>
           {allCodes.map((code, i) => {
             const active = effectiveCodes.has(code)
             const colour = adapter.colourFor(code, i)
@@ -549,7 +564,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
-      {!expanded && (
+      {!expanded && !isMobile && (
         <div
           onMouseDown={onResizeHandleMouseDown}
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}

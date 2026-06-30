@@ -25,9 +25,10 @@ interface Props {
   leftPanelOpen: boolean
   panelWidth: number
   recentData: RecentData | null
+  isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, isMobile = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
@@ -37,6 +38,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
   const recentDataRef = useRef<RecentData | null>(null)
   const leftPanelOpenRef = useRef(leftPanelOpen)
   useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
+  const isMobileRef = useRef(isMobile)
+  useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
   useEffect(() => { recentDataRef.current = recentData }, [recentData])
 
   useEffect(() => { generatorsRef.current = generators }, [generators])
@@ -63,7 +66,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     map.on('load', () => {
-      if (leftPanelOpenRef.current) {
+      if (leftPanelOpenRef.current && !isMobileRef.current) {
         map.setPadding({ left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 })
       }
 
@@ -472,8 +475,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       }
       const points: [number, number][] =
         selectedNode.kind === 'generator' ? [[selectedNode.generator.location.long, selectedNode.generator.location.lat]]
-        : selectedNode.kind === 'generators' ? selectedNode.generators.map(g => [g.location.long, g.location.lat])
-        : [[selectedNode.substation.long, selectedNode.substation.lat]]
+          : selectedNode.kind === 'generators' ? selectedNode.generators.map(g => [g.location.long, g.location.lat])
+            : [[selectedNode.substation.long, selectedNode.substation.lat]]
       src.setData({ type: 'FeatureCollection', features: points.map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
@@ -483,21 +486,21 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     const map = mapRef.current
     if (!map) return
 
-    const panelPadding = { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 }
+    const panelPadding = isMobile ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 }
     const zeroPadding = { left: 0, right: 0, top: 0, bottom: 0 }
 
     if (selectedNode) {
       const [lng, lat] = selectedNode.kind === 'generator'
         ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
         : selectedNode.kind === 'generators'
-        ? [selectedNode.generators[0].location.long, selectedNode.generators[0].location.lat]
-        : [selectedNode.substation.long, selectedNode.substation.lat]
+          ? [selectedNode.generators[0].location.long, selectedNode.generators[0].location.lat]
+          : [selectedNode.substation.long, selectedNode.substation.lat]
 
-      map.easeTo({ center: [lng, lat], padding: panelPadding, duration: 400 })
+      map.easeTo({ center: [lng, lat], padding: panelPadding, duration: isMobile ? 0 : 400 })
     } else {
       map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }
-  }, [selectedNode, leftPanelOpen])
+  }, [selectedNode, leftPanelOpen, isMobile])
 
   useEffect(() => {
     const map = mapRef.current
@@ -516,7 +519,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       <div style={{
         position: 'absolute',
         top: 10,
-        left: leftPanelOpen ? panelWidth + 10 : 10,
+        left: (!isMobile && leftPanelOpen) ? panelWidth + 10 : 10,
         zIndex: 10,
         display: 'flex',
         borderRadius: 6,
