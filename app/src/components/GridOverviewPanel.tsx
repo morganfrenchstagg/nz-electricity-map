@@ -10,6 +10,7 @@ import { withGaps } from '../utils/chart'
 import { formatMW } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import NodePickerModal from './NodePickerModal'
+import PipelineModal from './PipelineModal'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -46,6 +47,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [pipelineOpen, setPipelineOpen] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
@@ -310,16 +312,23 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           onClose={() => setPickerOpen(false)}
         />
       )}
+      {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>NZ Grid Generation</span>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
           <button
             onClick={() => setPickerOpen(true)}
-            style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1 }}
+            style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1, flexShrink: 0 }}
           >
             ▾
+          </button>
+          <button
+            onClick={() => setPipelineOpen(true)}
+            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#555', padding: '4px 8px', borderRadius: 4, flexShrink: 0, fontWeight: 500 }}
+          >
+            Generation Pipeline ↗
           </button>
         </div>
         {isMobile ? (
