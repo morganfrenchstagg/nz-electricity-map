@@ -79,11 +79,14 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
 
       for (let i = 0; i < segs.length; i++) {
         const seg = segs[i]
-        const custom = { mw: seg.mw, label: unit.label, tranche: seg.tranche }
+        const custom = { mw: seg.mw, label: unit.label, tranche: seg.tranche, price: seg.price }
+        // log10(price + 0.01) + 2 maps $0→0, $0.01→0.30, $1→2.0, $100→4.0, $6000→5.78
+        // The +0.01 offset and +2 shift give $0 vs $0.01 meaningful visual separation
+        const displayY = Math.log10(seg.price + 0.01) + 2
         if (i > 0) { visualPoints.push(null); snapPoints.push(null) }
-        visualPoints.push({ x: seg.start, y: seg.price })
-        visualPoints.push({ x: seg.end, y: seg.price })
-        snapPoints.push({ x: seg.start + seg.mw / 2, y: seg.price, custom })
+        visualPoints.push({ x: seg.start, y: displayY })
+        visualPoints.push({ x: seg.end, y: displayY })
+        snapPoints.push({ x: seg.start + seg.mw / 2, y: displayY, custom })
       }
 
       series.push({
@@ -127,10 +130,29 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
         min: 0,
       },
       yAxis: {
+        type: 'linear',
         title: { text: '$/MWh', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' }, formatter: function () { return `$${(this.value as number).toFixed(0)}` } },
         min: 0,
+        // Tick positions use the same transform: log10(price + 0.01) + 2
+        tickPositions: [0, 0.01, 0.1, 1, 10, 50, 100, 500, 1000, 3000, 6000, 10000].map(p => Math.log10(p + 0.01) + 2),
+        labels: {
+          style: { fontSize: '10px' },
+          formatter: function () {
+            // Inverse: price = 10^(value - 2) - 0.01
+            const price = Math.pow(10, (this.value as number) - 2) - 0.01
+            if (price < 0.005) return '$0'
+            if (price < 1) return `$${price.toFixed(2)}`
+            if (price < 10) return `$${price.toFixed(1)}`
+            return `$${Math.round(price)}`
+          },
+        },
         gridLineDashStyle: 'Dash',
+        plotLines: [{
+          value: 0,
+          width: 1,
+          color: '#999',
+          zIndex: 3,
+        }],
       },
       tooltip: {
         useHTML: true,
@@ -138,10 +160,10 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
           const pts = (this.points ?? [this]) as Highcharts.TooltipFormatterContextObject[]
           const rows = pts.map(p => {
             const price = p.y as number
-            const custom = (p.point as unknown as { custom?: { mw: number; label: string; tranche: number } }).custom
+            const custom = (p.point as unknown as { custom?: { mw: number; label: string; tranche: number; price: number } }).custom
             if (!custom) return null
             const trancheStr = custom.tranche != null ? ` (tranche ${custom.tranche})` : ''
-            return `<span style="color:${String(p.color)}">●</span> ${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>$${price.toFixed(2)}/MWh</b>`
+            return `<span style="color:${String(p.color)}">●</span> ${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>$${custom.price.toFixed(2)}/MWh</b>`
           }).filter(Boolean)
           return rows.length ? rows.join('<br/>') : false
         },
