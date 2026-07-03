@@ -111,10 +111,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     onDateModeChange({ kind: 'today' })
   }, [onDateModeChange])
 
-  const chartOptions = useMemo((): Highcharts.Options | null => {
-    if (!recentData || generators.length === 0) return null
-
-    // Build fuel → column-index map (col 0 is timestamp, so series idx + 1)
+  const { fuels, fuelToIndices } = useMemo(() => {
+    if (!recentData || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>() }
     const fuelToIndices = new Map<string, number[]>()
     for (const gen of generators) {
       if (island !== 'all' && gen.island !== island) continue
@@ -126,13 +124,37 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
       }
     }
-
     const fuels = [
       ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
       ...[...fuelToIndices.keys()].filter(f => !FUEL_CODE_ORDER.includes(f)),
     ]
+    return { fuels, fuelToIndices }
+  }, [recentData, generators, island])
 
-    const series: Highcharts.SeriesOptionsType[] = fuels.map(fuel => ({
+  const [activeFuels, setActiveFuels] = useState<Set<string> | null>(() => {
+    const param = new URLSearchParams(window.location.search).get('fuels')
+    return param ? new Set(param.split(',').filter(Boolean)) : null
+  })
+  const effectiveFuels = activeFuels ?? new Set(fuels)
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (activeFuels === null) p.delete('fuels')
+    else p.set('fuels', [...activeFuels].join(','))
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
+  }, [activeFuels])
+
+  function toggleFuel(fuel: string) {
+    const next = new Set(effectiveFuels)
+    if (next.has(fuel)) { next.delete(fuel); if (next.size === 0) return }
+    else next.add(fuel)
+    setActiveFuels(next.size === fuels.length ? null : next)
+  }
+
+  const chartOptions = useMemo((): Highcharts.Options | null => {
+    if (!recentData || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
+
+    const series: Highcharts.SeriesOptionsType[] = fuels.filter(f => effectiveFuels.has(f)).map(fuel => ({
       type: 'area',
       name: fuelCodeLabel(fuel),
       color: fuelCodeColour(fuel),
@@ -241,7 +263,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       chart: { type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
-      legend: { enabled: true, itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
+      legend: { enabled: false },
       xAxis: {
         type: 'datetime',
         labels: { style: { fontSize: '10px' } },
@@ -300,7 +322,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       },
       series,
     }
-  }, [recentData, generators, substations, island])
+  }, [recentData, generators, substations, fuels, fuelToIndices, effectiveFuels])
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
@@ -453,6 +475,43 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
       </div>
+
+      {/* Fuel pills */}
+      {fuels.length > 0 && (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {fuels.map(fuel => {
+            const active = effectiveFuels.has(fuel)
+            const colour = fuelCodeColour(fuel)
+            return (
+              <button
+                key={fuel}
+                onClick={() => toggleFuel(fuel)}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: 12,
+                  border: `1.5px solid ${colour}`,
+                  background: active ? colour : 'transparent',
+                  color: active ? 'white' : colour,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {fuelCodeLabel(fuel)}
+              </button>
+            )
+          })}
+          <button
+            onClick={() => setActiveFuels(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
+            style={{
+              padding: '3px 8px', borderRadius: 12, border: '1px solid #ccc',
+              background: 'transparent', color: '#888', cursor: 'pointer', fontSize: 11,
+            }}
+          >
+            {activeFuels !== null && activeFuels.size === 0 ? 'Select all' : 'Clear'}
+          </button>
+        </div>
+      )}
 
       {/* Chart area */}
       <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
