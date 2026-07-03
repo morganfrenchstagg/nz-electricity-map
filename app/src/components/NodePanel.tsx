@@ -80,15 +80,30 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const [viewMode, setViewMode] = useState<'generation' | 'offers'>(() =>
     isGenerator && new URLSearchParams(window.location.search).get('view') === 'offers' ? 'offers' : 'generation'
   )
-  const [tradingPeriod, setTradingPeriod] = useState<number>(() => currentTradingPeriod())
+  const [tradingPeriod, setTradingPeriod] = useState<number>(() => {
+    const tp = parseInt(new URLSearchParams(window.location.search).get('tp') ?? '', 10)
+    return isNaN(tp) ? 1 : tp
+  })
   useEffect(() => { if (node.kind === 'substation') setViewMode('generation') }, [node])
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
-    if (viewMode === 'offers') p.set('view', 'offers')
-    else p.delete('view')
+    if (viewMode === 'offers') {
+      p.set('view', 'offers')
+      setTradingPeriod(1)
+    } else {
+      p.delete('view')
+      p.delete('tp')
+    }
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
   }, [viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'offers') return
+    const p = new URLSearchParams(window.location.search)
+    p.set('tp', String(tradingPeriod))
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
+  }, [tradingPeriod, viewMode])
 
   const offerDate = viewMode === 'offers'
     ? (dateMode.kind === 'today' || dateMode.kind === 'recent' ? 'latest'
@@ -546,7 +561,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               >
                 ◀
               </button>
-              <span style={{ fontSize: 12, color: '#333', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, color: '#333', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 190, textAlign: 'center', display: 'inline-block' }}>
                 Period {tradingPeriod}
                 {offerDate && <span style={{ color: '#888', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
               </span>
