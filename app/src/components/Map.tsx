@@ -183,11 +183,6 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         onClearRef.current()
       })
 
-      for (const layer of ['substations-layer', 'generators-layer', 'under-construction-layer']) {
-        map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
-        map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
-      }
-
       const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
 
       const STATUS_PILL_COLOURS: Record<string, { bg: string; text: string }> = {
@@ -218,213 +213,192 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
           : ''
       }
 
-      map.on('mouseenter', 'generators-layer', (e) => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const site = feature.properties?.site as string | undefined
-        const generator = generatorsRef.current.find(g => g.site === site)
-        if (!generator) return
+      // Single mousemove handler with explicit priority: generators > under-construction > substations.
+      // This prevents a nearby substation from stealing the popup when the cursor is over a generator.
+      map.on('mousemove', (e) => {
+        const canvas = map.getCanvas()
 
-        const lngLat = feature.geometry.type === 'Point'
-          ? (feature.geometry.coordinates as [number, number])
-          : e.lngLat
-
-        const data = recentDataRef.current
-        const lastRow = data?.data[data.data.length - 1]
-        const activeUnits = generator.units.filter(u => u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
-
-        const unitRows = activeUnits.map(u => {
-          const idx = data ? data.series.indexOf(u.node) : -1
-          const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-          const pct = genMW !== null && u.capacity !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(u.capacity)) * 100)) : 0
-          const colour = fuelColour(u.fuel)
-          const genStr = genMW !== null ? formatMW(genMW) : '—'
-          const isGenerating = (genMW ?? 0) !== 0
-          return `<div style="margin-bottom:5px">
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.fuel === 'Battery (Charging)' ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
-              <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}</span>
-            </div>
-            <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
-              <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>
-            </div>
-          </div>`
-        }).join('')
-
-        const totalGen = activeUnits.reduce((sum, u) => {
-          const idx = data ? data.series.indexOf(u.node) : -1
-          return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
-        }, 0)
-        const totalCap = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
-        const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
-
-        const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
-        const ucSection = ucUnits.length > 0 ? `
-          <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
-            <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Under Construction</div>
-            ${ucUnits.map((u, i) => {
-          const label = u.locationDescription ?? `Unit ${i + 1}`
-          const stats = renderUnitStats(u)
-          return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                  <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
+        // 1. Generators (highest priority)
+        const genFeatures = map.queryRenderedFeatures(e.point, { layers: ['generators-layer'] })
+        if (genFeatures.length > 0) {
+          const site = genFeatures[0].properties?.site as string | undefined
+          const generator = generatorsRef.current.find(g => g.site === site)
+          if (generator) {
+            canvas.style.cursor = 'pointer'
+            const data = recentDataRef.current
+            const lastRow = data?.data[data.data.length - 1]
+            const activeUnits = generator.units.filter(u => u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
+            const unitRows = activeUnits.map(u => {
+              const idx = data ? data.series.indexOf(u.node) : -1
+              const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+              const pct = genMW !== null && u.capacity !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(u.capacity)) * 100)) : 0
+              const colour = fuelColour(u.fuel)
+              const genStr = genMW !== null ? formatMW(genMW) : '—'
+              const isGenerating = (genMW ?? 0) !== 0
+              return `<div style="margin-bottom:5px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.fuel === 'Battery (Charging)' ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
+                  <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}</span>
                 </div>
+                <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
+                  <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>
+                </div>
+              </div>`
+            }).join('')
+            const totalGen = activeUnits.reduce((sum, u) => {
+              const idx = data ? data.series.indexOf(u.node) : -1
+              return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
+            }, 0)
+            const totalCap = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
+            const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
+            const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
+            const ucSection = ucUnits.length > 0 ? `
+              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
+                <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Under Construction</div>
+                ${ucUnits.map((u, i) => {
+                  const label = u.locationDescription ?? `Unit ${i + 1}`
+                  const stats = renderUnitStats(u)
+                  return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                      <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
+                    </div>
+                    ${stats}
+                  </div>`
+                }).join('')}
+              </div>` : ''
+            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:12px;line-height:1.5;width:240px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
+                <span style="font-weight:600">${generator.name}</span>
+                <span style="background:#e8f0fe;color:#1a56db;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${generator.site}</span>
+              </div>
+              <div style="color:#888;margin-bottom:6px">${generator.operator}</div>
+              <div style="border-top:1px solid #eee;padding-top:6px;margin-bottom:4px">${unitRows}</div>
+              <div style="border-top:1px solid #eee;padding-top:6px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#888">Total</span>
+                  <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:#888">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
+                </div>
+              </div>
+              ${ucSection}
+            </div>`).addTo(map)
+            return
+          }
+        }
+
+        // 2. Under-construction markers
+        const ucFeatures = map.queryRenderedFeatures(e.point, { layers: ['under-construction-layer'] })
+        if (ucFeatures.length > 0) {
+          const p = ucFeatures[0].properties as Record<string, string | null>
+          type Unit = { locationDescription: string | null; operator: string; status: string; capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }
+          const units: Unit[] = JSON.parse(p.units ?? '[]')
+          const name = String(p.name ?? '')
+          let html: string
+          if (units.length === 1) {
+            const u = units[0]
+            const label = u.locationDescription ? `${name} <span style="font-weight:400;color:#888">(${u.locationDescription})</span>` : name
+            const stats = renderUnitStats(u)
+            html = `<div style="font-size:12px;line-height:1.6;width:260px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
+              <div style="color:#888">${u.operator}</div>
+              ${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}
+            </div>`
+          } else {
+            const unitRows = units.map((u, i) => {
+              const label = u.locationDescription ?? `Unit ${i + 1}`
+              const stats = renderUnitStats(u)
+              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #eee;padding-top:6px' : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}</div>
                 ${stats}
               </div>`
-        }).join('')}
-          </div>` : ''
-
-        const html = `<div style="font-size:12px;line-height:1.5;width:240px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
-            <span style="font-weight:600">${generator.name}</span>
-            <span style="background:#e8f0fe;color:#1a56db;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${generator.site}</span>
-          </div>
-          <div style="color:#888;margin-bottom:6px">${generator.operator}</div>
-          <div style="border-top:1px solid #eee;padding-top:6px;margin-bottom:4px">${unitRows}</div>
-          <div style="border-top:1px solid #eee;padding-top:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:#888">Total</span>
-              <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:#888">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
-            </div>
-          </div>
-          ${ucSection}
-        </div>`
-
-        hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map)
-      })
-
-      map.on('mouseleave', 'generators-layer', () => {
-        hoverPopup.remove()
-      })
-
-      map.on('mouseenter', 'substations-layer', (e) => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const siteId = feature.properties?.siteId as string | undefined
-        const substation = substationsRef.current.find(s => s.siteId === siteId)
-        if (!substation) return
-
-        const lngLat = feature.geometry.type === 'Point'
-          ? (feature.geometry.coordinates as [number, number])
-          : e.lngLat
-
-        const data = recentDataRef.current
-        const lastRow = data?.data[data.data.length - 1]
-        const codes = data ? data.series.filter(s => s.startsWith(substation.siteId)) : []
-
-        const busCodes = codes.filter(c => !c.includes(' '))
-        const genCodes = codes.filter(c => c.includes(' '))
-
-        const renderRow = (code: string, label: string, colour: string, loadMW: number | null) => {
-          const isActive = (loadMW ?? 0) !== 0
-          const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
-          return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-            <span style="flex:1;color:${isActive ? '#222' : '#999'}">${label}</span>
-            <span style="color:${isActive ? '#222' : '#999'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
-          </div>`
-        }
-
-        const busRows = busCodes.map(code => {
-          const idx = data ? data.series.indexOf(code) : -1
-          const loadMW = (idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : null
-          const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
-          const busNum = code.length >= 1 ? parseInt(code.slice(-1), 10) : NaN
-          const label = !isNaN(kv) && !isNaN(busNum) ? `${kv}kV – ${busNum}` : code
-          return renderRow(code, label, voltageColour(kv), loadMW)
-        }).join('')
-
-        const allUnits = generatorsRef.current.flatMap(g => g.units)
-        const genRows = genCodes
-          .map(code => ({ code, unit: allUnits.find(u => u.node === code) }))
-          .sort((a, b) => (a.unit?.name ?? a.code).localeCompare(b.unit?.name ?? b.code))
-          .map(({ code, unit }) => {
-            const idx = data ? data.series.indexOf(code) : -1
-            const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-            const label = unit ? (unit.fuel === 'Battery (Charging)' ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
-            const colour = unit ? fuelColour(unit.fuel) : '#888'
-            return renderRow(code, label, colour, genMW)
-          }).join('')
-
-        const totalLoad = busCodes.reduce((sum, code) => {
-          const idx = data ? data.series.indexOf(code) : -1
-          return sum + ((idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : 0)
-        }, 0)
-
-        const totalGen = genCodes.reduce((sum, code) => {
-          const idx = data ? data.series.indexOf(code) : -1
-          return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
-        }, 0)
-
-        const netLoad = totalLoad - totalGen
-
-        const html = `<div style="font-size:12px;line-height:1.5;width:240px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
-            <span style="font-weight:600">${substation.description} Substation</span>
-            <span style="background:#f3f4f6;color:#374151;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${substation.siteId}</span>
-          </div>
-          ${codes.length > 0 ? `
-          <div style="border-top:1px solid #eee;padding-top:6px;margin-top:6px">${busRows}</div>
-          ${genRows ? `<div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
-            <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Generation</div>
-            ${genRows}
-          </div>` : ''}
-          <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px;display:flex;justify-content:space-between;align-items:center">
-            <span style="color:#888">Net load</span>
-            <span style="font-weight:600">${formatMW(netLoad)}</span>
-          </div>` : '<div style="color:#999;margin-top:4px">No data</div>'}
-        </div>`
-
-        hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map)
-      })
-
-      map.on('mouseleave', 'substations-layer', () => {
-        hoverPopup.remove()
-      })
-
-      map.on('mouseenter', 'under-construction-layer', (e) => {
-        const feature = e.features?.[0]
-        if (!feature) return
-        const p = feature.properties as Record<string, string | null>
-        const lngLat = feature.geometry.type === 'Point'
-          ? (feature.geometry.coordinates as [number, number])
-          : e.lngLat
-
-        type Unit = { locationDescription: string | null; operator: string; status: string; capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }
-        const units: Unit[] = JSON.parse(p.units ?? '[]')
-        const name = String(p.name ?? '')
-
-        let html: string
-        if (units.length === 1) {
-          const u = units[0]
-          const label = u.locationDescription ? `${name} <span style="font-weight:400;color:#888">(${u.locationDescription})</span>` : name
-          const stats = renderUnitStats(u)
-          html = `<div style="font-size:12px;line-height:1.6;width:260px">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
-            <div style="color:#888">${u.operator}</div>
-            ${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}
-          </div>`
-        } else {
-          const unitRows = units.map((u, i) => {
-            const label = u.locationDescription ?? `Unit ${i + 1}`
-            const stats = renderUnitStats(u)
-            return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #eee;padding-top:6px' : ''}">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}</div>
-              ${stats}
+            }).join('')
+            html = `<div style="font-size:12px;line-height:1.6;width:260px">
+              <div style="font-weight:600;margin-bottom:2px">${name}</div>
+              <div style="color:#888;margin-bottom:6px">${units[0].operator}</div>
+              ${unitRows}
             </div>`
-          }).join('')
-          html = `<div style="font-size:12px;line-height:1.6;width:260px">
-            <div style="font-weight:600;margin-bottom:2px">${name}</div>
-            <div style="color:#888;margin-bottom:6px">${units[0].operator}</div>
-            ${unitRows}
-          </div>`
+          }
+          canvas.style.cursor = 'pointer'
+          hoverPopup.setLngLat(e.lngLat).setHTML(html).addTo(map)
+          return
         }
 
-        hoverPopup.setLngLat(lngLat).setHTML(html).addTo(map)
+        // 3. Substations (lowest priority)
+        const subFeatures = map.queryRenderedFeatures(e.point, { layers: ['substations-layer'] })
+        if (subFeatures.length > 0) {
+          const siteId = subFeatures[0].properties?.siteId as string | undefined
+          const substation = substationsRef.current.find(s => s.siteId === siteId)
+          if (substation) {
+            canvas.style.cursor = 'pointer'
+            const data = recentDataRef.current
+            const lastRow = data?.data[data.data.length - 1]
+            const codes = data ? data.series.filter(s => s.startsWith(substation.siteId)) : []
+            const busCodes = codes.filter(c => !c.includes(' '))
+            const genCodes = codes.filter(c => c.includes(' '))
+            const renderRow = (code: string, label: string, colour: string, loadMW: number | null) => {
+              const isActive = (loadMW ?? 0) !== 0
+              const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
+              return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
+                <span style="flex:1;color:${isActive ? '#222' : '#999'}">${label}</span>
+                <span style="color:${isActive ? '#222' : '#999'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
+              </div>`
+            }
+            const busRows = busCodes.map(code => {
+              const idx = data ? data.series.indexOf(code) : -1
+              const loadMW = (idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : null
+              const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
+              const busNum = code.length >= 1 ? parseInt(code.slice(-1), 10) : NaN
+              const label = !isNaN(kv) && !isNaN(busNum) ? `${kv}kV – ${busNum}` : code
+              return renderRow(code, label, voltageColour(kv), loadMW)
+            }).join('')
+            const allUnits = generatorsRef.current.flatMap(g => g.units)
+            const genRows = genCodes
+              .map(code => ({ code, unit: allUnits.find(u => u.node === code) }))
+              .sort((a, b) => (a.unit?.name ?? a.code).localeCompare(b.unit?.name ?? b.code))
+              .map(({ code, unit }) => {
+                const idx = data ? data.series.indexOf(code) : -1
+                const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+                const label = unit ? (unit.fuel === 'Battery (Charging)' ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
+                const colour = unit ? fuelColour(unit.fuel) : '#888'
+                return renderRow(code, label, colour, genMW)
+              }).join('')
+            const totalLoad = busCodes.reduce((sum, code) => {
+              const idx = data ? data.series.indexOf(code) : -1
+              return sum + ((idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : 0)
+            }, 0)
+            const totalGen = genCodes.reduce((sum, code) => {
+              const idx = data ? data.series.indexOf(code) : -1
+              return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
+            }, 0)
+            const netLoad = totalLoad - totalGen
+            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:12px;line-height:1.5;width:240px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
+                <span style="font-weight:600">${substation.description} Substation</span>
+                <span style="background:#f3f4f6;color:#374151;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${substation.siteId}</span>
+              </div>
+              ${codes.length > 0 ? `
+              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:6px">${busRows}</div>
+              ${genRows ? `<div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
+                <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Generation</div>
+                ${genRows}
+              </div>` : ''}
+              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px;display:flex;justify-content:space-between;align-items:center">
+                <span style="color:#888">Net load</span>
+                <span style="font-weight:600">${formatMW(netLoad)}</span>
+              </div>` : '<div style="color:#999;margin-top:4px">No data</div>'}
+            </div>`).addTo(map)
+            return
+          }
+        }
+
+        // Nothing under cursor — clear popup and cursor
+        canvas.style.cursor = ''
+        hoverPopup.remove()
       })
 
-      map.on('mouseleave', 'under-construction-layer', () => {
+      map.getCanvas().addEventListener('mouseleave', () => {
+        map.getCanvas().style.cursor = ''
         hoverPopup.remove()
       })
     })
