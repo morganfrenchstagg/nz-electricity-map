@@ -10,7 +10,9 @@ import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
+import OfferChart from './OfferChart'
 import { useLastUpdated } from '../hooks/useLastUpdated'
+import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
   bottom: 0,
@@ -68,9 +70,45 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const [showGenerators, setShowGenerators] = useState(true)
+  const UNIT_COLLAPSE_THRESHOLD = 8
+  const [unitSelectorExpanded, setUnitSelectorExpanded] = useState(false)
   const chartRef = useRef<HighchartsReact.RefObject>(null)
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  const isGenerator = node.kind !== 'substation'
+  const [viewMode, setViewMode] = useState<'generation' | 'offers'>(() =>
+    isGenerator && new URLSearchParams(window.location.search).get('view') === 'offers' ? 'offers' : 'generation'
+  )
+  const [tradingPeriod, setTradingPeriod] = useState<number>(() => currentTradingPeriod())
+  useEffect(() => { if (node.kind === 'substation') setViewMode('generation') }, [node])
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (viewMode === 'offers') p.set('view', 'offers')
+    else p.delete('view')
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
+  }, [viewMode])
+
+  const offerDate = viewMode === 'offers'
+    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' ? 'latest'
+      : dateMode.kind === 'date' ? dateMode.date
+      : dateMode.from)
+    : null
+  const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
+
+  // When the latest offers load, reflect their actual date in the date picker
+  useEffect(() => {
+    if (offersData && offerDate === 'latest') {
+      const iso = offersData.date.length === 8
+        ? `${offersData.date.slice(0, 4)}-${offersData.date.slice(4, 6)}-${offersData.date.slice(6, 8)}`
+        : offersData.date
+      setFromDate(iso)
+    }
+  }, [offersData, offerDate])
+  const maxTradingPeriod = offersData
+    ? Math.max(...Object.keys(offersData.data).map(Number))
+    : 48
 
   // Date picker local state — initialized from dateMode prop (which may come from URL)
   const [fromDate, setFromDate] = useState(
@@ -421,40 +459,52 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         )}
       </div>
 
-      {/* Date picker toolbar */}
+      {/* Toolbar */}
       <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        {isGenerator && (
+          <>
+            <div style={{ display: 'flex', borderRadius: 6, border: '1px solid #ddd', overflow: 'hidden', flexShrink: 0 }}>
+              {(['generation', 'offers'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  style={{
+                    padding: '3px 9px', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
+                    background: viewMode === mode ? '#1d4ed8' : 'white',
+                    color: viewMode === mode ? 'white' : '#555',
+                    fontWeight: viewMode === mode ? 600 : 400,
+                    borderRight: mode === 'generation' ? '1px solid #ddd' : 'none',
+                  }}
+                >
+                  {mode === 'generation' ? 'Generation' : 'Offers'}
+                </button>
+              ))}
+            </div>
+            <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+          </>
+        )}
         <button
           onClick={handleTodayClick}
           style={{
-            padding: '2px 10px',
-            borderRadius: 10,
-            border: '1px solid #ccc',
-            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white',
-            color: '#444',
-            cursor: 'pointer',
-            fontSize: 11,
-            fontWeight: dateMode.kind === 'today' ? 600 : 400,
-            flexShrink: 0,
+            padding: '2px 10px', borderRadius: 10, border: '1px solid #ccc',
+            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white', color: '#444',
+            cursor: 'pointer', fontSize: 11, fontWeight: dateMode.kind === 'today' ? 600 : 400, flexShrink: 0,
           }}
         >
-          Today
+          {viewMode === 'offers' ? 'Latest' : 'Today'}
         </button>
-        <button
-          onClick={handleRecentClick}
-          style={{
-            padding: '2px 10px',
-            borderRadius: 10,
-            border: '1px solid #ccc',
-            background: dateMode.kind === 'recent' ? '#f0f0f0' : 'white',
-            color: '#444',
-            cursor: 'pointer',
-            fontSize: 11,
-            fontWeight: dateMode.kind === 'recent' ? 600 : 400,
-            flexShrink: 0,
-          }}
-        >
-          Last 3 days
-        </button>
+        {viewMode === 'generation' && (
+          <button
+            onClick={handleRecentClick}
+            style={{
+              padding: '2px 10px', borderRadius: 10, border: '1px solid #ccc',
+              background: dateMode.kind === 'recent' ? '#f0f0f0' : 'white', color: '#444',
+              cursor: 'pointer', fontSize: 11, fontWeight: dateMode.kind === 'recent' ? 600 : 400, flexShrink: 0,
+            }}
+          >
+            Last 3 days
+          </button>
+        )}
         {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
           <input
@@ -465,29 +515,63 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             onChange={e => handleFromChange(e.target.value)}
             style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
           />
-          <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            max={toMax}
-            disabled={!fromDate}
-            onChange={e => handleToChange(e.target.value)}
-            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
-          />
-          {rangeError && (
+          {viewMode === 'generation' && (
+            <>
+              <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                max={toMax}
+                disabled={!fromDate}
+                onChange={e => handleToChange(e.target.value)}
+                style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+              />
+            </>
+          )}
+          {rangeError && viewMode === 'generation' && (
             <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
           )}
         </div>
-        {lastUpdated && !loading && (
+
+        {/* Trading period stepper (offers mode) */}
+        {viewMode === 'offers' && (
+          <>
+            <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <button
+                onClick={() => setTradingPeriod(p => Math.max(1, p - 1))}
+                disabled={tradingPeriod <= 1}
+                style={{ padding: '2px 7px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: tradingPeriod > 1 ? 'pointer' : 'default', fontSize: 13, color: tradingPeriod > 1 ? '#333' : '#bbb' }}
+              >
+                ◀
+              </button>
+              <span style={{ fontSize: 12, color: '#333', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                Period {tradingPeriod}
+                {offerDate && <span style={{ color: '#888', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
+              </span>
+              <button
+                onClick={() => setTradingPeriod(p => Math.min(maxTradingPeriod, p + 1))}
+                disabled={tradingPeriod >= maxTradingPeriod}
+                style={{ padding: '2px 7px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: tradingPeriod < maxTradingPeriod ? 'pointer' : 'default', fontSize: 13, color: tradingPeriod < maxTradingPeriod ? '#333' : '#bbb' }}
+              >
+                ▶
+              </button>
+            </div>
+            {offersLoading && <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>Loading…</span>}
+            {offersError && <span style={{ fontSize: 11, color: '#c00', flexShrink: 0 }}>Failed to load offers</span>}
+          </>
+        )}
+
+        {viewMode === 'generation' && lastUpdated && !loading && (
           <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
-        {loading && (
+        {viewMode === 'generation' && loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>
             Loading…
           </div>
         )}
-        {error && allCodes.length !== 0 && (
+        {viewMode === 'generation' && error && allCodes.length !== 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#c00', flexShrink: 0 }}>
             Failed to load data
           </div>
@@ -518,7 +602,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       {/* Unit selector (generators with multiple units) */}
       {adapter.showUnitSelector(allCodes.length) && (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: isMobile ? 'nowrap' : 'wrap', gap: 6, overflowX: isMobile ? 'auto' : undefined }}>
-          {allCodes.map((code, i) => {
+          {(unitSelectorExpanded || allCodes.length <= UNIT_COLLAPSE_THRESHOLD ? allCodes : allCodes.slice(0, UNIT_COLLAPSE_THRESHOLD)).map((code, i) => {
             const active = effectiveCodes.has(code)
             const colour = adapter.colourFor(code, i)
             return (
@@ -540,28 +624,52 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               </button>
             )
           })}
+          {allCodes.length > UNIT_COLLAPSE_THRESHOLD && (
+            <button
+              onClick={() => setUnitSelectorExpanded(v => !v)}
+              style={{
+                padding: '3px 10px', borderRadius: 12, border: '1.5px solid #bbb',
+                background: 'transparent', color: '#666',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500, flexShrink: 0,
+              }}
+            >
+              {unitSelectorExpanded ? 'Show fewer ▲' : `+${allCodes.length - UNIT_COLLAPSE_THRESHOLD} more ▼`}
+            </button>
+          )}
         </div>
       )}
 
       {/* Chart area */}
       <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
-        {loading && allCodes.length === 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
-            Loading…
-          </div>
-        )}
-        {error && allCodes.length === 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
-            Failed to load data
-          </div>
-        )}
-        {!loading && !error && allCodes.length === 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
-            No data available
-          </div>
-        )}
-        {chartOptions && (
-          <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+        {viewMode === 'offers' ? (
+          offersLoading && !offersData ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>
+          ) : offersError && !offersData ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>Failed to load offers</div>
+          ) : offersData ? (
+            <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+          ) : null
+        ) : (
+          <>
+            {loading && allCodes.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
+                Loading…
+              </div>
+            )}
+            {error && allCodes.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
+                Failed to load data
+              </div>
+            )}
+            {!loading && !error && allCodes.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
+                No data available
+              </div>
+            )}
+            {chartOptions && (
+              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+            )}
+          </>
         )}
       </div>
       {!expanded && !isMobile && (

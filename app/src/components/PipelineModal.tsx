@@ -84,9 +84,6 @@ export default function PipelineModal({ onClose }: Props) {
     return sortRows(rows, sortCol, sortDir)
   }, [fuels, years, operators, statuses, sortCol, sortDir])
 
-  const totalMW = filtered.reduce((s, n) => s + (n.capacityMW ?? 0), 0)
-  const totalGWh = filtered.reduce((s, n) => s + (n.yearlyGenerationGWh ?? 0), 0)
-
   const hasFilters = fuels.size > 0 || years.size > 0 || operators.size > 0 || statuses.size > 0
 
   function toggle<T>(set: Set<T>, val: T): Set<T> {
@@ -268,7 +265,7 @@ function FilterDropdown({ label, options, active, onToggle, onClear, colour, sta
   const isActive = active.size > 0
   const summary = active.size === 0 ? label
     : active.size === 1 ? [...active][0]
-    : `${label}: ${active.size}`
+      : `${label}: ${active.size}`
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
