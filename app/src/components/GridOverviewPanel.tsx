@@ -47,10 +47,30 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pipelineOpen, setPipelineOpen] = useState(false)
+  const [pipelineOpen, setPipelineOpen] = useState(() => window.location.pathname === '/pipeline')
   const chartRef = useRef<HighchartsReact.RefObject>(null)
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
+
+  useEffect(() => {
+    if (pipelineOpen) {
+      if (window.location.pathname !== '/pipeline') {
+        window.history.pushState({}, '', '/pipeline' + window.location.search)
+      }
+    } else {
+      if (window.location.pathname === '/pipeline') {
+        window.history.replaceState({}, '', '/' + window.location.search)
+      }
+    }
+  }, [pipelineOpen])
+
+  useEffect(() => {
+    const onPopState = () => {
+      setPipelineOpen(window.location.pathname === '/pipeline')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   const [fromDate, setFromDate] = useState(
     dateMode.kind === 'date' ? dateMode.date
