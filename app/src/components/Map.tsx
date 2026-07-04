@@ -38,6 +38,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
   const recentDataRef = useRef<RecentData | null>(null)
   const leftPanelOpenRef = useRef(leftPanelOpen)
   useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
+  const panelWidthRef = useRef(panelWidth)
+  useEffect(() => { panelWidthRef.current = panelWidth }, [panelWidth])
   const isMobileRef = useRef(isMobile)
   useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
   useEffect(() => { recentDataRef.current = recentData }, [recentData])
@@ -67,7 +69,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
 
     map.on('load', () => {
       if (leftPanelOpenRef.current && !isMobileRef.current) {
-        map.setPadding({ left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 })
+        map.setPadding({ left: panelWidthRef.current, right: 0, top: 0, bottom: 0 })
       }
 
       map.addSource('linz-aerial', {
@@ -460,7 +462,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     const map = mapRef.current
     if (!map) return
 
-    const panelPadding = isMobile ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: window.innerWidth * PANEL_WIDTH_VW, right: 0, top: 0, bottom: 0 }
+    const panelPadding = isMobile ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: panelWidthRef.current, right: 0, top: 0, bottom: 0 }
     const zeroPadding = { left: 0, right: 0, top: 0, bottom: 0 }
 
     if (selectedNode) {
