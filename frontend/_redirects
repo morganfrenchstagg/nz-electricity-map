@@ -1,5 +1,5 @@
-/pipeline /index.html 200!
-/map /index.html 200!
-/summary /index.html 200!
-/offers /index.html 200!
+/pipeline /index.html 200
+/map /index.html 200
+/summary /index.html 200
+/offers /index.html 200
 /* /index.html 200
