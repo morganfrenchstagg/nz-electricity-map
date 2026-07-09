@@ -6,10 +6,12 @@ import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
+import type { OutageRecord } from '../hooks/useOutages'
 import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
+import OutageModal from './OutageModal'
 import OfferChart from './OfferChart'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
@@ -26,13 +28,51 @@ const PANEL_STYLE: React.CSSProperties = {
   overflow: 'hidden',
 }
 
+function outageMs(iso: string): number {
+  return new Date(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
+}
+
+// Collapses overlapping outage records for a single unit into a timeline of
+// distinct MW-loss segments (e.g. two overlapping 3MW outages become one 6MW
+// segment for the overlap, then a 3MW segment for the tail). Segments that have
+// already fully ended are dropped, but a segment's start is its real record
+// start — never clipped to "now" — so an ongoing outage still shows when it
+// actually began.
+function mergeOutageSegments(records: OutageRecord[], nowMs: number): { start: number; end: number; mw: number }[] {
+  const events = new Set<number>()
+  for (const r of records) {
+    events.add(outageMs(r.timeStart))
+    events.add(outageMs(r.timeEnd))
+  }
+  const sorted = [...events].sort((a, b) => a - b)
+  const segments: { start: number; end: number; mw: number }[] = []
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const segStart = sorted[i]
+    const segEnd = sorted[i + 1]
+    if (segEnd <= nowMs) continue
+    const mw = records.reduce((sum, r) => {
+      const s = outageMs(r.timeStart)
+      const e = outageMs(r.timeEnd)
+      return s <= segStart && e >= segEnd ? sum + r.mwattLost : sum
+    }, 0)
+    if (mw <= 0) continue
+    const last = segments[segments.length - 1]
+    if (last && Math.abs(last.mw - mw) < 0.001 && last.end === segStart) last.end = segEnd
+    else segments.push({ start: segStart, end: segEnd, mw })
+  }
+  return segments
+}
+
+// `date` is built from outage timestamps via the "local time as UTC" convention
+// (see outageMs), so it must be read back out with timeZone: 'UTC' to get the
+// raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
 function formatOutageEnd(date: Date): string {
   const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-  const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+  const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'UTC' })
   if (endNZ === todayNZ) {
-    return date.toLocaleTimeString('en-NZ', { timeZone: 'Pacific/Auckland', hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString('en-NZ', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
   }
-  return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short' })
+  return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
 }
 
 interface Props {
@@ -75,6 +115,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const chartRef = useRef<HighchartsReact.RefObject>(null)
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [outageModalOpen, setOutageModalOpen] = useState(false)
 
   const isGenerator = node.kind !== 'substation'
   const [viewMode, setViewMode] = useState<'generation' | 'offers'>(() =>
@@ -225,6 +266,40 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     }
     return soonest
   }, [outages, effectiveCodes, totalOutageMW])
+  const findUnit = useCallback((code: string) => {
+    const generators = node.kind === 'generator' ? [node.generator]
+      : node.kind === 'generators' ? node.generators
+        : []
+    for (const g of generators) {
+      const unit = g.units.find((u) => u.node === code)
+      if (unit) return unit
+    }
+    return null
+  }, [node])
+
+  const outageDetails = useMemo(() => {
+    if (!outages) return []
+    const nowMs = Date.now()
+    const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
+    for (const code of effectiveCodes) {
+      const records = outages[code] ?? []
+      if (records.length === 0) continue
+      const unit = findUnit(code)
+      const segments = mergeOutageSegments(records, nowMs)
+      segments.forEach((seg, i) => {
+        const capacityRemaining = unit ? Math.max(0, (unit.installedCapacity ?? unit.capacity) - seg.mw) : null
+        const rec: OutageRecord = {
+          outageBlock: `merged-${code}-${i}`,
+          timeStart: new Date(seg.start).toISOString(),
+          timeEnd: new Date(seg.end).toISOString(),
+          mwattLost: seg.mw,
+        }
+        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining })
+      })
+    }
+    return details
+  }, [outages, effectiveCodes, adapter, findUnit])
+
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
     const lastRow = chartData.rows[chartData.rows.length - 1]
@@ -402,18 +477,32 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
                   <span>{formatMW(currentGeneration)} /</span>
                   <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
                   <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
-                  <span style={{
-                    background: '#fee2e2',
-                    color: '#b91c1c',
-                    borderRadius: 4,
-                    padding: '0 5px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    lineHeight: '16px',
-                    whiteSpace: 'nowrap',
-                  }}>
+                  <button
+                    onClick={() => setOutageModalOpen(true)}
+                    title="View outage details"
+                    style={{
+                      background: '#fee2e2',
+                      color: '#b91c1c',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '0 5px',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      lineHeight: '16px',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                    }}
+                  >
                     {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
-                  </span>
+                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
+                      <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
+                      <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
                 </>
               ) : (
                 <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
@@ -700,6 +789,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           currentNode={node}
           onSelect={onNodeChange}
           onClose={() => setPickerOpen(false)}
+        />
+      )}
+      {outageModalOpen && (
+        <OutageModal
+          outages={outageDetails}
+          onClose={() => setOutageModalOpen(false)}
         />
       )}
     </div>
