@@ -451,14 +451,14 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
               const priceStr = price !== undefined ? `$${price.toFixed(2)}/MWh` : ''
               const nameStr = points.length > 1 ? p.series.name : '';
-              const capacityRow = points.length === 1 && capMW !== null ? ` / <b>${formatMW(capMW)}</b> (${(((p.y ?? 0) / capMW) * 100).toFixed(1)}%)` : '';
+              const capacityRow = points.length === 1 && capMW !== null ? ` / <b>${formatMW(capMW)}</b> (${(capMW > 0 ? ((p.y ?? 0) / capMW) * 100 : 0).toFixed(1)}%)` : '';
               return `<tr><td><span style="color:${String(p.color)}">●</span> ${nameStr}</td><td>${formatted}${capacityRow}</td><td>${priceStr}</td></tr>`
             })
             .join('');
 
           // TOTAL
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0);
-          const capRow = capMW !== null ? ` / ${formatMW(capMW)} (${Math.round(total / capMW * 100) || 0}%)` : ''
+          const capRow = capMW !== null ? ` / ${formatMW(capMW)} (${capMW > 0 ? Math.round(total / capMW * 100) : 0}%)` : ''
           const totalRow = points.length > 1 ? `<tr><td></td></tr><tr><td>Total: <b>${formatMW(total)}${capRow}</td></tr>` : ''
           rows += totalRow;
           return `<b>${time}</b><br/><table>${rows}</table>`;
