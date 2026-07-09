@@ -6,3 +6,4 @@ backend/output/*
 frontend/*
 !frontend/old
 !frontend/_redirects
+!frontend/_headers
