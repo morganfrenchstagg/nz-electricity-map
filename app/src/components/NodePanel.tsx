@@ -9,7 +9,7 @@ import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
 import { extractChartData, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
-import { formatMW } from '../utils/format'
+import { formatMW, formatMWh } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
 import OutageModal from './OutageModal'
 import OfferChart from './OfferChart'
@@ -323,6 +323,29 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
   }, [chartData, effectiveCodes])
 
+  // Trapezoidal integral of the charted MW series over time -> MWh for the
+  // currently displayed period. Gaps larger than withGaps' threshold are
+  // skipped rather than bridged, so missing data doesn't inflate the total.
+  const totalGenerationMWh = useMemo(() => {
+    if (!chartData || chartData.rows.length < 2) return null
+    const codes = [...effectiveCodes].filter(code => chartData.codes.includes(code))
+    if (codes.length === 0) return null
+    const maxGapMs = 20 * 60 * 1000
+    let total = 0
+    for (let i = 1; i < chartData.rows.length; i++) {
+      const prev = chartData.rows[i - 1]
+      const curr = chartData.rows[i]
+      const t0 = new Date((prev.time as string) + 'Z').getTime()
+      const t1 = new Date((curr.time as string) + 'Z').getTime()
+      const dtMs = t1 - t0
+      if (dtMs <= 0 || dtMs > maxGapMs) continue
+      const v0 = codes.reduce((sum, code) => sum + adapter.transformValue((prev[code] as number) ?? 0), 0)
+      const v1 = codes.reduce((sum, code) => sum + adapter.transformValue((curr[code] as number) ?? 0), 0)
+      total += ((v0 + v1) / 2) * (dtMs / 3600000)
+    }
+    return total
+  }, [chartData, effectiveCodes, adapter])
+
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
     if (next.has(code)) {
@@ -546,6 +569,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
                 )
               }
             </div>
+            {totalGenerationMWh !== null && (
+              <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                Total: {formatMWh(totalGenerationMWh)}
+              </div>
+            )}
           </div>
         )}
         {isMobile ? (
