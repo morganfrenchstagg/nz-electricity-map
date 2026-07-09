@@ -300,6 +300,21 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     return details
   }, [outages, effectiveCodes, adapter, findUnit])
 
+  // First segment of each outageBlock (e.g. "RUK_STN" -> "RUK") identifies the
+  // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
+  const outageBlockPrefixes = useMemo(() => {
+    if (!outages) return []
+    const nowMs = Date.now()
+    const prefixes = new Set<string>()
+    for (const code of effectiveCodes) {
+      for (const rec of (outages[code] ?? [])) {
+        if (outageMs(rec.timeEnd) <= nowMs) continue
+        prefixes.add(rec.outageBlock.split('_')[0])
+      }
+    }
+    return [...prefixes]
+  }, [outages, effectiveCodes])
+
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
     const lastRow = chartData.rows[chartData.rows.length - 1]
@@ -794,6 +809,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       {outageModalOpen && (
         <OutageModal
           outages={outageDetails}
+          outageBlockPrefixes={outageBlockPrefixes}
           onClose={() => setOutageModalOpen(false)}
         />
       )}

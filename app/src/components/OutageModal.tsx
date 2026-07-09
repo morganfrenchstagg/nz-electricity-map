@@ -3,11 +3,25 @@ import { formatMW } from '../utils/format'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
+  outageBlockPrefixes: string[]
   onClose: () => void
 }
 
 function parseOutageDate(iso: string): Date {
   return new Date(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z')
+}
+
+function pocpUrl(prefixes: string[]): string {
+  const filter = { dateOption: 'relative', nextUnit: 'weeks', nextCount: 4, q: prefixes.join(',') }
+  const params = new URLSearchParams({
+    displayedFilters: '{}',
+    filter: JSON.stringify(filter),
+    order: 'ASC',
+    page: '1',
+    perPage: '10',
+    sort: 'timeStart',
+  })
+  return `https://customerportal.transpower.co.nz/pocp/outages?${params.toString()}`
 }
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
@@ -45,7 +59,7 @@ const tdStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-export default function OutageModal({ outages, onClose }: Props) {
+export default function OutageModal({ outages, outageBlockPrefixes, onClose }: Props) {
   const now = Date.now()
   const sorted = outages
     .slice()
@@ -60,15 +74,27 @@ export default function OutageModal({ outages, onClose }: Props) {
         onClick={e => e.stopPropagation()}
         style={{ background: 'white', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', width: 'fit-content', maxWidth: '92vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
       >
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <span style={{ fontWeight: 600, fontSize: 15 }}>Outages</span>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#666', padding: 4, lineHeight: 1 }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {outageBlockPrefixes.length > 0 && (
+              <a
+                href={pocpUrl(outageBlockPrefixes)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600, textDecoration: 'none' }}
+              >
+                View in POCP ↗
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#666', padding: 4, lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
         {sorted.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: '#999', fontSize: 13 }}>No outages</div>
