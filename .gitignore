@@ -1,4 +1,8 @@
 node_modules
 __pycache__
 backend/output/*
-frontend/app/
+# frontend/ is the Cloudflare publish root; the built React app lands at its
+# root. Only the archived /old app and routing config are source-controlled.
+frontend/*
+!frontend/old
+!frontend/_redirects

@@ -1,5 +1,5 @@
 import type { Generator, Substation } from '../types'
-import type { UnderConstructionNode } from '../../../frontend/utilities/underConstruction'
+import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
 
 export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = generators.map((g) => {

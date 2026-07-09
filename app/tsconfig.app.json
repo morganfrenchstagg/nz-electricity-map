@@ -17,5 +17,5 @@
     "noFallthroughCasesInSwitch": true,
     "allowJs": true
   },
-  "include": ["src", "../frontend/utilities"]
+  "include": ["src", "../frontend/old/utilities"]
 }
