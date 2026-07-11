@@ -83,6 +83,23 @@ export default function App() {
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
   }, [expanded])
 
+  // Keep the document/tab title in sync with whichever panel is open
+  useEffect(() => {
+    let suffix: string
+    if (selectedNode === null) {
+      suffix = gridPanelVisible ? 'Grid Generation' : 'Map'
+    } else if (selectedNode.kind === 'generator') {
+      suffix = selectedNode.generator.name
+    } else if (selectedNode.kind === 'generators') {
+      suffix = selectedNode.generators.length <= 2
+        ? selectedNode.generators.map(g => g.name).join(', ')
+        : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`
+    } else {
+      suffix = `${selectedNode.substation.description} Substation`
+    }
+    document.title = `NZ Electricity Map - ${suffix}`
+  }, [selectedNode, gridPanelVisible])
+
   // Single source of dispatch data for the date-driven panels, so both
   // NodePanel and GridOverviewPanel share one fetch instead of each running
   // their own hook (and firing duplicate requests on date changes).
