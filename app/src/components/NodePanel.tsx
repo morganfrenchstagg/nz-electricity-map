@@ -440,21 +440,32 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
           const priceAtTime = pricingByMs.get(this.x as number)
 
-          let rows = "";
           const capMW = capacityAt(this.x as number);
 
-          rows = points
-            .map((p) => {
-              const val = formatMW(p.y ?? 0)
-              const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              const code = chartData.codes[p.series.index]
-              const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
-              const priceStr = price !== undefined ? `$${price.toFixed(2)}/MWh` : ''
-              const nameStr = points.length > 1 ? p.series.name : '';
-              const capacityRow = points.length === 1 && capMW !== null ? ` / <b>${formatMW(capMW)}</b> (${(capMW > 0 ? ((p.y ?? 0) / capMW) * 100 : 0).toFixed(1)}%)` : '';
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${nameStr}</td><td>${formatted}${capacityRow}</td><td>${priceStr}</td></tr>`
-            })
-            .join('');
+          const renderRow = (p: Highcharts.Point) => {
+            const val = formatMW(p.y ?? 0)
+            const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
+            const code = chartData.codes[p.series.index]
+            const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
+            const priceStr = price !== undefined ? `$${price.toFixed(2)}/MWh` : ''
+            const nameStr = points.length > 1 ? p.series.name : '';
+            const capacityRow = points.length === 1 && capMW !== null ? ` / <b>${formatMW(capMW)}</b> (${(capMW > 0 ? ((p.y ?? 0) / capMW) * 100 : 0).toFixed(1)}%)` : '';
+            return `<tr><td><span style="color:${String(p.color)}">●</span> ${nameStr}</td><td>${formatted}${capacityRow}</td><td>${priceStr}</td></tr>`
+          }
+
+          // For substations, list bus values on top and generators below a header.
+          let rows = "";
+          if (hasGeneratorCodes) {
+            const isGen = (p: Highcharts.Point) => (chartData.codes[p.series.index] ?? '').includes(' ')
+            const busRows = points.filter((p) => !isGen(p)).map(renderRow).join('')
+            const genPoints = points.filter(isGen)
+            const genRows = genPoints.length > 0
+              ? `<tr><td colspan="3" style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;padding-top:5px">Generation</td></tr>` + genPoints.map(renderRow).join('')
+              : ''
+            rows = busRows + genRows
+          } else {
+            rows = points.map(renderRow).join('')
+          }
 
           // TOTAL
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0);
@@ -473,7 +484,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       },
       series,
     }
-  }, [chartData, effectiveCodes, adapter, recentData, showGenerators])
+  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes])
 
   return (
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
