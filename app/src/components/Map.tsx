@@ -236,12 +236,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               const pct = genMW !== null && u.capacity !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(u.capacity)) * 100)) : 0
               const colour = fuelColour(u.fuel)
               const genStr = genMW !== null ? formatMW(genMW) : '—'
+              const capStr = u.capacity !== 0 ? formatMW(u.capacity) : null
               const isGenerating = (genMW ?? 0) !== 0
               return `<div style="margin-bottom:5px">
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
                   <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.fuel === 'Battery (Charging)' ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
-                  <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}</span>
+                  <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:#888">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
                 </div>
                 <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
                   <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>

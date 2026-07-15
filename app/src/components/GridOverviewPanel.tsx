@@ -131,9 +131,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     onDateModeChange({ kind: 'today' })
   }, [onDateModeChange])
 
-  const { fuels, fuelToIndices } = useMemo(() => {
-    if (!recentData || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>() }
+  const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
+    if (!recentData || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
     const fuelToIndices = new Map<string, number[]>()
+    const fuelToCapacity = new Map<string, number>()
     for (const gen of generators) {
       if (island !== 'all' && gen.island !== island) continue
       for (const unit of gen.units) {
@@ -142,13 +143,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         if (idx === -1) continue
         const existing = fuelToIndices.get(unit.fuelCode) ?? []
         fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
+        fuelToCapacity.set(unit.fuelCode, (fuelToCapacity.get(unit.fuelCode) ?? 0) + unit.capacity)
       }
     }
     const fuels = [
       ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
       ...[...fuelToIndices.keys()].filter(f => !FUEL_CODE_ORDER.includes(f)),
     ]
-    return { fuels, fuelToIndices }
+    return { fuels, fuelToIndices, fuelToCapacity }
   }, [recentData, generators, island])
 
   const [activeFuels, setActiveFuels] = useState<Set<string> | null>(() => {
@@ -279,6 +281,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         zIndex: 3,
       }))
 
+    // Total installed capacity (MSGC) per fuel, keyed by the series name shown in
+    // the tooltip (fuelCodeLabel) so the shared formatter can look it up per point.
+    const capacityByName = new Map<string, number>()
+    for (const fuel of fuels) {
+      capacityByName.set(fuelCodeLabel(fuel), fuelToCapacity.get(fuel) ?? 0)
+    }
+
     return {
       chart: { type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
@@ -321,7 +330,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
               const ratioOfTotal = (p.y ?? 0) / total;
               const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td><td>${percentageStr}</td></tr>`
+              const cap = capacityByName.get(p.series.name) ?? 0
+              const capStr = cap > 0 ? formatMW(cap) : '–'
+              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td><td style="color:#888;padding-left:10px">${capStr}</td><td style="padding-left:10px">${percentageStr}</td></tr>`
             })
             .join('')
 
@@ -337,12 +348,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const renewableRow = renewablePct != null
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
-          return `<b>${time}</b><br/><table>${rows}</table><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
+          return `<table><tr><th>${time}</th><th>Generation</th><th style="padding-left:10px">Capacity</th><th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
         },
       },
       series,
     }
-  }, [recentData, generators, substations, fuels, fuelToIndices, effectiveFuels])
+  }, [recentData, generators, substations, fuels, fuelToIndices, fuelToCapacity, effectiveFuels])
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
