@@ -57,7 +57,7 @@ export const underConstruction = [
         "site": "HLY",
         "fuel": "Battery",
         "operator": "Genesis Energy",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "costMillionDollars": 150,
         "capacityMW": 100,
         "capacityMWh": 200,
