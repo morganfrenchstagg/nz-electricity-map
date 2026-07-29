@@ -44,7 +44,7 @@ export const underConstruction = [
         "capacityMW": 150,
         "capacityMWp": 168,
         "yearlyGenerationGWh": 275,
-        "openBy": "2026-08-30",
+        "openBy": "2026-07-30",
         "location": {
             "lat": -43.49277380784132, //todo - refine this down further
             "long": 172.50953626586775
@@ -148,7 +148,7 @@ export const underConstruction = [
         "capacityMW": 24,
         "capacityMWp": 27.7,
         "yearlyGenerationGWh": 43,
-        "openBy": "2026-06-30",
+        "openBy": "2026-07-30",
         "location": {
             "lat": -44.19057439138792,
             "long": 171.40868907547915
@@ -237,7 +237,7 @@ export const underConstruction = [
         "status": "Under Construction",
         "capacityMW": 18,
         "capacityMWp": 20,
-        "openBy": "2026-11-30",
+        "openBy": "2026-12-30",
         "location": {
             "lat": -35.76401439273073,
             "long": 174.20655895653712
