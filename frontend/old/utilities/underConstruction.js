@@ -156,23 +156,6 @@ export const underConstruction = [
         "link": "https://lodestoneenergy.co.nz/canterbury-solar-farm-project-underway/"
     },
     {
-        "name": "Omeheu",
-        "site": "EDS",
-        "substation": "Edgecumbe",
-        "fuel": "Solar",
-        "operator": "Far North Solar Farm",
-        "status": "Commissioning",
-        "capacityMWp": 38,
-        "capacityMW": 27,
-        "openBy": "2026-05-31",
-        "yearlyGenerationGWh": 41,
-        "location": {
-            "lat": -37.980200616946675,
-            "long": 176.85378338623394
-        },
-        "link": "https://bopbusinessnews.co.nz/news/new-edgecumbe-solar-farm-underway/"
-    },
-    {
         "name": "Te Rāhui",
         "locationDescription": "Stage 1",
         "site": "TRU",
@@ -219,21 +202,6 @@ export const underConstruction = [
             "long": 172.8166609356564
         },
         "link": "https://www.yinsonrenewables.co.nz/project-sites-mt-cass/"
-    },
-    {
-        "name": "Dannevirke",
-        "site": "DVK",
-        "fuel": "Solar",
-        "operator": "BrightFern Energy",
-        "status": "Commissioning",
-        "capacityMW": 19,
-        "capacityMWp": 23,
-        "openBy": "2026-05-30",
-        "location": {
-            "lat": -40.19329473785136,
-            "long": 176.03669826644835
-        },
-        "link": "https://www.gamechangesolar.com/news/gamechange-solar-expands-into-new-zealand-with-bright-fern-energy-s-dannevirke-solar-farm"
     },
     {
         "name": "Cambridge",
