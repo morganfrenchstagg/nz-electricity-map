@@ -11,13 +11,13 @@ function latestTimestamp(data: RecentData): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-function getDateInNZ(): Date {
+/*function getDateInNZ(): Date {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Pacific/Auckland" }));
-}
+}*/
 
 function formatAgo(ts: Date): string {
-  const timeInNZ = getDateInNZ();
-  const diffMs = timeInNZ.getTime() - ts.getTime()
+  //const timeInNZ = getDateInNZ();
+  const diffMs = Date.now() - ts.getTime()
   const mins = Math.floor(diffMs / 60000)
   if (mins < 1) return 'Last updated just now'
   if (mins === 1) return 'Last updated 1 minute ago'
