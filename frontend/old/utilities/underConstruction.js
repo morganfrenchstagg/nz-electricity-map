@@ -322,5 +322,19 @@ export const underConstruction = [
             "long": 176.48699248669283
         },
         "link": "https://lodestoneenergy.co.nz/central-hawkes-bay-solar-farm/"
+    },
+    {
+        "name": "Puke Kapo Hau",
+        "fuel": "Wind",
+        "operator": "Mercury",
+        "status": "Committed",
+        "capacityMW": 192,
+        "yearlyGenerationGWh": 533,
+        "openBy": "2028-07-31",
+        "location": {
+            "lat": -45.77359725618924,
+            "long": 169.87711209795086
+        },
+        "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/mahinerangi-wind-farm"
     }
 ]
