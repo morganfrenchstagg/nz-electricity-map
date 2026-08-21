@@ -13,26 +13,6 @@ export const underConstruction = [
         "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/kaiwera-downs-wind-farm"
     },
     {
-        "name": "Roxburgh",
-        "locationDescription": "Turbine 3 Upgrade",
-        "site": "ROX",
-        "fuel": "Hydro",
-        "operator": "Contact Energy",
-        "status": "Committed",
-        "yearlyGenerationGWh": 11,
-        "link": "https://contact.co.nz/aboutus/media-centre/2024/06/09/new-turbines-at-contacts-roxburgh-dam"
-    },
-    {
-        "name": "Roxburgh",
-        "locationDescription": "Turbine 4 Upgrade",
-        "site": "ROX",
-        "fuel": "Hydro",
-        "operator": "Contact Energy",
-        "status": "Committed",
-        "yearlyGenerationGWh": 11,
-        "link": "https://contact.co.nz/aboutus/media-centre/2024/06/09/new-turbines-at-contacts-roxburgh-dam"
-    },
-    {
         "name": "Kōwhai Park",
         "locationDescription": "Phase 1",
         "site": "",
@@ -252,7 +232,7 @@ export const underConstruction = [
         "substation": "Glenbrook",
         "fuel": "Battery",
         "operator": "Contact Energy",
-        "status": "Committed",
+        "status": "Under Construction",
         "costMillionDollars": 235,
         "capacityMW": 200,
         "capacityMWh": 400,
@@ -324,8 +304,10 @@ export const underConstruction = [
         "link": "https://lodestoneenergy.co.nz/central-hawkes-bay-solar-farm/"
     },
     {
-        "name": "Puke Kapo Hau",
+        "name": "Mahingerangi",
+        "locationDescription": "Stage 2 - Puke Kapo Hau",
         "fuel": "Wind",
+        "site": "MAH",
         "operator": "Mercury",
         "status": "Committed",
         "capacityMW": 192,
