@@ -318,5 +318,19 @@ export const underConstruction = [
             "long": 169.87711209795086
         },
         "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/mahinerangi-wind-farm"
+    },
+    {
+        "name": "Leeston",
+        "fuel": "Solar",
+        "operator": "Genesis",
+        "status": "Committed",
+        "capacityMWp": 70,
+        "yearlyGenerationGWh": 110,
+        "openBy": "2028-03-31",
+        "location": {
+            "lat": -43.701070880796095,
+            "long": 172.28348218402581
+        },
+        "link": "https://www.genesisenergy.co.nz/about/news/genesis-gives-green-light-to-125-million-leeston-solar-farm" 
     }
 ]
