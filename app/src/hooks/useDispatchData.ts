@@ -121,6 +121,7 @@ export function useDispatchData(mode: DateMode): {
       timerRef.current = setInterval(() => {
         const cached = dayCache.get('recent')
         if (cached) {
+          // todo make this local timezone independent
           const last = cached.data[cached.data.length - 1]
           const ts = last ? new Date((last[0] as string)).getTime() : 0
           if (Date.now() - ts < STALE_MS) return

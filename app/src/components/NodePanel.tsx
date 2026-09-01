@@ -149,7 +149,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const offerDate = viewMode === 'offers'
     ? (dateMode.kind === 'today' || dateMode.kind === 'recent' ? 'latest'
       : dateMode.kind === 'date' ? dateMode.date
-      : dateMode.from)
+        : dateMode.from)
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
 
@@ -368,6 +368,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         new Date((row.time as string) + 'Z').getTime(),
         adapter.transformValue(row[code] as number),
       ])),
+      stack: chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
       marker: { enabled: false },
       animation: false,
     }))
