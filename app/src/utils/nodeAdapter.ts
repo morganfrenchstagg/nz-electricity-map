@@ -79,7 +79,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 
   return {
     title: generator.name,
-    subtitle: generator.operator,
+    subtitle: generator.operator + (generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''),
     chartType: 'area',
 
     getCodes(recent) {

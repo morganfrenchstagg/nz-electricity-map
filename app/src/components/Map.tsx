@@ -260,22 +260,22 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
                 <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Under Construction</div>
                 ${ucUnits.map((u, i) => {
-                  const label = u.locationDescription ?? `Unit ${i + 1}`
-                  const stats = renderUnitStats(u)
-                  return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
+              const label = u.locationDescription ?? `Unit ${i + 1}`
+              const stats = renderUnitStats(u)
+              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                       <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
                     </div>
                     ${stats}
                   </div>`
-                }).join('')}
+            }).join('')}
               </div>` : ''
             hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:12px;line-height:1.5;width:240px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
                 <span style="font-weight:600">${generator.name}</span>
                 <span style="background:#e8f0fe;color:#1a56db;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${generator.site}</span>
               </div>
-              <div style="color:#888;margin-bottom:6px">${generator.operator}</div>
+              <div style="color:#888;margin-bottom:6px">${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</div>
               <div style="border-top:1px solid #eee;padding-top:6px;margin-bottom:4px">${unitRows}</div>
               <div style="border-top:1px solid #eee;padding-top:6px">
                 <div style="display:flex;justify-content:space-between;align-items:center">
