@@ -16,7 +16,7 @@ jobs:
     name: Deploy to Cloudflare Pages
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -27,11 +27,9 @@ jobs:
           npm install
           npm run build
       - name: Publish
-        uses: cloudflare/pages-action@1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: nzelectricitymap
-          directory: frontend
-          branch: main
+          command: pages deploy frontend --project-name=nzelectricitymap --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
