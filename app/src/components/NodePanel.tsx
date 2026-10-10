@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
-import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { datesBetween, isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { useDailyAggregates } from '../hooks/useDailyAggregates'
+import { foldMovedNodes, useAggregates } from '../hooks/useAggregates'
+import type { AggregatePeriod } from '../hooks/useAggregates'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
@@ -76,6 +77,41 @@ function formatOutageEnd(date: Date): string {
   return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
 }
 
+// The 30d, 1y and All views swap the 5-minute dispatch data for these MWh totals.
+const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod>> = {
+  last30: 'daily',
+  lastYear: 'weekly',
+  all: 'monthly',
+}
+
+// Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
+function tooltipTime(ms: number, period: AggregatePeriod | null): string {
+  switch (period) {
+    case 'daily': return Highcharts.dateFormat('%a %e %b', ms)
+    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * 86400000)}`
+    case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
+    default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
+  }
+}
+
+// Months run 28–31 days, but Highcharts gives every column the width of the
+// shortest gap between points (February's), leaving thin gaps after longer
+// months. Runs after Highcharts lays out the columns, and widens each one to
+// meet its neighbours halfway between their start dates. Both neighbours round
+// the same midpoint, so they always share an edge.
+function fillMonthColumns(this: Highcharts.Series) {
+  const edge = (ms: number) => Math.round(this.xAxis.toPixels(ms, true))
+  for (const point of this.points) {
+    if (!point.shapeArgs) continue
+    const month = new Date(point.x)
+    const prev = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)
+    const next = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
+    const left = edge((prev + point.x) / 2)
+    const right = edge((point.x + next) / 2)
+    point.shapeArgs = { ...point.shapeArgs, x: left, width: right - left }
+  }
+}
+
 interface ToggleOption {
   key: string
   label: string
@@ -137,16 +173,20 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     return createSubstationAdapter(node.substation, allGenerators)
   }, [node, allGenerators, outages])
 
-  // The 30-day view swaps the 5-minute dispatch data for daily MWh totals.
-  const isDaily = dateMode.kind === 'last30'
-  const daily = useDailyAggregates(isDaily ? adapter.queryNodes : null)
-  const data = isDaily ? daily.dailyData : recentData
-  const dataLoading = isDaily ? daily.loading : loading
-  const dataError = isDaily ? daily.error : error
+  const aggregatePeriod = AGGREGATE_PERIODS[dateMode.kind] ?? null
+  const isAggregate = aggregatePeriod !== null
+  const aggregates = useAggregates(isAggregate ? adapter.queryNodes : null, aggregatePeriod)
+  const aggregateData = useMemo(
+    () => aggregates.aggregateData && foldMovedNodes(aggregates.aggregateData, adapter.movedNodes),
+    [aggregates.aggregateData, adapter],
+  )
+  const data = isAggregate ? aggregateData : recentData
+  const dataLoading = isAggregate ? aggregates.loading : loading
+  const dataError = isAggregate ? aggregates.error : error
 
   const allCodes = useMemo(
-    () => (data ? adapter.getCodes(data) : []),
-    [data, adapter],
+    () => (data ? adapter.getCodes(data, isAggregate) : []),
+    [data, adapter, isAggregate],
   )
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
@@ -188,7 +228,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   }, [tradingPeriod, viewMode])
 
   const offerDate = viewMode === 'offers'
-    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' || dateMode.kind === 'last30' ? 'latest'
+    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' || isAggregateMode(dateMode) ? 'latest'
       : dateMode.kind === 'date' ? dateMode.date
         : dateMode.from)
     : null
@@ -271,6 +311,18 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     setFromDate('')
     setToDate('')
     onDateModeChange({ kind: 'last30' })
+  }, [onDateModeChange])
+
+  const handleLastYearClick = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'lastYear' })
+  }, [onDateModeChange])
+
+  const handleAllClick = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'all' })
   }, [onDateModeChange])
 
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
@@ -373,12 +425,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   // Trapezoidal integral of the charted MW series over time -> MWh for the
   // currently displayed period. Gaps larger than withGaps' threshold are
   // skipped rather than bridged, so missing data doesn't inflate the total.
-  // Daily rows are already MWh, so those are just summed.
+  // Aggregate rows are already MWh, so those are just summed.
   const totalGenerationMWh = useMemo(() => {
-    if (!chartData || chartData.rows.length < (isDaily ? 1 : 2)) return null
+    if (!chartData || chartData.rows.length < (isAggregate ? 1 : 2)) return null
     const codes = [...effectiveCodes].filter(code => chartData.codes.includes(code))
     if (codes.length === 0) return null
-    if (isDaily) {
+    if (isAggregate) {
       return chartData.rows.reduce((total, row) =>
         total + codes.reduce((sum, code) => sum + adapter.transformValue((row[code] as number) ?? 0), 0), 0)
     }
@@ -396,7 +448,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       total += ((v0 + v1) / 2) * (dtMs / 3600000)
     }
     return total
-  }, [chartData, effectiveCodes, adapter, isDaily])
+  }, [chartData, effectiveCodes, adapter, isAggregate])
 
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
@@ -411,7 +463,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
-    // Daily totals: stacked areas become stacked columns (which already stack
+    // Aggregate totals: stacked areas become stacked columns (which already stack
     // negative values separately, so no 'neg' stack), and lines get markers.
     const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code, i) => {
       const points: [number, number][] = chartData.rows.map((row) => [
@@ -420,7 +472,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       ])
       const colour = adapter.colourFor(code, i)
       return {
-        type: isDaily && adapter.chartType === 'area' ? 'column' : adapter.chartType,
+        type: isAggregate && adapter.chartType === 'area' ? 'column' : adapter.chartType,
         name: adapter.labelFor(code),
         color: colour,
         // Highcharts rounds each column's edges to whole pixels separately, so a
@@ -429,17 +481,22 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         // Zero-height columns skip the border, or it would draw as a 1px line.
         borderColor: colour,
         visible: effectiveCodes.has(code),
-        data: isDaily
+        data: isAggregate
           ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
           : withGaps(points),
-        stack: isDaily ? undefined : chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
-        marker: { enabled: isDaily && adapter.chartType === 'line', radius: 3 },
+        stack: isAggregate ? undefined : chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
+        marker: { enabled: isAggregate && adapter.chartType === 'line', radius: 3 },
+        // Not in Highcharts' types, but any function under `events` is
+        // registered as a listener, and columns fire this after layout.
+        events: aggregatePeriod === 'monthly'
+          ? { afterColumnTranslate: fillMonthColumns } as Highcharts.SeriesEventsOptionsObject
+          : undefined,
         animation: false,
       }
     })
 
     if (showGenerators) series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
-    const capSeries = isDaily ? null : adapter.capacitySeries(chartData.rows, effectiveCodes)
+    const capSeries = isAggregate ? null : adapter.capacitySeries(chartData.rows, effectiveCodes)
     if (capSeries) series.push(capSeries)
 
     // Step-left lookup: capacity at a given timestamp from the step-line data
@@ -458,7 +515,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
-        if (i === 0 || isDaily) return false
+        if (i === 0 || isAggregate) return false
         return (row.time as string).slice(0, 10) !== (chartData.rows[i - 1].time as string).slice(0, 10)
       })
       .map((row) => ({
@@ -477,7 +534,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     return {
       chart: {
         type: adapter.chartType, height: null, animation: false, backgroundColor: '#ffffff',
-        className: isDaily && adapter.chartType === 'area' ? 'daily-columns' : undefined, // see index.css
+        className: isAggregate && adapter.chartType === 'area' ? 'aggregate-columns' : undefined, // see index.css
       },
       title: { text: undefined },
       credits: { enabled: false },
@@ -488,7 +545,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: isDaily
+      yAxis: isAggregate
         ? {
           title: { text: isGenerator ? 'MWh' : 'Load (MWh)', style: { fontSize: '11px' } },
           labels: { style: { fontSize: '10px' } },
@@ -501,11 +558,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         useHTML: true,
         formatter: function () {
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
-          const time = Highcharts.dateFormat(isDaily ? '%a %e %b' : '%e %b %I:%M %p', this.x as number)
-          const formatValue = isDaily ? formatMWh : formatMW
+          const time = tooltipTime(this.x as number, aggregatePeriod)
+          const formatValue = isAggregate ? formatMWh : formatMW
 
           const pricingByMs = new Map<number, Record<string, number>>()
-          if (recentData?.pricing && !isDaily) {
+          if (recentData?.pricing && !isAggregate) {
             const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
             for (const row of recentData.pricing) {
               const ms = new Date((row[0] as string) + 'Z').getTime()
@@ -517,8 +574,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
           const priceAtTime = pricingByMs.get(this.x as number)
 
-          // No capacity comparison for daily totals
-          const cap = isDaily ? null : capacityAt(this.x as number);
+          // No capacity comparison for aggregate totals
+          const cap = isAggregate ? null : capacityAt(this.x as number);
 
           const renderRow = (p: Highcharts.Point) => {
             const val = formatValue(p.y ?? 0)
@@ -569,7 +626,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       },
       series,
     }
-  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes, isDaily, isGenerator])
+  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes, isAggregate, aggregatePeriod, isGenerator])
 
   return (
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
@@ -603,13 +660,13 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             ))}
           </div>
         </div>
-        {/* The 30-day view has no current reading to compare with capacity, so it only shows the total */}
-        {!isMobile && isDaily && isGenerator && totalGenerationMWh !== null && (
+        {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
+        {!isMobile && isAggregate && isGenerator && totalGenerationMWh !== null && (
           <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
             Total: {formatMWh(totalGenerationMWh)}
           </div>
         )}
-        {!isMobile && !isDaily && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+        {!isMobile && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {totalOutageMW > 0 ? (
@@ -724,7 +781,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           : [
             { key: 'today', label: 'Today', active: dateMode.kind === 'today', onClick: handleTodayClick },
             { key: '3d', label: '3d', title: 'Last 3 days', active: dateMode.kind === 'recent', onClick: handleRecentClick },
-            { key: '30d', label: '30d', title: 'Last 30 days', active: isDaily, onClick: handleLast30Click },
+            { key: '30d', label: '30d', title: 'Last 30 days', active: dateMode.kind === 'last30', onClick: handleLast30Click },
+            { key: '1y', label: '1y', title: 'Last 52 weeks', active: dateMode.kind === 'lastYear', onClick: handleLastYearClick },
+            { key: 'all', label: 'All', title: 'Every month since October 2020', active: dateMode.kind === 'all', onClick: handleAllClick },
           ]} />
         {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
@@ -888,7 +947,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               </div>
             )}
             {chartOptions && (
-              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${String(isDaily)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
             )}
           </>
         )}

@@ -9,16 +9,16 @@ html, body, #root {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
 }
 
-/* NodePanel's 30-day column chart */
+/* NodePanel's 30d, 1y and All column charts */
 
 /* Gapless columns: without this, anti-aliasing leaves a faint light seam
    where neighbouring columns meet, even on whole-pixel edges. */
-.daily-columns .highcharts-column-series .highcharts-point {
+.aggregate-columns .highcharts-column-series .highcharts-point {
   shape-rendering: crispEdges;
 }
 
 /* Match the area charts' fillOpacity (0.8). Faded as one group rather than
    per column, so where column borders overlap they don't stack into darker lines. */
-.daily-columns .highcharts-series-group {
+.aggregate-columns .highcharts-series-group {
   opacity: 0.8;
 }

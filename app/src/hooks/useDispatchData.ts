@@ -12,6 +12,14 @@ export type DateMode =
   | { kind: 'date'; date: string }
   | { kind: 'range'; from: string; to: string }
   | { kind: 'last30' }
+  | { kind: 'lastYear' }
+  | { kind: 'all' }
+
+// The 30d, 1y and All views chart aggregates (useAggregates) in NodePanel;
+// the map and grid overview keep showing live data underneath them.
+export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
+  return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
+}
 
 const dayCache = new Map<string, RecentData>()
 const inFlight = new Map<string, Promise<RecentData>>()
@@ -85,10 +93,8 @@ export function useDispatchData(mode: DateMode): {
       setLoading(true)
       setError(null)
       try {
-        // The 30-day view charts daily aggregates (useDailyAggregates); the map
-        // and grid overview keep showing live data underneath it.
         const keys =
-          mode.kind === 'recent' || mode.kind === 'today' || mode.kind === 'last30' ? ['recent'] :
+          mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode) ? ['recent'] :
             mode.kind === 'date' ? [mode.date] :
               datesBetween(mode.from, mode.to)
 
@@ -120,7 +126,7 @@ export function useDispatchData(mode: DateMode): {
 
     load()
 
-    if (mode.kind === 'recent' || mode.kind === 'today' || mode.kind === 'last30') {
+    if (mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode)) {
       timerRef.current = setInterval(() => {
         const cached = dayCache.get('recent')
         if (cached) {

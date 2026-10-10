@@ -1,5 +1,5 @@
 import type Highcharts from 'highcharts'
-import type { Generator, RecentData, Substation } from '../types'
+import type { Generator, RecentData, Substation, Unit } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
 import { substationCodes } from './chart'
@@ -20,6 +20,19 @@ function activeOutageMW(unitCode: string, outages: OutageData, now: number): num
     .reduce((sum, o) => sum + o.mwattLost, 0)
 }
 
+// A unit that moves substation (e.g. Pātea, from Hawera to Ōhangai in 2026) is
+// listed twice under the same unit code: retired at its old node and active at
+// its new one. Maps each such old node to the new one.
+function movedNodesOf(units: Unit[]): Record<string, string> {
+  const moved: Record<string, string> = {}
+  for (const unit of units) {
+    if (unit.active !== false) continue
+    const successors = units.filter((u) => u.active !== false && u.unitCode === unit.unitCode)
+    if (successors.length === 1) moved[unit.node] = successors[0].node
+  }
+  return moved
+}
+
 function codeVoltageColour(code: string): string {
   if (code.length >= 4) {
     const kv = parseInt(code.slice(-4, -1), 10)
@@ -32,7 +45,9 @@ export interface NodeAdapter {
   title: string
   subtitle: string
   chartType: 'area' | 'line'
-  getCodes(recent: RecentData): string[]
+  // Dispatch data charts active units only; the aggregate views pass
+  // includeRetired to chart every unit's history.
+  getCodes(recent: RecentData, includeRetired?: boolean): string[]
   labelFor(code: string): string
   colourFor(code: string, index: number): string
   transformValue(val: number): number
@@ -46,8 +61,11 @@ export interface NodeAdapter {
   unitOutageMW(code: string): number
   capacitySeries(rows: ChartRow[], effectiveCodes: Set<string>): Highcharts.SeriesOptionsType | null
   subtitleFuels: { label: string; colour: string }[]
-  // Node codes (or prefixes) to request from the daily aggregates API
+  // Node codes (or prefixes) to request from the aggregates API, retired units' included
   queryNodes: string[]
+  // Old nodes of units that moved, mapped to their current node. The aggregate
+  // views add their history into the current node's series (foldMovedNodes).
+  movedNodes: Record<string, string>
 }
 
 export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): NodeAdapter {
@@ -57,6 +75,9 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
   ).getTime()
   const activeUnits = generator.units.filter((u) => u.active !== false)
+  const movedNodes = movedNodesOf(generator.units)
+  // Moved units are charted under their current node only
+  const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
 
   // Returns the available capacity for a unit at a given chart-timeline timestamp.
   // Without active outages: MSGC (u.capacity).
@@ -84,8 +105,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     subtitle: generator.operator + (generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''),
     chartType: 'area',
 
-    getCodes(recent) {
-      return activeUnits
+    getCodes(recent, includeRetired = false) {
+      return (includeRetired ? historyUnits : activeUnits)
         .slice()
         .sort((a, b) => {
           const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
@@ -108,7 +129,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 
     transformValue(val) { return val },
     subtitleFuels,
-    queryNodes: activeUnits.map((u) => u.node),
+    queryNodes: generator.units.map((u) => u.node),
+    movedNodes,
 
     yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes
@@ -281,11 +303,9 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
   ).getTime()
 
-  const activeUnitsByGen = generators.map(g => ({
-    generator: g,
-    units: g.units.filter(u => u.active !== false),
-  }))
-  const allActiveUnits = activeUnitsByGen.flatMap(({ units }) => units)
+  const allUnits = generators.flatMap(g => g.units)
+  const allActiveUnits = allUnits.filter(u => u.active !== false)
+  const movedNodes = Object.assign({}, ...generators.map(g => movedNodesOf(g.units))) as Record<string, string>
 
   function unitCapacityAt(unit: { node: string; capacity: number; installedCapacity?: number }, atMs: number): number {
     if (!outages) return unit.capacity
@@ -298,8 +318,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
   }
 
   const genNameFor = (code: string) => {
-    for (const { generator, units } of activeUnitsByGen) {
-      if (units.some(u => u.node === code)) return generator.name
+    for (const generator of generators) {
+      if (generator.units.some(u => u.node === code)) return generator.name
     }
     return null
   }
@@ -319,11 +339,12 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     subtitle: [...new Set(generators.map(g => g.operator))].join(', '),
     chartType: 'area',
     subtitleFuels,
-    queryNodes: allActiveUnits.map(u => u.node),
+    queryNodes: allUnits.map(u => u.node),
+    movedNodes,
 
-    getCodes(recent) {
-      return activeUnitsByGen
-        .flatMap(({ units }) => units.map(u => u))
+    getCodes(recent, includeRetired = false) {
+      // Moved units are charted under their current node only
+      return (includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allActiveUnits)
         .filter(u => recent.series.includes(u.node))
         .sort((a, b) => {
           const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
@@ -333,7 +354,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     },
 
     labelFor(code) {
-      const unit = allActiveUnits.find(u => u.node === code)
+      const unit = allUnits.find(u => u.node === code)
       if (!unit) return code
       const suffix = unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
       const prefix = genNameFor(code)
@@ -342,7 +363,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     },
 
     colourFor(code) {
-      const unit = allActiveUnits.find(u => u.node === code)
+      const unit = allUnits.find(u => u.node === code)
       return unit ? fuelColour(unit.fuel) : ''
     },
 
@@ -518,5 +539,6 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     capacitySeries(_rows, _effectiveCodes) { return null },
     subtitleFuels: [],
     queryNodes: [substation.siteId],
+    movedNodes: {},
   }
 }
