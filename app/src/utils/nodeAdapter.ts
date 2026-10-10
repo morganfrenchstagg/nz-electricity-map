@@ -46,6 +46,8 @@ export interface NodeAdapter {
   unitOutageMW(code: string): number
   capacitySeries(rows: ChartRow[], effectiveCodes: Set<string>): Highcharts.SeriesOptionsType | null
   subtitleFuels: { label: string; colour: string }[]
+  // Node codes (or prefixes) to request from the daily aggregates API
+  queryNodes: string[]
 }
 
 export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): NodeAdapter {
@@ -106,6 +108,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 
     transformValue(val) { return val },
     subtitleFuels,
+    queryNodes: activeUnits.map((u) => u.node),
 
     yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes
@@ -316,6 +319,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     subtitle: [...new Set(generators.map(g => g.operator))].join(', '),
     chartType: 'area',
     subtitleFuels,
+    queryNodes: allActiveUnits.map(u => u.node),
 
     getCodes(recent) {
       return activeUnitsByGen
@@ -513,5 +517,6 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     unitOutageMW(_code) { return 0 },
     capacitySeries(_rows, _effectiveCodes) { return null },
     subtitleFuels: [],
+    queryNodes: [substation.siteId],
   }
 }

@@ -4,6 +4,7 @@ import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
+import { useDailyAggregates } from '../hooks/useDailyAggregates'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
@@ -75,6 +76,39 @@ function formatOutageEnd(date: Date): string {
   return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
 }
 
+interface ToggleOption {
+  key: string
+  label: string
+  title?: string
+  active: boolean
+  onClick: () => void
+}
+
+// Segmented button group, e.g. Generation / Offers.
+function ToggleGroup({ options }: { options: ToggleOption[] }) {
+  return (
+    <div style={{ display: 'flex', borderRadius: 6, border: '1px solid #ddd', overflow: 'hidden', flexShrink: 0 }}>
+      {options.map((o, i) => (
+        <button
+          key={o.key}
+          onClick={o.onClick}
+          title={o.title}
+          aria-pressed={o.active}
+          style={{
+            padding: '3px 9px', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
+            background: o.active ? '#1d4ed8' : 'white',
+            color: o.active ? 'white' : '#555',
+            fontWeight: o.active ? 600 : 400,
+            borderRight: i < options.length - 1 ? '1px solid #ddd' : 'none',
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 interface Props {
   node: NonNullable<SelectedNode>
   onClose: () => void
@@ -103,9 +137,16 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     return createSubstationAdapter(node.substation, allGenerators)
   }, [node, allGenerators, outages])
 
+  // The 30-day view swaps the 5-minute dispatch data for daily MWh totals.
+  const isDaily = dateMode.kind === 'last30'
+  const daily = useDailyAggregates(isDaily ? adapter.queryNodes : null)
+  const data = isDaily ? daily.dailyData : recentData
+  const dataLoading = isDaily ? daily.loading : loading
+  const dataError = isDaily ? daily.error : error
+
   const allCodes = useMemo(
-    () => (recentData ? adapter.getCodes(recentData) : []),
-    [recentData, adapter],
+    () => (data ? adapter.getCodes(data) : []),
+    [data, adapter],
   )
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
@@ -147,7 +188,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   }, [tradingPeriod, viewMode])
 
   const offerDate = viewMode === 'offers'
-    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' ? 'latest'
+    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' || dateMode.kind === 'last30' ? 'latest'
       : dateMode.kind === 'date' ? dateMode.date
         : dateMode.from)
     : null
@@ -226,6 +267,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     onDateModeChange({ kind: 'today' })
   }, [onDateModeChange])
 
+  const handleLast30Click = useCallback(() => {
+    setFromDate('')
+    setToDate('')
+    onDateModeChange({ kind: 'last30' })
+  }, [onDateModeChange])
+
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
 
   const effectiveCodes = useMemo(() => {
@@ -237,9 +284,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   useEffect(() => { setActiveCodes(null); setShowGenerators(true) }, [node])
 
   const chartData = useMemo(() => {
-    if (!recentData || allCodes.length === 0) return null
-    return extractChartData(recentData, allCodes)
-  }, [recentData, allCodes])
+    if (!data || allCodes.length === 0) return null
+    return extractChartData(data, allCodes)
+  }, [data, allCodes])
 
   const { title, subtitle } = adapter
   const nodeKey = node.kind === 'generator' ? node.generator.site
@@ -326,10 +373,15 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   // Trapezoidal integral of the charted MW series over time -> MWh for the
   // currently displayed period. Gaps larger than withGaps' threshold are
   // skipped rather than bridged, so missing data doesn't inflate the total.
+  // Daily rows are already MWh, so those are just summed.
   const totalGenerationMWh = useMemo(() => {
-    if (!chartData || chartData.rows.length < 2) return null
+    if (!chartData || chartData.rows.length < (isDaily ? 1 : 2)) return null
     const codes = [...effectiveCodes].filter(code => chartData.codes.includes(code))
     if (codes.length === 0) return null
+    if (isDaily) {
+      return chartData.rows.reduce((total, row) =>
+        total + codes.reduce((sum, code) => sum + adapter.transformValue((row[code] as number) ?? 0), 0), 0)
+    }
     const maxGapMs = 20 * 60 * 1000
     let total = 0
     for (let i = 1; i < chartData.rows.length; i++) {
@@ -344,7 +396,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       total += ((v0 + v1) / 2) * (dtMs / 3600000)
     }
     return total
-  }, [chartData, effectiveCodes, adapter])
+  }, [chartData, effectiveCodes, adapter, isDaily])
 
   function toggleCode(code: string) {
     const next = new Set(effectiveCodes)
@@ -359,22 +411,35 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
-    const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code, i) => ({
-      type: adapter.chartType,
-      name: adapter.labelFor(code),
-      color: adapter.colourFor(code, i),
-      visible: effectiveCodes.has(code),
-      data: withGaps(chartData.rows.map((row) => [
+    // Daily totals: stacked areas become stacked columns (which already stack
+    // negative values separately, so no 'neg' stack), and lines get markers.
+    const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code, i) => {
+      const points: [number, number][] = chartData.rows.map((row) => [
         new Date((row.time as string) + 'Z').getTime(),
         adapter.transformValue(row[code] as number),
-      ])),
-      stack: chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
-      marker: { enabled: false },
-      animation: false,
-    }))
+      ])
+      const colour = adapter.colourFor(code, i)
+      return {
+        type: isDaily && adapter.chartType === 'area' ? 'column' : adapter.chartType,
+        name: adapter.labelFor(code),
+        color: colour,
+        // Highcharts rounds each column's edges to whole pixels separately, so a
+        // boundary landing on a half pixel can round apart and leave a 1px gap.
+        // A border in the column's own colour (see plotOptions.column) covers it.
+        // Zero-height columns skip the border, or it would draw as a 1px line.
+        borderColor: colour,
+        visible: effectiveCodes.has(code),
+        data: isDaily
+          ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
+          : withGaps(points),
+        stack: isDaily ? undefined : chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
+        marker: { enabled: isDaily && adapter.chartType === 'line', radius: 3 },
+        animation: false,
+      }
+    })
 
     if (showGenerators) series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
-    const capSeries = adapter.capacitySeries(chartData.rows, effectiveCodes)
+    const capSeries = isDaily ? null : adapter.capacitySeries(chartData.rows, effectiveCodes)
     if (capSeries) series.push(capSeries)
 
     // Step-left lookup: capacity at a given timestamp from the step-line data
@@ -393,7 +458,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
-        if (i === 0) return false
+        if (i === 0 || isDaily) return false
         return (row.time as string).slice(0, 10) !== (chartData.rows[i - 1].time as string).slice(0, 10)
       })
       .map((row) => ({
@@ -410,7 +475,10 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       }))
 
     return {
-      chart: { type: adapter.chartType, height: null, animation: false, backgroundColor: '#ffffff' },
+      chart: {
+        type: adapter.chartType, height: null, animation: false, backgroundColor: '#ffffff',
+        className: isDaily && adapter.chartType === 'area' ? 'daily-columns' : undefined, // see index.css
+      },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: adapter.showLegend(chartData.codes.length), itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
@@ -420,16 +488,24 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
         plotLines: midnightPlotLines,
       },
-      yAxis: adapter.yAxisOptions(effectiveCodes, chartData.rows),
+      yAxis: isDaily
+        ? {
+          title: { text: isGenerator ? 'MWh' : 'Load (MWh)', style: { fontSize: '11px' } },
+          labels: { style: { fontSize: '10px' } },
+          softMin: 0,
+          gridLineDashStyle: 'Dash',
+        }
+        : adapter.yAxisOptions(effectiveCodes, chartData.rows),
       tooltip: {
         shared: true,
         useHTML: true,
         formatter: function () {
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
-          const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
+          const time = Highcharts.dateFormat(isDaily ? '%a %e %b' : '%e %b %I:%M %p', this.x as number)
+          const formatValue = isDaily ? formatMWh : formatMW
 
           const pricingByMs = new Map<number, Record<string, number>>()
-          if (recentData?.pricing) {
+          if (recentData?.pricing && !isDaily) {
             const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
             for (const row of recentData.pricing) {
               const ms = new Date((row[0] as string) + 'Z').getTime()
@@ -441,16 +517,17 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
           const priceAtTime = pricingByMs.get(this.x as number)
 
-          const capMW = capacityAt(this.x as number);
+          // No capacity comparison for daily totals
+          const cap = isDaily ? null : capacityAt(this.x as number);
 
           const renderRow = (p: Highcharts.Point) => {
-            const val = formatMW(p.y ?? 0)
+            const val = formatValue(p.y ?? 0)
             const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
             const code = chartData.codes[p.series.index]
             const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
             const priceStr = price !== undefined ? `$${price.toFixed(2)}/MWh` : ''
             const nameStr = points.length > 1 ? p.series.name : '';
-            const capacityRow = points.length === 1 && capMW !== null ? ` / <b>${formatMW(capMW)}</b> (${(capMW > 0 ? ((p.y ?? 0) / capMW) * 100 : 0).toFixed(1)}%)` : '';
+            const capacityRow = points.length === 1 && cap !== null ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)` : '';
             return `<tr><td><span style="color:${String(p.color)}">●</span> ${nameStr}</td><td>${formatted}${capacityRow}</td><td>${priceStr}</td></tr>`
           }
 
@@ -470,8 +547,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
           // TOTAL
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0);
-          const capRow = capMW !== null ? ` / ${formatMW(capMW)} (${capMW > 0 ? Math.round(total / capMW * 100) : 0}%)` : ''
-          const totalRow = points.length > 1 ? `<tr><td></td></tr><tr><td>Total: <b>${formatMW(total)}${capRow}</td></tr>` : ''
+          const capRow = cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round(total / cap * 100) : 0}%)` : ''
+          const totalRow = points.length > 1 ? `<tr><td></td></tr><tr><td>Total: <b>${formatValue(total)}${capRow}</td></tr>` : ''
           rows += totalRow;
           return `<b>${time}</b><br/><table>${rows}</table>`;
         },
@@ -482,10 +559,17 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           fillOpacity: 0.8,
           stacking: adapter.stacking(chartData.codes.length),
         },
+        column: {
+          borderWidth: 1,
+          borderRadius: 0,
+          pointPadding: 0,
+          groupPadding: 0,
+          stacking: adapter.stacking(chartData.codes.length),
+        },
       },
       series,
     }
-  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes])
+  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes, isDaily, isGenerator])
 
   return (
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
@@ -519,7 +603,13 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             ))}
           </div>
         </div>
-        {!isMobile && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+        {/* The 30-day view has no current reading to compare with capacity, so it only shows the total */}
+        {!isMobile && isDaily && isGenerator && totalGenerationMWh !== null && (
+          <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Total: {formatMWh(totalGenerationMWh)}
+          </div>
+        )}
+        {!isMobile && !isDaily && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {totalOutageMW > 0 ? (
@@ -622,48 +712,20 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {isGenerator && (
           <>
-            <div style={{ display: 'flex', borderRadius: 6, border: '1px solid #ddd', overflow: 'hidden', flexShrink: 0 }}>
-              {(['generation', 'offers'] as const).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  style={{
-                    padding: '3px 9px', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-                    background: viewMode === mode ? '#1d4ed8' : 'white',
-                    color: viewMode === mode ? 'white' : '#555',
-                    fontWeight: viewMode === mode ? 600 : 400,
-                    borderRight: mode === 'generation' ? '1px solid #ddd' : 'none',
-                  }}
-                >
-                  {mode === 'generation' ? 'Generation' : 'Offers'}
-                </button>
-              ))}
-            </div>
+            <ToggleGroup options={[
+              { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => setViewMode('generation') },
+              { key: 'offers', label: 'Offers', active: viewMode === 'offers', onClick: () => setViewMode('offers') },
+            ]} />
             <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
           </>
         )}
-        <button
-          onClick={handleTodayClick}
-          style={{
-            padding: '2px 10px', borderRadius: 10, border: '1px solid #ccc',
-            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white', color: '#444',
-            cursor: 'pointer', fontSize: 11, fontWeight: dateMode.kind === 'today' ? 600 : 400, flexShrink: 0,
-          }}
-        >
-          {viewMode === 'offers' ? 'Latest' : 'Today'}
-        </button>
-        {viewMode === 'generation' && (
-          <button
-            onClick={handleRecentClick}
-            style={{
-              padding: '2px 10px', borderRadius: 10, border: '1px solid #ccc',
-              background: dateMode.kind === 'recent' ? '#f0f0f0' : 'white', color: '#444',
-              cursor: 'pointer', fontSize: 11, fontWeight: dateMode.kind === 'recent' ? 600 : 400, flexShrink: 0,
-            }}
-          >
-            Last 3 days
-          </button>
-        )}
+        <ToggleGroup options={viewMode === 'offers'
+          ? [{ key: 'latest', label: 'Latest', active: offerDate === 'latest', onClick: handleTodayClick }]
+          : [
+            { key: 'today', label: 'Today', active: dateMode.kind === 'today', onClick: handleTodayClick },
+            { key: '3d', label: '3d', title: 'Last 3 days', active: dateMode.kind === 'recent', onClick: handleRecentClick },
+            { key: '30d', label: '30d', title: 'Last 30 days', active: isDaily, onClick: handleLast30Click },
+          ]} />
         {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
           <input
@@ -722,15 +784,15 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           </>
         )}
 
-        {viewMode === 'generation' && lastUpdated && !loading && (
+        {viewMode === 'generation' && lastUpdated && !dataLoading && (
           <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
-        {viewMode === 'generation' && loading && (
+        {viewMode === 'generation' && dataLoading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>
             Loading…
           </div>
         )}
-        {viewMode === 'generation' && error && allCodes.length !== 0 && (
+        {viewMode === 'generation' && dataError && allCodes.length !== 0 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#c00', flexShrink: 0 }}>
             Failed to load data
           </div>
@@ -810,23 +872,23 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           ) : null
         ) : (
           <>
-            {loading && allCodes.length === 0 && (
+            {dataLoading && allCodes.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
                 Loading…
               </div>
             )}
-            {error && allCodes.length === 0 && (
+            {dataError && allCodes.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
                 Failed to load data
               </div>
             )}
-            {!loading && !error && allCodes.length === 0 && (
+            {!dataLoading && !dataError && allCodes.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
                 No data available
               </div>
             )}
             {chartOptions && (
-              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${String(isDaily)}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
             )}
           </>
         )}
