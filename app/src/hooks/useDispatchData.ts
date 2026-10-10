@@ -11,6 +11,7 @@ export type DateMode =
   | { kind: 'today' }
   | { kind: 'date'; date: string }
   | { kind: 'range'; from: string; to: string }
+  | { kind: 'last30' }
 
 const dayCache = new Map<string, RecentData>()
 const inFlight = new Map<string, Promise<RecentData>>()
@@ -26,7 +27,7 @@ export function datesBetween(from: string, to: string): string[] {
   return dates
 }
 
-function mergeData(days: RecentData[]): RecentData {
+export function mergeData(days: RecentData[]): RecentData {
   if (days.length === 1) return days[0]
 
   const seriesUnion: string[] = []
@@ -84,8 +85,10 @@ export function useDispatchData(mode: DateMode): {
       setLoading(true)
       setError(null)
       try {
+        // The 30-day view charts daily aggregates (useDailyAggregates); the map
+        // and grid overview keep showing live data underneath it.
         const keys =
-          mode.kind === 'recent' || mode.kind === 'today' ? ['recent'] :
+          mode.kind === 'recent' || mode.kind === 'today' || mode.kind === 'last30' ? ['recent'] :
             mode.kind === 'date' ? [mode.date] :
               datesBetween(mode.from, mode.to)
 
@@ -117,7 +120,7 @@ export function useDispatchData(mode: DateMode): {
 
     load()
 
-    if (mode.kind === 'recent' || mode.kind === 'today') {
+    if (mode.kind === 'recent' || mode.kind === 'today' || mode.kind === 'last30') {
       timerRef.current = setInterval(() => {
         const cached = dayCache.get('recent')
         if (cached) {
