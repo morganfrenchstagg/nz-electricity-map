@@ -1,4 +1,6 @@
+import Highcharts from 'highcharts'
 import type { RecentData } from '../types'
+import type { AggregatePeriod } from '../hooks/useAggregates'
 
 export interface ChartRow {
   time: string
@@ -42,3 +44,30 @@ export function withGaps(points: [number, number | null][]): [number, number | n
   return result
 }
 
+// Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
+export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
+  switch (period) {
+    case 'daily': return Highcharts.dateFormat('%a %e %b', ms)
+    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * 86400000)}`
+    case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
+    default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
+  }
+}
+
+// Months run 28–31 days, but Highcharts gives every column the width of the
+// shortest gap between points (February's), leaving thin gaps after longer
+// months. Runs after Highcharts lays out the columns, and widens each one to
+// meet its neighbours halfway between their start dates. Both neighbours round
+// the same midpoint, so they always share an edge.
+export function fillMonthColumns(this: Highcharts.Series) {
+  const edge = (ms: number) => Math.round(this.xAxis.toPixels(ms, true))
+  for (const point of this.points) {
+    if (!point.shapeArgs) continue
+    const month = new Date(point.x)
+    const prev = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)
+    const next = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
+    const left = edge((prev + point.x) / 2)
+    const right = edge((point.x + next) / 2)
+    point.shapeArgs = { ...point.shapeArgs, x: left, width: right - left }
+  }
+}

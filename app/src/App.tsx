@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Map from './components/Map'
 import NodePanel from './components/NodePanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { SelectedNode, Generator, Substation } from './types'
-import { useDispatchData, isAggregateMode } from './hooks/useDispatchData'
+import { useDispatchData } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
@@ -111,12 +111,6 @@ export default function App() {
   // their own hook (and firing duplicate requests on date changes).
   const { recentData, loading, error } = useDispatchData(dateMode)
 
-  // The grid overview has no 30d, 1y or All view; it shows the live data loaded underneath.
-  const gridDateMode = useMemo<DateMode>(
-    () => (isAggregateMode(dateMode) ? { kind: 'recent' } : dateMode),
-    [dateMode],
-  )
-
   const handleGeneratorClick = useCallback((generator: Generator) => {
     setSelectedNode({ kind: 'generator', generator }),
     setGridPanelVisible(false)
@@ -151,7 +145,7 @@ export default function App() {
         />
       )}
       <GridOverviewPanel
-        dateMode={gridDateMode}
+        dateMode={dateMode}
         onDateModeChange={setDateMode}
         onClose={() => setGridPanelVisible(false)}
         onNodeSelect={(node) => { setSelectedNode(node); setGridPanelVisible(false) }}

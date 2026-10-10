@@ -4,17 +4,18 @@ import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
 import { datesBetween, isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { foldMovedNodes, useAggregates } from '../hooks/useAggregates'
-import type { AggregatePeriod } from '../hooks/useAggregates'
+import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates } from '../hooks/useAggregates'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { extractChartData, withGaps } from '../utils/chart'
+import { extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
 import OutageModal from './OutageModal'
 import OfferChart from './OfferChart'
+import { PeriodToggle, ToggleGroup } from './ToggleGroup'
+import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
 const PANEL_STYLE: React.CSSProperties = {
@@ -75,74 +76,6 @@ function formatOutageEnd(date: Date): string {
     return date.toLocaleTimeString('en-NZ', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
   }
   return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
-}
-
-// The 30d, 1y and All views swap the 5-minute dispatch data for these MWh totals.
-const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod>> = {
-  last30: 'daily',
-  lastYear: 'weekly',
-  all: 'monthly',
-}
-
-// Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
-function tooltipTime(ms: number, period: AggregatePeriod | null): string {
-  switch (period) {
-    case 'daily': return Highcharts.dateFormat('%a %e %b', ms)
-    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * 86400000)}`
-    case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
-    default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
-  }
-}
-
-// Months run 28–31 days, but Highcharts gives every column the width of the
-// shortest gap between points (February's), leaving thin gaps after longer
-// months. Runs after Highcharts lays out the columns, and widens each one to
-// meet its neighbours halfway between their start dates. Both neighbours round
-// the same midpoint, so they always share an edge.
-function fillMonthColumns(this: Highcharts.Series) {
-  const edge = (ms: number) => Math.round(this.xAxis.toPixels(ms, true))
-  for (const point of this.points) {
-    if (!point.shapeArgs) continue
-    const month = new Date(point.x)
-    const prev = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)
-    const next = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
-    const left = edge((prev + point.x) / 2)
-    const right = edge((point.x + next) / 2)
-    point.shapeArgs = { ...point.shapeArgs, x: left, width: right - left }
-  }
-}
-
-interface ToggleOption {
-  key: string
-  label: string
-  title?: string
-  active: boolean
-  onClick: () => void
-}
-
-// Segmented button group, e.g. Generation / Offers.
-function ToggleGroup({ options }: { options: ToggleOption[] }) {
-  return (
-    <div style={{ display: 'flex', borderRadius: 6, border: '1px solid #ddd', overflow: 'hidden', flexShrink: 0 }}>
-      {options.map((o, i) => (
-        <button
-          key={o.key}
-          onClick={o.onClick}
-          title={o.title}
-          aria-pressed={o.active}
-          style={{
-            padding: '3px 9px', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-            background: o.active ? '#1d4ed8' : 'white',
-            color: o.active ? 'white' : '#555',
-            fontWeight: o.active ? 600 : 400,
-            borderRight: i < options.length - 1 ? '1px solid #ddd' : 'none',
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 interface Props {
@@ -295,34 +228,10 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     }
   }, [fromDate, onDateModeChange])
 
-  const handleRecentClick = useCallback(() => {
+  const handlePeriodClick = useCallback((period: Period) => {
     setFromDate('')
     setToDate('')
-    onDateModeChange({ kind: 'recent' })
-  }, [onDateModeChange])
-
-  const handleTodayClick = useCallback(() => {
-    setFromDate('')
-    setToDate('')
-    onDateModeChange({ kind: 'today' })
-  }, [onDateModeChange])
-
-  const handleLast30Click = useCallback(() => {
-    setFromDate('')
-    setToDate('')
-    onDateModeChange({ kind: 'last30' })
-  }, [onDateModeChange])
-
-  const handleLastYearClick = useCallback(() => {
-    setFromDate('')
-    setToDate('')
-    onDateModeChange({ kind: 'lastYear' })
-  }, [onDateModeChange])
-
-  const handleAllClick = useCallback(() => {
-    setFromDate('')
-    setToDate('')
-    onDateModeChange({ kind: 'all' })
+    onDateModeChange({ kind: period })
   }, [onDateModeChange])
 
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
@@ -776,15 +685,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
           </>
         )}
-        <ToggleGroup options={viewMode === 'offers'
-          ? [{ key: 'latest', label: 'Latest', active: offerDate === 'latest', onClick: handleTodayClick }]
-          : [
-            { key: 'today', label: 'Today', active: dateMode.kind === 'today', onClick: handleTodayClick },
-            { key: '3d', label: '3d', title: 'Last 3 days', active: dateMode.kind === 'recent', onClick: handleRecentClick },
-            { key: '30d', label: '30d', title: 'Last 30 days', active: dateMode.kind === 'last30', onClick: handleLast30Click },
-            { key: '1y', label: '1y', title: 'Last 52 weeks', active: dateMode.kind === 'lastYear', onClick: handleLastYearClick },
-            { key: 'all', label: 'All', title: 'Every month since October 2020', active: dateMode.kind === 'all', onClick: handleAllClick },
-          ]} />
+        {viewMode === 'offers'
+          ? <ToggleGroup options={[{ key: 'latest', label: 'Latest', active: offerDate === 'latest', onClick: () => handlePeriodClick('today') }]} />
+          : <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} />}
         {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
           <input
