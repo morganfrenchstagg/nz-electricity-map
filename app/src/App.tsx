@@ -3,7 +3,7 @@ import Map from './components/Map'
 import NodePanel from './components/NodePanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { SelectedNode, Generator, Substation } from './types'
-import { useDispatchData } from './hooks/useDispatchData'
+import { useDispatchData, isAggregateMode } from './hooks/useDispatchData'
 import type { DateMode } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
@@ -59,6 +59,8 @@ export default function App() {
     if (date) return { kind: 'date', date }
     if (mode === 'recent') return { kind: 'recent' }
     if (mode === 'last30') return { kind: 'last30' }
+    if (mode === 'lastYear') return { kind: 'lastYear' }
+    if (mode === 'all') return { kind: 'all' }
     return { kind: 'today' }
   })
 
@@ -69,6 +71,8 @@ export default function App() {
     if (dateMode.kind === 'today') p.set('mode', 'today')
     else if (dateMode.kind === 'recent') p.set('mode', 'recent')
     else if (dateMode.kind === 'last30') p.set('mode', 'last30')
+    else if (dateMode.kind === 'lastYear') p.set('mode', 'lastYear')
+    else if (dateMode.kind === 'all') p.set('mode', 'all')
     else if (dateMode.kind === 'date') p.set('date', dateMode.date)
     else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
@@ -107,9 +111,9 @@ export default function App() {
   // their own hook (and firing duplicate requests on date changes).
   const { recentData, loading, error } = useDispatchData(dateMode)
 
-  // The grid overview has no 30-day view; it shows the live data loaded underneath.
+  // The grid overview has no 30d, 1y or All view; it shows the live data loaded underneath.
   const gridDateMode = useMemo<DateMode>(
-    () => (dateMode.kind === 'last30' ? { kind: 'recent' } : dateMode),
+    () => (isAggregateMode(dateMode) ? { kind: 'recent' } : dateMode),
     [dateMode],
   )
 
