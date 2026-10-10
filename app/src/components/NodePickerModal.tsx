@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Generator, Substation, SelectedNode } from '../types'
 import { fuelColour, FUEL_CODE_ORDER } from '../utils/colours'
+import { isRetired } from '../utils/generators'
 
 interface Props {
   generators: Generator[]
@@ -328,7 +329,15 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                         <span style={{ width: 16, height: 16, borderRadius: 4, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#3b82f6' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {checked && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
                         </span>
-                        <span style={{ flex: 1, fontWeight: checked ? 600 : 400 }}>{g.name}</span>
+                        <span style={{ flex: 1, fontWeight: checked ? 600 : 400 }}>
+                          {g.name}
+                          {/* Retired generators aren't on the map, but their history can still be charted */}
+                          {isRetired(g) && (
+                            <span style={{ marginLeft: 6, fontSize: 10, padding: '0 5px', borderRadius: 3, border: '1px solid #d1d5db', color: '#6b7280', fontWeight: 600, verticalAlign: 'middle' }}>
+                              Retired
+                            </span>
+                          )}
+                        </span>
                         <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                           {fuels.map(fuel => (
                             <span key={fuel} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 3, background: fuelColour(fuel), color: '#fff', fontWeight: 600, opacity: 0.9 }}>
