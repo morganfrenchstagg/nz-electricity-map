@@ -9,7 +9,7 @@ html, body, #root {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
 }
 
-/* NodePanel's 30d, 1y and All column charts */
+/* NodePanel's and GridOverviewPanel's 30d, 1y and All column charts */
 
 /* Gapless columns: without this, anti-aliasing leaves a faint light seam
    where neighbouring columns meet, even on whole-pixel edges. */

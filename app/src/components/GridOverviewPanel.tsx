@@ -3,14 +3,17 @@ import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
+import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
-import { withGaps } from '../utils/chart'
-import { formatMW } from '../utils/format'
+import { fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import NodePickerModal from './NodePickerModal'
 import PipelineModal from './PipelineModal'
+import { PeriodToggle, ToggleGroup } from './ToggleGroup'
+import type { Period } from './ToggleGroup'
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -51,6 +54,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const chartRef = useRef<HighchartsReact.RefObject>(null)
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
+
+  // The 30d, 1y and All views chart every node's MWh totals instead of the
+  // 5-minute dispatch data. Not fetched while the panel is hidden.
+  const aggregatePeriod = AGGREGATE_PERIODS[dateMode.kind] ?? null
+  const isAggregate = aggregatePeriod !== null
+  const aggregates = useAggregates(isAggregate && visible ? 'all' : null, aggregatePeriod)
+  const data = isAggregate ? aggregates.aggregateData : recentData
+  const dataLoading = isAggregate ? aggregates.loading : loading
+  const dataError = isAggregate ? aggregates.error : error
 
   useEffect(() => {
     if (pipelineOpen) {
@@ -119,27 +131,22 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     }
   }, [fromDate, onDateModeChange])
 
-  const handleRecentClick = useCallback(() => {
+  const handlePeriodClick = useCallback((period: Period) => {
     setFromDate('')
     setToDate('')
-    onDateModeChange({ kind: 'recent' })
-  }, [onDateModeChange])
-
-  const handleTodayClick = useCallback(() => {
-    setFromDate('')
-    setToDate('')
-    onDateModeChange({ kind: 'today' })
+    onDateModeChange({ kind: period })
   }, [onDateModeChange])
 
   const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
-    if (!recentData || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
+    if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
     const fuelToIndices = new Map<string, number[]>()
     const fuelToCapacity = new Map<string, number>()
     for (const gen of generators) {
       if (island !== 'all' && gen.island !== island) continue
       for (const unit of gen.units) {
-        if (unit.active === false) continue
-        const idx = recentData.series.indexOf(unit.node)
+        // The aggregate views include retired units' history
+        if (unit.active === false && !isAggregate) continue
+        const idx = data.series.indexOf(unit.node)
         if (idx === -1) continue
         const existing = fuelToIndices.get(unit.fuelCode) ?? []
         fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
@@ -151,7 +158,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       ...[...fuelToIndices.keys()].filter(f => !FUEL_CODE_ORDER.includes(f)),
     ]
     return { fuels, fuelToIndices, fuelToCapacity }
-  }, [recentData, generators, island])
+  }, [data, generators, island, isAggregate])
 
   const [activeFuels, setActiveFuels] = useState<Set<string> | null>(() => {
     const param = new URLSearchParams(window.location.search).get('fuels')
@@ -174,23 +181,36 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
-    if (!recentData || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
+    if (!data || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
 
-    const series: Highcharts.SeriesOptionsType[] = fuels.filter(f => effectiveFuels.has(f)).map(fuel => ({
-      type: 'area',
-      name: fuelCodeLabel(fuel),
-      color: fuelCodeColour(fuel),
-      stacking: 'normal',
-      stack: (fuel === "BESS-C") ? "positive" : "negative",
-      fillOpacity: 0.8,
-      lineWidth: 1,
-      data: withGaps(recentData.data.map(row => [
+    // Aggregate totals: stacked areas become stacked columns, which already stack
+    // negative values (battery charging) separately.
+    const series: Highcharts.SeriesOptionsType[] = fuels.filter(f => effectiveFuels.has(f)).map(fuel => {
+      const points: [number, number][] = data.data.map(row => [
         new Date((row[0] as string) + 'Z').getTime(),
         (fuelToIndices.get(fuel)!).reduce((sum, i) => sum + (((row[i] as number) || 0)), 0),
-      ])),
-      marker: { enabled: false },
-      animation: false,
-    }))
+      ])
+      const colour = fuelCodeColour(fuel)
+      return {
+        type: isAggregate ? 'column' : 'area',
+        name: fuelCodeLabel(fuel),
+        color: colour,
+        // Covers 1px rounding gaps between columns (see NodePanel)
+        borderColor: colour,
+        stacking: 'normal',
+        stack: isAggregate ? undefined : (fuel === "BESS-C") ? "positive" : "negative",
+        fillOpacity: 0.8,
+        lineWidth: 1,
+        data: isAggregate
+          ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
+          : withGaps(points),
+        marker: { enabled: false },
+        events: aggregatePeriod === 'monthly'
+          ? { afterColumnTranslate: fillMonthColumns } as Highcharts.SeriesEventsOptionsObject
+          : undefined,
+        animation: false,
+      }
+    })
 
     /*
     if (island !== 'all') {
@@ -244,18 +264,19 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       .filter(([fuel]) => fuel !== 'BESS-C')
       .flatMap(([, indices]) => indices)
     const renewablePctByMs = new Map<number, number>()
-    for (const row of recentData.data) {
+    for (const row of data.data) {
       const ms = new Date((row[0] as string) + 'Z').getTime()
       const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
       const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
       renewablePctByMs.set(ms, totalMW > 0 ? (renewableMW / totalMW) * 100 : 0)
     }
 
-    // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference)
-    const otaIdx = recentData.series.findIndex(s => s.startsWith('OTA'))
-    const benIdx = recentData.series.findIndex(s => s.startsWith('BEN'))
+    // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference).
+    // Aggregates have no pricing.
+    const otaIdx = data.series.findIndex(s => s.startsWith('OTA'))
+    const benIdx = data.series.findIndex(s => s.startsWith('BEN'))
     const refPricingByMs = new Map<number, { ota: number | null; ben: number | null }>()
-    for (const row of (recentData.pricing ?? [])) {
+    for (const row of (data.pricing ?? [])) {
       const ms = new Date((row[0] as string) + 'Z').getTime()
       refPricingByMs.set(ms, {
         ota: otaIdx >= 0 ? (row[otaIdx + 1] as number ?? null) : null,
@@ -263,10 +284,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       })
     }
 
-    const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = recentData.data
+    const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = data.data
       .filter((row, i) => {
-        if (i === 0) return false
-        return (row[0] as string).slice(0, 10) !== (recentData.data[i - 1][0] as string).slice(0, 10)
+        if (i === 0 || isAggregate) return false
+        return (row[0] as string).slice(0, 10) !== (data.data[i - 1][0] as string).slice(0, 10)
       })
       .map(row => ({
         value: new Date((row[0] as string) + 'Z').getTime(),
@@ -289,7 +310,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     }
 
     return {
-      chart: { type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
+      chart: {
+        type: 'area', height: null, animation: false, backgroundColor: '#ffffff',
+        className: isAggregate ? 'aggregate-columns' : undefined, // see index.css
+      },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: false },
@@ -300,7 +324,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         plotLines: midnightPlotLines,
       },
       yAxis: {
-        title: { text: 'MW', style: { fontSize: '11px' } },
+        title: { text: isAggregate ? 'MWh' : 'MW', style: { fontSize: '11px' } },
         labels: { style: { fontSize: '10px' } },
         softMin: 0,
         gridLineDashStyle: 'Dash',
@@ -311,13 +335,21 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           stacking: 'normal',
           fillOpacity: 0.8,
         },
+        column: {
+          borderWidth: 1,
+          borderRadius: 0,
+          pointPadding: 0,
+          groupPadding: 0,
+          stacking: 'normal',
+        },
       },
       tooltip: {
         shared: true,
         useHTML: true,
         formatter: function () {
           const points = this.points ?? []
-          const time = Highcharts.dateFormat('%e %b %I:%M %p', this.x as number)
+          const time = tooltipTime(this.x as number, aggregatePeriod)
+          const formatValue = isAggregate ? formatMWh : formatMW
           //const isHvdc = (p: { series: { name: string } }) => p.series.name.startsWith('HVDC')
           //const hvdcPoint = points.find(p => isHvdc(p) && (p.y ?? 0) !== 0)
           //const fuelPoints = points.filter(p => !isHvdc(p))
@@ -326,13 +358,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const rows = points
             .slice()
             .map(p => {
-              const val = formatMW(p.y ?? 0)
+              const val = formatValue(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
               const ratioOfTotal = (p.y ?? 0) / total;
               const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
+              // No capacity comparison for aggregate totals
               const cap = capacityByName.get(p.series.name) ?? 0
-              const capStr = cap > 0 ? formatMW(cap) : '–'
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td><td style="color:#888;padding-left:10px">${capStr}</td><td style="padding-left:10px">${percentageStr}</td></tr>`
+              const capCell = isAggregate ? '' : `<td style="color:#888;padding-left:10px">${cap > 0 ? formatMW(cap) : '–'}</td>`
+              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td>${capCell}<td style="padding-left:10px">${percentageStr}</td></tr>`
             })
             .join('')
 
@@ -348,12 +381,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const renewableRow = renewablePct != null
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
-          return `<table><tr><th>${time}</th><th>Generation</th><th style="padding-left:10px">Capacity</th><th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatMW(total)}</b>${renewableRow}${priceRow}`
+          const capHeader = isAggregate ? '' : '<th style="padding-left:10px">Capacity</th>'
+          return `<table><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
         },
       },
       series,
     }
-  }, [recentData, generators, substations, fuels, fuelToIndices, fuelToCapacity, effectiveFuels])
+  }, [data, generators, substations, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
@@ -416,58 +450,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       {/* Island + date picker toolbar */}
       <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-        {(['all', 'NI', 'SI'] as const).map((opt) => (
-          <button
-            key={opt}
-            onClick={() => setIsland(opt)}
-            style={{
-              padding: '2px 10px',
-              borderRadius: 10,
-              border: '1px solid #ccc',
-              background: island === opt ? '#f0f0f0' : 'white',
-              color: '#444',
-              cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: island === opt ? 600 : 400,
-              flexShrink: 0,
-            }}
-          >
-            {opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island'}
-          </button>
-        ))}
+        <ToggleGroup options={(['all', 'NI', 'SI'] as const).map(opt => ({
+          key: opt,
+          label: opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island',
+          active: island === opt,
+          onClick: () => setIsland(opt),
+        }))} />
         <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
-        <button
-          onClick={handleTodayClick}
-          style={{
-            padding: '2px 10px',
-            borderRadius: 10,
-            border: '1px solid #ccc',
-            background: dateMode.kind === 'today' ? '#f0f0f0' : 'white',
-            color: '#444',
-            cursor: 'pointer',
-            fontSize: 11,
-            fontWeight: dateMode.kind === 'today' ? 600 : 400,
-            flexShrink: 0,
-          }}
-        >
-          Today
-        </button>
-        <button
-          onClick={handleRecentClick}
-          style={{
-            padding: '2px 10px',
-            borderRadius: 10,
-            border: '1px solid #ccc',
-            background: dateMode.kind === 'recent' ? '#f0f0f0' : 'white',
-            color: '#444',
-            cursor: 'pointer',
-            fontSize: 11,
-            fontWeight: dateMode.kind === 'recent' ? 600 : 400,
-            flexShrink: 0,
-          }}
-        >
-          Last 3 days
-        </button>
+        <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} />
         {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
           <input
@@ -492,15 +482,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
           )}
         </div>
-        {lastUpdated && !loading && (
+        {lastUpdated && !dataLoading && (
           <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
-        {loading && (
+        {dataLoading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>
             Loading…
           </div>
         )}
-        {error && (
+        {dataError && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#c00' }}>
             Failed to load data
           </div>
@@ -546,18 +536,18 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       {/* Chart area */}
       <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
-        {loading && !recentData && (
+        {dataLoading && !data && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#888' }}>
             Loading…
           </div>
         )}
-        {error && !recentData && (
+        {dataError && !data && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#c00' }}>
             Failed to load data
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact ref={chartRef} key={String(expanded)} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
         )}
       </div>
       {!expanded && !isMobile && (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { mergeData } from './useDispatchData'
+import type { DateMode } from './useDispatchData'
 
 const BASE = 'https://api.electricitymap.frenchsta.gg/v1/dispatch/aggregates'
 const CACHE_MS = 60 * 60 * 1000 // matches the API's max-age
@@ -12,6 +13,13 @@ const DAY_MS = 86400000
 
 export type AggregatePeriod = 'daily' | 'weekly' | 'monthly'
 
+// The 30d, 1y and All views swap the 5-minute dispatch data for these MWh totals.
+export const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod>> = {
+  last30: 'daily',
+  lastYear: 'weekly',
+  all: 'monthly',
+}
+
 interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
@@ -22,11 +30,12 @@ const cache = new Map<string, { at: number; promise: Promise<AggregateResponse> 
 // `path` is a month of daily totals ("2026/09") or a year of weekly or monthly
 // totals ("2026/weekly", "2026/monthly"). `nodes` are prefix-matched by the
 // API, so a substation siteId returns every bus and generator at that site.
+// Empty `nodes` returns every node.
 function fetchAggregates(path: string, nodes: string): Promise<AggregateResponse> {
-  const key = `${path}?${nodes}`
+  const key = nodes ? `${path}?nodes=${encodeURIComponent(nodes)}` : path
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.promise
-  const promise = fetch(`${BASE}/${path}?nodes=${encodeURIComponent(nodes)}`).then(r => {
+  const promise = fetch(`${BASE}/${key}`).then(r => {
     // A month or year with nothing aggregated yet (e.g. on the 1st) 404s
     if (r.status === 404) return { series: [], data: [] }
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -137,9 +146,9 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
  * days, weekly over the last 52 complete weeks, or monthly over every complete
  * month since data begins. Rows are shaped like dispatch data, timestamped at
  * local midnight at the start of each day/week/month, so they can go through
- * the same chart helpers. Pass null to skip fetching.
+ * the same chart helpers. Pass 'all' for every node, or null to skip fetching.
  */
-export function useAggregates(nodes: string[] | null, period: AggregatePeriod | null): {
+export function useAggregates(nodes: string[] | 'all' | null, period: AggregatePeriod | null): {
   aggregateData: RecentData | null
   loading: boolean
   error: string | null
@@ -149,10 +158,10 @@ export function useAggregates(nodes: string[] | null, period: AggregatePeriod | 
   const [result, setResult] = useState<{ period: AggregatePeriod; data: RecentData } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const nodesKey = nodes && nodes.length > 0 ? nodes.join(',') : null
+  const nodesKey = nodes === 'all' ? '' : nodes && nodes.length > 0 ? nodes.join(',') : null
 
   useEffect(() => {
-    if (!nodesKey || !period) { setLoading(false); return }
+    if (nodesKey === null || !period) { setLoading(false); return }
     let cancelled = false
     setLoading(true)
     setError(null)
