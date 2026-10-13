@@ -238,49 +238,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       }
     })
 
-    /*
-    if (island !== 'all') {
-      const allGenIndices = [...fuelToIndices.values()].flat()
-      const islandSubstations = substations.filter(s =>
-        island === 'NI' ? s.island === 'north' : s.island === 'south'
-      )
-      const subIndices: number[] = []
-      for (const sub of islandSubstations) {
-        for (const code of substationCodes(recentData, sub.siteId)) {
-          const idx = recentData.series.indexOf(code)
-          if (idx !== -1) subIndices.push(idx + 1)
-        }
-      }
-      // Pre-compute per-row gen and load so tooltip can show both legs
-      const hvdcData = recentData.data.map(row => {
-        const genMW = allGenIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
-        const loadMW = subIndices.reduce((s, i) => s - ((row[i] as number) || 0), 0)
-        const hvdc = loadMW - genMW
-        return { ts: new Date((row[0] as string) + 'Z').getTime(), genMW, loadMW, hvdc }
-      })
-      series.push({
-        type: 'area',
-        name: 'HVDC export',
-        color: '#6366f1',
-        stack: 'positive',
-        data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW < 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
-        marker: { enabled: false },
-        animation: false,
-      } as Highcharts.SeriesLineOptions)
-
-      series.push({
-        type: 'area',
-        name: 'HVDC import',
-        color: '#6366f1',
-        stack: 'negative',
-        data: hvdcData.map(d => ({ x: d.ts, y: (d.loadMW > 0 ? d.loadMW : 0), custom: { genMW: d.genMW, loadMW: d.loadMW } })),
-        marker: { enabled: false },
-        animation: false,
-      } as Highcharts.SeriesLineOptions)
-    }
-      */
-
-
     // Build per-timestamp renewable percentage
     const RENEWABLE_FUEL_CODES = new Set(['HYD', 'GEO', 'WIN', 'SOL', 'BESS'])
     const renewableIndices = [...fuelToIndices.entries()]
@@ -376,9 +333,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const points = this.points ?? []
           const time = tooltipTime(this.x as number, aggregatePeriod)
           const formatValue = isAggregate ? formatMWh : formatMW
-          //const isHvdc = (p: { series: { name: string } }) => p.series.name.startsWith('HVDC')
-          //const hvdcPoint = points.find(p => isHvdc(p) && (p.y ?? 0) !== 0)
-          //const fuelPoints = points.filter(p => !isHvdc(p))
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
 
           const rows = points
@@ -413,7 +367,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       },
       series,
     }
-  }, [data, generators, substations, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
+  }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
