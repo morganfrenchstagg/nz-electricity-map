@@ -36,18 +36,6 @@ function fetchOffers(date: string): Promise<OffersData> {
   return p
 }
 
-export function todayNZT(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-}
-
-export function currentTradingPeriod(): number {
-  const now = new Date()
-  const nztDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-  const nztMidnight = new Date(`${nztDateStr}T00:00:00`)
-  const minutesSinceMidnight = (now.getTime() - nztMidnight.getTime()) / 60000
-  return Math.max(1, Math.ceil(minutesSinceMidnight / 30))
-}
-
 export function tradingPeriodLabel(tp: number, date: string): string {
   // Normalise both "YYYYMMDD" and "YYYY-MM-DD" to the dashed form
   const iso = date.length === 8 ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}` : date
