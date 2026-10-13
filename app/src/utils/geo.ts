@@ -1,6 +1,6 @@
 import type { Generator, Substation } from '../types'
 import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
-import { isRetired } from './generators'
+import { isCharging, isRetired } from './generators'
 
 // Retired generators are left off the map
 const isOnMap = (g: Generator) => !isRetired(g)
@@ -9,7 +9,7 @@ export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCol
   const features: GeoJSON.Feature[] = generators.filter(isOnMap).map((g) => {
     const activeUnits = g.units.filter((u) => u.active !== false)
     const dominantFuel = activeUnits[0]?.fuel ?? g.units[0]?.fuel ?? 'Unknown'
-    const totalCapacityMW = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
+    const totalCapacityMW = activeUnits.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
 
     return {
       type: 'Feature',

@@ -2,9 +2,10 @@ import type Highcharts from 'highcharts'
 import type { Generator, RecentData, Substation, Unit } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
-import { busLabel, substationCodes } from './chart'
-import { fuelColour, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
+import { busLabel, isGeneratorCode, substationCodes, unitOfCode } from './chart'
+import { fuelColour, fuelFamily, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
+import { isCharging, unitLabel } from './generators'
 import { nzNowMs } from './time'
 
 // Outage timestamps include a timezone offset (e.g. +12:00). Chart row timestamps
@@ -94,10 +95,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     return Math.max(0, (unit.installedCapacity ?? unit.capacity) - lost)
   }
 
-  const subtitleFuels = [...new Set(activeUnits.map((u) => {
-    if (u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)') return 'Battery'
-    return u.fuel
-  }))]
+  const subtitleFuels = [...new Set(activeUnits.map((u) => fuelFamily(u.fuel)))]
     .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
     .map((label) => ({ label, colour: fuelColour(label) }))
 
@@ -119,8 +117,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 
     labelFor(code) {
       const unit = generator.units.find((u) => u.node === code)
-      if (!unit) return code.includes(' ') ? code.split(' ')[1] : code
-      return unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
+      if (!unit) return isGeneratorCode(code) ? unitOfCode(code) : code
+      return unitLabel(unit)
     },
 
     colourFor(code) {
@@ -137,12 +135,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const units = effectiveCodes
         ? activeUnits.filter((u) => effectiveCodes.has(u.node))
         : activeUnits
-      const adjusted = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
 
       // softMax = maximum capacity the generator reaches over the chart period.
       // Collect all outage-event timestamps within the chart window plus firstTime,
       // evaluate totalCap at each, take the max.
-      let softMaxCap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
+      let softMaxCap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
       if (outages && rows && rows.length > 0) {
         const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
         const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
@@ -157,11 +155,11 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         }
         softMaxCap = 0
         for (const t of checkTs) {
-          const cap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(u => u.fuelCode === 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
 
       const capacityPlotLines: Highcharts.YAxisPlotLinesOptions[] = []
       if (!outages) {
@@ -215,13 +213,13 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     showLegend(_numCodes) { return false },
     capacityMW(effectiveCodes) {
       return activeUnits
-        .filter((u) => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .filter((u) => effectiveCodes.has(u.node) && !isCharging(u))
         .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
     },
 
     normalCapacityMW(effectiveCodes) {
       return activeUnits
-        .filter((u) => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .filter((u) => effectiveCodes.has(u.node) && !isCharging(u))
         .reduce((sum, u) => sum + u.capacity, 0)
     },
 
@@ -240,7 +238,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
 
       function totalCapAt(atMs: number): number {
-        return units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
       }
 
       // Collect unique timestamps within the chart window where any unit's outage state changes.
@@ -322,9 +320,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     return null
   }
 
-  const subtitleFuels = [...new Set(allActiveUnits.map(u =>
-    u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)' ? 'Battery' : u.fuel
-  ))]
+  const subtitleFuels = [...new Set(allActiveUnits.map(u => fuelFamily(u.fuel)))]
     .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
     .map(label => ({ label, colour: fuelColour(label) }))
 
@@ -354,7 +350,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     labelFor(code) {
       const unit = allUnits.find(u => u.node === code)
       if (!unit) return code
-      const suffix = unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name
+      const suffix = unitLabel(unit)
       const prefix = genNameFor(code)
       if (!prefix || prefix === unit.name) return suffix
       return `${prefix} — ${suffix}`
@@ -369,8 +365,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 
     yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes ? allActiveUnits.filter(u => effectiveCodes.has(u.node)) : allActiveUnits
-      const adjusted = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
-      let softMaxCap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
+      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      let softMaxCap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
       if (outages && rows && rows.length > 0) {
         const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
         const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
@@ -384,11 +380,11 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         }
         softMaxCap = 0
         for (const t of checkTs) {
-          const cap = units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(u => u.fuelCode === 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
       return {
         title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
@@ -405,13 +401,13 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 
     capacityMW(effectiveCodes) {
       return allActiveUnits
-        .filter(u => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .filter(u => effectiveCodes.has(u.node) && !isCharging(u))
         .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
     },
 
     normalCapacityMW(effectiveCodes) {
       return allActiveUnits
-        .filter(u => effectiveCodes.has(u.node) && u.fuelCode !== 'BESS-C')
+        .filter(u => effectiveCodes.has(u.node) && !isCharging(u))
         .reduce((sum, u) => sum + u.capacity, 0)
     },
 
@@ -427,7 +423,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
       const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
       function totalCapAt(atMs: number) {
-        return units.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
       }
       const timestamps = new Set<number>()
       for (const unit of units) {
@@ -462,17 +458,14 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 }
 
 export function createSubstationAdapter(substation: Substation, allGenerators: Generator[]): NodeAdapter {
-  // Generator codes contain a space; bus codes don't
   const unitFor = (code: string) => {
-    if (!code.includes(' ')) return null
+    if (!isGeneratorCode(code)) return null
     for (const gen of allGenerators) {
       const unit = gen.units.find((u) => u.node === code)
       if (unit) return unit
     }
     return null
   }
-  // As for generators, a battery's charging node is marked to tell it apart
-  const unitLabel = (unit: Unit) => (unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name)
 
   return {
     title: `${substation.description} Substation`,
@@ -484,15 +477,15 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
       const codes = substationCodes(recent, substation.siteId)
       const genName = (code: string) => { const unit = unitFor(code); return unit ? unitLabel(unit) : code }
       return [
-        ...codes.filter((c) => !c.includes(' ')),
-        ...codes.filter((c) => c.includes(' ')).sort((a, b) => genName(a).localeCompare(genName(b))),
+        ...codes.filter((c) => !isGeneratorCode(c)),
+        ...codes.filter(isGeneratorCode).sort((a, b) => genName(a).localeCompare(genName(b))),
       ]
     },
 
     labelFor(code, codes) {
       const unit = unitFor(code)
       if (unit) return unitLabel(unit)
-      return code.includes(' ') ? code.split(' ')[1] : busLabel(code, codes)
+      return isGeneratorCode(code) ? unitOfCode(code) : busLabel(code, codes)
     },
 
     colourFor(code, _index) {
@@ -517,8 +510,8 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
       return [{
         type: 'line',
         name: 'Total',
-        // Off by default unless the substation has generators (codes with a space)
-        visible: codes.some((c) => c.includes(' ')),
+        // Off by default unless the substation has generators
+        visible: codes.some(isGeneratorCode),
         color: '#222222',
         lineWidth: 2,
         zIndex: 5,

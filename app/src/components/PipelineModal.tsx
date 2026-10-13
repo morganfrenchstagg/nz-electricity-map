@@ -1,14 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
-import { fuelColour } from '../utils/colours'
-
-const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
-  'Commissioning': { bg: '#dcfce7', text: '#15803d' },
-  'Pre-Commissioning': { bg: '#d1fae5', text: '#059669' },
-  'Under Construction': { bg: '#ffedd5', text: '#c2410c' },
-  'Early Works': { bg: '#f3f4f6', text: '#374151' },
-  'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
-}
+import { fuelColour, statusColour, STATUS_COLOURS } from '../utils/colours'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
 
@@ -144,7 +136,7 @@ export default function PipelineModal({ onClose }: Props) {
                 </tr>
               )}
               {filtered.map((n, i) => {
-                const statusColour = STATUS_COLOURS[n.status] ?? { bg: '#f3f4f6', text: '#374151' }
+                const pillColour = statusColour(n.status)
                 const capacityStr = n.capacityMW != null
                   ? `${n.capacityMW} MW${n.capacityMWh ? ` / ${n.capacityMWh} MWh` : ''}`
                   : n.capacityMWp != null
@@ -166,7 +158,7 @@ export default function PipelineModal({ onClose }: Props) {
                     </td>
                     <td style={{ ...td(), color: 'var(--color-text-secondary)' }}>{n.operator}</td>
                     <td style={td()}>
-                      <span style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--space-2xs) var(--space-md)', borderRadius: 10, background: statusColour.bg, color: statusColour.text, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--space-2xs) var(--space-md)', borderRadius: 10, background: pillColour.bg, color: pillColour.text, fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {n.status}
                       </span>
                     </td>

@@ -17,6 +17,15 @@ const FUELS = [
   { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'] },
 ] as const
 
+// A battery's charging is listed as a unit of its own. It draws power rather
+// than generating it, so it's left out of capacity and generation totals.
+export const CHARGING_FUEL_CODE = 'BESS-C'
+
+// A battery's charging and discharging units are listed as one fuel, Battery
+export function fuelFamily(fuel: string): string {
+  return fuel === 'Battery (Charging)' || fuel === 'Battery (Discharging)' ? 'Battery' : fuel
+}
+
 // Derived lookups — all keyed by fuel code
 export const FUEL_CODE_COLOURS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.colour]))
@@ -85,3 +94,18 @@ export const MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION = matchExpression(
   Object.entries(VOLTAGE_COLOURS).map(([kv, colour]) => [Number(kv), colour]),
   VOLTAGE_COLOUR_DEFAULT,
 )
+
+// Pill colours for an under-construction project's status, shared by the map
+// popups and the pipeline table. The hue tracks how far along the build is.
+export const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
+  'Commissioning': { bg: '#dcfce7', text: '#15803d' },
+  'Pre-Commissioning': { bg: '#d1fae5', text: '#059669' },
+  'Under Construction': { bg: '#ffedd5', text: '#c2410c' },
+  'Early Works': { bg: '#f3f4f6', text: '#374151' },
+  'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
+}
+export const STATUS_COLOUR_DEFAULT = { bg: '#f3f4f6', text: '#374151' }
+
+export function statusColour(status: string): { bg: string; text: string } {
+  return STATUS_COLOURS[status] ?? STATUS_COLOUR_DEFAULT
+}
