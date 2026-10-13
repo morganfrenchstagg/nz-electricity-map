@@ -3,11 +3,11 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { busLabel, isGeneratorCode, substationCodes, tooltipTime, unitOfCode } from '../utils/chart'
+import { busLabel, chartReach, isGeneratorCode, substationCodes, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { fuelColour, voltageColour } from '../utils/colours'
-import { formatMW, formatMWh } from '../utils/format'
+import { energyUnit, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { unitLabel } from '../utils/generators'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
@@ -30,8 +30,13 @@ function busColour(code: string): string {
   return voltageColour(code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN)
 }
 
-// The substation's load over every code charted, shown or not
-function totalSeries({ rows, codes }: ChartData, visible: boolean): Highcharts.SeriesLineOptions {
+// The substation's load at each time, over every code charted, shown or not
+function totalLoads({ rows, codes }: ChartData): number[] {
+  return rows.map((row) => codes.reduce((sum, code) => sum + toLoad(row[code] as number), 0))
+}
+
+// The Total line, its loads divided by unitSize to chart them in the panel's unit
+function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, unitSize: number): Highcharts.SeriesLineOptions {
   return {
     type: 'line',
     name: TOTAL,
@@ -39,10 +44,7 @@ function totalSeries({ rows, codes }: ChartData, visible: boolean): Highcharts.S
     color: TOTAL_COLOUR,
     lineWidth: 2,
     zIndex: 5,
-    data: rows.map((row) => [
-      nzLocalMs(row.time),
-      codes.reduce((sum, code) => sum + toLoad(row[code] as number), 0),
-    ]),
+    data: rows.map((row, i) => [nzLocalMs(row.time), loads[i] / unitSize]),
     marker: { enabled: false },
     animation: false,
   }
@@ -136,6 +138,16 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
     const prices = pricesByTime(isAggregate ? null : recentData, chartData.codes)
 
+    // Aggregate totals are MWh, charted in GWh unless the lines stay low
+    const totals = hasTotal ? totalLoads(chartData) : []
+    const shownCodes = chartData.codes.filter((code) => effectiveCodes.has(code))
+    const unit = isAggregate
+      ? energyUnit(chartReach(chartData.rows.map((row, i) => [
+          ...shownCodes.map((code) => row[code] as number),
+          ...(totalShown ? [totals[i]] : []),
+        ]), false))
+      : MW_UNIT
+
     return nodeChartOptions({
       chartData,
       aggregatePeriod,
@@ -143,16 +155,16 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       type: 'line',
       labelFor,
       colourFor,
-      transformValue: toLoad,
-      extraSeries: hasTotal ? [totalSeries(chartData, totalShown)] : [],
+      transformValue: (value) => toLoad(value) / unit.size,
+      extraSeries: hasTotal ? [totalSeries(chartData, totals, totalShown, unit.size)] : [],
       yAxis: {
-        title: { text: isAggregate ? 'Load (MWh)' : 'Load (MW)' },
+        title: { text: `Load (${unit.label})` },
         softMin: 0,
         gridLineDashStyle: 'Dash',
       },
       tooltipFormatter: function () {
         const points = (this.points ?? []).filter((p) => p.series.name !== TOTAL)
-        const formatValue = isAggregate ? formatMWh : formatMW
+        const formatValue = unit.format
         const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1 }
         const row = (p: Highcharts.Point) => tooltipRow(p, context)
 

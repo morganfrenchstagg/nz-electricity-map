@@ -8,10 +8,10 @@ import type { OutageRecord } from '../api'
 import { installedCapacityOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
 import type { OutageSegment } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { tooltipTime, totalMWh } from '../utils/chart'
+import { chartReach, tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
-import { formatMW, formatMWh } from '../utils/format'
+import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT } from '../utils/format'
 import { nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
@@ -223,22 +223,30 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
     const prices = pricesByTime(isAggregate ? null : recentData, chartData.codes)
 
+    // Aggregate totals are MWh, charted in GWh unless the columns stay small
+    const stacked = chartData.codes.length > 1
+    const shownCodes = chartData.codes.filter(code => effectiveCodes.has(code))
+    const unit = isAggregate
+      ? energyUnit(chartReach(chartData.rows.map(row => shownCodes.map(code => row[code] as number)), stacked))
+      : MW_UNIT
+
     return nodeChartOptions({
       chartData,
       aggregatePeriod,
       effectiveCodes,
       type: 'area',
-      stacking: chartData.codes.length > 1 ? 'normal' : undefined,
+      stacking: stacked ? 'normal' : undefined,
       labelFor: adapter.labelFor,
       colourFor: adapter.colourFor,
+      transformValue: (value) => value / unit.size,
       extraSeries: capSeries ? [capSeries] : [],
       legend: adapter.showLegend,
       yAxis: isAggregate
-        ? { title: { text: 'MWh' }, softMin: 0, gridLineDashStyle: 'Dash' }
+        ? { title: { text: unit.label }, softMin: 0, gridLineDashStyle: 'Dash' }
         : adapter.yAxisOptions(effectiveCodes, chartData.rows),
       tooltipFormatter: function () {
         const points = this.points ?? []
-        const formatValue = isAggregate ? formatMWh : formatMW
+        const formatValue = unit.format
         const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1 }
         // No capacity comparison for aggregate totals
         const cap = isAggregate ? null : capacityAt(this.x as number)
@@ -277,7 +285,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
       {!compactHeader && isAggregate && totalGenerationMWh !== null && (
         <div style={{ alignSelf: 'center', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          Total: {formatMWh(totalGenerationMWh)}
+          Total: {formatEnergy(totalGenerationMWh)}
         </div>
       )}
       {!compactHeader && !isAggregate && currentGeneration !== null && (

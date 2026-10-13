@@ -56,3 +56,43 @@ export function formatMW(value: number): string {
 export function formatMWh(value: number): string {
   return formatWithUnit(value, 'MWh')
 }
+
+/**
+ * Format a GWh value for display, at formatWithUnit's precision.
+ */
+export function formatGWh(value: number): string {
+  return formatWithUnit(value, 'GWh')
+}
+
+// A unit values are charted and shown in: its label, how many of the data's
+// MW or MWh make one of it, and how to format a value already in it
+export interface DisplayUnit {
+  label: string
+  size: number
+  format: (value: number) => string
+}
+
+export const MW_UNIT: DisplayUnit = { label: 'MW', size: 1, format: formatMW }
+const MWH_UNIT: DisplayUnit = { label: 'MWh', size: 1, format: formatMWh }
+const GWH_UNIT: DisplayUnit = { label: 'GWh', size: 1000, format: formatGWh }
+
+// Under 5 GWh, GWh would leave a chart's axis or a total on a few small,
+// fiddly numbers
+const GWH_FROM_MWH = 5000
+
+/**
+ * The unit for MWh values reaching up to `largestMWh`: GWh from 5 GWh, and
+ * MWh below that.
+ */
+export function energyUnit(largestMWh: number): DisplayUnit {
+  return Math.abs(largestMWh) < GWH_FROM_MWH ? MWH_UNIT : GWH_UNIT
+}
+
+/**
+ * Format a MWh value for display in MWh or GWh, whichever energyUnit picks
+ * for its size.
+ */
+export function formatEnergy(mwh: number): string {
+  const unit = energyUnit(mwh)
+  return unit.format(mwh / unit.size)
+}
