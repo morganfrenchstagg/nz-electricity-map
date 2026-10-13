@@ -5,7 +5,7 @@ import type { OffersData } from '../api'
 import type { GeneratorNode } from '../types'
 import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
-import { FIT_TO_CONTAINER } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, FIT_TO_CONTAINER } from '../utils/chart'
 
 interface Props {
   offersData: OffersData
@@ -181,7 +181,7 @@ export default function OfferChart({ offersData, tradingPeriod, node }: Props) {
       key={`offers-${tradingPeriod}`}
       highcharts={Highcharts}
       options={chartOptions}
-      containerProps={{ style: { height: '100%' } }}
+      containerProps={CHART_CONTAINER_PROPS}
     />
   )
 }
