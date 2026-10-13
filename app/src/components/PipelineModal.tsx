@@ -1,6 +1,7 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
-import { fuelColour, statusColour, STATUS_COLOURS } from '../utils/colours'
+import { fuelColour, statusColour } from '../utils/colours'
+import FilterDropdown from './FilterDropdown'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
 
@@ -99,8 +100,8 @@ export default function PipelineModal({ onClose }: Props) {
 
         {/* Filter bar */}
         <div className="section" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <FilterDropdown label="Fuel" options={ALL_FUELS} active={fuels} onToggle={v => setFuels(toggle(fuels, v))} onClear={() => setFuels(new Set())} colour={fuelColour} />
-          <FilterDropdown label="Status" options={STATUS_ORDER} active={statuses} onToggle={v => setStatuses(toggle(statuses, v))} onClear={() => setStatuses(new Set())} statusColours={STATUS_COLOURS} />
+          <FilterDropdown label="Fuel" options={ALL_FUELS} active={fuels} onToggle={v => setFuels(toggle(fuels, v))} onClear={() => setFuels(new Set())} swatch={fuel => ({ background: fuelColour(fuel), borderRadius: '50%' })} />
+          <FilterDropdown label="Status" options={STATUS_ORDER} active={statuses} onToggle={v => setStatuses(toggle(statuses, v))} onClear={() => setStatuses(new Set())} swatch={status => ({ background: statusColour(status).bg, border: `1px solid ${statusColour(status).text}` })} />
           <FilterDropdown label="Year" options={ALL_YEARS} active={years} onToggle={v => setYears(toggle(years, v))} onClear={() => setYears(new Set())} />
           <FilterDropdown label="Operator" options={ALL_OPERATORS} active={operators} onToggle={v => setOperators(toggle(operators, v))} onClear={() => setOperators(new Set())} />
           {hasFilters && (
@@ -215,70 +216,6 @@ function SortTh({ col, label, sortCol, sortDir, onSort, align = 'left' }: {
         </span>
       </span>
     </th>
-  )
-}
-
-interface FilterDropdownProps {
-  label: string
-  options: string[]
-  active: Set<string>
-  onToggle: (v: string) => void
-  onClear: () => void
-  colour?: (v: string) => string
-  statusColours?: Record<string, { bg: string; text: string }>
-}
-
-function FilterDropdown({ label, options, active, onToggle, onClear, colour, statusColours }: FilterDropdownProps) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  const isActive = active.size > 0
-  const summary = active.size === 0 ? label
-    : active.size === 1 ? [...active][0]
-      : `${label}: ${active.size}`
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={isActive ? 'filter-button is-active' : 'filter-button'}
-      >
-        {summary}
-        {isActive && (
-          <span
-            onClick={e => { e.stopPropagation(); onClear() }}
-            style={{ opacity: 0.5, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}
-          >✕</span>
-        )}
-        <span style={{ opacity: 0.4, fontSize: 'var(--font-size-xs)' }}>▾</span>
-      </button>
-      {open && (
-        <div className="popover" style={{ top: 'calc(100% + 4px)', left: 0, zIndex: 50, minWidth: 180, maxHeight: 260, overflowY: 'auto' }}>
-          {options.map(opt => {
-            const checked = active.has(opt)
-            const sc = statusColours?.[opt]
-            const dot = colour ? colour(opt) : undefined
-            return (
-              <div key={opt} onClick={() => onToggle(opt)} className={checked ? 'menu-item is-selected' : 'menu-item'}>
-                {dot && !sc && <span style={{ width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
-                {sc && <span style={{ width: 10, height: 10, borderRadius: 3, background: sc.bg, border: `1px solid ${sc.text}`, flexShrink: 0 }} />}
-                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-strong)' : 'var(--color-text)' }}>{opt}</span>
-                {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
   )
 }
 

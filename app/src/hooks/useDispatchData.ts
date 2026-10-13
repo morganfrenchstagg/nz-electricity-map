@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { fetchDispatch, peekDispatch } from '../api'
+import { todayNZ } from '../utils/time'
 
 // Cheap: only reaches the network once the cached dispatch/recent expires (see api.ts)
 const POLL_MS = 15 * 1000
@@ -93,11 +94,11 @@ export function useDispatchData(mode: DateMode): {
       shown = days
       let merged = mergeData(days)
       if (mode.kind === 'today') {
-        const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+        const today = todayNZ()
         merged = {
           ...merged,
-          data: merged.data.filter(row => (row[0] as string).slice(0, 10) === todayNZ),
-          pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === todayNZ),
+          data: merged.data.filter(row => (row[0] as string).slice(0, 10) === today),
+          pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === today),
         }
       }
       setRecentData(merged)

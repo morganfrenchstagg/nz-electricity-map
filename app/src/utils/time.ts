@@ -13,3 +13,15 @@ export function nzNowMs(): number {
     new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
   ).getTime()
 }
+
+// Today's NZ date, as "YYYY-MM-DD"
+export function todayNZ(): string {
+  return new Date(nzNowMs()).toISOString().slice(0, 10)
+}
+
+// Outage timestamps carry an offset (e.g. "2026-10-13T14:30:00+13:00"), but
+// their clock time is already NZ local, so dropping the offset puts them in
+// the same convention as dispatch timestamps.
+export function outageMs(iso: string): number {
+  return nzLocalMs(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, ''))
+}

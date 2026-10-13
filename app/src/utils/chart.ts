@@ -1,6 +1,7 @@
 import Highcharts from 'highcharts'
 import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
+import { nzLocalMs } from './time'
 
 export interface ChartRow {
   time: string
@@ -72,6 +73,24 @@ export function withGaps(points: [number, number | null][]): [number, number | n
 export const DATETIME_LABEL_FORMATS = {
   day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p',
 } as Highcharts.AxisDateTimeLabelFormatsOptions
+
+// A line, labelled with the date, at each midnight in a run of dispatch timestamps
+export function midnightPlotLines(times: string[]): Highcharts.XAxisPlotLinesOptions[] {
+  return times
+    .filter((time, i) => i > 0 && time.slice(0, 10) !== times[i - 1].slice(0, 10))
+    .map((time) => ({
+      value: nzLocalMs(time),
+      color: '#aaaaaa',
+      width: 1,
+      dashStyle: 'Solid',
+      label: {
+        text: Highcharts.dateFormat('%e %b', nzLocalMs(time)),
+        style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
+        y: 14,
+      },
+      zIndex: 3,
+    }))
+}
 
 // HighchartsReact calls chart.update() whenever containerProps changes, so an
 // inline object would redraw the chart on every render. Share one instead.

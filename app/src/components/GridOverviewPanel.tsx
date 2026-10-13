@@ -6,7 +6,7 @@ import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, midnightPlotLines, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -174,24 +174,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       })
     }
 
-    const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = data.data
-      .filter((row, i) => {
-        if (i === 0 || isAggregate) return false
-        return (row[0] as string).slice(0, 10) !== (data.data[i - 1][0] as string).slice(0, 10)
-      })
-      .map(row => ({
-        value: new Date((row[0] as string) + 'Z').getTime(),
-        color: '#aaaaaa',
-        width: 1,
-        dashStyle: 'Solid' as const,
-        label: {
-          text: Highcharts.dateFormat('%e %b', new Date((row[0] as string) + 'Z').getTime()),
-          style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
-          y: 14,
-        },
-        zIndex: 3,
-      }))
-
     // Total installed capacity (MSGC) per fuel, keyed by the series name shown in
     // the tooltip (fuelCodeLabel) so the shared formatter can look it up per point.
     const capacityByName = new Map<string, number>()
@@ -211,7 +193,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       xAxis: {
         type: 'datetime',
         dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
-        plotLines: midnightPlotLines,
+        plotLines: isAggregate ? [] : midnightPlotLines(data.data.map(row => row[0] as string)),
       },
       yAxis: {
         title: { text: isAggregate ? 'MWh' : 'MW' },

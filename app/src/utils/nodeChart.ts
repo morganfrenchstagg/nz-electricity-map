@@ -1,7 +1,7 @@
-import Highcharts from 'highcharts'
+import type Highcharts from 'highcharts'
 import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
-import { DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, withGaps } from './chart'
+import { DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, midnightPlotLines, withGaps } from './chart'
 import type { ChartData } from './chart'
 
 const identity = (value: number) => value
@@ -65,24 +65,6 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
     }
   })
 
-  const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
-    .filter((row, i) => {
-      if (i === 0 || isAggregate) return false
-      return (row.time as string).slice(0, 10) !== (chartData.rows[i - 1].time as string).slice(0, 10)
-    })
-    .map((row) => ({
-      value: new Date((row.time as string) + 'Z').getTime(),
-      color: '#aaaaaa',
-      width: 1,
-      dashStyle: 'Solid',
-      label: {
-        text: Highcharts.dateFormat('%e %b', new Date((row.time as string) + 'Z').getTime()),
-        style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
-        y: 14,
-      },
-      zIndex: 3,
-    }))
-
   return {
     chart: {
       ...FIT_TO_CONTAINER,
@@ -95,7 +77,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
     xAxis: {
       type: 'datetime',
       dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
-      plotLines: midnightPlotLines,
+      plotLines: isAggregate ? [] : midnightPlotLines(chartData.rows.map((row) => row.time)),
     },
     yAxis,
     tooltip: {

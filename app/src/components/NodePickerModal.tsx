@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Generator, Substation, SelectedNode } from '../types'
 import { fuelColour, fuelFamily, FUEL_CODE_ORDER } from '../utils/colours'
 import { isRetired } from '../utils/generators'
+import FilterDropdown from './FilterDropdown'
 
 interface Props {
   generators: Generator[]
@@ -40,12 +41,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
       : new Set<string>()
   const [selectedSites, setSelectedSites] = useState<Set<string>>(initialSites)
   const [selectedFuels, setSelectedFuels] = useState<Set<string>>(new Set())
-  const [fuelDropdownOpen, setFuelDropdownOpen] = useState(false)
-  const fuelDropdownRef = useRef<HTMLDivElement>(null)
-
   const [selectedSchemes, setSelectedSchemes] = useState<Set<string>>(new Set())
-  const [schemeDropdownOpen, setSchemeDropdownOpen] = useState(false)
-  const schemeDropdownRef = useRef<HTMLDivElement>(null)
 
   const availableSchemes = useMemo(() => {
     const schemes = generators.map(g => g.scheme).filter((s): s is string => !!s)
@@ -109,30 +105,8 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  useEffect(() => {
-    if (!fuelDropdownOpen) return
-    const handler = (e: MouseEvent) => {
-      if (fuelDropdownRef.current && !fuelDropdownRef.current.contains(e.target as Node)) {
-        setFuelDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [fuelDropdownOpen])
-
-  useEffect(() => {
-    if (!schemeDropdownOpen) return
-    const handler = (e: MouseEvent) => {
-      if (schemeDropdownRef.current && !schemeDropdownRef.current.contains(e.target as Node)) {
-        setSchemeDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [schemeDropdownOpen])
-
   // Reset search and filters when switching tabs
-  const handleTabChange = (t: Tab) => { setTab(t); setQuery(''); setSelectedFuels(new Set()); setSelectedSchemes(new Set()); setFuelDropdownOpen(false); setSchemeDropdownOpen(false) }
+  const handleTabChange = (t: Tab) => { setTab(t); setQuery(''); setSelectedFuels(new Set()); setSelectedSchemes(new Set()) }
 
   const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
   const q = norm(query)
@@ -182,62 +156,25 @@ export default function NodePickerModal({ generators, substations, currentNode, 
           return (
           <div className="section" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {searchInput}
-            {/* Scheme dropdown */}
-            <div style={{ position: 'relative', alignSelf: 'stretch' }} ref={schemeDropdownRef}>
-              <button
-                onClick={() => { setSchemeDropdownOpen(o => !o); setFuelDropdownOpen(false) }}
-                className={selectedSchemes.size > 0 ? 'filter-button is-active' : 'filter-button'}
-                style={{ display: 'flex', height: '100%' }}
-              >
-                {selectedSchemes.size === 0 ? 'All schemes' : selectedSchemes.size === 1 ? [...selectedSchemes][0] : `${selectedSchemes.size} schemes`}
-                {selectedSchemes.size > 0 && (
-                  <span onClick={e => { e.stopPropagation(); setSelectedSchemes(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}>✕</span>
-                )}
-                <span style={{ opacity: 0.4, marginLeft: 2, fontSize: 'var(--font-size-xs)' }}>▾</span>
-              </button>
-              {schemeDropdownOpen && (
-                <div className="popover" style={{ top: '100%', right: 0, zIndex: 10, minWidth: 200 }}>
-                  {availableSchemes.map(scheme => {
-                    const active = selectedSchemes.has(scheme)
-                    return (
-                      <div key={scheme} onClick={() => toggleScheme(scheme)} className={active ? 'menu-item is-selected' : 'menu-item'}>
-                        <span style={{ flex: 1 }}>{scheme}</span>
-                        {active && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Fuel dropdown */}
-            <div style={{ position: 'relative', alignSelf: 'stretch' }} ref={fuelDropdownRef}>
-              <button
-                onClick={() => { setFuelDropdownOpen(o => !o); setSchemeDropdownOpen(false) }}
-                className={selectedFuels.size > 0 ? 'filter-button is-active' : 'filter-button'}
-                style={{ display: 'flex', height: '100%' }}
-              >
-                {selectedFuels.size === 0 ? 'All fuels' : selectedFuels.size === 1 ? [...selectedFuels][0] : `${selectedFuels.size} fuels`}
-                {selectedFuels.size > 0 && (
-                  <span onClick={e => { e.stopPropagation(); setSelectedFuels(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}>✕</span>
-                )}
-                <span style={{ opacity: 0.4, marginLeft: 2, fontSize: 'var(--font-size-xs)' }}>▾</span>
-              </button>
-              {fuelDropdownOpen && (
-                <div className="popover" style={{ top: '100%', right: 0, zIndex: 10, minWidth: 200 }}>
-                  {availableFuels.map(fuel => {
-                    const active = selectedFuels.has(fuel)
-                    return (
-                      <div key={fuel} onClick={() => toggleFuel(fuel)} className={active ? 'menu-item is-selected' : 'menu-item'}>
-                        <span style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0, background: fuelColour(fuel) }} />
-                        <span style={{ flex: 1 }}>{fuel}</span>
-                        {active && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <FilterDropdown
+              label="All schemes"
+              countLabel={n => `${n} schemes`}
+              options={availableSchemes}
+              active={selectedSchemes}
+              onToggle={toggleScheme}
+              onClear={() => setSelectedSchemes(new Set())}
+              align="right"
+            />
+            <FilterDropdown
+              label="All fuels"
+              countLabel={n => `${n} fuels`}
+              options={availableFuels}
+              active={selectedFuels}
+              onToggle={toggleFuel}
+              onClear={() => setSelectedFuels(new Set())}
+              swatch={fuel => ({ background: fuelColour(fuel) })}
+              align="right"
+            />
           </div>
           )
         })()}

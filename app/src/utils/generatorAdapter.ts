@@ -6,14 +6,7 @@ import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
-import { nzNowMs } from './time'
-
-// Outage timestamps include a timezone offset (e.g. +12:00). Chart row timestamps
-// are NZ local time treated as UTC (appending 'Z'). To compare them correctly,
-// strip the offset and append 'Z' so both are expressed as "local time as UTC".
-function outageMs(isoString: string): number {
-  return new Date(isoString.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
-}
+import { nzNowMs, outageMs } from './time'
 
 function activeOutageMW(unitCode: string, outages: OutageData, now: number): number {
   const records = outages[unitCode] ?? []
