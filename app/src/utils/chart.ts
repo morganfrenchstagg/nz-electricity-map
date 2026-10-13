@@ -67,6 +67,26 @@ export function withGaps(points: [number, number | null][]): [number, number | n
   return result
 }
 
+const HOUR_MS = 60 * 60 * 1000
+
+// The MWh `codes` generated over `rows`. Dispatch rows are MW, integrated over
+// time with the trapezoidal rule. Gaps that withGaps breaks the line at are
+// skipped rather than bridged, so missing data doesn't inflate the total.
+// Aggregate rows are already MWh, so those are just summed. Null when there's
+// nothing to total.
+export function totalMWh(rows: ChartRow[], codes: string[], aggregate: boolean): number | null {
+  if (codes.length === 0 || rows.length < (aggregate ? 1 : 2)) return null
+  const rowTotal = (row: ChartRow) => codes.reduce((sum, code) => sum + ((row[code] as number) ?? 0), 0)
+  if (aggregate) return rows.reduce((total, row) => total + rowTotal(row), 0)
+  let total = 0
+  for (let i = 1; i < rows.length; i++) {
+    const dtMs = nzLocalMs(rows[i].time) - nzLocalMs(rows[i - 1].time)
+    if (dtMs <= 0 || dtMs > GAP_MS) continue
+    total += ((rowTotal(rows[i - 1]) + rowTotal(rows[i])) / 2) * (dtMs / HOUR_MS)
+  }
+  return total
+}
+
 // Highcharts 13's types only allow the object form of each format, but plain
 // strings still work. The object form would also merge in the default
 // day.boundary format, relabelling midnight on hourly axes with the date.

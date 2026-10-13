@@ -6,7 +6,7 @@ import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, 
 import type { UnderConstructionUnit } from '../utils/geo'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, statusColour, voltageColour } from '../utils/colours'
-import { formatMW } from '../utils/format'
+import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
 import { isCharging, unitsByNode } from '../utils/generators'
 import { TRANSMISSION_LINES_URL } from '../api'
@@ -34,7 +34,7 @@ function renderUnitStats(u: { capacityMW: number | null; capacityMWp: number | n
   return [
     capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Capacity</span><span>${capacityParts}</span></div>` : '',
     u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
-    u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Expected open</span><span>${new Date(u.openBy).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
+    u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Expected open</span><span>${formatMonthYear(u.openBy)}</span></div>` : '',
   ].filter(Boolean).join('')
 }
 

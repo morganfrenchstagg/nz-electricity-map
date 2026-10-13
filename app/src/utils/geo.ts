@@ -29,6 +29,10 @@ export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCol
     }
   })
 
+  // Smallest first so the largest generators draw on top. MapLibre also hit-tests in reverse
+  // data order, so clicks and hovers on overlapping points pick the largest one too
+  features.sort((a, b) => a.properties!.totalCapacityMW - b.properties!.totalCapacityMW)
+
   return { type: 'FeatureCollection', features }
 }
 
