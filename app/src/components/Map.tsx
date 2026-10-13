@@ -15,10 +15,8 @@ const TRANSMISSION_LINES_URL = 'https://api.electricitymap.frenchsta.gg/v1/trans
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
-const PANEL_WIDTH_VW = 0.5
-
 interface Props {
-  onGeneratorClick: (generator: Generator, shiftKey: boolean) => void
+  onGeneratorClick: (generator: Generator) => void
   onSubstationClick: (substation: Substation) => void
   onClear: () => void
   selectedNode: SelectedNode
@@ -338,7 +336,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
             const codes = data ? data.series.filter(s => s.startsWith(substation.siteId)) : []
             const busCodes = codes.filter(c => !c.includes(' '))
             const genCodes = codes.filter(c => c.includes(' '))
-            const renderRow = (code: string, label: string, colour: string, loadMW: number | null) => {
+            const renderRow = (label: string, colour: string, loadMW: number | null) => {
               const isActive = (loadMW ?? 0) !== 0
               const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
               return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
@@ -351,7 +349,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               const idx = data ? data.series.indexOf(code) : -1
               const loadMW = (idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : null
               const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
-              return renderRow(code, busLabel(code, busCodes), voltageColour(kv), loadMW)
+              return renderRow(busLabel(code, busCodes), voltageColour(kv), loadMW)
             }).join('')
             const allUnits = generatorsRef.current.flatMap(g => g.units)
             const genRows = genCodes
@@ -362,7 +360,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
                 const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
                 const label = unit ? (unit.fuel === 'Battery (Charging)' ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
                 const colour = unit ? fuelColour(unit.fuel) : '#888'
-                return renderRow(code, label, colour, genMW)
+                return renderRow(label, colour, genMW)
               }).join('')
             const totalLoad = busCodes.reduce((sum, code) => {
               const idx = data ? data.series.indexOf(code) : -1

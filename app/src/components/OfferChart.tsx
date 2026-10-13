@@ -157,10 +157,9 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
       tooltip: {
         useHTML: true,
         formatter: function () {
-          const pts = (this.points ?? [this]) as Highcharts.TooltipFormatterContextObject[]
+          const pts = this.points ?? [this]
           const rows = pts.map(p => {
-            const price = p.y as number
-            const custom = (p.point as unknown as { custom?: { mw: number; label: string; tranche: number; price: number } }).custom
+            const custom = (p as unknown as { custom?: { mw: number; label: string; tranche: number; price: number } }).custom
             if (!custom) return null
             const trancheStr = custom.tranche != null ? ` (tranche ${custom.tranche})` : ''
             return `<span style="color:${String(p.color)}">●</span> ${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>$${custom.price.toFixed(2)}/MWh</b>`
