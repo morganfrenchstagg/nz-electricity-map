@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RecentData } from '../types'
+import { nzLocalMs, nzNowMs } from '../utils/time'
 
 const BASE = 'https://api.electricitymap.frenchsta.gg/v1/dispatch'
 const POLL_MS = 60 * 1000
@@ -130,10 +131,9 @@ export function useDispatchData(mode: DateMode): {
       timerRef.current = setInterval(() => {
         const cached = dayCache.get('recent')
         if (cached) {
-          // todo make this local timezone independent
           const last = cached.data[cached.data.length - 1]
-          const ts = last ? new Date((last[0] as string)).getTime() : 0
-          if (Date.now() - ts < STALE_MS) return
+          const ts = last ? nzLocalMs(last[0] as string) : 0
+          if (nzNowMs() - ts < STALE_MS) return
         }
         dayCache.delete('recent')
         load()

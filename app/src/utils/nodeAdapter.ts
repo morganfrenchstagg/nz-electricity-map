@@ -5,6 +5,7 @@ import type { OutageData } from '../hooks/useOutages'
 import { busLabel, substationCodes } from './chart'
 import { fuelColour, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
+import { nzNowMs } from './time'
 
 // Outage timestamps include a timezone offset (e.g. +12:00). Chart row timestamps
 // are NZ local time treated as UTC (appending 'Z'). To compare them correctly,
@@ -71,11 +72,9 @@ export interface NodeAdapter {
 }
 
 export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): NodeAdapter {
-  // Convert current time to the same "local time as UTC" convention used by outageMs,
+  // Current time in the same "local time as UTC" convention used by outageMs,
   // so comparisons with outage timestamps are consistent.
-  const now = new Date(
-    new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
-  ).getTime()
+  const now = nzNowMs()
   const activeUnits = generator.units.filter((u) => u.active !== false)
   const movedNodes = movedNodesOf(generator.units)
   // Moved units are charted under their current node only
@@ -301,9 +300,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 }
 
 export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null): NodeAdapter {
-  const now = new Date(
-    new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
-  ).getTime()
+  const now = nzNowMs()
 
   const allUnits = generators.flatMap(g => g.units)
   const allActiveUnits = allUnits.filter(u => u.active !== false)
