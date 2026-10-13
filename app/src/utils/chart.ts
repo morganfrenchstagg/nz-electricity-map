@@ -31,6 +31,17 @@ export function substationCodes(recent: RecentData, siteId: string): string[] {
   return recent.series.filter((s) => s.startsWith(siteId))
 }
 
+// A generator's code is the bus it's connected to, a space and the unit, e.g.
+// ATI2201 ATI0. A substation's codes are its buses' and its generators'.
+export function isGeneratorCode(code: string): boolean {
+  return code.includes(' ')
+}
+
+// The unit of a generator's code, e.g. ATI0 of ATI2201 ATI0
+export function unitOfCode(code: string): string {
+  return code.split(' ')[1]
+}
+
 // Bus codes are the site, the voltage in kV (3 digits) and a bus number or
 // letter, e.g. OTA1103 is Ōtāhuhu's 110kV bus 3. The bus is only named when
 // siteCodes has another bus at the same voltage to tell it apart from.
@@ -38,7 +49,7 @@ export function busLabel(code: string, siteCodes: string[]): string {
   const kv = parseInt(code.slice(-4, -1), 10)
   if (isNaN(kv)) return code
   const sameVoltage = code.slice(0, -1)
-  const shared = siteCodes.some((c) => c !== code && !c.includes(' ') && c.slice(0, -1) === sameVoltage)
+  const shared = siteCodes.some((c) => c !== code && !isGeneratorCode(c) && c.slice(0, -1) === sameVoltage)
   return shared ? `${kv}kV – ${code.slice(-1)}` : `${kv}kV`
 }
 

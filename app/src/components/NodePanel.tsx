@@ -9,7 +9,7 @@ import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '.
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, isGeneratorCode, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
@@ -272,10 +272,10 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     }
   }, [])
 
-  const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
+  const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(isGeneratorCode)
 
   const effectiveCodes = useMemo(() => activeCodes ?? new Set(allCodes), [activeCodes, allCodes])
-  const generatorsShown = hasGeneratorCodes && [...effectiveCodes].some(c => c.includes(' '))
+  const generatorsShown = hasGeneratorCodes && [...effectiveCodes].some(isGeneratorCode)
 
   useEffect(() => { setActiveCodes(null); setExtraSeriesShown({}) }, [node])
 
@@ -416,11 +416,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   // selected either, hiding falls back to all buses so the chart isn't empty.
   // The Total line includes the generators, so it's switched with them.
   function toggleGenerators() {
-    const buses = [...effectiveCodes].filter(c => !c.includes(' '))
+    const buses = [...effectiveCodes].filter(c => !isGeneratorCode(c))
     if (!generatorsShown) {
-      setActiveCodes(new Set([...buses, ...allCodes.filter(c => c.includes(' '))]))
+      setActiveCodes(new Set([...buses, ...allCodes.filter(isGeneratorCode)]))
     } else {
-      const remaining = buses.length > 0 ? buses : allCodes.filter(c => !c.includes(' '))
+      const remaining = buses.length > 0 ? buses : allCodes.filter(c => !isGeneratorCode(c))
       if (remaining.length === 0) return
       setActiveCodes(new Set(remaining))
     }
@@ -575,7 +575,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           // For substations, list bus values on top and generators below a header.
           let rows = "";
           if (hasGeneratorCodes) {
-            const isGen = (p: Highcharts.Point) => (chartData.codes[p.series.index] ?? '').includes(' ')
+            const isGen = (p: Highcharts.Point) => isGeneratorCode(chartData.codes[p.series.index] ?? '')
             const busRows = points.filter((p) => !isGen(p)).map(renderRow).join('')
             const genPoints = points.filter(isGen)
             const genRows = genPoints.length > 0
@@ -647,8 +647,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         {adapter.labelFor(code, allCodes)}
       </button>
     )
-    // A substation's buses come first; a divider leads the first generator (codes with a space)
-    if (!(i > 0 && code.includes(' ') && !allCodes[i - 1].includes(' '))) return button
+    // A substation's buses come first; a divider leads the first generator
+    if (!(i > 0 && isGeneratorCode(code) && !isGeneratorCode(allCodes[i - 1]))) return button
     return (
       <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />

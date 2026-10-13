@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Generator, Substation, SelectedNode } from '../types'
-import { fuelColour, FUEL_CODE_ORDER } from '../utils/colours'
+import { fuelColour, fuelFamily, FUEL_CODE_ORDER } from '../utils/colours'
 import { isRetired } from '../utils/generators'
 
 interface Props {
@@ -61,11 +61,8 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     })
   }
 
-  const normFuel = (fuel: string) =>
-    fuel === 'Battery (Charging)' || fuel === 'Battery (Discharging)' ? 'Battery' : fuel
-
   const availableFuels = useMemo(() => {
-    const fuels = new Set(generators.flatMap(g => g.units.map(u => normFuel(u.fuel))))
+    const fuels = new Set(generators.flatMap(g => g.units.map(u => fuelFamily(u.fuel))))
     return (FUEL_CODE_ORDER as readonly string[])
       .map(code => {
         // Map fuel codes to the display names used in the generator list
@@ -141,7 +138,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   const q = norm(query)
   const filteredGenerators = generators
     .filter(g => norm(g.name).includes(q) || norm(g.operator).includes(q))
-    .filter(g => selectedFuels.size === 0 || g.units.some(u => selectedFuels.has(normFuel(u.fuel))))
+    .filter(g => selectedFuels.size === 0 || g.units.some(u => selectedFuels.has(fuelFamily(u.fuel))))
     .filter(g => selectedSchemes.size === 0 || (g.scheme != null && selectedSchemes.has(g.scheme)))
     .sort((a, b) => a.name.localeCompare(b.name))
   const filteredSubstations = substations
@@ -314,9 +311,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                     {operator}
                   </div>
                   {byOperator.get(operator)!.map(g => {
-                    const fuels = [...new Set(g.units.map(u =>
-                      u.fuel === 'Battery (Charging)' || u.fuel === 'Battery (Discharging)' ? 'Battery' : u.fuel
-                    ))]
+                    const fuels = [...new Set(g.units.map(u => fuelFamily(u.fuel)))]
                     const checked = selectedSites.has(g.site)
                     return (
                       <div
