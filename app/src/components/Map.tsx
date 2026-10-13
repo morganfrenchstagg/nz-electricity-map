@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
+import { useOutages } from '../hooks/useOutages'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import { unitsByNode } from '../utils/generators'
 import { generatorPopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
 import { TRANSMISSION_LINES_URL } from '../api'
+import type { OutageData } from '../api'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -56,6 +58,12 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     recentDataRef.current = recentData
     refreshHoverRef.current()
   }, [recentData])
+  const outages = useOutages()
+  const outagesRef = useRef<OutageData | null>(outages)
+  useEffect(() => {
+    outagesRef.current = outages
+    refreshHoverRef.current()
+  }, [outages])
 
   useEffect(() => { generatorsRef.current = generators }, [generators])
   useEffect(() => { substationsRef.current = substations }, [substations])
@@ -209,7 +217,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current) : null
+          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current) : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))

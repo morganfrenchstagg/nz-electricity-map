@@ -5,6 +5,9 @@ import { fuelColour, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
 import { isCharging } from '../utils/generators'
+import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
+import { nzNowMs } from '../utils/time'
+import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, Unit } from '../types'
 
 // HTML for the map's hover popups, which MapLibre takes as a string rather than React
@@ -29,16 +32,31 @@ function renderStatusPill(status: string): string {
     : ''
 }
 
-export function generatorPopupHtml(generator: Generator, data: RecentData | null): string {
+// The generator panel's capacity bar stripes, in red to stand out on a 3px bar
+const OUTAGE_STRIPES = 'repeating-linear-gradient(45deg, var(--color-danger) 0, var(--color-danger) 2px, transparent 2px, transparent 5px)'
+
+export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null): string {
   const lastRow = data?.data[data.data.length - 1]
-  const activeUnits = generator.units.filter(u => u.active !== false).sort((a, b) => a.name.localeCompare(b.name))
+  const nowMs = nzNowMs()
+  const activeUnits = generator.units
+    .filter(u => u.active !== false)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(u => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, nowMs) : 0, available: unitCapacityAt(u, outages, nowMs) }))
   const unitRows = activeUnits.map(u => {
+    const { outageMW, available } = u
     const idx = data ? data.series.indexOf(u.node) : -1
     const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-    const pct = genMW !== null && u.capacity !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(u.capacity)) * 100)) : 0
+    const pct = genMW !== null && available !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(available)) * 100)) : 0
+    // An outage leaves what's left of installed capacity (see unitCapacityAt), so
+    // the bar is then scaled to installed capacity to fit the outage in beside generation
+    const barScale = outageMW > 0 ? installedCapacityOf(u) : available
+    const barPct = genMW !== null && barScale !== 0 ? Math.min(100, (Math.abs(genMW) / Math.abs(barScale)) * 100) : 0
     const colour = fuelColour(u.fuel)
     const genStr = genMW !== null ? formatMW(genMW) : '—'
-    const capStr = u.capacity !== 0 ? formatMW(u.capacity) : null
+    // An outage strikes out the usual capacity for what's left, in red
+    const capStr = u.capacity === 0 ? null
+      : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(u.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
+        : formatMW(available)
     const isGenerating = (genMW ?? 0) !== 0
     return `<div style="margin-bottom:5px">
       <div style="display:flex;align-items:center;gap:6px">
@@ -46,8 +64,9 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${isCharging(u) ? `${u.name} <span style="color:var(--color-text-muted)">(charging)</span>` : u.name}</span>
         <span style="color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
       </div>
-      <div style="height:3px;background:var(--color-fill);border-radius:2px;margin-top:3px;margin-left:14px">
-        <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>
+      <div style="display:flex;justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;margin-top:3px;margin-left:14px;overflow:hidden">
+        <div style="height:3px;width:${barPct}%;background:${colour};border-radius:2px"></div>
+        ${outageMW > 0 ? `<div style="height:3px;width:${Math.min(100 - barPct, (outageMW / barScale) * 100)}%;background:${OUTAGE_STRIPES}"></div>` : ''}
       </div>
     </div>`
   }).join('')
@@ -55,8 +74,14 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
     const idx = data ? data.series.indexOf(u.node) : -1
     return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
   }, 0)
-  const totalCap = activeUnits.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
+  const generatingUnits = activeUnits.filter(u => !isCharging(u))
+  const totalCap = generatingUnits.reduce((sum, u) => sum + u.available, 0)
   const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
+  const hasOutage = activeUnits.some(u => u.outageMW > 0)
+  // As in the generator panel, an outage strikes out the usual capacity
+  const totalCapStr = hasOutage
+    ? `<s style="color:var(--color-text-faint)">${formatMW(generatingUnits.reduce((sum, u) => sum + u.capacity, 0))}</s> ${formatMW(totalCap)}`
+    : formatMW(totalCap)
   const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
   const ucSection = ucUnits.length > 0 ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
@@ -72,7 +97,8 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
         </div>`
       }).join('')}
     </div>` : ''
-  return `<div style="font-size:var(--font-size-sm);line-height:1.5;width:240px">
+  // Wider when a unit is out, to fit its struck-out capacity without squeezing its name
+  return `<div style="font-size:var(--font-size-sm);line-height:1.5;width:${hasOutage ? 280 : 240}px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
       <span style="font-weight:600">${generator.name}</span>
       <span style="background:var(--color-accent-subtle);color:var(--color-accent-strong);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">${generator.site}</span>
@@ -82,7 +108,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span style="color:var(--color-text-muted)">Total</span>
-        <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
+        <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${totalCapStr} (${totalPct}%)</span></span>
       </div>
     </div>
     ${ucSection}
