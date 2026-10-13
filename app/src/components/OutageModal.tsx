@@ -1,14 +1,11 @@
 import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
+import { nzNowMs, outageMs } from '../utils/time'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
   outageBlockPrefixes: string[]
   onClose: () => void
-}
-
-function parseOutageDate(iso: string): Date {
-  return new Date(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z')
 }
 
 function pocpUrl(prefixes: string[]): string {
@@ -24,11 +21,11 @@ function pocpUrl(prefixes: string[]): string {
   return `https://customerportal.transpower.co.nz/pocp/outages?${params.toString()}`
 }
 
-// `date` is built from outage timestamps via the "local time as UTC" convention
-// (see outageMs in GeneratorPanel.tsx), so it must be read back out with timeZone: 'UTC'
-// to get the raw values the API sent — 'Pacific/Auckland' would shift them again.
-function formatDateTime(date: Date): string {
-  return date.toLocaleString('en-NZ', {
+// `ms` is an outage timestamp in the "local time as UTC" convention (see outageMs
+// in utils/time.ts), so it must be read back out with timeZone: 'UTC' to get the
+// raw values the API sent — 'Pacific/Auckland' would shift them again.
+function formatDateTime(ms: number): string {
+  return new Date(ms).toLocaleString('en-NZ', {
     timeZone: 'UTC',
     day: 'numeric',
     month: 'short',
@@ -52,10 +49,10 @@ const tdStyle: React.CSSProperties = {
 }
 
 export default function OutageModal({ outages, outageBlockPrefixes, onClose }: Props) {
-  const now = Date.now()
+  const now = nzNowMs()
   const sorted = outages
     .slice()
-    .sort((a, b) => parseOutageDate(a.record.timeStart).getTime() - parseOutageDate(b.record.timeStart).getTime())
+    .sort((a, b) => outageMs(a.record.timeStart) - outageMs(b.record.timeStart))
 
   return (
     <div onClick={onClose} className="modal-backdrop">
@@ -99,9 +96,9 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
               </thead>
               <tbody>
                 {sorted.map(({ code, label, record, capacityRemaining }, i) => {
-                  const start = parseOutageDate(record.timeStart)
-                  const end = parseOutageDate(record.timeEnd)
-                  const isCurrent = start.getTime() <= now && now <= end.getTime()
+                  const start = outageMs(record.timeStart)
+                  const end = outageMs(record.timeEnd)
+                  const isCurrent = start <= now && now <= end
                   return (
                     <tr key={`${code}-${record.outageBlock}-${i}`}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{label}</td>

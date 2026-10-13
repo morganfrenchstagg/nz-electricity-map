@@ -3,6 +3,7 @@ import type { RecentData } from '../types'
 import { mergeData } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { fetchAggregates } from '../api'
+import { nzLocalMs, todayNZ } from '../utils/time'
 
 export const DAILY_RANGE_DAYS = 30
 export const WEEKLY_RANGE_WEEKS = 52
@@ -19,9 +20,9 @@ export const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod
   all: 'monthly',
 }
 
-function todayNZ(): number {
-  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-  return new Date(date + 'T00:00:00Z').getTime()
+// The midnight starting today in NZ, in the "local time as UTC" convention
+function todayMs(): number {
+  return nzLocalMs(`${todayNZ()}T00:00:00`)
 }
 
 function isoDate(ms: number): string {
@@ -31,19 +32,19 @@ function isoDate(ms: number): string {
 // The most recent complete NZ day, as "YYYY-MM-DD". The date pickers cap at
 // this; using UTC yesterday instead would hide NZ yesterday until 1pm NZST.
 export function yesterdayNZ(): string {
-  return isoDate(todayNZ() - DAY_MS)
+  return isoDate(todayMs() - DAY_MS)
 }
 
 // The last `days` complete NZ days, ending yesterday.
 function completeDayWindow(days: number): { from: string; to: string } {
-  return { from: isoDate(todayNZ() - days * DAY_MS), to: yesterdayNZ() }
+  return { from: isoDate(todayMs() - days * DAY_MS), to: yesterdayNZ() }
 }
 
 // The last `weeks` complete Monday-to-Sunday NZ weeks, ending last Sunday.
 // Weekly rows are keyed by the Monday each week starts on, so `from` and `to`
 // are both Mondays.
 function completeWeekWindow(weeks: number): { from: string; to: string } {
-  const today = todayNZ()
+  const today = todayMs()
   const thisMonday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS
   return { from: isoDate(thisMonday - weeks * 7 * DAY_MS), to: isoDate(thisMonday - 7 * DAY_MS) }
 }
@@ -51,7 +52,7 @@ function completeWeekWindow(weeks: number): { from: string; to: string } {
 // Every complete NZ month of data, ending last month. Monthly rows
 // are keyed by the 1st of each month.
 function completeMonthWindow(): { from: string; to: string } {
-  const lastMonth = new Date(todayNZ())
+  const lastMonth = new Date(todayMs())
   lastMonth.setUTCDate(1)
   lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1)
   return { from: FIRST_COMPLETE_MONTH, to: isoDate(lastMonth.getTime()) }

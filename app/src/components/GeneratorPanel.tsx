@@ -10,6 +10,7 @@ import { tooltipTime } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
+import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -25,10 +26,6 @@ import type { NodePanelProps } from './NodePanelParts'
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
-
-function outageMs(iso: string): number {
-  return new Date(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
-}
 
 // Collapses overlapping outage records for a single unit into a timeline of
 // distinct MW-loss segments (e.g. two overlapping 3MW outages become one 6MW
@@ -62,12 +59,11 @@ function mergeOutageSegments(records: OutageRecord[], nowMs: number): { start: n
 }
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
-// (see outageMs), so it must be read back out with timeZone: 'UTC' to get the
-// raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
+// (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
+// to get the raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
 function formatOutageEnd(date: Date): string {
-  const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
   const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'UTC' })
-  if (endNZ === todayNZ) {
+  if (endNZ === todayNZ()) {
     return date.toLocaleTimeString('en-NZ', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
   }
   return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
@@ -152,11 +148,11 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const soonestOutageEnd = useMemo(() => {
     if (!outages || totalOutageMW <= 0) return null
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     let soonest: Date | null = null
     for (const code of effectiveCodes) {
       for (const rec of (outages[code] ?? [])) {
-        const endMs = new Date(rec.timeEnd.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
+        const endMs = outageMs(rec.timeEnd)
         if (endMs <= nowMs) continue
         if (soonest === null || endMs < soonest.getTime()) soonest = new Date(endMs)
       }
@@ -174,7 +170,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const outageDetails = useMemo(() => {
     if (!outages) return []
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
     for (const code of effectiveCodes) {
       const records = outages[code] ?? []
@@ -199,7 +195,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
   const outageBlockPrefixes = useMemo(() => {
     if (!outages) return []
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     const prefixes = new Set<string>()
     for (const code of effectiveCodes) {
       for (const rec of (outages[code] ?? [])) {
@@ -235,8 +231,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     for (let i = 1; i < chartData.rows.length; i++) {
       const prev = chartData.rows[i - 1]
       const curr = chartData.rows[i]
-      const t0 = new Date((prev.time as string) + 'Z').getTime()
-      const t1 = new Date((curr.time as string) + 'Z').getTime()
+      const t0 = nzLocalMs(prev.time)
+      const t1 = nzLocalMs(curr.time)
       const dtMs = t1 - t0
       if (dtMs <= 0 || dtMs > maxGapMs) continue
       const v0 = codes.reduce((sum, code) => sum + ((prev[code] as number) ?? 0), 0)
