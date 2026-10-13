@@ -16,6 +16,7 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
+import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
@@ -74,11 +75,16 @@ function formatOutageEnd(date: Date): string {
 
 interface Props extends NodePanelProps {
   node: GeneratorNode
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+  // The trading period the Offers view shows
+  tradingPeriod: number
+  onTradingPeriodChange: (period: number) => void
 }
 
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
-export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, ...panel }: Props) {
+export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, ...panel }: Props) {
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
@@ -98,41 +104,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
   const [outageModalOpen, setOutageModalOpen] = useState(false)
-
-  const [viewMode, setViewMode] = useState<'generation' | 'offers'>(() =>
-    new URLSearchParams(window.location.search).get('view') === 'offers' ? 'offers' : 'generation'
-  )
-  const [tradingPeriod, setTradingPeriod] = useState<number>(() => {
-    const tp = parseInt(new URLSearchParams(window.location.search).get('tp') ?? '', 10)
-    return isNaN(tp) ? 1 : tp
-  })
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    if (viewMode === 'offers') {
-      p.set('view', 'offers')
-      setTradingPeriod(1)
-    } else {
-      p.delete('view')
-      p.delete('tp')
-    }
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [viewMode])
-
-  useEffect(() => {
-    if (viewMode !== 'offers') return
-    const p = new URLSearchParams(window.location.search)
-    p.set('tp', String(tradingPeriod))
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [tradingPeriod, viewMode])
-
-  // The view's params go with the panel, e.g. when a substation replaces it
-  useEffect(() => () => {
-    const p = new URLSearchParams(window.location.search)
-    p.delete('view')
-    p.delete('tp')
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [])
 
   const offerDate = viewMode === 'offers'
     ? (dateMode.kind === 'today' || dateMode.kind === 'recent' || isAggregateMode(dateMode) ? 'latest'
@@ -162,13 +133,13 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     handleFromChange, handlePeriodClick, handleCustomClick,
   } = datePicker
 
-  const handleViewModeChange = useCallback((mode: 'generation' | 'offers') => {
-    setViewMode(mode)
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    onViewModeChange(mode)
     // A custom date asked for but not yet picked doesn't carry over to the other view
     setCustomRequested(false)
     // Nor does the latest offers' date, which Offers shows in the date input
     if (mode === 'generation' && offerDate === 'latest') setFromDate('')
-  }, [offerDate])
+  }, [offerDate, onViewModeChange])
 
   const nodeKey = node.kind === 'generator' ? node.generator.site : node.generators.map(g => g.site).join(',')
 
@@ -463,7 +434,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             {!compactToolbar && <div className="divider" />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <button
-                onClick={() => setTradingPeriod(p => Math.max(1, p - 1))}
+                onClick={() => onTradingPeriodChange(Math.max(1, tradingPeriod - 1))}
                 disabled={tradingPeriod <= 1}
                 className="stepper-button"
               >
@@ -474,7 +445,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 {offerDate && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
               </span>
               <button
-                onClick={() => setTradingPeriod(p => Math.min(maxTradingPeriod, p + 1))}
+                onClick={() => onTradingPeriodChange(Math.min(maxTradingPeriod, tradingPeriod + 1))}
                 disabled={tradingPeriod >= maxTradingPeriod}
                 className="stepper-button"
               >

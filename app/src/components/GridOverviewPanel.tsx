@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { DateMode } from '../hooks/useDispatchData'
@@ -28,14 +28,18 @@ interface Props extends PanelProps {
   recentData: RecentData | null
   loading: boolean
   error: string | null
+  // The fuels charted, or null for all of them
+  activeFuels: Set<string> | null
+  onActiveFuelsChange: (fuels: Set<string> | null) => void
+  pipelineOpen: boolean
+  onPipelineOpenChange: (open: boolean) => void
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, ...panel }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, activeFuels, onActiveFuelsChange, pipelineOpen, onPipelineOpenChange, ...panel }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pipelineOpen, setPipelineOpen] = useState(() => window.location.pathname === '/pipeline')
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   // The 30d, 1y and All views chart every node's MWh totals instead of the
@@ -46,26 +50,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const data = isAggregate ? aggregates.aggregateData : recentData
   const dataLoading = isAggregate ? aggregates.loading : loading
   const dataError = isAggregate ? aggregates.error : error
-
-  useEffect(() => {
-    if (pipelineOpen) {
-      if (window.location.pathname !== '/pipeline') {
-        window.history.pushState({}, '', '/pipeline' + window.location.search)
-      }
-    } else {
-      if (window.location.pathname === '/pipeline') {
-        window.history.replaceState({}, '', '/' + window.location.search)
-      }
-    }
-  }, [pipelineOpen])
-
-  useEffect(() => {
-    const onPopState = () => {
-      setPipelineOpen(window.location.pathname === '/pipeline')
-    }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [])
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
@@ -92,25 +76,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     return { fuels, fuelToIndices, fuelToCapacity }
   }, [data, generators, island, isAggregate])
 
-  const [activeFuels, setActiveFuels] = useState<Set<string> | null>(() => {
-    const param = new URLSearchParams(window.location.search).get('fuels')
-    return param ? new Set(param.split(',').filter(Boolean)) : null
-  })
   // Memoised so the chart options below don't rebuild on every render
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    if (activeFuels === null) p.delete('fuels')
-    else p.set('fuels', [...activeFuels].join(','))
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [activeFuels])
 
   function toggleFuel(fuel: string) {
     const next = new Set(effectiveFuels)
     if (next.has(fuel)) { next.delete(fuel); if (next.size === 0) return }
     else next.add(fuel)
-    setActiveFuels(next.size === fuels.length ? null : next)
+    onActiveFuelsChange(next.size === fuels.length ? null : next)
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -288,7 +261,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         </button>
       </div>
       <button
-        onClick={() => setPipelineOpen(true)}
+        onClick={() => onPipelineOpenChange(true)}
         className="button-secondary"
         style={{ padding: 'var(--space-xs) var(--space-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
       >
@@ -308,7 +281,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
             onClose={() => setPickerOpen(false)}
           />
         )}
-        {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
+        {pipelineOpen && <PipelineModal onClose={() => onPipelineOpenChange(false)} />}
       </Suspense>
 
       {/* Island + date picker toolbar */}
@@ -345,7 +318,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
               <ClearButton
                 key="clear"
                 cleared={activeFuels !== null && activeFuels.size === 0}
-                onClick={() => setActiveFuels(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
+                onClick={() => onActiveFuelsChange(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
               />,
             ]}
           />
