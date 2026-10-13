@@ -7,7 +7,7 @@ import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggre
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
-import { fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import NodePickerModal from './NodePickerModal'
@@ -166,7 +166,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     const param = new URLSearchParams(window.location.search).get('fuels')
     return param ? new Set(param.split(',').filter(Boolean)) : null
   })
-  const effectiveFuels = activeFuels ?? new Set(fuels)
+  // Memoised so the chart options below don't rebuild on every render
+  const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
@@ -532,7 +533,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
         )}
       </div>
       {!expanded && !isMobile && (

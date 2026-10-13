@@ -8,7 +8,7 @@ import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '.
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
@@ -459,6 +459,18 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       return val
     }
 
+    // Built once per chart rather than per tooltip, which fires on every mouse move
+    const pricingByMs = new Map<number, Record<string, number>>()
+    if (recentData?.pricing && !isAggregate) {
+      const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
+      for (const row of recentData.pricing) {
+        const ms = new Date((row[0] as string) + 'Z').getTime()
+        const entry: Record<string, number> = {}
+        chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
+        pricingByMs.set(ms, entry)
+      }
+    }
+
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
         if (i === 0 || isAggregate) return false
@@ -506,18 +518,6 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Total')
           const time = tooltipTime(this.x as number, aggregatePeriod)
           const formatValue = isAggregate ? formatMWh : formatMW
-
-          const pricingByMs = new Map<number, Record<string, number>>()
-          if (recentData?.pricing && !isAggregate) {
-            const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
-            for (const row of recentData.pricing) {
-              const ms = new Date((row[0] as string) + 'Z').getTime()
-              const entry: Record<string, number> = {}
-              chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
-              pricingByMs.set(ms, entry)
-            }
-          }
-
           const priceAtTime = pricingByMs.get(this.x as number)
 
           // No capacity comparison for aggregate totals
@@ -881,7 +881,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               </div>
             )}
             {chartOptions && (
-              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
             )}
           </>
         )}
