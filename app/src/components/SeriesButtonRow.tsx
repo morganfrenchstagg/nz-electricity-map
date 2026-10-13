@@ -1,28 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 const GAP = 6
 
-// A series toggle button: filled with the series colour when it's showing
-export function seriesButtonStyle(colour: string, active: boolean): React.CSSProperties {
-  return {
-    padding: '3px 10px',
-    borderRadius: 12,
-    border: `1.5px solid ${colour}`,
-    background: active ? colour : 'transparent',
-    color: active ? 'white' : colour,
-    cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: 500,
-  }
+interface SeriesButtonProps {
+  colour: string
+  active: boolean
+  onClick: () => void
+  children: ReactNode
 }
 
-const MORE_STYLE: React.CSSProperties = { ...seriesButtonStyle('#bbb', false), color: '#666', flexShrink: 0 }
+// A series toggle button: filled with the series colour when it's showing
+export function SeriesButton({ colour, active, onClick, children }: SeriesButtonProps) {
+  return (
+    <button
+      className="series-button"
+      aria-pressed={active}
+      onClick={onClick}
+      style={{ '--series-colour': colour } as React.CSSProperties}
+    >
+      {children}
+    </button>
+  )
+}
+
+const NEUTRAL_CLASS = 'series-button series-button--neutral'
 
 // Deselects every series in a row, or selects them all again once cleared
 export function ClearButton({ cleared, onClick }: { cleared: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ ...MORE_STYLE, whiteSpace: 'nowrap' }}>
+    <button onClick={onClick} className={NEUTRAL_CLASS}>
       {cleared ? 'Select all' : 'Clear'}
     </button>
   )
@@ -79,7 +86,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
       {lead}
       {expanded || hiddenCount <= 0 ? items : items.slice(0, fitCount)}
       {hiddenCount > 0 && (
-        <button onClick={() => setExpanded(v => !v)} style={MORE_STYLE}>
+        <button onClick={() => setExpanded(v => !v)} className={NEUTRAL_CLASS}>
           {expanded ? 'Show fewer ▲' : `+${hiddenCount} more ▼`}
         </button>
       )}
@@ -90,7 +97,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
           {lead}
           {items}
           {trail}
-          <button style={MORE_STYLE}>{`+${items.length} more ▼`}</button>
+          <button className={NEUTRAL_CLASS}>{`+${items.length} more ▼`}</button>
         </div>
       </div>
     </div>

@@ -11,25 +11,11 @@ import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
+import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
-
-const PANEL_STYLE: React.CSSProperties = {
-  position: 'fixed',
-  bottom: 0,
-  width: '60vw',
-  height: '100%',
-  background: 'white',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-  display: 'flex',
-  flexDirection: 'column',
-  zIndex: 10,
-  overflow: 'hidden',
-}
-
 
 interface Props {
   dateMode: DateMode
@@ -206,7 +192,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         dashStyle: 'Solid' as const,
         label: {
           text: Highcharts.dateFormat('%e %b', new Date((row[0] as string) + 'Z').getTime()),
-          style: { color: '#888888', fontSize: '10px' },
+          style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
           y: 14,
         },
         zIndex: 3,
@@ -230,13 +216,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       legend: { enabled: false },
       xAxis: {
         type: 'datetime',
-        labels: { style: { fontSize: '10px' } },
         dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
         plotLines: midnightPlotLines,
       },
       yAxis: {
-        title: { text: isAggregate ? 'MWh' : 'MW', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' } },
+        title: { text: isAggregate ? 'MWh' : 'MW' },
         softMin: 0,
         gridLineDashStyle: 'Dash',
       },
@@ -272,8 +256,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
               const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
               // No capacity comparison for aggregate totals
               const cap = capacityByName.get(p.series.name) ?? 0
-              const capCell = isAggregate ? '' : `<td style="color:#888;padding-left:10px">${cap > 0 ? formatMW(cap) : '–'}</td>`
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td>${capCell}<td style="padding-left:10px">${percentageStr}</td></tr>`
+              const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
+              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
             })
             .join('')
 
@@ -289,7 +273,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           const renewableRow = renewablePct != null
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
-          const capHeader = isAggregate ? '' : '<th style="padding-left:10px">Capacity</th>'
+          const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'
           return `<table><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
         },
       },
@@ -298,7 +282,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
 
   return (
-    <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
+    <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>
       <Suspense fallback={null}>
         {pickerOpen && (
           <NodePickerModal
@@ -312,48 +296,37 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       </Suspense>
 
       {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {/* The pipeline button wraps under the title when there isn't room beside it */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
+            <span className="title" style={{ whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
             <button
               onClick={() => setPickerOpen(true)}
-              style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1, flexShrink: 0 }}
+              style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
             >
               ▾
             </button>
           </div>
           <button
             onClick={() => setPipelineOpen(true)}
-            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#555', padding: '4px 8px', borderRadius: 4, flexShrink: 0, fontWeight: 500 }}
+            className="button-secondary"
+            style={{ padding: 'var(--space-xs) var(--space-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
           >
             Generation Pipeline ↗
           </button>
         </div>
         {isMobile ? (
-          <button
-            onClick={onClose}
-            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '6px 10px', flexShrink: 0, borderRadius: 4 }}
-            aria-label="Show map"
-          >
+          <button onClick={onClose} className="button-secondary" style={{ padding: 'var(--space-sm) var(--space-lg)' }} aria-label="Show map">
             Show map
           </button>
         ) : (
           <>
-            <button
-              onClick={() => onExpandedChange(!expanded)}
-              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-              aria-label={expanded ? 'Collapse' : 'Expand'}
-            >
+            <button onClick={() => onExpandedChange(!expanded)} className="button-secondary" aria-label={expanded ? 'Collapse' : 'Expand'}>
               {expanded ? 'Show map' : 'Expand'}
             </button>
             {!expanded && (
-              <button
-                onClick={onClose}
-                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-                aria-label="Close"
-              >
+              <button onClick={onClose} className="button-secondary" aria-label="Close">
                 Close
               </button>
             )}
@@ -363,7 +336,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       {/* Island + date picker toolbar. When it's too narrow for one line, the
           toggles become dropdowns and the rest wraps. */}
-      <div ref={toolbarRef} style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
+      <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
         <ToggleGroup compact={compactToolbar} ariaLabel="Island" options={(['all', 'NI', 'SI'] as const).map(opt => ({
           key: opt,
           label: opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island',
@@ -371,9 +344,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           active: island === opt,
           onClick: () => setIsland(opt),
         }))} />
-        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        {!compactToolbar && <div className="divider" />}
         <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />
-        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        {!compactToolbar && <div className="divider" />}
         {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <input
             ref={fromInputRef}
@@ -382,9 +355,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             min="2020-09-11"
             max={yesterdayNZ()}
             onChange={e => handleFromChange(e.target.value)}
-            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
+            className="date-input"
           />
-          <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0 }}>–</span>
           <input
             type="date"
             value={toDate}
@@ -392,35 +365,27 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             max={toMax}
             disabled={!fromDate}
             onChange={e => handleToChange(e.target.value)}
-            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+            className="date-input"
           />
           {rangeError && (
-            <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+            <span className="status-text is-error" style={{ marginLeft: 4 }}>{rangeError}</span>
           )}
         </div>}
         {lastUpdated && !dataLoading && (
-          <>{!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}<span style={{ fontSize: 11, color: '#888', marginLeft: compactToolbar ? 0 : 4, flexShrink: 0 }}>{lastUpdated}</span></>
+          <>{!compactToolbar && <div className="divider" />}<span className="status-text" style={{ marginLeft: compactToolbar ? 0 : 4 }}>{lastUpdated}</span></>
         )}
-        {dataLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888', flexShrink: 0 }}>
-            Loading…
-          </div>
-        )}
-        {dataError && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#c00', flexShrink: 0 }}>
-            Failed to load data
-          </div>
-        )}
+        {dataLoading && <span className="status-text">Loading…</span>}
+        {dataError && <span className="status-text is-error">Failed to load data</span>}
       </div>
 
       {/* Fuel pills */}
       {fuels.length > 0 && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
+        <div className="section">
           <SeriesButtonRow
             items={fuels.map(fuel => (
-              <button key={fuel} onClick={() => toggleFuel(fuel)} style={seriesButtonStyle(fuelCodeColour(fuel), effectiveFuels.has(fuel))}>
+              <SeriesButton key={fuel} colour={fuelCodeColour(fuel)} active={effectiveFuels.has(fuel)} onClick={() => toggleFuel(fuel)}>
                 {fuelCodeLabel(fuel)}
-              </button>
+              </SeriesButton>
             ))}
             trail={[
               <ClearButton
@@ -434,14 +399,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       )}
 
       {/* Chart area */}
-      <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
+      <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         {dataLoading && !data && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#888' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: 'var(--color-text-muted)' }}>
             Loading…
           </div>
         )}
         {dataError && !data && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: '#c00' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: 'var(--color-danger)' }}>
             Failed to load data
           </div>
         )}

@@ -193,16 +193,16 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
           u.capacityMWh ? `${u.capacityMWh} MWh` : null,
         ].filter(Boolean).join(' / ')
         return [
-          capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Capacity</span><span>${capacityParts}</span></div>` : '',
-          u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
-          u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#888">Expected open</span><span>${new Date(u.openBy).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
+          capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Capacity</span><span>${capacityParts}</span></div>` : '',
+          u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
+          u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Expected open</span><span>${new Date(u.openBy).toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}</span></div>` : '',
         ].filter(Boolean).join('')
       }
 
       const renderStatusPill = (status: string) => {
         const pillColour = statusColour(status)
         return status
-          ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
+          ? `<span style="display:inline-block;padding:var(--space-2xs) var(--space-md);border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:var(--font-size-xs);font-weight:500;flex-shrink:0">${status}</span>`
           : ''
       }
 
@@ -232,10 +232,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               return `<div style="margin-bottom:5px">
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${isCharging(u) ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
-                  <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:#888">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${isCharging(u) ? `${u.name} <span style="color:var(--color-text-muted)">(charging)</span>` : u.name}</span>
+                  <span style="color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
                 </div>
-                <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
+                <div style="height:3px;background:var(--color-fill);border-radius:2px;margin-top:3px;margin-left:14px">
                   <div style="height:3px;width:${pct}%;background:${colour};border-radius:2px"></div>
                 </div>
               </div>`
@@ -248,12 +248,12 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
             const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
             const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
             const ucSection = ucUnits.length > 0 ? `
-              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
-                <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Under Construction</div>
+              <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
+                <div class="eyebrow" style="margin-bottom:4px">Under Construction</div>
                 ${ucUnits.map((u, i) => {
               const label = u.locationDescription ?? `Unit ${i + 1}`
               const stats = renderUnitStats(u)
-              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #f3f3f3;padding-top:6px' : ''}">
+              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider-subtle);padding-top:var(--space-sm)' : ''}">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                       <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
                     </div>
@@ -261,17 +261,17 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
                   </div>`
             }).join('')}
               </div>` : ''
-            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:12px;line-height:1.5;width:240px">
+            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:var(--font-size-sm);line-height:1.5;width:240px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
                 <span style="font-weight:600">${generator.name}</span>
-                <span style="background:#e8f0fe;color:#1a56db;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${generator.site}</span>
+                <span style="background:var(--color-accent-subtle);color:var(--color-accent-strong);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">${generator.site}</span>
               </div>
-              <div style="color:#888;margin-bottom:6px">${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</div>
-              <div style="border-top:1px solid #eee;padding-top:6px;margin-bottom:4px">${unitRows}</div>
-              <div style="border-top:1px solid #eee;padding-top:6px">
+              <div style="color:var(--color-text-muted);margin-bottom:6px">${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</div>
+              <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-bottom:4px">${unitRows}</div>
+              <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">
                 <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:#888">Total</span>
-                  <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:#888">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
+                  <span style="color:var(--color-text-muted)">Total</span>
+                  <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${formatMW(totalCap)} (${totalPct}%)</span></span>
                 </div>
               </div>
               ${ucSection}
@@ -290,25 +290,25 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
           let html: string
           if (units.length === 1) {
             const u = units[0]
-            const label = u.locationDescription ? `${name} <span style="font-weight:400;color:#888">(${u.locationDescription})</span>` : name
+            const label = u.locationDescription ? `${name} <span style="font-weight:400;color:var(--color-text-muted)">(${u.locationDescription})</span>` : name
             const stats = renderUnitStats(u)
-            html = `<div style="font-size:12px;line-height:1.6;width:260px">
+            html = `<div style="font-size:var(--font-size-sm);line-height:1.6;width:260px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
-              <div style="color:#888">${u.operator}</div>
-              ${stats ? `<div style="margin-top:4px;border-top:1px solid #eee;padding-top:4px">${stats}</div>` : ''}
+              <div style="color:var(--color-text-muted)">${u.operator}</div>
+              ${stats ? `<div style="margin-top:4px;border-top:1px solid var(--color-divider);padding-top:var(--space-xs)">${stats}</div>` : ''}
             </div>`
           } else {
             const unitRows = units.map((u, i) => {
               const label = u.locationDescription ?? `Unit ${i + 1}`
               const stats = renderUnitStats(u)
-              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid #eee;padding-top:6px' : ''}">
+              return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider);padding-top:var(--space-sm)' : ''}">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}</div>
                 ${stats}
               </div>`
             }).join('')
-            html = `<div style="font-size:12px;line-height:1.6;width:260px">
+            html = `<div style="font-size:var(--font-size-sm);line-height:1.6;width:260px">
               <div style="font-weight:600;margin-bottom:2px">${name}</div>
-              <div style="color:#888;margin-bottom:6px">${units[0].operator}</div>
+              <div style="color:var(--color-text-muted);margin-bottom:6px">${units[0].operator}</div>
               ${unitRows}
             </div>`
           }
@@ -334,8 +334,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
               return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                 <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-                <span style="flex:1;color:${isActive ? '#222' : '#999'}">${label}</span>
-                <span style="color:${isActive ? '#222' : '#999'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
+                <span style="flex:1;color:${isActive ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${label}</span>
+                <span style="color:${isActive ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
               </div>`
             }
             const busRows = busCodes.map(code => {
@@ -351,8 +351,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               .map(({ code, unit }) => {
                 const idx = data ? data.series.indexOf(code) : -1
                 const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-                const label = unit ? (isCharging(unit) ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
-                const colour = unit ? fuelColour(unit.fuel) : '#888'
+                const label = unit ? (isCharging(unit) ? `${unit.name} <span style="color:var(--color-text-muted)">(charging)</span>` : unit.name) : code
+                const colour = unit ? fuelColour(unit.fuel) : 'var(--color-text-muted)'
                 return renderRow(label, colour, genMW)
               }).join('')
             const totalLoad = busCodes.reduce((sum, code) => {
@@ -364,21 +364,21 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
             }, 0)
             const netLoad = totalLoad - totalGen
-            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:12px;line-height:1.5;width:240px">
+            hoverPopup.setLngLat(e.lngLat).setHTML(`<div style="font-size:var(--font-size-sm);line-height:1.5;width:240px">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
                 <span style="font-weight:600">${substation.description} Substation</span>
-                <span style="background:#f3f4f6;color:#374151;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;flex-shrink:0">${substation.siteId}</span>
+                <span style="background:var(--color-surface-muted);color:var(--color-text);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">${substation.siteId}</span>
               </div>
               ${codes.length > 0 ? `
-              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:6px">${busRows}</div>
-              ${genRows ? `<div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px">
-                <div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Generation</div>
+              <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:6px">${busRows}</div>
+              ${genRows ? `<div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
+                <div class="eyebrow" style="margin-bottom:4px">Generation</div>
                 ${genRows}
               </div>` : ''}
-              <div style="border-top:1px solid #eee;padding-top:6px;margin-top:2px;display:flex;justify-content:space-between;align-items:center">
-                <span style="color:#888">Net load</span>
+              <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px;display:flex;justify-content:space-between;align-items:center">
+                <span style="color:var(--color-text-muted)">Net load</span>
                 <span style="font-weight:600">${formatMW(netLoad)}</span>
-              </div>` : '<div style="color:#999;margin-top:4px">No data</div>'}
+              </div>` : '<div style="color:var(--color-text-faint);margin-top:4px">No data</div>'}
             </div>`).addTo(map)
             return
           }
@@ -482,32 +482,14 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <div style={{
-        position: 'absolute',
-        top: 10,
-        left: (!isMobile && leftPanelOpen) ? panelWidth + 10 : 10,
-        zIndex: 10,
-        display: 'flex',
-        borderRadius: 6,
-        overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-        border: '1px solid #ccc',
-      }}>
-        {(['street', 'aerial'] as const).map((mode, i) => (
-          <button
-            key={mode}
-            onClick={() => setShowAerial(mode === 'aerial')}
-            style={{
-              padding: '8px 14px',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              border: 'none',
-              borderLeft: i > 0 ? '1px solid #ccc' : 'none',
-              background: (mode === 'aerial') === showAerial ? '#1d4ed8' : 'white',
-              color: (mode === 'aerial') === showAerial ? 'white' : '#333',
-            }}
-          >
+      <div
+        role="group"
+        aria-label="Map style"
+        className="toggle-group toggle-group--map"
+        style={{ position: 'absolute', top: 10, left: (!isMobile && leftPanelOpen) ? panelWidth + 10 : 10, zIndex: 10 }}
+      >
+        {(['street', 'aerial'] as const).map((mode) => (
+          <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>
             {mode === 'street' ? 'Street' : 'Satellite'}
           </button>
         ))}

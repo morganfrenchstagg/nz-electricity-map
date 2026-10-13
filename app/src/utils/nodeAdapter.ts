@@ -171,7 +171,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
             dashStyle: 'Solid',
             label: {
               text: `${chargeCapacity > 0 ? 'Discharge' : 'Capacity'}: ${formatMW(adjusted)}`,
-              style: { color: '#222222', fontSize: '10px' },
+              style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
               align: 'right',
               x: -4,
             },
@@ -186,7 +186,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
             dashStyle: 'Solid',
             label: {
               text: `Charge: ${formatMW(chargeCapacity)}`,
-              style: { color: '#222222', fontSize: '10px' },
+              style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
               align: 'right',
               x: -4,
             },
@@ -196,8 +196,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       }
 
       return {
-        title: { text: 'MW', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' } },
+        title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
         softMax: softMaxCap + 1,
         // when outage data is loaded, the step-line series replaces the static plotLine
@@ -277,7 +276,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
             enabled: true,
             format: `Capacity: ${formatMW(point[1] as number)}`,
             align: 'right',
-            style: { color: '#222222', fontSize: '10px', fontWeight: 'normal', textOutline: 'none' },
+            style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
             crop: false,
             overflow: 'allow' as const,
             x: -4,
@@ -387,8 +386,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       }
       const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
       return {
-        title: { text: 'MW', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' } },
+        title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
         softMax: (adjusted > 0 ? adjusted : softMaxCap) + 1,
         gridLineDashStyle: 'Dash',
@@ -448,7 +446,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         data: data.map((point, i) => ({
           x: point[0], y: point[1],
           dataLabels: i === lastIndex
-            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: '#222222', fontSize: '10px', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
+            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
             : { enabled: false },
         })),
         color: '#222222', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
@@ -499,8 +497,7 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
 
     yAxisOptions(_effectiveCodes, _rows) {
       return {
-        title: { text: 'Load (MW)', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' } },
+        title: { text: 'Load (MW)' },
         softMin: 0,
         gridLineDashStyle: 'Dash',
         plotLines: [],

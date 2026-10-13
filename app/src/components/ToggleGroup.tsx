@@ -27,7 +27,7 @@ export function ToggleGroup({ options, compact = false, ariaLabel }: ToggleGroup
         value={active?.key ?? ''}
         onChange={e => options.find(o => o.key === e.target.value)?.onClick()}
         aria-label={ariaLabel}
-        style={{ fontSize: 12, border: '1px solid #ddd', borderRadius: 6, padding: '2px 4px', color: '#333', background: 'white', cursor: 'pointer', flexShrink: 0 }}
+        className="toggle-select"
       >
         {options.map(o => (
           <option key={o.key} value={o.key} title={o.title}>{o.menuLabel ?? o.label}</option>
@@ -37,21 +37,9 @@ export function ToggleGroup({ options, compact = false, ariaLabel }: ToggleGroup
   }
 
   return (
-    <div role="group" aria-label={ariaLabel} style={{ display: 'flex', borderRadius: 6, border: '1px solid #ddd', overflow: 'hidden', flexShrink: 0 }}>
-      {options.map((o, i) => (
-        <button
-          key={o.key}
-          onClick={o.onClick}
-          title={o.title}
-          aria-pressed={o.active}
-          style={{
-            padding: '3px 9px', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-            background: o.active ? '#1d4ed8' : 'white',
-            color: o.active ? 'white' : '#555',
-            fontWeight: o.active ? 600 : 400,
-            borderRight: i < options.length - 1 ? '1px solid #ddd' : 'none',
-          }}
-        >
+    <div role="group" aria-label={ariaLabel} className="toggle-group">
+      {options.map(o => (
+        <button key={o.key} onClick={o.onClick} title={o.title} aria-pressed={o.active}>
           {o.label}
         </button>
       ))}

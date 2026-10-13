@@ -149,40 +149,15 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     ? `substation:${currentNode.substation.siteId}`
     : null
 
-  const itemStyle = (key: string): React.CSSProperties => ({
-    padding: '7px 16px',
-    cursor: 'pointer',
-    fontSize: 13,
-    background: currentKey && key === currentKey ? '#f0f4ff' : 'transparent',
-    fontWeight: currentKey && key === currentKey ? 600 : 400,
-    borderLeft: currentKey && key === currentKey ? '3px solid #3b82f6' : '3px solid transparent',
-  })
-
-  const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: '8px 16px',
-    fontSize: 13,
-    fontWeight: tab === t ? 600 : 400,
-    color: tab === t ? '#111' : '#666',
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    borderBottom: tab === t ? '2px solid #3b82f6' : '2px solid transparent',
-    marginBottom: -1,
-  })
+  const tabClass = (t: Tab) => (tab === t ? 'tab is-active' : 'tab')
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: 'white', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', width: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-      >
+    <div onClick={onClose} className="modal-backdrop">
+      <div onClick={e => e.stopPropagation()} className="modal" style={{ width: 560, maxHeight: '80vh' }}>
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #eee', padding: '0 8px' }}>
-          <button style={tabStyle('generation')} onClick={() => handleTabChange('generation')}>Generation</button>
-          <button style={tabStyle('substation')} onClick={() => handleTabChange('substation')}>Substations</button>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-divider)', padding: '0 var(--space-md)' }}>
+          <button className={tabClass('generation')} onClick={() => handleTabChange('generation')}>Generation</button>
+          <button className={tabClass('substation')} onClick={() => handleTabChange('substation')}>Substations</button>
         </div>
 
         {/* Search + filter dropdowns */}
@@ -193,45 +168,41 @@ export default function NodePickerModal({ generators, substations, currentNode, 
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search"
-              style={{ flex: 1, minWidth: 0, fontSize: 13, border: '1px solid #ddd', borderRadius: 6, padding: '6px 10px', outline: 'none' }}
+              className="search-input"
+              style={{ flex: 1, minWidth: 0 }}
             />
           )
           if (tab !== 'generation') {
             return (
-              <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex' }}>
+              <div className="section" style={{ display: 'flex' }}>
                 {searchInput}
               </div>
             )
           }
           return (
-          <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="section" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {searchInput}
             {/* Scheme dropdown */}
             <div style={{ position: 'relative', alignSelf: 'stretch' }} ref={schemeDropdownRef}>
               <button
                 onClick={() => { setSchemeDropdownOpen(o => !o); setFuelDropdownOpen(false) }}
-                style={{ fontSize: 13, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: selectedSchemes.size > 0 ? '#f0f4ff' : 'white', color: selectedSchemes.size > 0 ? '#3b82f6' : '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: selectedSchemes.size > 0 ? 600 : 400, whiteSpace: 'nowrap', height: '100%', boxSizing: 'border-box' }}
+                className={selectedSchemes.size > 0 ? 'filter-button is-active' : 'filter-button'}
+                style={{ display: 'flex', height: '100%' }}
               >
                 {selectedSchemes.size === 0 ? 'All schemes' : selectedSchemes.size === 1 ? [...selectedSchemes][0] : `${selectedSchemes.size} schemes`}
                 {selectedSchemes.size > 0 && (
-                  <span onClick={e => { e.stopPropagation(); setSelectedSchemes(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1 }}>✕</span>
+                  <span onClick={e => { e.stopPropagation(); setSelectedSchemes(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}>✕</span>
                 )}
-                <span style={{ opacity: 0.4, marginLeft: 2 }}>▾</span>
+                <span style={{ opacity: 0.4, marginLeft: 2, fontSize: 'var(--font-size-xs)' }}>▾</span>
               </button>
               {schemeDropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, background: 'white', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 200 }}>
+                <div className="popover" style={{ top: '100%', right: 0, zIndex: 10, minWidth: 200 }}>
                   {availableSchemes.map(scheme => {
                     const active = selectedSchemes.has(scheme)
                     return (
-                      <div
-                        key={scheme}
-                        onClick={() => toggleScheme(scheme)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, background: active ? '#f0f4ff' : 'transparent' }}
-                        onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5' }}
-                        onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-                      >
+                      <div key={scheme} onClick={() => toggleScheme(scheme)} className={active ? 'menu-item is-selected' : 'menu-item'}>
                         <span style={{ flex: 1 }}>{scheme}</span>
-                        {active && <span style={{ color: '#3b82f6', fontSize: 11 }}>✓</span>}
+                        {active && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
                       </div>
                     )
                   })}
@@ -243,29 +214,24 @@ export default function NodePickerModal({ generators, substations, currentNode, 
             <div style={{ position: 'relative', alignSelf: 'stretch' }} ref={fuelDropdownRef}>
               <button
                 onClick={() => { setFuelDropdownOpen(o => !o); setSchemeDropdownOpen(false) }}
-                style={{ fontSize: 13, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: selectedFuels.size > 0 ? '#f0f4ff' : 'white', color: selectedFuels.size > 0 ? '#3b82f6' : '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: selectedFuels.size > 0 ? 600 : 400, whiteSpace: 'nowrap', height: '100%', boxSizing: 'border-box' }}
+                className={selectedFuels.size > 0 ? 'filter-button is-active' : 'filter-button'}
+                style={{ display: 'flex', height: '100%' }}
               >
                 {selectedFuels.size === 0 ? 'All fuels' : selectedFuels.size === 1 ? [...selectedFuels][0] : `${selectedFuels.size} fuels`}
                 {selectedFuels.size > 0 && (
-                  <span onClick={e => { e.stopPropagation(); setSelectedFuels(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1 }}>✕</span>
+                  <span onClick={e => { e.stopPropagation(); setSelectedFuels(new Set()) }} style={{ marginLeft: 2, opacity: 0.6, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}>✕</span>
                 )}
-                <span style={{ opacity: 0.4, marginLeft: 2 }}>▾</span>
+                <span style={{ opacity: 0.4, marginLeft: 2, fontSize: 'var(--font-size-xs)' }}>▾</span>
               </button>
               {fuelDropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, background: 'white', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 200 }}>
+                <div className="popover" style={{ top: '100%', right: 0, zIndex: 10, minWidth: 200 }}>
                   {availableFuels.map(fuel => {
                     const active = selectedFuels.has(fuel)
                     return (
-                      <div
-                        key={fuel}
-                        onClick={() => toggleFuel(fuel)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, background: active ? '#f0f4ff' : 'transparent' }}
-                        onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5' }}
-                        onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-                      >
+                      <div key={fuel} onClick={() => toggleFuel(fuel)} className={active ? 'menu-item is-selected' : 'menu-item'}>
                         <span style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0, background: fuelColour(fuel) }} />
                         <span style={{ flex: 1 }}>{fuel}</span>
-                        {active && <span style={{ color: '#3b82f6', fontSize: 11 }}>✓</span>}
+                        {active && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
                       </div>
                     )
                   })}
@@ -279,7 +245,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
         {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {tab === 'generation' && (() => {
-            if (filteredGenerators.length === 0) return <div style={{ padding: 24, textAlign: 'center', color: '#999', fontSize: 13 }}>No results</div>
+            if (filteredGenerators.length === 0) return <div className="empty-state">No results</div>
             const byOperator = new Map<string, typeof filteredGenerators>()
             for (const g of filteredGenerators) {
               const group = byOperator.get(g.operator) ?? []
@@ -303,10 +269,11 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                 <div key={operator}>
                   <div
                     onClick={toggleOperator}
-                    style={{ padding: '8px 16px 4px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#fafafa', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    className="eyebrow"
+                    style={{ padding: 'var(--space-md) var(--space-xl) var(--space-xs)', background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider-subtle)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                   >
-                    <span style={{ width: 14, height: 14, borderRadius: 3, border: allChecked ? 'none' : '1.5px solid #ccc', background: allChecked ? '#3b82f6' : someChecked ? '#93c5fd' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {(allChecked || someChecked) && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1 }}>✓</span>}
+                    <span style={{ width: 14, height: 14, borderRadius: 3, border: allChecked ? 'none' : '1.5px solid var(--color-border-strong)', background: allChecked ? 'var(--color-accent)' : someChecked ? 'var(--color-accent-muted)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {(allChecked || someChecked) && <span style={{ color: 'var(--color-text-inverse)', fontSize: 'var(--font-size-2xs)', lineHeight: 1 }}>✓</span>}
                     </span>
                     {operator}
                   </div>
@@ -316,26 +283,25 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                     return (
                       <div
                         key={g.site}
-                        style={{ padding: '7px 16px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, background: checked ? '#f0f4ff' : 'transparent', borderLeft: checked ? '3px solid #3b82f6' : '3px solid transparent' }}
+                        className={checked ? 'list-item is-selected' : 'list-item'}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                         onClick={() => toggleSite(g.site)}
-                        onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5' }}
-                        onMouseLeave={e => { if (!checked) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                       >
-                        <span style={{ width: 16, height: 16, borderRadius: 4, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#3b82f6' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {checked && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
+                        <span style={{ width: 16, height: 16, borderRadius: 4, border: checked ? 'none' : '1.5px solid var(--color-border-strong)', background: checked ? 'var(--color-accent)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {checked && <span style={{ color: 'var(--color-text-inverse)', fontSize: 'var(--font-size-xs)', lineHeight: 1 }}>✓</span>}
                         </span>
-                        <span style={{ flex: 1, fontWeight: checked ? 600 : 400 }}>
+                        <span style={{ flex: 1 }}>
                           {g.name}
                           {/* Retired generators aren't on the map, but their history can still be charted */}
                           {isRetired(g) && (
-                            <span style={{ marginLeft: 6, fontSize: 10, padding: '0 5px', borderRadius: 3, border: '1px solid #d1d5db', color: '#6b7280', fontWeight: 600, verticalAlign: 'middle' }}>
+                            <span style={{ marginLeft: 6, fontSize: 'var(--font-size-2xs)', padding: '0 var(--space-sm)', borderRadius: 3, border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontWeight: 600, verticalAlign: 'middle' }}>
                               Retired
                             </span>
                           )}
                         </span>
                         <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                           {fuels.map(fuel => (
-                            <span key={fuel} style={{ fontSize: 10, padding: '1px 5px', borderRadius: 3, background: fuelColour(fuel), color: '#fff', fontWeight: 600, opacity: 0.9 }}>
+                            <span key={fuel} style={{ fontSize: 'var(--font-size-2xs)', padding: '1px var(--space-sm)', borderRadius: 3, background: fuelColour(fuel), color: 'var(--color-text-inverse)', fontWeight: 600, opacity: 0.9 }}>
                               {fuel}
                             </span>
                           ))}
@@ -348,7 +314,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
             })
           })()}
           {tab === 'substation' && (() => {
-            if (filteredSubstations.length === 0) return <div style={{ padding: 24, textAlign: 'center', color: '#999', fontSize: 13 }}>No results</div>
+            if (filteredSubstations.length === 0) return <div className="empty-state">No results</div>
             const islands: { key: 'north' | 'south'; label: string }[] = [
               { key: 'north', label: 'North Island' },
               { key: 'south', label: 'South Island' },
@@ -365,24 +331,23 @@ export default function NodePickerModal({ generators, substations, currentNode, 
               const sortedZones = [...byZone.keys()].sort((a, b) => a - b)
               return (
                 <div key={key}>
-                  <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: '8px 16px 4px', fontSize: 12, fontWeight: 700, color: '#444', background: '#f0f0f0', borderBottom: '1px solid #e0e0e0', borderTop: '1px solid #e0e0e0' }}>
+                  <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: 'var(--space-md) var(--space-xl) var(--space-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-text)', background: 'var(--color-surface-muted)', borderBottom: '1px solid var(--color-divider)', borderTop: '1px solid var(--color-divider)' }}>
                     {label}
                   </div>
                   {sortedZones.map(zone => (
                     <div key={zone}>
-                      <div style={{ position: 'sticky', top: 28, zIndex: 1, padding: '6px 16px 3px 24px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                      <div className="eyebrow" style={{ position: 'sticky', top: 28, zIndex: 1, padding: 'var(--space-sm) var(--space-xl) var(--space-xs) var(--space-2xl)', background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider-subtle)' }}>
                         {GRID_ZONE_NAMES[zone] ?? `Grid Zone ${zone}`} <span style={{ fontWeight: 400, opacity: 0.6 }}>GZ{zone}</span>
                       </div>
                       {byZone.get(zone)!.map(s => (
                         <div
                           key={s.siteId}
-                          style={{ ...itemStyle(`substation:${s.siteId}`), paddingLeft: 32 }}
+                          className={`substation:${s.siteId}` === currentKey ? 'list-item is-selected' : 'list-item'}
+                          style={{ paddingLeft: 'var(--space-3xl)' }}
                           onClick={() => { onSelect({ kind: 'substation', substation: s }); onClose() }}
-                          onMouseEnter={e => { if (`substation:${s.siteId}` !== currentKey) (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5' }}
-                          onMouseLeave={e => { if (`substation:${s.siteId}` !== currentKey) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                         >
                           {s.description}
-                          <span style={{ fontSize: 11, color: '#999', marginLeft: 6 }}>{s.siteId}</span>
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', marginLeft: 6 }}>{s.siteId}</span>
                         </div>
                       ))}
                     </div>
@@ -395,15 +360,16 @@ export default function NodePickerModal({ generators, substations, currentNode, 
 
         {/* Generator selection footer */}
         {tab === 'generation' && (
-          <div style={{ padding: '10px 16px', borderTop: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 12, color: '#666' }}>
+          <div style={{ padding: 'var(--space-lg) var(--space-xl)', borderTop: '1px solid var(--color-divider)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
               {selectedSites.size === 0 ? 'No generators selected' : `${selectedSites.size} generator${selectedSites.size !== 1 ? 's' : ''} selected`}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               {selectedSites.size > 0 && (
                 <button
                   onClick={() => setSelectedSites(new Set())}
-                  style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e7e7e7', color: '#666', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  className="button-secondary"
+                  style={{ padding: 'var(--space-sm) var(--space-xl)', borderRadius: 'var(--radius-md)', fontWeight: 600, lineHeight: 'normal' }}
                 >
                   Clear
                 </button>
@@ -411,7 +377,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
               <button
                 onClick={confirmSelection}
                 disabled={selectedSites.size === 0}
-                style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: selectedSites.size > 0 ? '#3b82f6' : '#e5e7eb', color: selectedSites.size > 0 ? '#fff' : '#9ca3af', fontSize: 13, fontWeight: 600, cursor: selectedSites.size > 0 ? 'pointer' : 'default' }}
+                className="button-primary"
               >
                 View
               </button>
