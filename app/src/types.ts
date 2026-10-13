@@ -41,7 +41,7 @@ export interface DefinitionsResponse {
 export interface RecentData {
   series: string[]
   data: (string | number)[][]
-  pricing: (string | number)[][]
+  pricing: (string | number | null)[][] // null where a node has no price
 }
 
 export type SelectedNode =

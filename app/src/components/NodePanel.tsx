@@ -497,13 +497,14 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     }
 
     // Built once per chart rather than per tooltip, which fires on every mouse move
-    const pricingByMs = new Map<number, Record<string, number>>()
+    // A node can have no price at some timestamps, so values may be null
+    const pricingByMs = new Map<number, Record<string, number | null>>()
     if (recentData?.pricing && !isAggregate) {
       const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
       for (const row of recentData.pricing) {
         const ms = new Date((row[0] as string) + 'Z').getTime()
-        const entry: Record<string, number> = {}
-        chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
+        const entry: Record<string, number | null> = {}
+        chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number | null })
         pricingByMs.set(ms, entry)
       }
     }
@@ -565,7 +566,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
             const code = chartData.codes[p.series.index]
             const price = code !== undefined && priceAtTime ? priceAtTime[code] : undefined
-            const priceStr = price !== undefined ? `$${price.toFixed(2)}/MWh` : ''
+            const priceStr = price != null ? `$${price.toFixed(2)}/MWh` : ''
             const nameStr = points.length > 1 ? p.series.name : '';
             const capacityRow = points.length === 1 && cap !== null ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)` : '';
             return `<tr><td><span style="color:${String(p.color)}">●</span> ${nameStr}</td><td>${formatted}${capacityRow}</td><td>${priceStr}</td></tr>`
