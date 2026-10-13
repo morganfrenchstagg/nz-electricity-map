@@ -10,7 +10,7 @@ import { tooltipTime } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import { outageMs, todayNZ } from '../utils/time'
+import { nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -177,7 +177,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const soonestOutageEnd = useMemo(() => {
     if (!outages || totalOutageMW <= 0) return null
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     let soonest: Date | null = null
     for (const code of effectiveCodes) {
       for (const rec of (outages[code] ?? [])) {
@@ -199,7 +199,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const outageDetails = useMemo(() => {
     if (!outages) return []
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
     for (const code of effectiveCodes) {
       const records = outages[code] ?? []
@@ -224,7 +224,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
   const outageBlockPrefixes = useMemo(() => {
     if (!outages) return []
-    const nowMs = Date.now()
+    const nowMs = nzNowMs()
     const prefixes = new Set<string>()
     for (const code of effectiveCodes) {
       for (const rec of (outages[code] ?? [])) {

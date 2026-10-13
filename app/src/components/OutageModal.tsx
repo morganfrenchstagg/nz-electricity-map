@@ -1,6 +1,6 @@
 import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
-import { outageMs } from '../utils/time'
+import { nzNowMs, outageMs } from '../utils/time'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
@@ -49,7 +49,7 @@ const tdStyle: React.CSSProperties = {
 }
 
 export default function OutageModal({ outages, outageBlockPrefixes, onClose }: Props) {
-  const now = Date.now()
+  const now = nzNowMs()
   const sorted = outages
     .slice()
     .sort((a, b) => outageMs(a.record.timeStart) - outageMs(b.record.timeStart))
