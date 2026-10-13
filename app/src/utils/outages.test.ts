@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutageRecord } from '../api'
-import { mergeOutageSegments } from './outages'
+import { mergeOutageSegments, outageEasesAt } from './outages'
 import { nzLocalMs, nzNowMs } from './time'
 
 afterEach(() => { vi.useRealTimers() })
 
 // An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
-function outage(from: string, to: string, mw: number): OutageRecord {
-  return { outageBlock: 'ATI_STN', timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
+function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
+  return { outageBlock: block, timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
 }
 
 // A time of day on 13 October 2026, as mergeOutageSegments reports it
@@ -24,8 +24,8 @@ describe('mergeOutageSegments', () => {
     ])
   })
 
-  it('adds up overlapping outages, then carries on with what remains', () => {
-    const records = [outage('08:00', '12:00', 3), outage('10:00', '16:00', 3)]
+  it('adds up overlapping outages on different blocks, then carries on with what remains', () => {
+    const records = [outage('08:00', '12:00', 3, 'ATI_1'), outage('10:00', '16:00', 3, 'ATI_2')]
     expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([
       { start: at('08:00'), end: at('10:00'), mw: 3 },
       { start: at('10:00'), end: at('12:00'), mw: 6 },
@@ -48,8 +48,24 @@ describe('mergeOutageSegments', () => {
     ])
   })
 
+  it('counts overlapping outages on the same block once, at the largest', () => {
+    const records = [outage('08:00', '16:00', 66, 'OHA_5'), outage('09:00', '12:00', 66, 'OHA_5'), outage('10:00', '11:00', 50, 'OHA_5')]
+    expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([
+      { start: at('08:00'), end: at('16:00'), mw: 66 },
+    ])
+  })
+
+  it('stacks blocks no higher than the most a unit can lose', () => {
+    const records = [outage('08:00', '16:00', 66, 'OHA_5'), outage('10:00', '12:00', 198, 'OHA_STN')]
+    expect(mergeOutageSegments(records, BEFORE_ALL, 254)).toEqual([
+      { start: at('08:00'), end: at('10:00'), mw: 66 },
+      { start: at('10:00'), end: at('12:00'), mw: 254 },
+      { start: at('12:00'), end: at('16:00'), mw: 66 },
+    ])
+  })
+
   it('drops what has ended, but keeps when an ongoing segment really began', () => {
-    const records = [outage('08:00', '12:00', 3), outage('10:00', '16:00', 3)]
+    const records = [outage('08:00', '12:00', 3, 'ATI_1'), outage('10:00', '16:00', 3, 'ATI_2')]
     expect(mergeOutageSegments(records, at('11:00'))).toEqual([
       { start: at('10:00'), end: at('12:00'), mw: 6 },
       { start: at('12:00'), end: at('16:00'), mw: 3 },
@@ -77,5 +93,19 @@ describe('mergeOutageSegments', () => {
     vi.setSystemTime('2026-10-13T01:30:00Z') // 2:30pm NZDT
     // Date.now() runs 13 hours behind this clock, so with it this would last until 2:30am tomorrow
     expect(mergeOutageSegments([outage('08:00', '13:30', 3)], nzNowMs())).toEqual([])
+  })
+})
+
+describe('outageEasesAt', () => {
+  it('is when the current outage starts to ease, past any time it gets worse', () => {
+    const segments = mergeOutageSegments([outage('08:00', '16:00', 66, 'OHA_5'), outage('10:00', '12:00', 198, 'OHA_STN')], BEFORE_ALL)
+    expect(outageEasesAt(segments, at('09:00'))).toBe(at('16:00'))
+    expect(outageEasesAt(segments, at('11:00'))).toBe(at('12:00'))
+  })
+
+  it("ignores outages that haven't started", () => {
+    const segments = mergeOutageSegments([outage('08:00', '10:00', 3, 'ATI_1'), outage('12:00', '14:00', 5, 'ATI_2')], BEFORE_ALL)
+    expect(outageEasesAt(segments, at('09:00'))).toBe(at('10:00'))
+    expect(outageEasesAt(segments, at('11:00'))).toBeNull()
   })
 })

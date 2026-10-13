@@ -6,16 +6,8 @@ import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
+import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
-
-// An outage runs from its start up to, but not including, its end, as in
-// unitCapacityAt and mergeOutageSegments
-function activeOutageMW(unitCode: string, outages: OutageData, now: number): number {
-  const records = outages[unitCode] ?? []
-  return records
-    .filter((o) => outageMs(o.timeStart) <= now && now < outageMs(o.timeEnd))
-    .reduce((sum, o) => sum + o.mwattLost, 0)
-}
 
 // A unit that moves substation (e.g. Pātea, from Hawera to Ōhangai in 2026) is
 // listed twice under the same unit code: retired at its old node and active at
@@ -63,20 +55,6 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   // Moved units are charted under their current node only
   const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
 
-  // Returns the available capacity for a unit at a given chart-timeline timestamp.
-  // Without active outages: MSGC (u.capacity).
-  // With active outages: installedCapacity - totalLost (outages are calculated
-  // against installed capacity, not MSGC).
-  function unitCapacityAt(unit: { node: string; capacity: number; installedCapacity?: number }, atMs: number): number {
-    if (!outages) return unit.capacity
-    const records = outages[unit.node] ?? []
-    const lost = records
-      .filter((r) => outageMs(r.timeStart) <= atMs && atMs < outageMs(r.timeEnd))
-      .reduce((s, r) => s + r.mwattLost, 0)
-    if (lost <= 0) return unit.capacity
-    return Math.max(0, (unit.installedCapacity ?? unit.capacity) - lost)
-  }
-
   const subtitleFuels = [...new Set(activeUnits.map((u) => fuelFamily(u.fuel)))]
     .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
     .map((label) => ({ label, colour: fuelColour(label) }))
@@ -115,7 +93,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const units = effectiveCodes
         ? activeUnits.filter((u) => effectiveCodes.has(u.node))
         : activeUnits
-      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
 
       // softMax = maximum capacity the generator reaches over the chart period.
       // Collect all outage-event timestamps within the chart window plus firstTime,
@@ -135,11 +113,11 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         }
         softMaxCap = 0
         for (const t of checkTs) {
-          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, t), 0)
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
 
       const capacityPlotLines: Highcharts.YAxisPlotLinesOptions[] = []
       if (!outages) {
@@ -189,7 +167,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     capacityMW(effectiveCodes) {
       return activeUnits
         .filter((u) => effectiveCodes.has(u.node) && !isCharging(u))
-        .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+        .reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
     },
 
     normalCapacityMW(effectiveCodes) {
@@ -199,8 +177,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     },
 
     unitOutageMW(code) {
-      if (!outages) return 0
-      return activeOutageMW(code, outages, now)
+      const unit = generator.units.find((u) => u.node === code)
+      return outages && unit ? unitOutageMWAt(unit, outages, now) : 0
     },
 
     capacitySeries(rows, effectiveCodes) {
@@ -213,7 +191,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const lastTime = nzLocalMs(rows[rows.length - 1].time)
 
       function totalCapAt(atMs: number): number {
-        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, atMs), 0)
       }
 
       // Collect unique timestamps within the chart window where any unit's outage state changes.
@@ -278,16 +256,6 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
   const allActiveUnits = allUnits.filter(u => u.active !== false)
   const movedNodes = Object.assign({}, ...generators.map(g => movedNodesOf(g.units))) as Record<string, string>
 
-  function unitCapacityAt(unit: { node: string; capacity: number; installedCapacity?: number }, atMs: number): number {
-    if (!outages) return unit.capacity
-    const records = outages[unit.node] ?? []
-    const lost = records
-      .filter((r) => outageMs(r.timeStart) <= atMs && atMs < outageMs(r.timeEnd))
-      .reduce((s, r) => s + r.mwattLost, 0)
-    if (lost <= 0) return unit.capacity
-    return Math.max(0, (unit.installedCapacity ?? unit.capacity) - lost)
-  }
-
   const genNameFor = (code: string) => {
     for (const generator of generators) {
       if (generator.units.some(u => u.node === code)) return generator.name
@@ -337,7 +305,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 
     yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes ? allActiveUnits.filter(u => effectiveCodes.has(u.node)) : allActiveUnits
-      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
       let softMaxCap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
       if (outages && rows && rows.length > 0) {
         const firstTime = nzLocalMs(rows[0].time)
@@ -352,11 +320,11 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         }
         softMaxCap = 0
         for (const t of checkTs) {
-          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, t), 0)
+          const cap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, t), 0)
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
       return {
         title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
@@ -371,7 +339,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     capacityMW(effectiveCodes) {
       return allActiveUnits
         .filter(u => effectiveCodes.has(u.node) && !isCharging(u))
-        .reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
+        .reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
     },
 
     normalCapacityMW(effectiveCodes) {
@@ -381,8 +349,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     },
 
     unitOutageMW(code) {
-      if (!outages) return 0
-      return activeOutageMW(code, outages, now)
+      const unit = allUnits.find(u => u.node === code)
+      return outages && unit ? unitOutageMWAt(unit, outages, now) : 0
     },
 
     capacitySeries(rows, effectiveCodes) {
@@ -392,7 +360,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       const firstTime = nzLocalMs(rows[0].time)
       const lastTime = nzLocalMs(rows[rows.length - 1].time)
       function totalCapAt(atMs: number) {
-        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
+        return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, outages, atMs), 0)
       }
       const timestamps = new Set<number>()
       for (const unit of units) {
