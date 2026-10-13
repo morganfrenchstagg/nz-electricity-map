@@ -8,7 +8,7 @@ import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggre
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
-import { fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { DATETIME_LABEL_FORMATS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -179,7 +179,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     }
     const fuels = [
       ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
-      ...[...fuelToIndices.keys()].filter(f => !FUEL_CODE_ORDER.includes(f)),
+      ...[...fuelToIndices.keys()].filter(f => !(FUEL_CODE_ORDER as readonly string[]).includes(f)),
     ]
     return { fuels, fuelToIndices, fuelToCapacity }
   }, [data, generators, island, isAggregate])
@@ -344,7 +344,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       xAxis: {
         type: 'datetime',
         labels: { style: { fontSize: '10px' } },
-        dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
+        dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
         plotLines: midnightPlotLines,
       },
       yAxis: {
