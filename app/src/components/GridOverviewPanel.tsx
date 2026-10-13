@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { daysBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
@@ -113,7 +113,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const rangeError = useMemo(() => {
     if (!fromDate || !toDate) return null
     if (toDate < fromDate) return 'End date must be after start date'
-    const days = datesBetween(fromDate, toDate).length
+    const days = daysBetween(fromDate, toDate)
     if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
     return null
   }, [fromDate, toDate])
@@ -125,7 +125,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       setCustomRequested(false)
       onDateModeChange({ kind: 'recent' })
     } else if (toDate && toDate >= val) {
-      const days = datesBetween(val, toDate).length
+      const days = daysBetween(val, toDate)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
     } else {
       setToDate('')
@@ -138,7 +138,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     if (!val) {
       if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
     } else if (fromDate && val >= fromDate) {
-      const days = datesBetween(fromDate, val).length
+      const days = daysBetween(fromDate, val)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
     }
   }, [fromDate, onDateModeChange])
