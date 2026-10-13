@@ -55,20 +55,21 @@ export function mergeData(days: RecentData[]): RecentData {
   }
 
   const allData: (string | number)[][] = []
-  const allPricing: (string | number)[][] = []
+  const allPricing: (string | number | null)[][] = []
 
   for (const day of days) {
     const idxMap = seriesUnion.map(s => day.series.indexOf(s))
-    const remap = (row: (string | number)[]): (string | number)[] => {
-      const out: (string | number)[] = [row[0]]
-      for (const idx of idxMap) out.push(idx >= 0 ? row[idx + 1] : 0)
+    // A series missing from a day generated 0 MW, but its price is unknown
+    const remap = <T>(row: T[], missing: T): T[] => {
+      const out: T[] = [row[0]]
+      for (const idx of idxMap) out.push(idx >= 0 ? row[idx + 1] : missing)
       return out
     }
-    allData.push(...day.data.map(remap))
-    allPricing.push(...(day.pricing ?? []).map(remap))
+    allData.push(...day.data.map(row => remap(row, 0)))
+    allPricing.push(...(day.pricing ?? []).map(row => remap(row, null)))
   }
 
-  const byTs = (a: (string | number)[], b: (string | number)[]) =>
+  const byTs = (a: (string | number | null)[], b: (string | number | null)[]) =>
     String(a[0]) < String(b[0]) ? -1 : 1
 
   return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs) }
