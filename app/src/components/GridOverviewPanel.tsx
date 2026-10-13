@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { DateMode } from '../hooks/useDispatchData'
@@ -6,7 +6,7 @@ import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggre
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -53,10 +53,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pipelineOpen, setPipelineOpen] = useState(() => window.location.pathname === '/pipeline')
-  const chartRef = useRef<HighchartsReact.RefObject>(null)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
-
-  useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
 
   // The 30d, 1y and All views chart every node's MWh totals instead of the
   // 5-minute dispatch data. Not fetched while the panel is hidden.
@@ -224,6 +221,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
     return {
       chart: {
+        ...FIT_TO_CONTAINER,
         type: 'area', height: null, animation: false, backgroundColor: '#ffffff',
         className: isAggregate ? 'aggregate-columns' : undefined, // see index.css
       },
@@ -448,7 +446,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
+          <HighchartsReact key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
         )}
       </div>
       {!expanded && !isMobile && (
