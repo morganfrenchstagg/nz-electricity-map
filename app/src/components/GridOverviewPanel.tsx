@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
@@ -12,11 +12,12 @@ import { CHART_CONTAINER_PROPS, fillMonthColumns, tooltipTime, withGaps } from '
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
-import NodePickerModal from './NodePickerModal'
-import PipelineModal from './PipelineModal'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
+
+const NodePickerModal = lazy(() => import('./NodePickerModal'))
+const PipelineModal = lazy(() => import('./PipelineModal'))
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -416,15 +417,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
-      {pickerOpen && (
-        <NodePickerModal
-          generators={generators}
-          substations={substations}
-          onSelect={(node) => { onNodeSelect(node); setPickerOpen(false) }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-      {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
+      <Suspense fallback={null}>
+        {pickerOpen && (
+          <NodePickerModal
+            generators={generators}
+            substations={substations}
+            onSelect={(node) => { onNodeSelect(node); setPickerOpen(false) }}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+        {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
+      </Suspense>
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
