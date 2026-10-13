@@ -101,6 +101,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const { generators: allGenerators, substations: allSubstations } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
+  // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
+  const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   const adapter = useMemo(() => {
@@ -570,116 +572,113 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   return (
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
       {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        {/* The capacity readout wraps under the title when there isn't room beside it */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: '6px 8px' }}>
-          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={() => setPickerOpen(true)}
-                style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                {title}
-                <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
-              </button>
-              <button
-                onClick={onClear}
-                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
-                aria-label='Clear'
-              >
-                Clear
-              </button>
-            </div>
-            <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
-              <span>{subtitle}</span>
-              {adapter.subtitleFuels.map((f) => (
-                <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ marginRight: 3 }}>|</span>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
-                  <span>{f.label}</span>
-                </span>
-              ))}
-            </div>
+      <div ref={headerRef} style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        {/* Kept at its full width while the readout shows, so a header too narrow
+            for both hides the readout rather than squeezing the title */}
+        <div style={compactHeader ? { flex: 1, minWidth: 0 } : { flex: '1 0 auto' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setPickerOpen(true)}
+              style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              {title}
+              <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
+            </button>
+            <button
+              onClick={onClear}
+              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
+              aria-label='Clear'
+            >
+              Clear
+            </button>
           </div>
-          {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
-          {!isMobile && isAggregate && isGenerator && totalGenerationMWh !== null && (
-            <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Total: {formatMWh(totalGenerationMWh)}
-            </div>
-          )}
-          {!isMobile && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140 }}>
-              {/* Wraps the outage badge onto its own line when the readout has a line to itself and still doesn't fit */}
-              <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                {totalOutageMW > 0 ? (
-                  <>
-                    <span>{formatMW(currentGeneration)} /</span>
-                    <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
-                    <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
-                    <button
-                      onClick={() => setOutageModalOpen(true)}
-                      title="View outage details"
-                      style={{
-                        background: '#fee2e2',
-                        color: '#b91c1c',
-                        border: 'none',
-                        borderRadius: 4,
-                        padding: '0 5px',
-                        fontSize: 10,
-                        fontWeight: 600,
-                        lineHeight: '16px',
-                        // Only wraps once it's on a line of its own and still too wide for the narrowest panel
-                        whiteSpace: 'normal',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3,
-                      }}
-                    >
-                      {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
-                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                        <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
-                        <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
-                        <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  </>
-                ) : (
-                  <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
-                )}
-              </div>
-              <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
-                {allCodes.map((code, i) => {
-                  if (!effectiveCodes.has(code)) return null
-                  const lastRow = chartData?.rows[chartData.rows.length - 1]
-                  const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
-                  const colour = adapter.colourFor(code, i)
-                  const denom = (capacity > 0 ? capacity : 1) + totalOutageMW
-                  const genPct = (Math.abs(val) / denom) * 100
-                  return (
-                    <span key={code} style={{ display: 'contents' }}>
-                      <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
-                    </span>
-                  )
-                })}
-                {
-                  totalOutageMW > 0 && (
-                    <>
-                      <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
-                      <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
-                    </>
-                  )
-                }
-              </div>
-              {totalGenerationMWh !== null && (
-                <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  Total: {formatMWh(totalGenerationMWh)}
-                </div>
+          {/* Wraps to the title row's width rather than widening the title block, so a long subtitle doesn't hide the readout */}
+          <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px', contain: 'inline-size' }}>
+            <span>{subtitle}</span>
+            {adapter.subtitleFuels.map((f) => (
+              <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ marginRight: 3 }}>|</span>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
+                <span>{f.label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
+        {!compactHeader && isAggregate && isGenerator && totalGenerationMWh !== null && (
+          <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Total: {formatMWh(totalGenerationMWh)}
+          </div>
+        )}
+        {!compactHeader && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+              {totalOutageMW > 0 ? (
+                <>
+                  <span>{formatMW(currentGeneration)} /</span>
+                  <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
+                  <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
+                  <button
+                    onClick={() => setOutageModalOpen(true)}
+                    title="View outage details"
+                    style={{
+                      background: '#fee2e2',
+                      color: '#b91c1c',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '0 5px',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      lineHeight: '16px',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                    }}
+                  >
+                    {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
+                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
+                      <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
+                      <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
               )}
             </div>
-          )}
-        </div>
+            <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+              {allCodes.map((code, i) => {
+                if (!effectiveCodes.has(code)) return null
+                const lastRow = chartData?.rows[chartData.rows.length - 1]
+                const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
+                const colour = adapter.colourFor(code, i)
+                const denom = (capacity > 0 ? capacity : 1) + totalOutageMW
+                const genPct = (Math.abs(val) / denom) * 100
+                return (
+                  <span key={code} style={{ display: 'contents' }}>
+                    <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
+                  </span>
+                )
+              })}
+              {
+                totalOutageMW > 0 && (
+                  <>
+                    <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
+                    <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
+                  </>
+                )
+              }
+            </div>
+            {totalGenerationMWh !== null && (
+              <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                Total: {formatMWh(totalGenerationMWh)}
+              </div>
+            )}
+          </div>
+        )}
         {isMobile ? (
           <button
             onClick={onClose}
