@@ -55,10 +55,15 @@ function isoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
+// The most recent complete NZ day, as "YYYY-MM-DD". The date pickers cap at
+// this; using UTC yesterday instead would hide NZ yesterday until 1pm NZST.
+export function yesterdayNZ(): string {
+  return isoDate(todayNZ() - DAY_MS)
+}
+
 // The last `days` complete NZ days, ending yesterday.
 function completeDayWindow(days: number): { from: string; to: string } {
-  const today = todayNZ()
-  return { from: isoDate(today - days * DAY_MS), to: isoDate(today - DAY_MS) }
+  return { from: isoDate(todayNZ() - days * DAY_MS), to: yesterdayNZ() }
 }
 
 // The last `weeks` complete Monday-to-Sunday NZ weeks, ending last Sunday.

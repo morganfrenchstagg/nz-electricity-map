@@ -9,9 +9,10 @@
     },
     {
       "name": "app-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "app", "--", "--port", "5199", "--strictPort"],
-      "port": 5199
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npm run dev --prefix app -- --port \"${PORT:-5199}\" --strictPort"],
+      "port": 5199,
+      "autoPort": true
     }
   ]
 }
