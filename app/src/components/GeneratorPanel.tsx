@@ -10,7 +10,7 @@ import { tooltipTime } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import { nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -260,8 +260,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     for (let i = 1; i < chartData.rows.length; i++) {
       const prev = chartData.rows[i - 1]
       const curr = chartData.rows[i]
-      const t0 = new Date((prev.time as string) + 'Z').getTime()
-      const t1 = new Date((curr.time as string) + 'Z').getTime()
+      const t0 = nzLocalMs(prev.time)
+      const t1 = nzLocalMs(curr.time)
       const dtMs = t1 - t0
       if (dtMs <= 0 || dtMs > maxGapMs) continue
       const v0 = codes.reduce((sum, code) => sum + ((prev[code] as number) ?? 0), 0)

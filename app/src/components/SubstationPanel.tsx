@@ -8,6 +8,7 @@ import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { fuelColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMWh } from '../utils/format'
+import { nzLocalMs } from '../utils/time'
 import { unitLabel } from '../utils/generators'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -39,7 +40,7 @@ function totalSeries({ rows, codes }: ChartData, visible: boolean): Highcharts.S
     lineWidth: 2,
     zIndex: 5,
     data: rows.map((row) => [
-      new Date((row.time as string) + 'Z').getTime(),
+      nzLocalMs(row.time),
       codes.reduce((sum, code) => sum + toLoad(row[code] as number), 0),
     ]),
     marker: { enabled: false },

@@ -3,6 +3,7 @@ import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
 import { DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, midnightPlotLines, withGaps } from './chart'
 import type { ChartData } from './chart'
+import { nzLocalMs } from './time'
 
 const identity = (value: number) => value
 
@@ -37,7 +38,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
 
   const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code) => {
     const points: [number, number][] = chartData.rows.map((row) => [
-      new Date((row.time as string) + 'Z').getTime(),
+      nzLocalMs(row.time),
       transformValue(row[code] as number),
     ])
     const colour = colourFor(code)
@@ -111,7 +112,7 @@ export function pricesByTime(recentData: RecentData | null, codes: string[]): Ma
   if (!recentData?.pricing) return prices
   const indices = codes.map((c) => recentData.series.indexOf(c) + 1)
   for (const row of recentData.pricing) {
-    const ms = new Date((row[0] as string) + 'Z').getTime()
+    const ms = nzLocalMs(row[0] as string)
     const entry: Record<string, number | null> = {}
     codes.forEach((code, i) => { entry[code] = row[indices[i]] as number | null })
     prices.set(ms, entry)

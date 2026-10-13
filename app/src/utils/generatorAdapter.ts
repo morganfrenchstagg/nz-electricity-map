@@ -6,7 +6,7 @@ import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
-import { nzNowMs, outageMs } from './time'
+import { nzLocalMs, nzNowMs, outageMs } from './time'
 
 function activeOutageMW(unitCode: string, outages: OutageData, now: number): number {
   const records = outages[unitCode] ?? []
@@ -120,8 +120,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       // evaluate totalCap at each, take the max.
       let softMaxCap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0) // MSGC as default
       if (outages && rows && rows.length > 0) {
-        const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
-        const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+        const firstTime = nzLocalMs(rows[0].time)
+        const lastTime = nzLocalMs(rows[rows.length - 1].time)
         const checkTs = new Set<number>([firstTime])
         for (const unit of units) {
           for (const rec of (outages[unit.node] ?? [])) {
@@ -207,8 +207,8 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       const units = activeUnits.filter((u) => effectiveCodes.has(u.node))
       if (units.length === 0) return null
 
-      const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
-      const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+      const firstTime = nzLocalMs(rows[0].time)
+      const lastTime = nzLocalMs(rows[rows.length - 1].time)
 
       function totalCapAt(atMs: number): number {
         return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
@@ -338,8 +338,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       const adjusted = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, now), 0)
       let softMaxCap = units.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
       if (outages && rows && rows.length > 0) {
-        const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
-        const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+        const firstTime = nzLocalMs(rows[0].time)
+        const lastTime = nzLocalMs(rows[rows.length - 1].time)
         const checkTs = new Set<number>([firstTime])
         for (const unit of units) {
           for (const rec of (outages[unit.node] ?? [])) {
@@ -387,8 +387,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       if (!outages || rows.length === 0) return null
       const units = allActiveUnits.filter(u => effectiveCodes.has(u.node))
       if (units.length === 0) return null
-      const firstTime = new Date((rows[0].time as string) + 'Z').getTime()
-      const lastTime = new Date((rows[rows.length - 1].time as string) + 'Z').getTime()
+      const firstTime = nzLocalMs(rows[0].time)
+      const lastTime = nzLocalMs(rows[rows.length - 1].time)
       function totalCapAt(atMs: number) {
         return units.filter(u => !isCharging(u)).reduce((sum, u) => sum + unitCapacityAt(u, atMs), 0)
       }
