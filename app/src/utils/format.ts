@@ -35,6 +35,15 @@ function formatWithUnit(value: number, unit: string): string {
 }
 
 /**
+ * The month of a "YYYY-MM-DD" date, e.g. "Mar 2026". Read and written in UTC,
+ * so it doesn't land on the month before in browsers west of UTC.
+ */
+export function formatMonthYear(isoDate: string): string {
+  return new Date(`${isoDate.slice(0, 7)}-01T00:00:00Z`)
+    .toLocaleDateString('en-NZ', { timeZone: 'UTC', month: 'short', year: 'numeric' })
+}
+
+/**
  * Format a MW value for display, at formatWithUnit's precision.
  */
 export function formatMW(value: number): string {

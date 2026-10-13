@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nzLocalMs, nzNowMs, outageMs } from './time'
+import { nzLocalMs, nzMidnightMs, nzNowMs, outageMs } from './time'
 
 beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => { vi.useRealTimers() })
@@ -29,6 +29,24 @@ describe('nzNowMs', () => {
   it('makes the latest dispatch row minutes old, not hours in the future', () => {
     vi.setSystemTime('2026-10-13T01:37:00Z') // 2:37pm NZDT
     expect(nzNowMs() - nzLocalMs('2026-10-13T14:30:00')).toBe(7 * 60 * 1000)
+  })
+})
+
+describe('nzMidnightMs', () => {
+  it('is 11am UTC the day before during NZDT', () => {
+    expect(nzMidnightMs('2026-10-13')).toBe(Date.parse('2026-10-12T11:00:00Z'))
+  })
+
+  it('is noon UTC the day before during NZST', () => {
+    expect(nzMidnightMs('2026-07-01')).toBe(Date.parse('2026-06-30T12:00:00Z'))
+  })
+
+  it('is on the offset in force at midnight on the days the clocks change', () => {
+    // Forward at 2am NZST on 27 September, back at 3am NZDT on 5 April
+    expect(nzMidnightMs('2026-09-27')).toBe(Date.parse('2026-09-26T12:00:00Z'))
+    expect(nzMidnightMs('2026-09-28')).toBe(Date.parse('2026-09-27T11:00:00Z'))
+    expect(nzMidnightMs('2026-04-05')).toBe(Date.parse('2026-04-04T11:00:00Z'))
+    expect(nzMidnightMs('2026-04-06')).toBe(Date.parse('2026-04-05T12:00:00Z'))
   })
 })
 

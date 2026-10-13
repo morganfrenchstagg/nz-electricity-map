@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMW, formatMWh } from './format'
+import { formatMonthYear, formatMW, formatMWh } from './format'
 
 describe('formatMW', () => {
   it('rounds 1000 and over to whole numbers with thousands separators', () => {
@@ -39,5 +39,16 @@ describe('formatMWh', () => {
     expect(formatMWh(48213.7)).toBe('48,214 MWh')
     expect(formatMWh(12.3456)).toBe('12.35 MWh')
     expect(formatMWh(0)).toBe('0 MWh')
+  })
+})
+
+describe('formatMonthYear', () => {
+  it("gives a date's month and year", () => {
+    expect(formatMonthYear('2026-03-30')).toBe('Mar 2026')
+    expect(formatMonthYear('2028-12-31')).toBe('Dec 2028')
+  })
+
+  it('keeps the 1st in its own month west of UTC', () => {
+    expect(formatMonthYear('2026-03-01')).toBe('Mar 2026')
   })
 })
