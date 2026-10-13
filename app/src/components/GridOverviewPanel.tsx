@@ -1,8 +1,6 @@
-import { useState, useMemo, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
-import { flushSync } from 'react-dom'
+import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { daysBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
@@ -12,9 +10,9 @@ import { CHART_CONTAINER_PROPS, fillMonthColumns, tooltipTime, withGaps } from '
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
+import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
-import type { Period } from './ToggleGroup'
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
@@ -89,78 +87,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const [fromDate, setFromDate] = useState(
-    dateMode.kind === 'date' ? dateMode.date
-      : dateMode.kind === 'range' ? dateMode.from
-        : ''
-  )
-  const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
-  // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
-  const [customRequested, setCustomRequested] = useState(false)
-  const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compactToolbar && customRequested)
-  // The compact toolbar only shows the date inputs while they're in use
-  const showDateInputs = !compactToolbar || customDates
-  const fromInputRef = useRef<HTMLInputElement>(null)
-
-  const toMax = useMemo(() => {
-    const cap = yesterdayNZ()
-    if (!fromDate) return cap
-    const d = new Date(fromDate + 'T00:00:00Z')
-    d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
-    const end = d.toISOString().slice(0, 10)
-    return end < cap ? end : cap
-  }, [fromDate])
-
-  const rangeError = useMemo(() => {
-    if (!fromDate || !toDate) return null
-    if (toDate < fromDate) return 'End date must be after start date'
-    const days = daysBetween(fromDate, toDate)
-    if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
-    return null
-  }, [fromDate, toDate])
-
-  const handleFromChange = useCallback((val: string) => {
-    setFromDate(val)
-    if (!val) {
-      setToDate('')
-      setCustomRequested(false)
-      onDateModeChange({ kind: 'recent' })
-    } else if (toDate && toDate >= val) {
-      const days = daysBetween(val, toDate)
-      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
-    } else {
-      setToDate('')
-      onDateModeChange({ kind: 'date', date: val })
-    }
-  }, [toDate, onDateModeChange])
-
-  const handleToChange = useCallback((val: string) => {
-    setToDate(val)
-    if (!val) {
-      if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
-    } else if (fromDate && val >= fromDate) {
-      const days = daysBetween(fromDate, val)
-      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
-    }
-  }, [fromDate, onDateModeChange])
-
-  const handlePeriodClick = useCallback((period: Period) => {
-    setFromDate('')
-    setToDate('')
-    setCustomRequested(false)
-    onDateModeChange({ kind: period })
-  }, [onDateModeChange])
-
-  const handleCustomClick = useCallback(() => {
-    // Rendered now rather than on the next render, so the picker opens while
-    // the dropdown change still counts as a user gesture
-    flushSync(() => setCustomRequested(true))
-    try {
-      fromInputRef.current?.showPicker()
-    } catch {
-      fromInputRef.current?.focus()
-    }
-  }, [])
+  const {
+    fromDate, toDate, customDates, showDateInputs, fromInputRef, toMax, rangeError,
+    handleFromChange, handleToChange, handlePeriodClick, handleCustomClick,
+  } = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
   const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
