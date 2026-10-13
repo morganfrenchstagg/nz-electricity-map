@@ -94,3 +94,18 @@ export const MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION = matchExpression(
   Object.entries(VOLTAGE_COLOURS).map(([kv, colour]) => [Number(kv), colour]),
   VOLTAGE_COLOUR_DEFAULT,
 )
+
+// Pill colours for an under-construction project's status, shared by the map
+// popups and the pipeline table. The hue tracks how far along the build is.
+export const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
+  'Commissioning': { bg: '#dcfce7', text: '#15803d' },
+  'Pre-Commissioning': { bg: '#d1fae5', text: '#059669' },
+  'Under Construction': { bg: '#ffedd5', text: '#c2410c' },
+  'Early Works': { bg: '#f3f4f6', text: '#374151' },
+  'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
+}
+export const STATUS_COLOUR_DEFAULT = { bg: '#f3f4f6', text: '#374151' }
+
+export function statusColour(status: string): { bg: string; text: string } {
+  return STATUS_COLOURS[status] ?? STATUS_COLOUR_DEFAULT
+}

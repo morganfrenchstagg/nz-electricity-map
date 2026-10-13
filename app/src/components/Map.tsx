@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, ucUnitsForSite } from '../utils/geo'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
-import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, voltageColour } from '../utils/colours'
+import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, statusColour, voltageColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
 import { isCharging } from '../utils/generators'
@@ -186,14 +186,6 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
 
       const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
 
-      const STATUS_PILL_COLOURS: Record<string, { bg: string; text: string }> = {
-        'Commissioning': { bg: '#dcfce7', text: '#15803d' },
-        'Pre-Commissioning': { bg: '#d1fae5', text: '#065f46' },
-        'Under Construction': { bg: '#fef3c7', text: '#92400e' },
-        'Early Works': { bg: '#ffedd5', text: '#c2410c' },
-        'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
-      }
-
       const renderUnitStats = (u: { capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }) => {
         const capacityParts = [
           u.capacityMW ? `${u.capacityMW} MW` : null,
@@ -208,7 +200,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       }
 
       const renderStatusPill = (status: string) => {
-        const pillColour = STATUS_PILL_COLOURS[status] ?? { bg: '#f3f4f6', text: '#374151' }
+        const pillColour = statusColour(status)
         return status
           ? `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:${pillColour.bg};color:${pillColour.text};font-size:11px;font-weight:500;flex-shrink:0">${status}</span>`
           : ''
