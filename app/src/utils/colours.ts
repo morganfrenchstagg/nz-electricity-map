@@ -4,7 +4,7 @@ const DEFAULT_COLOUR = '#ff0000'
 
 // Single source of truth for fuel identity, display, and colour.
 // fuelNames lists all unit.fuel values that map to this fuel code
-// (used to build FUEL_COLOURS for MapLibre and the NodePanel adapter).
+// (used to build FUEL_COLOURS for MapLibre and the generator adapter).
 const FUELS = [
   { code: 'HYD', label: 'Hydro', colour: 'rgb(69, 130, 180)', fuelNames: ['Hydro'] },
   { code: 'WIN', label: 'Wind', colour: 'rgb(65, 117, 5)', fuelNames: ['Wind'] },
@@ -33,7 +33,7 @@ export const FUEL_CODE_COLOURS: Record<string, string> =
 export const FUEL_CODE_LABELS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.label]))
 
-// Canonical display order for fuel codes (used in GridOverviewPanel and NodePanel)
+// Canonical display order for fuel codes (used in GridOverviewPanel and NodePickerModal)
 export const FUEL_CODE_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'GEO', 'BESS-C'] as const
 
 // Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
@@ -43,7 +43,7 @@ export const FUEL_NAME_SORT_INDEX: Record<string, number> =
     return f.fuelNames.map(name => [name, idx === -1 ? 99 : idx])
   }))
 
-// Keyed by unit.fuel name — used by NodePanel adapter and MapLibre expression
+// Keyed by unit.fuel name — used by the generator adapter and MapLibre expression
 export const FUEL_COLOURS: Record<string, string> =
   Object.fromEntries(FUELS.flatMap(f => f.fuelNames.map(name => [name, f.colour])))
 

@@ -44,8 +44,11 @@ export interface RecentData {
   pricing: (string | number | null)[][] // null where a node has no price
 }
 
-export type SelectedNode =
+// A generator, or several picked together (see NodePickerModal)
+export type GeneratorNode =
   | { kind: 'generator'; generator: Generator }
   | { kind: 'generators'; generators: Generator[] }
-  | { kind: 'substation'; substation: Substation }
-  | null
+
+export type SubstationNode = { kind: 'substation'; substation: Substation }
+
+export type SelectedNode = GeneratorNode | SubstationNode | null

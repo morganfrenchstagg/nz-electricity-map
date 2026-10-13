@@ -124,7 +124,7 @@ function aggregateWindow(period: AggregatePeriod): { from: string; to: string; p
 
 /**
  * Adds each moved unit's totals at its old node into its current node's series
- * (see NodeAdapter.movedNodes), so its history reads as one unit. Energy totals
+ * (see GeneratorAdapter.movedNodes), so its history reads as one unit. Energy totals
  * can be summed; dispatch pricing can't, so this is only for aggregates.
  */
 export function foldMovedNodes(data: RecentData, movedNodes: Record<string, string>): RecentData {

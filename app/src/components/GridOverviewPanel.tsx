@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { DateMode } from '../hooks/useDispatchData'
-import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
+import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
@@ -12,28 +12,25 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
-import { PeriodToggle, ToggleGroup } from './ToggleGroup'
+import { ToggleGroup } from './ToggleGroup'
+import DateControls from './DateControls'
+import Panel, { PanelToolbar } from './Panel'
+import type { PanelProps } from './Panel'
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
-interface Props {
+interface Props extends PanelProps {
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
-  onClose: () => void
   onNodeSelect: (node: NonNullable<SelectedNode>) => void
   visible: boolean
   recentData: RecentData | null
   loading: boolean
   error: string | null
-  panelWidth: number
-  onResizeHandleMouseDown: (e: React.MouseEvent) => void
-  expanded: boolean
-  onExpandedChange: (v: boolean) => void
-  isMobile?: boolean
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose, onNodeSelect, visible, recentData, loading, error, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, ...panel }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
@@ -70,10 +67,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const {
-    fromDate, toDate, customDates, showDateInputs, fromInputRef, toMax, rangeError,
-    handleFromChange, handleToChange, handlePeriodClick, handleCustomClick,
-  } = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
+  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
   const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
@@ -134,7 +128,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         type: isAggregate ? 'column' : 'area',
         name: fuelCodeLabel(fuel),
         color: colour,
-        // Covers 1px rounding gaps between columns (see NodePanel)
+        // Covers 1px rounding gaps between columns (see nodeChartOptions)
         borderColor: colour,
         stacking: 'normal',
         stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE) ? "positive" : "negative",
@@ -281,8 +275,30 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     }
   }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
 
+  // The pipeline button wraps under the title when there isn't room beside it
+  const header = (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="title" style={{ whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
+        <button
+          onClick={() => setPickerOpen(true)}
+          style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
+        >
+          ▾
+        </button>
+      </div>
+      <button
+        onClick={() => setPipelineOpen(true)}
+        className="button-secondary"
+        style={{ padding: 'var(--space-xs) var(--space-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
+      >
+        Generation Pipeline ↗
+      </button>
+    </div>
+  )
+
   return (
-    <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>
+    <Panel {...panel} visible={visible} header={header}>
       <Suspense fallback={null}>
         {pickerOpen && (
           <NodePickerModal
@@ -295,48 +311,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
       </Suspense>
 
-      {/* Header */}
-      <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* The pipeline button wraps under the title when there isn't room beside it */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="title" style={{ whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
-            <button
-              onClick={() => setPickerOpen(true)}
-              style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
-            >
-              ▾
-            </button>
-          </div>
-          <button
-            onClick={() => setPipelineOpen(true)}
-            className="button-secondary"
-            style={{ padding: 'var(--space-xs) var(--space-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
-          >
-            Generation Pipeline ↗
-          </button>
-        </div>
-        {isMobile ? (
-          <button onClick={onClose} className="button-secondary" style={{ padding: 'var(--space-sm) var(--space-lg)' }} aria-label="Show map">
-            Show map
-          </button>
-        ) : (
-          <>
-            <button onClick={() => onExpandedChange(!expanded)} className="button-secondary" aria-label={expanded ? 'Collapse' : 'Expand'}>
-              {expanded ? 'Show map' : 'Expand'}
-            </button>
-            {!expanded && (
-              <button onClick={onClose} className="button-secondary" aria-label="Close">
-                Close
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Island + date picker toolbar. When it's too narrow for one line, the
-          toggles become dropdowns and the rest wraps. */}
-      <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
+      {/* Island + date picker toolbar */}
+      <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <ToggleGroup compact={compactToolbar} ariaLabel="Island" options={(['all', 'NI', 'SI'] as const).map(opt => ({
           key: opt,
           label: opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island',
@@ -345,38 +321,16 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           onClick: () => setIsland(opt),
         }))} />
         {!compactToolbar && <div className="divider" />}
-        <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />
-        {!compactToolbar && <div className="divider" />}
-        {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <input
-            ref={fromInputRef}
-            type="date"
-            value={fromDate}
-            min="2020-09-11"
-            max={yesterdayNZ()}
-            onChange={e => handleFromChange(e.target.value)}
-            className="date-input"
-          />
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0 }}>–</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            max={toMax}
-            disabled={!fromDate}
-            onChange={e => handleToChange(e.target.value)}
-            className="date-input"
-          />
-          {rangeError && (
-            <span className="status-text is-error" style={{ marginLeft: 4 }}>{rangeError}</span>
-          )}
-        </div>}
-        {lastUpdated && !dataLoading && (
-          <>{!compactToolbar && <div className="divider" />}<span className="status-text" style={{ marginLeft: compactToolbar ? 0 : 4 }}>{lastUpdated}</span></>
-        )}
-        {dataLoading && <span className="status-text">Loading…</span>}
-        {dataError && <span className="status-text is-error">Failed to load data</span>}
-      </div>
+        <DateControls
+          dateMode={dateMode}
+          picker={datePicker}
+          compact={compactToolbar}
+          lastUpdated={lastUpdated}
+          loading={dataLoading}
+          error={dataError}
+          empty={!data}
+        />
+      </PanelToolbar>
 
       {/* Fuel pills */}
       {fuels.length > 0 && (
@@ -411,15 +365,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
+          <HighchartsReact key={`${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
         )}
       </div>
-      {!expanded && !isMobile && (
-        <div
-          onMouseDown={onResizeHandleMouseDown}
-          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
-        />
-      )}
-    </div>
+    </Panel>
   )
 }

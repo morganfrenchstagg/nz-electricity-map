@@ -16,8 +16,8 @@ export type DateMode =
   | { kind: 'lastYear' }
   | { kind: 'all' }
 
-// The 30d, 1y and All views chart aggregates (useAggregates) in NodePanel and
-// GridOverviewPanel; the map keeps showing live data underneath them.
+// The 30d, 1y and All views chart aggregates (useAggregates) in the node panels
+// and GridOverviewPanel; the map keeps showing live data underneath them.
 export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
   return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
 }
