@@ -1,0 +1,68 @@
+name: PR Checks
+on:
+  pull_request:
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          # Keep in step with pages-deployment.yaml so this catches what the
+          # production deploy would hit.
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+      - name: Build React app
+        working-directory: app
+        run: npm run build
+      # The build writes into frontend/ alongside the checked-in /old app and
+      # routing config; ship the whole publish root to the preview job.
+      - name: Upload publish root
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend
+          path: frontend
+          retention-days: 7
+
+  preview:
+    needs: build
+    # Fork PRs don't get repository secrets, so they can't deploy.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    name: Preview deployment
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      # Check out the PR head (not the merge commit) so wrangler records the
+      # real commit hash and message against the deployment.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Download publish root
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend
+          path: frontend
+      # A non-production --branch makes this a Pages preview deployment, with a
+      # stable per-branch alias URL. gitHubToken links it from the PR.
+      - name: Publish preview
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend --project-name=nzelectricitymap --branch=${{ github.head_ref }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
