@@ -36,6 +36,13 @@ export function datesBetween(from: string, to: string): string[] {
   return dates
 }
 
+// Inclusive day count between two ISO dates. Unlike datesBetween this isn't
+// capped at MAX_RANGE_DAYS, so it can tell when a range is too long.
+export function daysBetween(from: string, to: string): number {
+  const ms = Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')
+  return Math.round(ms / 86400000) + 1
+}
+
 export function mergeData(days: RecentData[]): RecentData {
   if (days.length === 1) return days[0]
 
