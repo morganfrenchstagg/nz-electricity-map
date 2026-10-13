@@ -5,7 +5,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -154,7 +154,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         // Covers 1px rounding gaps between columns (see NodePanel)
         borderColor: colour,
         stacking: 'normal',
-        stack: isAggregate ? undefined : (fuel === "BESS-C") ? "positive" : "negative",
+        stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE) ? "positive" : "negative",
         fillOpacity: 0.8,
         lineWidth: 1,
         data: isAggregate
@@ -174,7 +174,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       .filter(([fuel]) => RENEWABLE_FUEL_CODES.has(fuel))
       .flatMap(([, indices]) => indices)
     const dispatchIndices = [...fuelToIndices.entries()]
-      .filter(([fuel]) => fuel !== 'BESS-C')
+      .filter(([fuel]) => fuel !== CHARGING_FUEL_CODE)
       .flatMap(([, indices]) => indices)
     const renewablePctByMs = new Map<number, number>()
     for (const row of data.data) {

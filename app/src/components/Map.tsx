@@ -6,7 +6,8 @@ import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, 
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, voltageColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
-import { busLabel } from '../utils/chart'
+import { busLabel, isGeneratorCode } from '../utils/chart'
+import { isCharging } from '../utils/generators'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -239,7 +240,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               return `<div style="margin-bottom:5px">
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${u.fuel === 'Battery (Charging)' ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? '#222' : '#999'}">${isCharging(u) ? `${u.name} <span style="color:#888">(charging)</span>` : u.name}</span>
                   <span style="color:${isGenerating ? '#222' : '#999'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:#888">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
                 </div>
                 <div style="height:3px;background:#e8e8e8;border-radius:2px;margin-top:3px;margin-left:14px">
@@ -251,7 +252,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               const idx = data ? data.series.indexOf(u.node) : -1
               return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
             }, 0)
-            const totalCap = activeUnits.filter(u => u.fuelCode !== 'BESS-C').reduce((sum, u) => sum + u.capacity, 0)
+            const totalCap = activeUnits.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
             const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
             const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
             const ucSection = ucUnits.length > 0 ? `
@@ -334,8 +335,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
             const data = recentDataRef.current
             const lastRow = data?.data[data.data.length - 1]
             const codes = data ? data.series.filter(s => s.startsWith(substation.siteId)) : []
-            const busCodes = codes.filter(c => !c.includes(' '))
-            const genCodes = codes.filter(c => c.includes(' '))
+            const busCodes = codes.filter(c => !isGeneratorCode(c))
+            const genCodes = codes.filter(isGeneratorCode)
             const renderRow = (label: string, colour: string, loadMW: number | null) => {
               const isActive = (loadMW ?? 0) !== 0
               const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
@@ -358,7 +359,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               .map(({ code, unit }) => {
                 const idx = data ? data.series.indexOf(code) : -1
                 const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-                const label = unit ? (unit.fuel === 'Battery (Charging)' ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
+                const label = unit ? (isCharging(unit) ? `${unit.name} <span style="color:#888">(charging)</span>` : unit.name) : code
                 const colour = unit ? fuelColour(unit.fuel) : '#888'
                 return renderRow(label, colour, genMW)
               }).join('')

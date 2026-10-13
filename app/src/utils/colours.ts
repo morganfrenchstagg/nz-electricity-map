@@ -17,6 +17,15 @@ const FUELS = [
   { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'] },
 ] as const
 
+// A battery's charging is listed as a unit of its own. It draws power rather
+// than generating it, so it's left out of capacity and generation totals.
+export const CHARGING_FUEL_CODE = 'BESS-C'
+
+// A battery's charging and discharging units are listed as one fuel, Battery
+export function fuelFamily(fuel: string): string {
+  return fuel === 'Battery (Charging)' || fuel === 'Battery (Discharging)' ? 'Battery' : fuel
+}
+
 // Derived lookups — all keyed by fuel code
 export const FUEL_CODE_COLOURS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.colour]))
