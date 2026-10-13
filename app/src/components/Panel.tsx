@@ -20,9 +20,9 @@ interface Props extends PanelProps {
   children: ReactNode
 }
 
-// The resizable side panel that NodePanel and GridOverviewPanel fill: a
-// header ending in the buttons to expand it over the map or close it, then
-// whatever the panel puts below.
+// The resizable side panel that GeneratorPanel, SubstationPanel and
+// GridOverviewPanel fill: a header ending in the buttons to expand it over the
+// map or close it, then whatever the panel puts below.
 export default function Panel({ header, headerRef, visible = true, children, onClose, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
   return (
     <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>

@@ -67,7 +67,7 @@ interface PeriodToggleProps {
   onCustom: () => void
 }
 
-// The Today | 3d | 30d | 1y | All toggle shared by NodePanel and GridOverviewPanel.
+// The Today | 3d | 30d | 1y | All toggle shared by the node panels and GridOverviewPanel.
 export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom }: PeriodToggleProps) {
   const options: ToggleOption[] = PERIODS.map(p => ({
     key: p.kind,

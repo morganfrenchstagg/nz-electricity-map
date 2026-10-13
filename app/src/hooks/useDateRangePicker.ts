@@ -10,7 +10,7 @@ function inputDates(m: DateMode): [string, string] {
   return m.kind === 'date' ? [m.date, ''] : m.kind === 'range' ? [m.from, m.to] : ['', '']
 }
 
-// The period toggle and from/to date inputs shared by NodePanel and
+// The period toggle and from/to date inputs shared by the node panels and
 // GridOverviewPanel. `compact` is the toolbar's collapsed layout (see
 // useCompactWhenOverflowing), which hides the date inputs until they're in use.
 export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: DateMode) => void, compact: boolean) {
@@ -20,11 +20,11 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
   // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
   const [customRequested, setCustomRequested] = useState(false)
 
-  // dateMode is shared, and GridOverviewPanel stays mounted while NodePanel is
-  // open, so follow dateMode when the other panel changes it. This panel's own
-  // handlers already leave the inputs matching the dateMode they set. Done
-  // while rendering rather than in an effect, so NodePanel's effect showing the
-  // latest offers' date still runs after it.
+  // dateMode is shared, and GridOverviewPanel stays mounted while a node panel
+  // is open, so follow dateMode when the other panel changes it. This panel's
+  // own handlers already leave the inputs matching the dateMode they set. Done
+  // while rendering rather than in an effect, so GeneratorPanel's effect
+  // showing the latest offers' date still runs after it.
   const dateModeKey = JSON.stringify(dateMode)
   const [syncedDateModeKey, setSyncedDateModeKey] = useState(dateModeKey)
   if (dateModeKey !== syncedDateModeKey) {
@@ -101,7 +101,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   return {
     fromDate,
-    // For NodePanel, which shows the latest offers' date in the from input
+    // For GeneratorPanel, which shows the latest offers' date in the from input
     setFromDate,
     toDate,
     setCustomRequested,

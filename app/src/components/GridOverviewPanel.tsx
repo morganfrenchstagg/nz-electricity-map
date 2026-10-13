@@ -130,7 +130,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         type: isAggregate ? 'column' : 'area',
         name: fuelCodeLabel(fuel),
         color: colour,
-        // Covers 1px rounding gaps between columns (see NodePanel)
+        // Covers 1px rounding gaps between columns (see nodeChartOptions)
         borderColor: colour,
         stacking: 'normal',
         stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE) ? "positive" : "negative",

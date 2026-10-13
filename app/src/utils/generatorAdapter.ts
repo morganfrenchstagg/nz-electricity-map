@@ -1,9 +1,9 @@
 import type Highcharts from 'highcharts'
-import type { Generator, RecentData, Substation, Unit } from '../types'
+import type { Generator, RecentData, Unit } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
-import { busLabel, isGeneratorCode, substationCodes, unitOfCode } from './chart'
-import { fuelColour, fuelFamily, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
+import { isGeneratorCode, unitOfCode } from './chart'
+import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
 import { nzNowMs } from './time'
@@ -35,33 +35,20 @@ function movedNodesOf(units: Unit[]): Record<string, string> {
   return moved
 }
 
-function codeVoltageColour(code: string): string {
-  if (code.length >= 4) {
-    const kv = parseInt(code.slice(-4, -1), 10)
-    return voltageColour(kv)
-  }
-  return voltageColour(NaN)
-}
-
-export interface NodeAdapter {
+// What GeneratorPanel charts for one generator, or several picked together
+export interface GeneratorAdapter {
   title: string
   subtitle: string
-  chartType: 'area' | 'line'
   // Dispatch data charts active units only; the aggregate views pass
   // includeRetired to chart every unit's history.
   getCodes(recent: RecentData, includeRetired?: boolean): string[]
-  // codes: every code being charted, for labels that depend on the others
-  labelFor(code: string, codes: string[]): string
-  colourFor(code: string, index: number): string
-  transformValue(val: number): number
+  labelFor(code: string): string
+  colourFor(code: string): string
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
-  // Series derived from the codes, each toggled by its own button; `visible: false` starts it off
-  extraSeries(rows: ChartRow[], codes: string[]): Highcharts.SeriesOptionsType[]
-  stacking(numCodes: number): Highcharts.OptionsStackingValue | undefined
-  showUnitSelector(numCodes: number): boolean
-  showLegend(numCodes: number): boolean
-  capacityMW(effectiveCodes: Set<string>): number | null
-  normalCapacityMW(effectiveCodes: Set<string>): number | null
+  // Several generators' units are named in a legend
+  showLegend: boolean
+  capacityMW(effectiveCodes: Set<string>): number
+  normalCapacityMW(effectiveCodes: Set<string>): number
   unitOutageMW(code: string): number
   capacitySeries(rows: ChartRow[], effectiveCodes: Set<string>): Highcharts.SeriesOptionsType | null
   subtitleFuels: { label: string; colour: string }[]
@@ -72,7 +59,7 @@ export interface NodeAdapter {
   movedNodes: Record<string, string>
 }
 
-export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): NodeAdapter {
+export function createGeneratorAdapter(generator: Generator, outages: OutageData | null): GeneratorAdapter {
   // Current time in the same "local time as UTC" convention used by outageMs,
   // so comparisons with outage timestamps are consistent.
   const now = nzNowMs()
@@ -102,7 +89,6 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   return {
     title: generator.name,
     subtitle: generator.operator + (generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''),
-    chartType: 'area',
 
     getCodes(recent, includeRetired = false) {
       return (includeRetired ? historyUnits : activeUnits)
@@ -126,7 +112,6 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       return unit ? fuelColour(unit.fuel) : ''
     },
 
-    transformValue(val) { return val },
     subtitleFuels,
     queryNodes: generator.units.map((u) => u.node),
     movedNodes,
@@ -205,12 +190,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       }
     },
 
-    extraSeries(_rows, _codes) { return [] },
-
-    stacking(numCodes) { return numCodes > 1 ? 'normal' : undefined },
-
-    showUnitSelector(numCodes) { return numCodes > 1 },
-    showLegend(_numCodes) { return false },
+    showLegend: false,
     capacityMW(effectiveCodes) {
       return activeUnits
         .filter((u) => effectiveCodes.has(u.node) && !isCharging(u))
@@ -296,7 +276,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   }
 }
 
-export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null): NodeAdapter {
+export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null): GeneratorAdapter {
   const now = nzNowMs()
 
   const allUnits = generators.flatMap(g => g.units)
@@ -331,7 +311,6 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
   return {
     title,
     subtitle: [...new Set(generators.map(g => g.operator))].join(', '),
-    chartType: 'area',
     subtitleFuels,
     queryNodes: allUnits.map(u => u.node),
     movedNodes,
@@ -360,8 +339,6 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       const unit = allUnits.find(u => u.node === code)
       return unit ? fuelColour(unit.fuel) : ''
     },
-
-    transformValue(val) { return val },
 
     yAxisOptions(effectiveCodes, rows) {
       const units = effectiveCodes ? allActiveUnits.filter(u => effectiveCodes.has(u.node)) : allActiveUnits
@@ -394,10 +371,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
       }
     },
 
-    extraSeries(_rows, _codes) { return [] },
-    stacking(numCodes) { return numCodes > 1 ? 'normal' : undefined },
-    showUnitSelector(numCodes) { return numCodes > 1 },
-    showLegend(_numCodes) { return true },
+    showLegend: true,
 
     capacityMW(effectiveCodes) {
       return allActiveUnits
@@ -454,86 +428,5 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         showInLegend: false, zIndex: 3,
       } as Highcharts.SeriesLineOptions
     },
-  }
-}
-
-export function createSubstationAdapter(substation: Substation, allGenerators: Generator[]): NodeAdapter {
-  const unitFor = (code: string) => {
-    if (!isGeneratorCode(code)) return null
-    for (const gen of allGenerators) {
-      const unit = gen.units.find((u) => u.node === code)
-      if (unit) return unit
-    }
-    return null
-  }
-
-  return {
-    title: `${substation.description} Substation`,
-    subtitle: '',
-    chartType: 'line',
-
-    // Buses first, then generators alphabetically by name
-    getCodes(recent) {
-      const codes = substationCodes(recent, substation.siteId)
-      const genName = (code: string) => { const unit = unitFor(code); return unit ? unitLabel(unit) : code }
-      return [
-        ...codes.filter((c) => !isGeneratorCode(c)),
-        ...codes.filter(isGeneratorCode).sort((a, b) => genName(a).localeCompare(genName(b))),
-      ]
-    },
-
-    labelFor(code, codes) {
-      const unit = unitFor(code)
-      if (unit) return unitLabel(unit)
-      return isGeneratorCode(code) ? unitOfCode(code) : busLabel(code, codes)
-    },
-
-    colourFor(code, _index) {
-      const unit = unitFor(code)
-      return unit ? fuelColour(unit.fuel) : codeVoltageColour(code)
-    },
-
-    transformValue(val) { return -val },
-
-    yAxisOptions(_effectiveCodes, _rows) {
-      return {
-        title: { text: 'Load (MW)' },
-        softMin: 0,
-        gridLineDashStyle: 'Dash',
-        plotLines: [],
-      }
-    },
-
-    extraSeries(rows, codes) {
-      // A lone bus's total would just repeat it
-      if (codes.length < 2) return []
-      return [{
-        type: 'line',
-        name: 'Total',
-        // Off by default unless the substation has generators
-        visible: codes.some(isGeneratorCode),
-        color: '#222222',
-        lineWidth: 2,
-        zIndex: 5,
-        data: rows.map((row) => [
-          new Date((row.time as string) + 'Z').getTime(),
-          codes.reduce((sum, code) => sum + (-(row[code] as number)), 0),
-        ]),
-        marker: { enabled: false },
-        animation: false,
-      }]
-    },
-
-    stacking(_numCodes) { return undefined },
-
-    showUnitSelector(numCodes) { return numCodes > 1 },
-    showLegend(_numCodes) { return false },
-    capacityMW(_effectiveCodes) { return null },
-    normalCapacityMW(_effectiveCodes) { return null },
-    unitOutageMW(_code) { return 0 },
-    capacitySeries(_rows, _effectiveCodes) { return null },
-    subtitleFuels: [],
-    queryNodes: [substation.siteId],
-    movedNodes: {},
   }
 }

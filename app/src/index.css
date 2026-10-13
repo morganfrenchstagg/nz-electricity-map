@@ -152,7 +152,7 @@ body {
 
 /* Layout lives inline in the components; these are the shared looks and states. */
 
-/* Panel, which NodePanel and GridOverviewPanel sit in */
+/* Panel, which GeneratorPanel, SubstationPanel and GridOverviewPanel sit in */
 .side-panel {
   position: fixed;
   bottom: 0;
@@ -443,7 +443,7 @@ body {
   background: var(--color-surface-subtle);
 }
 
-/* NodePanel's and GridOverviewPanel's 30d, 1y and All column charts */
+/* GeneratorPanel's and GridOverviewPanel's 30d, 1y and All column charts */
 
 /* Gapless columns: without this, anti-aliasing leaves a faint light seam
    where neighbouring columns meet, even on whole-pixel edges. */

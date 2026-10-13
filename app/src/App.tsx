@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Map from './components/Map'
-import NodePanel from './components/NodePanel'
+import GeneratorPanel from './components/GeneratorPanel'
+import SubstationPanel from './components/SubstationPanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { SelectedNode, Generator, Substation } from './types'
 import { useDispatchData } from './hooks/useDispatchData'
@@ -106,8 +107,8 @@ export default function App() {
     document.title = `NZ Electricity Map - ${suffix}`
   }, [selectedNode, gridPanelVisible])
 
-  // Single source of dispatch data for the date-driven panels, so both
-  // NodePanel and GridOverviewPanel share one fetch instead of each running
+  // Single source of dispatch data for the date-driven panels, so the node
+  // panels and GridOverviewPanel share one fetch instead of each running
   // their own hook (and firing duplicate requests on date changes).
   const { recentData, loading, error } = useDispatchData(dateMode)
 
@@ -123,27 +124,28 @@ export default function App() {
 
   const effectivePanelWidth = isMobile ? window.innerWidth : panelWidth
 
+  const nodePanelProps = {
+    onClose: closeNode,
+    onClear: () => { setSelectedNode(null); setGridPanelVisible(true) },
+    dateMode,
+    onDateModeChange: setDateMode,
+    recentData,
+    loading,
+    error,
+    panelWidth: effectivePanelWidth,
+    onResizeHandleMouseDown,
+    expanded: isMobile ? true : expanded,
+    onExpandedChange: setExpanded,
+    onNodeChange: setSelectedNode,
+    isMobile,
+  }
+
   return (
     <>
       <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { setSelectedNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} isMobile={isMobile} />
-      {selectedNode && (
-        <NodePanel
-          node={selectedNode}
-          onClose={closeNode}
-          onClear={() => { setSelectedNode(null); setGridPanelVisible(true) }}
-          dateMode={dateMode}
-          onDateModeChange={setDateMode}
-          recentData={recentData}
-          loading={loading}
-          error={error}
-          panelWidth={effectivePanelWidth}
-          onResizeHandleMouseDown={onResizeHandleMouseDown}
-          expanded={isMobile ? true : expanded}
-          onExpandedChange={setExpanded}
-          onNodeChange={setSelectedNode}
-          isMobile={isMobile}
-        />
-      )}
+      {selectedNode && (selectedNode.kind === 'substation'
+        ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
+        : <GeneratorPanel node={selectedNode} {...nodePanelProps} />)}
       <GridOverviewPanel
         dateMode={dateMode}
         onDateModeChange={setDateMode}

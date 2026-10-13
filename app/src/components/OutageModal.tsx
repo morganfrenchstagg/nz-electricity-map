@@ -25,7 +25,7 @@ function pocpUrl(prefixes: string[]): string {
 }
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
-// (see outageMs in NodePanel.tsx), so it must be read back out with timeZone: 'UTC'
+// (see outageMs in GeneratorPanel.tsx), so it must be read back out with timeZone: 'UTC'
 // to get the raw values the API sent — 'Pacific/Auckland' would shift them again.
 function formatDateTime(date: Date): string {
   return date.toLocaleString('en-NZ', {

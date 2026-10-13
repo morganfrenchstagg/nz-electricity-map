@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { OffersData } from '../hooks/useOffers'
-import type { SelectedNode, Generator } from '../types'
+import type { GeneratorNode } from '../types'
 import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
 import { FIT_TO_CONTAINER } from '../utils/chart'
@@ -10,18 +10,14 @@ import { FIT_TO_CONTAINER } from '../utils/chart'
 interface Props {
   offersData: OffersData
   tradingPeriod: number
-  node: NonNullable<SelectedNode>
-  generators: Generator[]
+  node: GeneratorNode
 }
 
-function getUnitNodes(node: NonNullable<SelectedNode>): { node: string; fuel: string; label: string }[] {
+function getUnitNodes(node: GeneratorNode): { node: string; fuel: string; label: string }[] {
   if (node.kind === 'generator') {
     return node.generator.units.map(u => ({ node: u.node, fuel: u.fuel, label: u.name }))
   }
-  if (node.kind === 'generators') {
-    return node.generators.flatMap(g => g.units.map(u => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })))
-  }
-  return []
+  return node.generators.flatMap(g => g.units.map(u => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })))
 }
 
 export default function OfferChart({ offersData, tradingPeriod, node }: Props) {
