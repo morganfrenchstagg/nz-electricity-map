@@ -11,8 +11,7 @@ import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
-// todo - cache this in CF worker, so it's not as slow as arcgis is...
-const TRANSMISSION_LINES_URL = 'https://services3.arcgis.com/AkUq3zcWf7TVqyR9/arcgis/rest/services/TransmissionLines/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson'
+const TRANSMISSION_LINES_URL = 'https://api.electricitymap.frenchsta.gg/v1/transmission-lines'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
