@@ -1,94 +1,35 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Map from './components/Map'
 import GeneratorPanel from './components/GeneratorPanel'
 import SubstationPanel from './components/SubstationPanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
-import type { SelectedNode, Generator, Substation } from './types'
+import type { Generator, Substation } from './types'
 import { useDispatchData } from './hooks/useDispatchData'
-import type { DateMode } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
+import { useUrlState } from './hooks/useUrlState'
 
 export default function App() {
   const { generators, substations } = useDefinitions()
   const isMobile = useIsMobile()
-  const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
+  const {
+    selectedNode, selectNode,
+    dateMode, setDateMode,
+    viewMode, setViewMode,
+    tradingPeriod, setTradingPeriod,
+    activeFuels, setActiveFuels,
+    expanded, setExpanded,
+    pipelineOpen, setPipelineOpen,
+  } = useUrlState(generators, substations)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
 
   const closeNode = useCallback(() => {
-    setSelectedNode(null)
-  }, [])
-
-  // Resolve ?node= from URL once definitions have loaded
-  const pendingNode = useRef(new URLSearchParams(window.location.search).get('node'))
-  const nodeResolved = useRef(false)
-  useEffect(() => {
-    if (nodeResolved.current || !pendingNode.current) return
-    if (generators.length === 0 && substations.length === 0) return
-    nodeResolved.current = true
-    const raw = pendingNode.current
-    if (raw.startsWith('generator:')) {
-      const gen = generators.find(g => g.site === raw.slice('generator:'.length))
-      if (gen) setSelectedNode({ kind: 'generator', generator: gen })
-    } else if (raw.startsWith('generators:')) {
-      const sites = raw.slice('generators:'.length).split(',')
-      const gens = sites.map(s => generators.find(g => g.site === s)).filter(Boolean) as Generator[]
-      if (gens.length === 1) setSelectedNode({ kind: 'generator', generator: gens[0] })
-      else if (gens.length > 1) setSelectedNode({ kind: 'generators', generators: gens })
-    } else if (raw.startsWith('substation:')) {
-      const sub = substations.find(s => s.siteId === raw.slice('substation:'.length))
-      if (sub) setSelectedNode({ kind: 'substation', substation: sub })
-    }
-  }, [generators, substations])
-
-  // Sync selectedNode to URL, preserving other params
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    if (selectedNode === null) p.delete('node')
-    else if (selectedNode.kind === 'generator') p.set('node', `generator:${selectedNode.generator.site}`)
-    else if (selectedNode.kind === 'generators') p.set('node', `generators:${selectedNode.generators.map(g => g.site).join(',')}`)
-    else p.set('node', `substation:${selectedNode.substation.siteId}`)
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [selectedNode])
-
-  const [dateMode, setDateMode] = useState<DateMode>(() => {
-    const p = new URLSearchParams(window.location.search)
-    const from = p.get('from'), to = p.get('to'), date = p.get('date'), mode = p.get('mode')
-    if (from && to) return { kind: 'range', from, to }
-    if (date) return { kind: 'date', date }
-    if (mode === 'recent') return { kind: 'recent' }
-    if (mode === 'last30') return { kind: 'last30' }
-    if (mode === 'lastYear') return { kind: 'lastYear' }
-    if (mode === 'all') return { kind: 'all' }
-    return { kind: 'today' }
-  })
-
-  // Sync dateMode to URL, preserving other params
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    p.delete('mode'); p.delete('date'); p.delete('from'); p.delete('to')
-    if (dateMode.kind === 'today') p.set('mode', 'today')
-    else if (dateMode.kind === 'recent') p.set('mode', 'recent')
-    else if (dateMode.kind === 'last30') p.set('mode', 'last30')
-    else if (dateMode.kind === 'lastYear') p.set('mode', 'lastYear')
-    else if (dateMode.kind === 'all') p.set('mode', 'all')
-    else if (dateMode.kind === 'date') p.set('date', dateMode.date)
-    else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [dateMode])
+    selectNode(null)
+  }, [selectNode])
 
   const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(Math.round(window.innerWidth * 0.6))
-
-  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get('expanded') === 'true')
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    if (expanded) p.set('expanded', 'true')
-    else p.delete('expanded')
-    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`)
-  }, [expanded])
 
   // Keep the document/tab title in sync with whichever panel is open
   useEffect(() => {
@@ -113,20 +54,20 @@ export default function App() {
   const { recentData, loading, error } = useDispatchData(dateMode)
 
   const handleGeneratorClick = useCallback((generator: Generator) => {
-    setSelectedNode({ kind: 'generator', generator }),
+    selectNode({ kind: 'generator', generator }),
     setGridPanelVisible(false)
-  }, [])
+  }, [selectNode])
 
   const handleSubstationClick = useCallback((substation: Substation) => {
-    setSelectedNode({ kind: 'substation', substation }),
+    selectNode({ kind: 'substation', substation }),
     setGridPanelVisible(false)
-  }, [])
+  }, [selectNode])
 
   const effectivePanelWidth = isMobile ? window.innerWidth : panelWidth
 
   const nodePanelProps = {
     onClose: closeNode,
-    onClear: () => { setSelectedNode(null); setGridPanelVisible(true) },
+    onClear: () => { selectNode(null); setGridPanelVisible(true) },
     dateMode,
     onDateModeChange: setDateMode,
     recentData,
@@ -136,21 +77,28 @@ export default function App() {
     onResizeHandleMouseDown,
     expanded: isMobile ? true : expanded,
     onExpandedChange: setExpanded,
-    onNodeChange: setSelectedNode,
+    onNodeChange: selectNode,
     isMobile,
   }
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { setSelectedNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} isMobile={isMobile} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} isMobile={isMobile} />
       {selectedNode && (selectedNode.kind === 'substation'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
-        : <GeneratorPanel node={selectedNode} {...nodePanelProps} />)}
+        : <GeneratorPanel
+          node={selectedNode}
+          {...nodePanelProps}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          tradingPeriod={tradingPeriod}
+          onTradingPeriodChange={setTradingPeriod}
+        />)}
       <GridOverviewPanel
         dateMode={dateMode}
         onDateModeChange={setDateMode}
         onClose={() => setGridPanelVisible(false)}
-        onNodeSelect={(node) => { setSelectedNode(node); setGridPanelVisible(false) }}
+        onNodeSelect={(node) => { selectNode(node); setGridPanelVisible(false) }}
         visible={!selectedNode && gridPanelVisible}
         recentData={recentData}
         loading={loading}
@@ -160,6 +108,10 @@ export default function App() {
         expanded={isMobile ? true : expanded}
         onExpandedChange={setExpanded}
         isMobile={isMobile}
+        activeFuels={activeFuels}
+        onActiveFuelsChange={setActiveFuels}
+        pipelineOpen={pipelineOpen}
+        onPipelineOpenChange={setPipelineOpen}
       />
       {!selectedNode && !gridPanelVisible && (
         <button
