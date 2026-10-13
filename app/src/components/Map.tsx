@@ -8,11 +8,11 @@ import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelCol
 import { formatMW } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
 import { isCharging } from '../utils/generators'
+import { TRANSMISSION_LINES_URL } from '../api'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
-const TRANSMISSION_LINES_URL = 'https://api.electricitymap.frenchsta.gg/v1/transmission-lines'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 

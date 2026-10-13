@@ -1,10 +1,6 @@
-import { useEffect, useState } from 'react'
-import type { DefinitionsResponse, Generator, Substation } from '../types'
-
-const API_URL = 'https://api.electricitymap.frenchsta.gg/v1/definitions'
-
-let cachedData: DefinitionsResponse | null = null
-let fetchPromise: Promise<DefinitionsResponse> | null = null
+import { useEffect, useMemo, useState } from 'react'
+import type { Generator, Substation } from '../types'
+import { fetchDefinitions, peekDefinitions } from '../api'
 
 interface UseDefinitionsResult {
   generators: Generator[]
@@ -14,33 +10,20 @@ interface UseDefinitionsResult {
 }
 
 export function useDefinitions(): UseDefinitionsResult {
-  const [generators, setGenerators] = useState<Generator[]>(cachedData?.generators.filter(g => g.site !== 'SZR') ?? [])
-  const [substations, setSubstations] = useState<Substation[]>(cachedData?.substations ?? [])
-  const [loading, setLoading] = useState(cachedData === null)
+  const [data, setData] = useState(peekDefinitions)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (cachedData) return
-
-    if (!fetchPromise) {
-      fetchPromise = fetch(API_URL).then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json() as Promise<DefinitionsResponse>
-      })
-    }
-
-    fetchPromise
-      .then((data) => {
-        cachedData = data
-        setGenerators(data.generators.filter(g => g.site !== 'SZR'))
-        setSubstations(data.substations)
-        setLoading(false)
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-        setLoading(false)
-      })
+    fetchDefinitions()
+      .then(setData)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Unknown error'))
   }, [])
 
-  return { generators, substations, loading, error }
+  // Map rebuilds its GeoJSON sources whenever these arrays change identity
+  return useMemo(() => ({
+    generators: data?.generators.filter(g => g.site !== 'SZR') ?? [],
+    substations: data?.substations ?? [],
+    loading: !data && !error,
+    error,
+  }), [data, error])
 }

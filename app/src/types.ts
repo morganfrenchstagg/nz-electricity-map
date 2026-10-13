@@ -33,11 +33,6 @@ export interface Substation {
   island: 'north' | 'south'
 }
 
-export interface DefinitionsResponse {
-  generators: Generator[]
-  substations: Substation[]
-}
-
 export interface RecentData {
   series: string[]
   data: (string | number)[][]

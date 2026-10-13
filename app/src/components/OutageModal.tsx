@@ -1,4 +1,4 @@
-import type { OutageRecord } from '../hooks/useOutages'
+import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
 
 interface Props {

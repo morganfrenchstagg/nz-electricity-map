@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
-import { nzLocalMs, nzNowMs } from '../utils/time'
+import { fetchDispatch, peekDispatch } from '../api'
 
-const BASE = 'https://api.electricitymap.frenchsta.gg/v1/dispatch'
-const POLL_MS = 60 * 1000
-const STALE_MS = 5 * 60 * 1000
+// Cheap: only reaches the network once the cached dispatch/recent expires (see api.ts)
+const POLL_MS = 15 * 1000
 export const MAX_RANGE_DAYS = 31
 
 export type DateMode =
@@ -21,9 +20,6 @@ export type DateMode =
 export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
   return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
 }
-
-const dayCache = new Map<string, RecentData>()
-const inFlight = new Map<string, Promise<RecentData>>()
 
 export function datesBetween(from: string, to: string): string[] {
   const dates: string[] = []
@@ -75,16 +71,6 @@ export function mergeData(days: RecentData[]): RecentData {
   return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs) }
 }
 
-function fetchOne(key: string): Promise<RecentData> {
-  if (inFlight.has(key)) return inFlight.get(key)!
-  const url = key === 'recent' ? `${BASE}/recent` : `${BASE}/${key}`
-  const promise = fetch(url)
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() as Promise<RecentData> })
-    .finally(() => inFlight.delete(key))
-  inFlight.set(key, promise)
-  return promise
-}
-
 export function useDispatchData(mode: DateMode): {
   recentData: RecentData | null
   loading: boolean
@@ -93,38 +79,39 @@ export function useDispatchData(mode: DateMode): {
   const [recentData, setRecentData] = useState<RecentData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    let shown: RecentData[] | null = null
+    const live = mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode)
+    const keys = live ? ['recent'] : mode.kind === 'date' ? [mode.date] : datesBetween(mode.from, mode.to)
+
+    function show(days: RecentData[]) {
+      const prev = shown
+      // Most polls hand back the same cached days, which would re-chart for nothing
+      if (prev && days.every((d, i) => d === prev[i])) return
+      shown = days
+      let merged = mergeData(days)
+      if (mode.kind === 'today') {
+        const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+        merged = {
+          ...merged,
+          data: merged.data.filter(row => (row[0] as string).slice(0, 10) === todayNZ),
+          pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === todayNZ),
+        }
+      }
+      setRecentData(merged)
+      setLoading(false)
+      setError(null)
+    }
 
     async function load() {
-      setLoading(true)
-      setError(null)
+      const cached = keys.map(k => peekDispatch(k))
+      if (cached.every(d => d !== undefined)) show(cached as RecentData[])
+      else { setLoading(true); setError(null) }
       try {
-        const keys =
-          mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode) ? ['recent'] :
-            mode.kind === 'date' ? [mode.date] :
-              datesBetween(mode.from, mode.to)
-
-        const missing = keys.filter(k => !dayCache.has(k))
-        if (missing.length > 0) {
-          const fetched = await Promise.all(missing.map(fetchOne))
-          if (cancelled) return
-          missing.forEach((k, i) => dayCache.set(k, fetched[i]))
-        }
-
-        const days = keys.map(k => dayCache.get(k)!)
-        let merged = mergeData(days)
-        if (mode.kind === 'today') {
-          const todayNZ = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-          merged = {
-            ...merged,
-            data: merged.data.filter(row => (row[0] as string).slice(0, 10) === todayNZ),
-            pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === todayNZ),
-          }
-        }
-        if (!cancelled) { setRecentData(merged); setLoading(false) }
+        const days = await Promise.all(keys.map(k => fetchDispatch(k)))
+        if (!cancelled) show(days)
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Unknown error')
@@ -134,23 +121,11 @@ export function useDispatchData(mode: DateMode): {
     }
 
     load()
-
-    if (mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode)) {
-      timerRef.current = setInterval(() => {
-        const cached = dayCache.get('recent')
-        if (cached) {
-          const last = cached.data[cached.data.length - 1]
-          const ts = last ? nzLocalMs(last[0] as string) : 0
-          if (nzNowMs() - ts < STALE_MS) return
-        }
-        dayCache.delete('recent')
-        load()
-      }, POLL_MS)
-    }
+    const timer = live ? setInterval(load, POLL_MS) : undefined
 
     return () => {
       cancelled = true
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+      clearInterval(timer)
     }
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 

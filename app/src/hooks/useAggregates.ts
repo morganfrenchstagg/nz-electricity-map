@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { mergeData } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
+import { fetchAggregates } from '../api'
 
-const BASE = 'https://api.electricitymap.frenchsta.gg/v1/dispatch/aggregates'
-const CACHE_MS = 60 * 60 * 1000 // matches the API's max-age
 export const DAILY_RANGE_DAYS = 30
 export const WEEKLY_RANGE_WEEKS = 52
 // Dispatch data starts on 11 September 2020, so the first complete month is October
@@ -18,32 +17,6 @@ export const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod
   last30: 'daily',
   lastYear: 'weekly',
   all: 'monthly',
-}
-
-interface AggregateResponse {
-  series: string[]
-  data: (string | number)[][]
-}
-
-const cache = new Map<string, { at: number; promise: Promise<AggregateResponse> }>()
-
-// `path` is a month of daily totals ("2026/09") or a year of weekly or monthly
-// totals ("2026/weekly", "2026/monthly"). `nodes` are prefix-matched by the
-// API, so a substation siteId returns every bus and generator at that site.
-// Empty `nodes` returns every node.
-function fetchAggregates(path: string, nodes: string): Promise<AggregateResponse> {
-  const key = nodes ? `${path}?nodes=${encodeURIComponent(nodes)}` : path
-  const hit = cache.get(key)
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.promise
-  const promise = fetch(`${BASE}/${key}`).then(r => {
-    // A month or year with nothing aggregated yet (e.g. on the 1st) 404s
-    if (r.status === 404) return { series: [], data: [] }
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return r.json() as Promise<AggregateResponse>
-  })
-  promise.catch(() => cache.delete(key))
-  cache.set(key, { at: Date.now(), promise })
-  return promise
 }
 
 function todayNZ(): number {

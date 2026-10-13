@@ -1,40 +1,6 @@
 import { useEffect, useState } from 'react'
-
-const BASE = 'https://api.electricitymap.frenchsta.gg/v1/offers'
-
-export interface Offer {
-  tranche: number
-  megawatts: number
-  price: number
-}
-
-export interface OffersData {
-  date: string
-  data: Record<string, Record<string, Offer[]>>
-}
-
-const cache = new Map<string, OffersData>()
-const inFlight = new Map<string, Promise<OffersData>>()
-
-function fetchOffers(date: string): Promise<OffersData> {
-  const existing = inFlight.get(date)
-  if (existing) return existing
-  // 'latest' is a special sentinel — fetches the latest-available date
-  const segment = date === 'latest' ? 'latest' : date
-  const p = fetch(`${BASE}/${segment}`).then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return r.json() as Promise<OffersData>
-  }).then(data => {
-    cache.set(date, data)
-    inFlight.delete(date)
-    return data
-  }).catch(err => {
-    inFlight.delete(date)
-    throw err
-  })
-  inFlight.set(date, p)
-  return p
-}
+import { fetchOffers, peekOffers } from '../api'
+import type { OffersData } from '../api'
 
 export function tradingPeriodLabel(tp: number, date: string): string {
   // Normalise both "YYYYMMDD" and "YYYY-MM-DD" to the dashed form
@@ -57,14 +23,9 @@ export function useOffers(date: string | null): { offersData: OffersData | null;
     if (!date) { setOffersData(null); setLoading(false); setError(null); return }
     let cancelled = false
 
-    if (cache.has(date)) {
-      setOffersData(cache.get(date)!)
-      setLoading(false)
-      setError(null)
-      return
-    }
-
-    setLoading(true)
+    const cached = peekOffers(date)
+    if (cached) setOffersData(cached)
+    setLoading(!cached)
     setError(null)
     fetchOffers(date).then(data => {
       if (!cancelled) { setOffersData(data); setLoading(false) }
