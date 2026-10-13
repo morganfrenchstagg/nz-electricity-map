@@ -1,17 +1,17 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { OffersData } from '../hooks/useOffers'
 import type { SelectedNode, Generator } from '../types'
 import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
+import { FIT_TO_CONTAINER } from '../utils/chart'
 
 interface Props {
   offersData: OffersData
   tradingPeriod: number
   node: NonNullable<SelectedNode>
   generators: Generator[]
-  panelWidth: number
 }
 
 function getUnitNodes(node: NonNullable<SelectedNode>): { node: string; fuel: string; label: string }[] {
@@ -24,10 +24,7 @@ function getUnitNodes(node: NonNullable<SelectedNode>): { node: string; fuel: st
   return []
 }
 
-export default function OfferChart({ offersData, tradingPeriod, node, panelWidth }: Props) {
-  const chartRef = useRef<HighchartsReact.RefObject>(null)
-  useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
-
+export default function OfferChart({ offersData, tradingPeriod, node }: Props) {
   const chartOptions = useMemo((): Highcharts.Options | null => {
     const periodData = offersData.data[String(tradingPeriod)]
     if (!periodData) return null
@@ -120,7 +117,7 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
     if (series.length === 0) return null
 
     return {
-      chart: { type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
+      chart: { ...FIT_TO_CONTAINER, type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: false },
@@ -185,7 +182,6 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
 
   return (
     <HighchartsReact
-      ref={chartRef}
       key={`offers-${tradingPeriod}`}
       highcharts={Highcharts}
       options={chartOptions}
