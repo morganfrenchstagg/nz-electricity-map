@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import type Highcharts from 'highcharts'
-import type { GeneratorNode } from '../types'
+import type { GeneratorNode, Unit } from '../types'
 import { isAggregateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
@@ -10,6 +10,8 @@ import { tooltipTime } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
+import { installedCapacityOf, outageEasesAt, unitOutageSegments } from '../utils/outages'
+import type { OutageSegment } from '../utils/outages'
 import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
@@ -26,37 +28,6 @@ import type { NodePanelProps } from './NodePanelParts'
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
-
-// Collapses overlapping outage records for a single unit into a timeline of
-// distinct MW-loss segments (e.g. two overlapping 3MW outages become one 6MW
-// segment for the overlap, then a 3MW segment for the tail). Segments that have
-// already fully ended are dropped, but a segment's start is its real record
-// start — never clipped to "now" — so an ongoing outage still shows when it
-// actually began.
-function mergeOutageSegments(records: OutageRecord[], nowMs: number): { start: number; end: number; mw: number }[] {
-  const events = new Set<number>()
-  for (const r of records) {
-    events.add(outageMs(r.timeStart))
-    events.add(outageMs(r.timeEnd))
-  }
-  const sorted = [...events].sort((a, b) => a - b)
-  const segments: { start: number; end: number; mw: number }[] = []
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const segStart = sorted[i]
-    const segEnd = sorted[i + 1]
-    if (segEnd <= nowMs) continue
-    const mw = records.reduce((sum, r) => {
-      const s = outageMs(r.timeStart)
-      const e = outageMs(r.timeEnd)
-      return s <= segStart && e >= segEnd ? sum + r.mwattLost : sum
-    }, 0)
-    if (mw <= 0) continue
-    const last = segments[segments.length - 1]
-    if (last && Math.abs(last.mw - mw) < 0.001 && last.end === segStart) last.end = segEnd
-    else segments.push({ start: segStart, end: segEnd, mw })
-  }
-  return segments
-}
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
 // (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
@@ -146,19 +117,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     [effectiveCodes, adapter],
   )
 
-  const soonestOutageEnd = useMemo(() => {
-    if (!outages || totalOutageMW <= 0) return null
-    const nowMs = nzNowMs()
-    let soonest: Date | null = null
-    for (const code of effectiveCodes) {
-      for (const rec of (outages[code] ?? [])) {
-        const endMs = outageMs(rec.timeEnd)
-        if (endMs <= nowMs) continue
-        if (soonest === null || endMs < soonest.getTime()) soonest = new Date(endMs)
-      }
-    }
-    return soonest
-  }, [outages, effectiveCodes, totalOutageMW])
   const findUnit = useCallback((code: string) => {
     const generators = node.kind === 'generator' ? [node.generator] : node.generators
     for (const g of generators) {
@@ -168,28 +126,48 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     return null
   }, [node])
 
-  const outageDetails = useMemo(() => {
+  const unitOutages = useMemo(() => {
     if (!outages) return []
+    const result: { code: string; unit: Unit; segments: OutageSegment[] }[] = []
+    for (const code of effectiveCodes) {
+      const unit = findUnit(code)
+      if (unit) result.push({ code, unit, segments: unitOutageSegments(unit, outages) })
+    }
+    return result
+  }, [outages, effectiveCodes, findUnit])
+
+  // The soonest any current outage starts to ease, rather than the soonest any
+  // record ends: a record that hasn't started yet, or overlaps another on the
+  // same block, doesn't end anything
+  const soonestOutageEnd = useMemo(() => {
+    const nowMs = nzNowMs()
+    let soonest: number | null = null
+    for (const { segments } of unitOutages) {
+      const endMs = outageEasesAt(segments, nowMs)
+      if (endMs !== null && (soonest === null || endMs < soonest)) soonest = endMs
+    }
+    return soonest === null ? null : new Date(soonest)
+  }, [unitOutages])
+
+  // Segments that have already ended are dropped, but a segment's start is its
+  // real start — never clipped to "now" — so an ongoing outage still shows when
+  // it actually began
+  const outageDetails = useMemo(() => {
     const nowMs = nzNowMs()
     const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
-    for (const code of effectiveCodes) {
-      const records = outages[code] ?? []
-      if (records.length === 0) continue
-      const unit = findUnit(code)
-      const segments = mergeOutageSegments(records, nowMs)
-      segments.forEach((seg, i) => {
-        const capacityRemaining = unit ? Math.max(0, (unit.installedCapacity ?? unit.capacity) - seg.mw) : null
+    for (const { code, unit, segments } of unitOutages) {
+      segments.filter((seg) => seg.end > nowMs).forEach((seg, i) => {
         const rec: OutageRecord = {
           outageBlock: `merged-${code}-${i}`,
           timeStart: new Date(seg.start).toISOString(),
           timeEnd: new Date(seg.end).toISOString(),
           mwattLost: seg.mw,
         }
-        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining })
+        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining: Math.max(0, installedCapacityOf(unit) - seg.mw) })
       })
     }
     return details
-  }, [outages, effectiveCodes, adapter, findUnit])
+  }, [unitOutages, adapter])
 
   // First segment of each outageBlock (e.g. "RUK_STN" -> "RUK") identifies the
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
