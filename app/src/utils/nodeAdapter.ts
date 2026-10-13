@@ -518,6 +518,8 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     },
 
     extraSeries(rows, codes) {
+      // A lone bus's total would just repeat it
+      if (codes.length < 2) return []
       return [{
         type: 'line',
         name: 'Total',

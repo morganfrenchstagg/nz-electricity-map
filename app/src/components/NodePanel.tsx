@@ -376,14 +376,17 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
   // Deselects every generator, or selects them all again. If no buses are
   // selected either, hiding falls back to all buses so the chart isn't empty.
+  // The Total line includes the generators, so it's switched with them.
   function toggleGenerators() {
     const buses = [...effectiveCodes].filter(c => !c.includes(' '))
     if (!generatorsShown) {
       setActiveCodes(new Set([...buses, ...allCodes.filter(c => c.includes(' '))]))
-      return
+    } else {
+      const remaining = buses.length > 0 ? buses : allCodes.filter(c => !c.includes(' '))
+      if (remaining.length === 0) return
+      setActiveCodes(new Set(remaining))
     }
-    const remaining = buses.length > 0 ? buses : allCodes.filter(c => !c.includes(' '))
-    if (remaining.length > 0) setActiveCodes(new Set(remaining))
+    setExtraSeriesShown(Object.fromEntries(extraSeries.map((s) => [s.name ?? '', !generatorsShown])))
   }
 
   function isExtraSeriesShown(s: Highcharts.SeriesOptionsType) {
