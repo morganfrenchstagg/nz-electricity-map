@@ -10,8 +10,8 @@ function inputDates(m: DateMode): [string, string] {
   return m.kind === 'date' ? [m.date, ''] : m.kind === 'range' ? [m.from, m.to] : ['', '']
 }
 
-// The period toggle and from/to date inputs shared by the node panels and
-// GridOverviewPanel. `compact` is the toolbar's collapsed layout (see
+// The state behind DateControls' period toggle and from/to date inputs, in
+// every panel's toolbar. `compact` is the toolbar's collapsed layout (see
 // useCompactWhenOverflowing), which hides the date inputs until they're in use.
 export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: DateMode) => void, compact: boolean) {
   // Date picker local state — initialized from dateMode prop (which may come from URL)

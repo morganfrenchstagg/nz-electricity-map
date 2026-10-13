@@ -14,7 +14,8 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import Panel, { PanelToolbar } from './Panel'
-import { NodeChart, NodeDateControls, NodeTitle } from './NodePanelParts'
+import DateControls from './DateControls'
+import { NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
 const TOTAL = 'Total'
@@ -212,7 +213,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   return (
     <Panel {...panel} header={header} headerRef={headerRef}>
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
-        <NodeDateControls
+        <DateControls
           dateMode={dateMode}
           picker={datePicker}
           compact={compactToolbar}

@@ -17,7 +17,8 @@ import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
 import Panel, { PanelToolbar } from './Panel'
-import { ChartMessage, NodeChart, NodeDateControls, NodeTitle } from './NodePanelParts'
+import DateControls from './DateControls'
+import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
 const OutageModal = lazy(() => import('./OutageModal'))
@@ -484,7 +485,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             {offersError && <span className="status-text is-error">Failed to load offers</span>}
           </>
         ) : (
-          <NodeDateControls
+          <DateControls
             dateMode={dateMode}
             picker={datePicker}
             compact={compactToolbar}

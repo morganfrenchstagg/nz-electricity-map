@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { DateMode } from '../hooks/useDispatchData'
-import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
+import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
@@ -12,7 +12,8 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
-import { PeriodToggle, ToggleGroup } from './ToggleGroup'
+import { ToggleGroup } from './ToggleGroup'
+import DateControls from './DateControls'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
 
@@ -66,10 +67,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const {
-    fromDate, toDate, customDates, showDateInputs, fromInputRef, toMax, rangeError,
-    handleFromChange, handleToChange, handlePeriodClick, handleCustomClick,
-  } = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
+  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
   const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
@@ -323,37 +321,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           onClick: () => setIsland(opt),
         }))} />
         {!compactToolbar && <div className="divider" />}
-        <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />
-        {!compactToolbar && <div className="divider" />}
-        {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <input
-            ref={fromInputRef}
-            type="date"
-            value={fromDate}
-            min="2020-09-11"
-            max={yesterdayNZ()}
-            onChange={e => handleFromChange(e.target.value)}
-            className="date-input"
-          />
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0 }}>–</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            max={toMax}
-            disabled={!fromDate}
-            onChange={e => handleToChange(e.target.value)}
-            className="date-input"
-          />
-          {rangeError && (
-            <span className="status-text is-error" style={{ marginLeft: 4 }}>{rangeError}</span>
-          )}
-        </div>}
-        {lastUpdated && !dataLoading && (
-          <>{!compactToolbar && <div className="divider" />}<span className="status-text" style={{ marginLeft: compactToolbar ? 0 : 4 }}>{lastUpdated}</span></>
-        )}
-        {dataLoading && <span className="status-text">Loading…</span>}
-        {dataError && <span className="status-text is-error">Failed to load data</span>}
+        <DateControls
+          dateMode={dateMode}
+          picker={datePicker}
+          compact={compactToolbar}
+          lastUpdated={lastUpdated}
+          loading={dataLoading}
+          error={dataError}
+          empty={!data}
+        />
       </PanelToolbar>
 
       {/* Fuel pills */}
