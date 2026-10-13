@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
@@ -17,6 +18,7 @@ import OfferChart from './OfferChart'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
+import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -99,6 +101,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const { generators: allGenerators, substations: allSubstations } = useDefinitions()
   const outages = useOutages()
   const lastUpdated = useLastUpdated(recentData, dateMode)
+  const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   const adapter = useMemo(() => {
     if (node.kind === 'generator') return createGeneratorAdapter(node.generator, outages)
@@ -187,6 +190,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         : ''
   )
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
+  // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
+  const [customRequested, setCustomRequested] = useState(false)
+  const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compactToolbar && customRequested)
+  // The compact toolbar only shows the date inputs while they're in use
+  const showDateInputs = !compactToolbar || customDates
+  const fromInputRef = useRef<HTMLInputElement>(null)
 
   const toMax = useMemo(() => {
     if (!fromDate) return new Date(Date.now() - 86400000).toISOString().slice(0, 10)
@@ -208,6 +217,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     setFromDate(val)
     if (!val) {
       setToDate('')
+      setCustomRequested(false)
       onDateModeChange({ kind: 'recent' })
     } else if (toDate && toDate >= val) {
       const days = datesBetween(val, toDate).length
@@ -231,8 +241,28 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const handlePeriodClick = useCallback((period: Period) => {
     setFromDate('')
     setToDate('')
+    setCustomRequested(false)
     onDateModeChange({ kind: period })
   }, [onDateModeChange])
+
+  const handleViewModeChange = useCallback((mode: 'generation' | 'offers') => {
+    setViewMode(mode)
+    // A custom date asked for but not yet picked doesn't carry over to the other view
+    setCustomRequested(false)
+    // Nor does the latest offers' date, which Offers shows in the date input
+    if (mode === 'generation' && offerDate === 'latest') setFromDate('')
+  }, [offerDate])
+
+  const handleCustomClick = useCallback(() => {
+    // Rendered now rather than on the next render, so the picker opens while
+    // the dropdown change still counts as a user gesture
+    flushSync(() => setCustomRequested(true))
+    try {
+      fromInputRef.current?.showPicker()
+    } catch {
+      fromInputRef.current?.focus()
+    }
+  }, [])
 
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
 
@@ -541,109 +571,115 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={() => setPickerOpen(true)}
-              style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
-            >
-              {title}
-              <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
-            </button>
-            <button
-              onClick={onClear}
-              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
-              aria-label='Clear'
-            >
-              Clear
-            </button>
+        {/* The capacity readout wraps under the title when there isn't room beside it */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: '6px 8px' }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => setPickerOpen(true)}
+                style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                {title}
+                <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
+              </button>
+              <button
+                onClick={onClear}
+                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
+                aria-label='Clear'
+              >
+                Clear
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
+              <span>{subtitle}</span>
+              {adapter.subtitleFuels.map((f) => (
+                <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ marginRight: 3 }}>|</span>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
+                  <span>{f.label}</span>
+                </span>
+              ))}
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px' }}>
-            <span>{subtitle}</span>
-            {adapter.subtitleFuels.map((f) => (
-              <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <span style={{ marginRight: 3 }}>|</span>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
-                <span>{f.label}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-        {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
-        {!isMobile && isAggregate && isGenerator && totalGenerationMWh !== null && (
-          <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            Total: {formatMWh(totalGenerationMWh)}
-          </div>
-        )}
-        {!isMobile && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-              {totalOutageMW > 0 ? (
-                <>
-                  <span>{formatMW(currentGeneration)} /</span>
-                  <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
-                  <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
-                  <button
-                    onClick={() => setOutageModalOpen(true)}
-                    title="View outage details"
-                    style={{
-                      background: '#fee2e2',
-                      color: '#b91c1c',
-                      border: 'none',
-                      borderRadius: 4,
-                      padding: '0 5px',
-                      fontSize: 10,
-                      fontWeight: 600,
-                      lineHeight: '16px',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 3,
-                    }}
-                  >
-                    {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
-                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
-                      <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
-                      <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </>
-              ) : (
-                <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
+          {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
+          {!isMobile && isAggregate && isGenerator && totalGenerationMWh !== null && (
+            <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              Total: {formatMWh(totalGenerationMWh)}
+            </div>
+          )}
+          {!isMobile && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140 }}>
+              {/* Wraps the outage badge onto its own line when the readout has a line to itself and still doesn't fit */}
+              <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                {totalOutageMW > 0 ? (
+                  <>
+                    <span>{formatMW(currentGeneration)} /</span>
+                    <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
+                    <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
+                    <button
+                      onClick={() => setOutageModalOpen(true)}
+                      title="View outage details"
+                      style={{
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '0 5px',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        lineHeight: '16px',
+                        // Only wraps once it's on a line of its own and still too wide for the narrowest panel
+                        whiteSpace: 'normal',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                        <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
+                        <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
+                        <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </>
+                ) : (
+                  <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
+                )}
+              </div>
+              <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+                {allCodes.map((code, i) => {
+                  if (!effectiveCodes.has(code)) return null
+                  const lastRow = chartData?.rows[chartData.rows.length - 1]
+                  const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
+                  const colour = adapter.colourFor(code, i)
+                  const denom = (capacity > 0 ? capacity : 1) + totalOutageMW
+                  const genPct = (Math.abs(val) / denom) * 100
+                  return (
+                    <span key={code} style={{ display: 'contents' }}>
+                      <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
+                    </span>
+                  )
+                })}
+                {
+                  totalOutageMW > 0 && (
+                    <>
+                      <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
+                      <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
+                    </>
+                  )
+                }
+              </div>
+              {totalGenerationMWh !== null && (
+                <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  Total: {formatMWh(totalGenerationMWh)}
+                </div>
               )}
             </div>
-            <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
-              {allCodes.map((code, i) => {
-                if (!effectiveCodes.has(code)) return null
-                const lastRow = chartData?.rows[chartData.rows.length - 1]
-                const val = lastRow ? ((lastRow[code] as number) ?? 0) : 0
-                const colour = adapter.colourFor(code, i)
-                const denom = (capacity > 0 ? capacity : 1) + totalOutageMW
-                const genPct = (Math.abs(val) / denom) * 100
-                return (
-                  <span key={code} style={{ display: 'contents' }}>
-                    <div style={{ height: '100%', width: `${genPct}%`, flexShrink: 0, background: colour }} />
-                  </span>
-                )
-              })}
-              {
-                totalOutageMW > 0 && (
-                  <>
-                    <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
-                    <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
-                  </>
-                )
-              }
-            </div>
-            {totalGenerationMWh !== null && (
-              <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                Total: {formatMWh(totalGenerationMWh)}
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
         {isMobile ? (
           <button
             onClick={onClose}
@@ -674,23 +710,29 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         )}
       </div>
 
-      {/* Toolbar */}
-      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      {/* Toolbar. When it's too narrow for one line, the toggles become
+          dropdowns and the rest wraps. */}
+      <div ref={toolbarRef} style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
         {isGenerator && (
           <>
-            <ToggleGroup options={[
-              { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => setViewMode('generation') },
-              { key: 'offers', label: 'Offers', active: viewMode === 'offers', onClick: () => setViewMode('offers') },
+            <ToggleGroup compact={compactToolbar} ariaLabel="View" options={[
+              { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => handleViewModeChange('generation') },
+              { key: 'offers', label: 'Offers', active: viewMode === 'offers', onClick: () => handleViewModeChange('offers') },
             ]} />
-            <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+            {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
           </>
         )}
         {viewMode === 'offers'
-          ? <ToggleGroup options={[{ key: 'latest', label: 'Latest', active: offerDate === 'latest', onClick: () => handlePeriodClick('today') }]} />
-          : <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} />}
-        {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
+          ? <ToggleGroup compact={compactToolbar} ariaLabel="Offers date" options={[
+              { key: 'latest', label: 'Latest', active: !customDates, onClick: () => handlePeriodClick('today') },
+              // The compact toolbar hides the date input, so its dropdown has an option to show it
+              ...(compactToolbar ? [{ key: 'custom', label: 'Custom date', active: customDates, onClick: handleCustomClick }] : []),
+            ]} />
+          : <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />}
+        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <input
+            ref={fromInputRef}
             type="date"
             value={fromDate}
             min="2020-09-11"
@@ -715,12 +757,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           {rangeError && viewMode === 'generation' && (
             <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
           )}
-        </div>
+        </div>}
 
         {/* Trading period stepper (offers mode) */}
         {viewMode === 'offers' && (
           <>
-            <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+            {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <button
                 onClick={() => setTradingPeriod(p => Math.max(1, p - 1))}
@@ -747,7 +789,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         )}
 
         {viewMode === 'generation' && lastUpdated && !dataLoading && (
-          <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
+          <>{!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}<span style={{ fontSize: 11, color: '#888', marginLeft: compactToolbar ? 0 : 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
         {viewMode === 'generation' && dataLoading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>

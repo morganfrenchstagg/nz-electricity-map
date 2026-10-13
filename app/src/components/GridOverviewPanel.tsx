@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
@@ -10,6 +11,7 @@ import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours
 import { fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
+import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import NodePickerModal from './NodePickerModal'
 import PipelineModal from './PipelineModal'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
@@ -52,6 +54,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pipelineOpen, setPipelineOpen] = useState(() => window.location.pathname === '/pipeline')
   const chartRef = useRef<HighchartsReact.RefObject>(null)
+  const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
 
@@ -90,6 +93,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         : ''
   )
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
+  // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
+  const [customRequested, setCustomRequested] = useState(false)
+  const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compactToolbar && customRequested)
+  // The compact toolbar only shows the date inputs while they're in use
+  const showDateInputs = !compactToolbar || customDates
+  const fromInputRef = useRef<HTMLInputElement>(null)
 
   const toMax = useMemo(() => {
     if (!fromDate) return new Date(Date.now() - 86400000).toISOString().slice(0, 10)
@@ -111,6 +120,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     setFromDate(val)
     if (!val) {
       setToDate('')
+      setCustomRequested(false)
       onDateModeChange({ kind: 'recent' })
     } else if (toDate && toDate >= val) {
       const days = datesBetween(val, toDate).length
@@ -134,8 +144,20 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const handlePeriodClick = useCallback((period: Period) => {
     setFromDate('')
     setToDate('')
+    setCustomRequested(false)
     onDateModeChange({ kind: period })
   }, [onDateModeChange])
+
+  const handleCustomClick = useCallback(() => {
+    // Rendered now rather than on the next render, so the picker opens while
+    // the dropdown change still counts as a user gesture
+    flushSync(() => setCustomRequested(true))
+    try {
+      fromInputRef.current?.showPicker()
+    } catch {
+      fromInputRef.current?.focus()
+    }
+  }, [])
 
   const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
@@ -403,14 +425,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
-          <button
-            onClick={() => setPickerOpen(true)}
-            style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1, flexShrink: 0 }}
-          >
-            ▾
-          </button>
+        {/* The pipeline button wraps under the title when there isn't room beside it */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
+            <button
+              onClick={() => setPickerOpen(true)}
+              style={{ fontWeight: 400, fontSize: 13, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: '#999', lineHeight: 1, flexShrink: 0 }}
+            >
+              ▾
+            </button>
+          </div>
           <button
             onClick={() => setPipelineOpen(true)}
             style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#555', padding: '4px 8px', borderRadius: 4, flexShrink: 0, fontWeight: 500 }}
@@ -448,19 +473,22 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
         )}
       </div>
 
-      {/* Island + date picker toolbar */}
-      <div style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-        <ToggleGroup options={(['all', 'NI', 'SI'] as const).map(opt => ({
+      {/* Island + date picker toolbar. When it's too narrow for one line, the
+          toggles become dropdowns and the rest wraps. */}
+      <div ref={toolbarRef} style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
+        <ToggleGroup compact={compactToolbar} ariaLabel="Island" options={(['all', 'NI', 'SI'] as const).map(opt => ({
           key: opt,
           label: opt === 'all' ? 'All' : opt === 'NI' ? 'North Island' : 'South Island',
+          menuLabel: opt === 'all' ? 'All islands' : undefined,
           active: island === opt,
           onClick: () => setIsland(opt),
         }))} />
-        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
-        <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} />
-        {!isMobile && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexBasis: isMobile ? '100%' : undefined }}>
+        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />
+        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <input
+            ref={fromInputRef}
             type="date"
             value={fromDate}
             min="2020-09-11"
@@ -481,17 +509,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           {rangeError && (
             <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
           )}
-        </div>
+        </div>}
         {lastUpdated && !dataLoading && (
-          <><div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} /><span style={{ fontSize: 11, color: '#888', marginLeft: 4, flexShrink: 0 }}>{lastUpdated}</span></>
+          <>{!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}<span style={{ fontSize: 11, color: '#888', marginLeft: compactToolbar ? 0 : 4, flexShrink: 0 }}>{lastUpdated}</span></>
         )}
         {dataLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888', flexShrink: 0 }}>
             Loading…
           </div>
         )}
         {dataError && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#c00' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#c00', flexShrink: 0 }}>
             Failed to load data
           </div>
         )}
