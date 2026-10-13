@@ -12,7 +12,7 @@ import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import NodePickerModal from './NodePickerModal'
 import PipelineModal from './PipelineModal'
-import SeriesButtonRow, { seriesButtonStyle } from './SeriesButtonRow'
+import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 
@@ -508,13 +508,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
               </button>
             ))}
             trail={[
-              <button
+              <ClearButton
                 key="clear"
+                cleared={activeFuels !== null && activeFuels.size === 0}
                 onClick={() => setActiveFuels(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
-                style={{ ...seriesButtonStyle('#bbb', false), color: '#666', flexShrink: 0, whiteSpace: 'nowrap' }}
-              >
-                {activeFuels !== null && activeFuels.size === 0 ? 'Select all' : 'Clear'}
-              </button>,
+              />,
             ]}
           />
         </div>

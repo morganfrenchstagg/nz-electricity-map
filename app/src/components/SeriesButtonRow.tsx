@@ -19,6 +19,15 @@ export function seriesButtonStyle(colour: string, active: boolean): React.CSSPro
 
 const MORE_STYLE: React.CSSProperties = { ...seriesButtonStyle('#bbb', false), color: '#666', flexShrink: 0 }
 
+// Deselects every series in a row, or selects them all again once cleared
+export function ClearButton({ cleared, onClick }: { cleared: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ ...MORE_STYLE, whiteSpace: 'nowrap' }}>
+      {cleared ? 'Select all' : 'Clear'}
+    </button>
+  )
+}
+
 interface Props {
   // Always shown, at the start of the row
   lead?: ReactElement[]

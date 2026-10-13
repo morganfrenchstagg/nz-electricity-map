@@ -14,7 +14,7 @@ import { formatMW, formatMWh } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
 import OutageModal from './OutageModal'
 import OfferChart from './OfferChart'
-import SeriesButtonRow, { seriesButtonStyle } from './SeriesButtonRow'
+import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -395,6 +395,14 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
   function toggleExtraSeries(s: Highcharts.SeriesOptionsType) {
     setExtraSeriesShown((prev) => ({ ...prev, [s.name ?? '']: !isExtraSeriesShown(s) }))
+  }
+
+  // As on the grid overview: Clear deselects every series, Total included, and
+  // once nothing is selected it becomes Select all, which turns them all on.
+  const nothingSelected = effectiveCodes.size === 0 && !extraSeries.some(isExtraSeriesShown)
+  function clearOrSelectAll() {
+    setActiveCodes(nothingSelected ? null : new Set())
+    setExtraSeriesShown(Object.fromEntries(extraSeries.map((s) => [s.name ?? '', nothingSelected])))
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -836,7 +844,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
       {(leadButtons.length > 0 || unitButtons.length > 0) && (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
-          <SeriesButtonRow lead={leadButtons} items={unitButtons} />
+          <SeriesButtonRow
+            lead={leadButtons}
+            items={unitButtons}
+            trail={unitButtons.length > 0 ? [<ClearButton key="clear" cleared={nothingSelected} onClick={clearOrSelectAll} />] : []}
+          />
         </div>
       )}
 
