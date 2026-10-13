@@ -83,7 +83,9 @@ function monthlyYearsBetween(from: string, to: string): string[] {
   return years
 }
 
-function aggregateWindow(period: AggregatePeriod): { from: string; to: string; paths: string[] } {
+// The dates a period's chart covers, and the aggregate files (see
+// fetchAggregates) holding them.
+export function aggregateWindow(period: AggregatePeriod): { from: string; to: string; paths: string[] } {
   if (period === 'daily') {
     const { from, to } = completeDayWindow(DAILY_RANGE_DAYS)
     return { from, to, paths: monthsBetween(from, to) }

@@ -5,6 +5,7 @@ import { isAggregateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
+import { mergeOutageSegments } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
 import { tooltipTime } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
@@ -26,37 +27,6 @@ import type { NodePanelProps } from './NodePanelParts'
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
-
-// Collapses overlapping outage records for a single unit into a timeline of
-// distinct MW-loss segments (e.g. two overlapping 3MW outages become one 6MW
-// segment for the overlap, then a 3MW segment for the tail). Segments that have
-// already fully ended are dropped, but a segment's start is its real record
-// start — never clipped to "now" — so an ongoing outage still shows when it
-// actually began.
-function mergeOutageSegments(records: OutageRecord[], nowMs: number): { start: number; end: number; mw: number }[] {
-  const events = new Set<number>()
-  for (const r of records) {
-    events.add(outageMs(r.timeStart))
-    events.add(outageMs(r.timeEnd))
-  }
-  const sorted = [...events].sort((a, b) => a - b)
-  const segments: { start: number; end: number; mw: number }[] = []
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const segStart = sorted[i]
-    const segEnd = sorted[i + 1]
-    if (segEnd <= nowMs) continue
-    const mw = records.reduce((sum, r) => {
-      const s = outageMs(r.timeStart)
-      const e = outageMs(r.timeEnd)
-      return s <= segStart && e >= segEnd ? sum + r.mwattLost : sum
-    }, 0)
-    if (mw <= 0) continue
-    const last = segments[segments.length - 1]
-    if (last && Math.abs(last.mw - mw) < 0.001 && last.end === segStart) last.end = segEnd
-    else segments.push({ start: segStart, end: segEnd, mw })
-  }
-  return segments
-}
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
 // (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
