@@ -55,6 +55,10 @@ export function withGaps(points: [number, number | null][]): [number, number | n
   return result
 }
 
+// HighchartsReact calls chart.update() whenever containerProps changes, so an
+// inline object would redraw the chart on every render. Share one instead.
+export const CHART_CONTAINER_PROPS = { style: { height: '100%' } }
+
 // Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   switch (period) {
