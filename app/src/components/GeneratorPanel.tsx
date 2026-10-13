@@ -5,12 +5,13 @@ import { isAggregateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
+import { mergeOutageSegments } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { tooltipTime } from '../utils/chart'
+import { tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -26,37 +27,6 @@ import type { NodePanelProps } from './NodePanelParts'
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
-
-// Collapses overlapping outage records for a single unit into a timeline of
-// distinct MW-loss segments (e.g. two overlapping 3MW outages become one 6MW
-// segment for the overlap, then a 3MW segment for the tail). Segments that have
-// already fully ended are dropped, but a segment's start is its real record
-// start — never clipped to "now" — so an ongoing outage still shows when it
-// actually began.
-function mergeOutageSegments(records: OutageRecord[], nowMs: number): { start: number; end: number; mw: number }[] {
-  const events = new Set<number>()
-  for (const r of records) {
-    events.add(outageMs(r.timeStart))
-    events.add(outageMs(r.timeEnd))
-  }
-  const sorted = [...events].sort((a, b) => a - b)
-  const segments: { start: number; end: number; mw: number }[] = []
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const segStart = sorted[i]
-    const segEnd = sorted[i + 1]
-    if (segEnd <= nowMs) continue
-    const mw = records.reduce((sum, r) => {
-      const s = outageMs(r.timeStart)
-      const e = outageMs(r.timeEnd)
-      return s <= segStart && e >= segEnd ? sum + r.mwattLost : sum
-    }, 0)
-    if (mw <= 0) continue
-    const last = segments[segments.length - 1]
-    if (last && Math.abs(last.mw - mw) < 0.001 && last.end === segStart) last.end = segEnd
-    else segments.push({ start: segStart, end: segEnd, mw })
-  }
-  return segments
-}
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
 // (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
@@ -214,32 +184,10 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
   }, [chartData, effectiveCodes])
 
-  // Trapezoidal integral of the charted MW series over time -> MWh for the
-  // currently displayed period. Gaps larger than withGaps' threshold are
-  // skipped rather than bridged, so missing data doesn't inflate the total.
-  // Aggregate rows are already MWh, so those are just summed.
+  // MWh over the displayed period, for the units shown
   const totalGenerationMWh = useMemo(() => {
-    if (!chartData || chartData.rows.length < (isAggregate ? 1 : 2)) return null
-    const codes = [...effectiveCodes].filter(code => chartData.codes.includes(code))
-    if (codes.length === 0) return null
-    if (isAggregate) {
-      return chartData.rows.reduce((total, row) =>
-        total + codes.reduce((sum, code) => sum + ((row[code] as number) ?? 0), 0), 0)
-    }
-    const maxGapMs = 20 * 60 * 1000
-    let total = 0
-    for (let i = 1; i < chartData.rows.length; i++) {
-      const prev = chartData.rows[i - 1]
-      const curr = chartData.rows[i]
-      const t0 = nzLocalMs(prev.time)
-      const t1 = nzLocalMs(curr.time)
-      const dtMs = t1 - t0
-      if (dtMs <= 0 || dtMs > maxGapMs) continue
-      const v0 = codes.reduce((sum, code) => sum + ((prev[code] as number) ?? 0), 0)
-      const v1 = codes.reduce((sum, code) => sum + ((curr[code] as number) ?? 0), 0)
-      total += ((v0 + v1) / 2) * (dtMs / 3600000)
-    }
-    return total
+    if (!chartData) return null
+    return totalMWh(chartData.rows, [...effectiveCodes].filter(code => chartData.codes.includes(code)), isAggregate)
   }, [chartData, effectiveCodes, isAggregate])
 
   // Clear deselects every unit, and once none are selected becomes Select all
