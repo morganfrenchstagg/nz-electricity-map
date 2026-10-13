@@ -31,6 +31,17 @@ export function substationCodes(recent: RecentData, siteId: string): string[] {
   return recent.series.filter((s) => s.startsWith(siteId))
 }
 
+// Bus codes are the site, the voltage in kV (3 digits) and a bus number or
+// letter, e.g. OTA1103 is Ōtāhuhu's 110kV bus 3. The bus is only named when
+// siteCodes has another bus at the same voltage to tell it apart from.
+export function busLabel(code: string, siteCodes: string[]): string {
+  const kv = parseInt(code.slice(-4, -1), 10)
+  if (isNaN(kv)) return code
+  const sameVoltage = code.slice(0, -1)
+  const shared = siteCodes.some((c) => c !== code && !c.includes(' ') && c.slice(0, -1) === sameVoltage)
+  return shared ? `${kv}kV – ${code.slice(-1)}` : `${kv}kV`
+}
+
 const GAP_MS = 20 * 60 * 1000
 
 export function withGaps(points: [number, number | null][]): [number, number | null][] {

@@ -2,7 +2,7 @@ import type Highcharts from 'highcharts'
 import type { Generator, RecentData, Substation, Unit } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../hooks/useOutages'
-import { substationCodes } from './chart'
+import { busLabel, substationCodes } from './chart'
 import { fuelColour, voltageColour, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 
@@ -48,10 +48,12 @@ export interface NodeAdapter {
   // Dispatch data charts active units only; the aggregate views pass
   // includeRetired to chart every unit's history.
   getCodes(recent: RecentData, includeRetired?: boolean): string[]
-  labelFor(code: string): string
+  // codes: every code being charted, for labels that depend on the others
+  labelFor(code: string, codes: string[]): string
   colourFor(code: string, index: number): string
   transformValue(val: number): number
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
+  // Series derived from the codes, each toggled by its own button; `visible: false` starts it off
   extraSeries(rows: ChartRow[], codes: string[]): Highcharts.SeriesOptionsType[]
   stacking(numCodes: number): Highcharts.OptionsStackingValue | undefined
   showUnitSelector(numCodes: number): boolean
@@ -465,39 +467,42 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 }
 
 export function createSubstationAdapter(substation: Substation, allGenerators: Generator[]): NodeAdapter {
+  // Generator codes contain a space; bus codes don't
+  const unitFor = (code: string) => {
+    if (!code.includes(' ')) return null
+    for (const gen of allGenerators) {
+      const unit = gen.units.find((u) => u.node === code)
+      if (unit) return unit
+    }
+    return null
+  }
+  // As for generators, a battery's charging node is marked to tell it apart
+  const unitLabel = (unit: Unit) => (unit.fuel === 'Battery (Charging)' ? `${unit.name} (charging)` : unit.name)
+
   return {
     title: `${substation.description} Substation`,
     subtitle: '',
     chartType: 'line',
 
+    // Buses first, then generators alphabetically by name
     getCodes(recent) {
-      return substationCodes(recent, substation.siteId)
+      const codes = substationCodes(recent, substation.siteId)
+      const genName = (code: string) => { const unit = unitFor(code); return unit ? unitLabel(unit) : code }
+      return [
+        ...codes.filter((c) => !c.includes(' ')),
+        ...codes.filter((c) => c.includes(' ')).sort((a, b) => genName(a).localeCompare(genName(b))),
+      ]
     },
 
-    labelFor(code) {
-      if (code.includes(' ')) {
-        for (const gen of allGenerators) {
-          const unit = gen.units.find((u) => u.node === code)
-          if (unit) return unit.name
-        }
-      }
-      if (code.length >= 4) {
-        const suffix = code.slice(-4)
-        const voltage = parseInt(suffix.slice(0, 3), 10)
-        const unit = parseInt(suffix.slice(3), 10)
-        return `${voltage}kV - ${unit}`
-      }
-      return code.includes(' ') ? code.split(' ')[1] : code
+    labelFor(code, codes) {
+      const unit = unitFor(code)
+      if (unit) return unitLabel(unit)
+      return code.includes(' ') ? code.split(' ')[1] : busLabel(code, codes)
     },
 
     colourFor(code, _index) {
-      if (code.includes(' ')) {
-        for (const gen of allGenerators) {
-          const unit = gen.units.find((u) => u.node === code)
-          if (unit) return fuelColour(unit.fuel)
-        }
-      }
-      return codeVoltageColour(code)
+      const unit = unitFor(code)
+      return unit ? fuelColour(unit.fuel) : codeVoltageColour(code)
     },
 
     transformValue(val) { return -val },
@@ -513,10 +518,11 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
     },
 
     extraSeries(rows, codes) {
-      if (!codes.some((c) => c.includes(' '))) return []
       return [{
         type: 'line',
-        name: 'Net',
+        name: 'Total',
+        // Off by default unless the substation has generators (codes with a space)
+        visible: codes.some((c) => c.includes(' ')),
         color: '#222222',
         lineWidth: 2,
         zIndex: 5,
@@ -531,8 +537,8 @@ export function createSubstationAdapter(substation: Substation, allGenerators: G
 
     stacking(_numCodes) { return undefined },
 
-    showUnitSelector(_numCodes) { return false },
-    showLegend(numCodes) { return numCodes > 1 },
+    showUnitSelector(numCodes) { return numCodes > 1 },
+    showLegend(_numCodes) { return false },
     capacityMW(_effectiveCodes) { return null },
     normalCapacityMW(_effectiveCodes) { return null },
     unitOutageMW(_code) { return 0 },
