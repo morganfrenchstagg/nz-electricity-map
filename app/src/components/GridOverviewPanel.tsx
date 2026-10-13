@@ -1,22 +1,23 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { daysBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
-import { DATETIME_LABEL_FORMATS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
-import NodePickerModal from './NodePickerModal'
-import PipelineModal from './PipelineModal'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
+
+const NodePickerModal = lazy(() => import('./NodePickerModal'))
+const PipelineModal = lazy(() => import('./PipelineModal'))
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -113,7 +114,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const rangeError = useMemo(() => {
     if (!fromDate || !toDate) return null
     if (toDate < fromDate) return 'End date must be after start date'
-    const days = datesBetween(fromDate, toDate).length
+    const days = daysBetween(fromDate, toDate)
     if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
     return null
   }, [fromDate, toDate])
@@ -125,7 +126,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
       setCustomRequested(false)
       onDateModeChange({ kind: 'recent' })
     } else if (toDate && toDate >= val) {
-      const days = datesBetween(val, toDate).length
+      const days = daysBetween(val, toDate)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
     } else {
       setToDate('')
@@ -138,7 +139,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     if (!val) {
       if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
     } else if (fromDate && val >= fromDate) {
-      const days = datesBetween(fromDate, val).length
+      const days = daysBetween(fromDate, val)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
     }
   }, [fromDate, onDateModeChange])
@@ -188,7 +189,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
     const param = new URLSearchParams(window.location.search).get('fuels')
     return param ? new Set(param.split(',').filter(Boolean)) : null
   })
-  const effectiveFuels = activeFuels ?? new Set(fuels)
+  // Memoised so the chart options below don't rebuild on every render
+  const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
@@ -415,15 +417,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
   return (
     <div style={{ ...PANEL_STYLE, display: visible ? 'flex' : 'none', width: expanded ? '100vw' : panelWidth }}>
-      {pickerOpen && (
-        <NodePickerModal
-          generators={generators}
-          substations={substations}
-          onSelect={(node) => { onNodeSelect(node); setPickerOpen(false) }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-      {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
+      <Suspense fallback={null}>
+        {pickerOpen && (
+          <NodePickerModal
+            generators={generators}
+            substations={substations}
+            onSelect={(node) => { onNodeSelect(node); setPickerOpen(false) }}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+        {pipelineOpen && <PipelineModal onClose={() => setPipelineOpen(false)} />}
+      </Suspense>
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -560,7 +564,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+          <HighchartsReact ref={chartRef} key={`${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
         )}
       </div>
       {!expanded && !isMobile && (

@@ -62,6 +62,10 @@ export const DATETIME_LABEL_FORMATS = {
   day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p',
 } as Highcharts.AxisDateTimeLabelFormatsOptions
 
+// HighchartsReact calls chart.update() whenever containerProps changes, so an
+// inline object would redraw the chart on every render. Share one instead.
+export const CHART_CONTAINER_PROPS = { style: { height: '100%' } }
+
 // Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   switch (period) {

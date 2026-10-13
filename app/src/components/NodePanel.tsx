@@ -1,26 +1,29 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
-import { datesBetween, isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { daysBetween, isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import NodePickerModal from './NodePickerModal'
-import OutageModal from './OutageModal'
-import OfferChart from './OfferChart'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
+
+const NodePickerModal = lazy(() => import('./NodePickerModal'))
+const OutageModal = lazy(() => import('./OutageModal'))
+const loadOfferChart = () => import('./OfferChart')
+const OfferChart = lazy(loadOfferChart)
+
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
   bottom: 0,
@@ -171,6 +174,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         : dateMode.from)
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
+  // Fetch the chart code alongside the offers data rather than after it arrives
+  useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
   // When the latest offers load, reflect their actual date in the date picker
   useEffect(() => {
@@ -211,7 +216,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const rangeError = useMemo(() => {
     if (!fromDate || !toDate) return null
     if (toDate < fromDate) return 'End date must be after start date'
-    const days = datesBetween(fromDate, toDate).length
+    const days = daysBetween(fromDate, toDate)
     if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
     return null
   }, [fromDate, toDate])
@@ -223,7 +228,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       setCustomRequested(false)
       onDateModeChange({ kind: 'recent' })
     } else if (toDate && toDate >= val) {
-      const days = datesBetween(val, toDate).length
+      const days = daysBetween(val, toDate)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
     } else {
       setToDate('')
@@ -236,7 +241,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     if (!val) {
       if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
     } else if (fromDate && val >= fromDate) {
-      const days = datesBetween(fromDate, val).length
+      const days = daysBetween(fromDate, val)
       if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
     }
   }, [fromDate, onDateModeChange])
@@ -491,6 +496,18 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       return val
     }
 
+    // Built once per chart rather than per tooltip, which fires on every mouse move
+    const pricingByMs = new Map<number, Record<string, number>>()
+    if (recentData?.pricing && !isAggregate) {
+      const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
+      for (const row of recentData.pricing) {
+        const ms = new Date((row[0] as string) + 'Z').getTime()
+        const entry: Record<string, number> = {}
+        chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
+        pricingByMs.set(ms, entry)
+      }
+    }
+
     const midnightPlotLines: Highcharts.XAxisPlotLinesOptions[] = chartData.rows
       .filter((row, i) => {
         if (i === 0 || isAggregate) return false
@@ -538,18 +555,6 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           const points = (this.points ?? []).filter((p) => p.series.name !== 'Total')
           const time = tooltipTime(this.x as number, aggregatePeriod)
           const formatValue = isAggregate ? formatMWh : formatMW
-
-          const pricingByMs = new Map<number, Record<string, number>>()
-          if (recentData?.pricing && !isAggregate) {
-            const indices = chartData.codes.map((c) => recentData.series.indexOf(c) + 1)
-            for (const row of recentData.pricing) {
-              const ms = new Date((row[0] as string) + 'Z').getTime()
-              const entry: Record<string, number> = {}
-              chartData.codes.forEach((code, i) => { entry[code] = row[indices[i]] as number })
-              pricingByMs.set(ms, entry)
-            }
-          }
-
           const priceAtTime = pricingByMs.get(this.x as number)
 
           // No capacity comparison for aggregate totals
@@ -902,7 +907,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           ) : offersError && !offersData ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>Failed to load offers</div>
           ) : offersData ? (
-            <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+            <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>}>
+              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+            </Suspense>
           ) : null
         ) : (
           <>
@@ -922,7 +929,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               </div>
             )}
             {chartOptions && (
-              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={{ style: { height: '100%' } }} />
+              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
             )}
           </>
         )}
@@ -933,22 +940,24 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
         />
       )}
-      {pickerOpen && (
-        <NodePickerModal
-          generators={allGenerators}
-          substations={allSubstations}
-          currentNode={node}
-          onSelect={onNodeChange}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-      {outageModalOpen && (
-        <OutageModal
-          outages={outageDetails}
-          outageBlockPrefixes={outageBlockPrefixes}
-          onClose={() => setOutageModalOpen(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {pickerOpen && (
+          <NodePickerModal
+            generators={allGenerators}
+            substations={allSubstations}
+            currentNode={node}
+            onSelect={onNodeChange}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+        {outageModalOpen && (
+          <OutageModal
+            outages={outageDetails}
+            outageBlockPrefixes={outageBlockPrefixes}
+            onClose={() => setOutageModalOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   )
 }
