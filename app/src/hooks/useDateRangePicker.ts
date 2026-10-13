@@ -5,19 +5,35 @@ import type { DateMode } from './useDispatchData'
 import { yesterdayNZ } from './useAggregates'
 import type { Period } from '../components/ToggleGroup'
 
+// The from/to input values for a dateMode: a date or range fills them, a period clears them
+function inputDates(m: DateMode): [string, string] {
+  return m.kind === 'date' ? [m.date, ''] : m.kind === 'range' ? [m.from, m.to] : ['', '']
+}
+
 // The period toggle and from/to date inputs shared by NodePanel and
 // GridOverviewPanel. `compact` is the toolbar's collapsed layout (see
 // useCompactWhenOverflowing), which hides the date inputs until they're in use.
 export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: DateMode) => void, compact: boolean) {
   // Date picker local state — initialized from dateMode prop (which may come from URL)
-  const [fromDate, setFromDate] = useState(
-    dateMode.kind === 'date' ? dateMode.date
-      : dateMode.kind === 'range' ? dateMode.from
-        : ''
-  )
-  const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
+  const [fromDate, setFromDate] = useState(() => inputDates(dateMode)[0])
+  const [toDate, setToDate] = useState(() => inputDates(dateMode)[1])
   // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
   const [customRequested, setCustomRequested] = useState(false)
+
+  // dateMode is shared, and GridOverviewPanel stays mounted while NodePanel is
+  // open, so follow dateMode when the other panel changes it. This panel's own
+  // handlers already leave the inputs matching the dateMode they set. Done
+  // while rendering rather than in an effect, so NodePanel's effect showing the
+  // latest offers' date still runs after it.
+  const dateModeKey = JSON.stringify(dateMode)
+  const [syncedDateModeKey, setSyncedDateModeKey] = useState(dateModeKey)
+  if (dateModeKey !== syncedDateModeKey) {
+    setSyncedDateModeKey(dateModeKey)
+    const [from, to] = inputDates(dateMode)
+    setFromDate(from)
+    setToDate(to)
+    setCustomRequested(false)
+  }
   const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compact && customRequested)
   // The compact toolbar only shows the date inputs while they're in use
   const showDateInputs = !compact || customDates
