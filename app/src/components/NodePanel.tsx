@@ -11,7 +11,7 @@ import type { OutageRecord } from '../hooks/useOutages'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
+import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -22,19 +22,6 @@ const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
-
-const PANEL_STYLE: React.CSSProperties = {
-  position: 'fixed',
-  bottom: 0,
-  width: '60vw',
-  height: '100%',
-  background: 'white',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-  display: 'flex',
-  flexDirection: 'column',
-  zIndex: 10,
-  overflow: 'hidden',
-}
 
 function outageMs(iso: string): number {
   return new Date(iso.replace(/([+-]\d{2}:\d{2}|Z)$/, '') + 'Z').getTime()
@@ -451,7 +438,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         dashStyle: 'Solid',
         label: {
           text: Highcharts.dateFormat('%e %b', new Date((row.time as string) + 'Z').getTime()),
-          style: { color: '#888888', fontSize: '10px' },
+          style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
           y: 14,
         },
         zIndex: 3,
@@ -464,17 +451,15 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       },
       title: { text: undefined },
       credits: { enabled: false },
-      legend: { enabled: adapter.showLegend(chartData.codes.length), itemStyle: { fontSize: '11px', fontWeight: 'normal' } },
+      legend: { enabled: adapter.showLegend(chartData.codes.length), itemStyle: { fontWeight: 'normal' } },
       xAxis: {
         type: 'datetime',
-        labels: { style: { fontSize: '10px' } },
         dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
         plotLines: midnightPlotLines,
       },
       yAxis: isAggregate
         ? {
-          title: { text: isGenerator ? 'MWh' : 'Load (MWh)', style: { fontSize: '11px' } },
-          labels: { style: { fontSize: '10px' } },
+          title: { text: isGenerator ? 'MWh' : 'Load (MWh)' },
           softMin: 0,
           gridLineDashStyle: 'Dash',
         }
@@ -509,7 +494,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             const busRows = points.filter((p) => !isGen(p)).map(renderRow).join('')
             const genPoints = points.filter(isGen)
             const genRows = genPoints.length > 0
-              ? `<tr><td colspan="3" style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;padding-top:5px">Generation</td></tr>` + genPoints.map(renderRow).join('')
+              ? `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Generation</td></tr>` + genPoints.map(renderRow).join('')
               : ''
             rows = busRows + genRows
           } else {
@@ -548,13 +533,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       <button
         key="generators"
         onClick={toggleGenerators}
-        style={{
-          ...seriesButtonStyle('#bbb', false),
-          background: generatorsShown ? '#f0f0f0' : 'white',
-          color: '#444',
-          flexShrink: 0,
-          whiteSpace: 'nowrap',
-        }}
+        className={`series-button series-button--neutral${generatorsShown ? ' is-active' : ''}`}
       >
         {generatorsShown ? 'Hide generators' : 'Show generators'}
       </button>,
@@ -562,56 +541,53 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     ...extraSeries.map((s) => {
       const name = s.name ?? ''
       return (
-        <button key={`extra-${name}`} onClick={() => toggleExtraSeries(s)} style={seriesButtonStyle(String((s as Highcharts.SeriesLineOptions).color), isExtraSeriesShown(s))}>
+        <SeriesButton key={`extra-${name}`} colour={String((s as Highcharts.SeriesLineOptions).color)} active={isExtraSeriesShown(s)} onClick={() => toggleExtraSeries(s)}>
           {name}
-        </button>
+        </SeriesButton>
       )
     }),
   ]
-  if (leadButtons.length > 0 && showUnitSelector) leadButtons.push(<div key="divider" style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />)
+  if (leadButtons.length > 0 && showUnitSelector) leadButtons.push(<div key="divider" className="divider" />)
 
   // Unit selector (generators with multiple units, substations with multiple buses/generators)
   const unitButtons = !showUnitSelector ? [] : allCodes.map((code, i) => {
     const button = (
-      <button key={code} onClick={() => toggleCode(code)} style={seriesButtonStyle(adapter.colourFor(code, i), effectiveCodes.has(code))}>
+      <SeriesButton key={code} colour={adapter.colourFor(code, i)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)}>
         {adapter.labelFor(code, allCodes)}
-      </button>
+      </SeriesButton>
     )
     // A substation's buses come first; a divider leads the first generator (codes with a space)
     if (!(i > 0 && code.includes(' ') && !allCodes[i - 1].includes(' '))) return button
     return (
       <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+        <div className="divider" />
         {button}
       </div>
     )
   })
 
   return (
-    <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
+    <div className="side-panel" style={{ width: expanded ? '100vw' : panelWidth }}>
       {/* Header */}
-      <div ref={headerRef} style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <div ref={headerRef} className="section section--header" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         {/* Kept at its full width while the readout shows, so a header too narrow
             for both hides the readout rather than squeezing the title */}
         <div style={compactHeader ? { flex: 1, minWidth: 0 } : { flex: '1 0 auto' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={() => setPickerOpen(true)}
-              style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+              className="title"
+              style={{ lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               {title}
-              <span style={{ fontSize: 11, color: '#999', fontWeight: 400 }}>▾</span>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', fontWeight: 400 }}>▾</span>
             </button>
-            <button
-              onClick={onClear}
-              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, display: 'flex', lineHeight: 1, color: '#666', padding: '4px 6px', borderRadius: 4 }}
-              aria-label='Clear'
-            >
+            <button onClick={onClear} className="button-secondary" aria-label='Clear'>
               Clear
             </button>
           </div>
           {/* Wraps to the title row's width rather than widening the title block, so a long subtitle doesn't hide the readout */}
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px', contain: 'inline-size' }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0 6px', contain: 'inline-size' }}>
             <span>{subtitle}</span>
             {adapter.subtitleFuels.map((f) => (
               <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -624,28 +600,28 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         </div>
         {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
         {!compactHeader && isAggregate && isGenerator && totalGenerationMWh !== null && (
-          <div style={{ alignSelf: 'center', fontSize: 11, color: '#666', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <div style={{ alignSelf: 'center', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
             Total: {formatMWh(totalGenerationMWh)}
           </div>
         )}
         {!compactHeader && !isAggregate && capacity !== null && normalCapacity !== null && currentGeneration !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: '#666', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {totalOutageMW > 0 ? (
                 <>
                   <span>{formatMW(currentGeneration)} /</span>
-                  <s style={{ color: '#aaa' }}>{normalCapacity.toFixed(0)} MW</s>
+                  <s style={{ color: 'var(--color-text-faint)' }}>{normalCapacity.toFixed(0)} MW</s>
                   <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
                   <button
                     onClick={() => setOutageModalOpen(true)}
                     title="View outage details"
                     style={{
-                      background: '#fee2e2',
-                      color: '#b91c1c',
+                      background: 'var(--color-danger-subtle)',
+                      color: 'var(--color-danger)',
                       border: 'none',
                       borderRadius: 4,
-                      padding: '0 5px',
-                      fontSize: 10,
+                      padding: '0 var(--space-sm)',
+                      fontSize: 'var(--font-size-2xs)',
                       fontWeight: 600,
                       lineHeight: '16px',
                       whiteSpace: 'nowrap',
@@ -657,9 +633,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
                   >
                     {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
                     <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <circle cx="8" cy="8" r="7" stroke="#b91c1c" strokeWidth="1.5" />
-                      <circle cx="8" cy="4.5" r="0.9" fill="#b91c1c" />
-                      <path d="M8 7.5V11.5" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                      <circle cx="8" cy="4.5" r="0.9" fill="currentColor" />
+                      <path d="M8 7.5V11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </button>
                 </>
@@ -667,7 +643,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
                 <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
               )}
             </div>
-            <div style={{ height: 6, background: '#e8e8e8', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ height: 6, background: 'var(--color-fill)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
               {allCodes.map((code, i) => {
                 if (!effectiveCodes.has(code)) return null
                 const lastRow = chartData?.rows[chartData.rows.length - 1]
@@ -684,42 +660,30 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               {
                 totalOutageMW > 0 && (
                   <>
-                    <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: '#e8e8e8' }} />
+                    <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: 'var(--color-fill)' }} />
                     <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
                   </>
                 )
               }
             </div>
             {totalGenerationMWh !== null && (
-              <div style={{ fontSize: 11, color: '#999', textAlign: 'right', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                 Total: {formatMWh(totalGenerationMWh)}
               </div>
             )}
           </div>
         )}
         {isMobile ? (
-          <button
-            onClick={onClose}
-            style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '6px 10px', flexShrink: 0, borderRadius: 4 }}
-            aria-label="Show map"
-          >
+          <button onClick={onClose} className="button-secondary" style={{ padding: 'var(--space-sm) var(--space-lg)' }} aria-label="Show map">
             Show map
           </button>
         ) : (
           <>
-            <button
-              onClick={() => onExpandedChange(!expanded)}
-              style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-              aria-label={expanded ? 'Collapse' : 'Expand'}
-            >
+            <button onClick={() => onExpandedChange(!expanded)} className="button-secondary" aria-label={expanded ? 'Collapse' : 'Expand'}>
               {expanded ? 'Show map' : 'Expand'}
             </button>
             {!expanded && (
-              <button
-                onClick={onClose}
-                style={{ backgroundColor: '#e7e7e7', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#666', padding: '4px 6px', flexShrink: 0, borderRadius: 4 }}
-                aria-label="Close"
-              >
+              <button onClick={onClose} className="button-secondary" aria-label="Close">
                 Close
               </button>
             )}
@@ -729,14 +693,14 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
       {/* Toolbar. When it's too narrow for one line, the toggles become
           dropdowns and the rest wraps. */}
-      <div ref={toolbarRef} style={{ padding: '6px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
+      <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compactToolbar ? 'wrap' : 'nowrap' }}>
         {isGenerator && (
           <>
             <ToggleGroup compact={compactToolbar} ariaLabel="View" options={[
               { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => handleViewModeChange('generation') },
               { key: 'offers', label: 'Offers', active: viewMode === 'offers', onClick: () => handleViewModeChange('offers') },
             ]} />
-            {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+            {!compactToolbar && <div className="divider" />}
           </>
         )}
         {viewMode === 'offers'
@@ -746,7 +710,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               ...(compactToolbar ? [{ key: 'custom', label: 'Custom date', active: customDates, onClick: handleCustomClick }] : []),
             ]} />
           : <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compactToolbar} customDates={customDates} onCustom={handleCustomClick} />}
-        {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+        {!compactToolbar && <div className="divider" />}
         {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <input
             ref={fromInputRef}
@@ -755,11 +719,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             min="2020-09-11"
             max={yesterdayNZ()}
             onChange={e => handleFromChange(e.target.value)}
-            style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
+            className="date-input"
           />
           {viewMode === 'generation' && (
             <>
-              <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>–</span>
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0 }}>–</span>
               <input
                 type="date"
                 value={toDate}
@@ -767,61 +731,55 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
                 max={toMax}
                 disabled={!fromDate}
                 onChange={e => handleToChange(e.target.value)}
-                style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: fromDate ? 'white' : '#f5f5f5' }}
+                className="date-input"
               />
             </>
           )}
           {rangeError && viewMode === 'generation' && (
-            <span style={{ fontSize: 10, color: '#b91c1c', marginLeft: 4 }}>{rangeError}</span>
+            <span className="status-text is-error" style={{ marginLeft: 4 }}>{rangeError}</span>
           )}
         </div>}
 
         {/* Trading period stepper (offers mode) */}
         {viewMode === 'offers' && (
           <>
-            {!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}
+            {!compactToolbar && <div className="divider" />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <button
                 onClick={() => setTradingPeriod(p => Math.max(1, p - 1))}
                 disabled={tradingPeriod <= 1}
-                style={{ padding: '2px 7px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: tradingPeriod > 1 ? 'pointer' : 'default', fontSize: 13, color: tradingPeriod > 1 ? '#333' : '#bbb' }}
+                className="stepper-button"
               >
                 ◀
               </button>
-              <span style={{ fontSize: 12, color: '#333', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 190, textAlign: 'center', display: 'inline-block' }}>
+              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 190, textAlign: 'center', display: 'inline-block' }}>
                 Period {tradingPeriod}
-                {offerDate && <span style={{ color: '#888', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
+                {offerDate && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
               </span>
               <button
                 onClick={() => setTradingPeriod(p => Math.min(maxTradingPeriod, p + 1))}
                 disabled={tradingPeriod >= maxTradingPeriod}
-                style={{ padding: '2px 7px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: tradingPeriod < maxTradingPeriod ? 'pointer' : 'default', fontSize: 13, color: tradingPeriod < maxTradingPeriod ? '#333' : '#bbb' }}
+                className="stepper-button"
               >
                 ▶
               </button>
             </div>
-            {offersLoading && <span style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>Loading…</span>}
-            {offersError && <span style={{ fontSize: 11, color: '#c00', flexShrink: 0 }}>Failed to load offers</span>}
+            {offersLoading && <span className="status-text">Loading…</span>}
+            {offersError && <span className="status-text is-error">Failed to load offers</span>}
           </>
         )}
 
         {viewMode === 'generation' && lastUpdated && !dataLoading && (
-          <>{!compactToolbar && <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />}<span style={{ fontSize: 11, color: '#888', marginLeft: compactToolbar ? 0 : 4, flexShrink: 0 }}>{lastUpdated}</span></>
+          <>{!compactToolbar && <div className="divider" />}<span className="status-text" style={{ marginLeft: compactToolbar ? 0 : 4 }}>{lastUpdated}</span></>
         )}
-        {viewMode === 'generation' && dataLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#888', flexShrink: 0 }}>
-            Loading…
-          </div>
-        )}
+        {viewMode === 'generation' && dataLoading && <span className="status-text">Loading…</span>}
         {viewMode === 'generation' && dataError && allCodes.length !== 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: '#c00', flexShrink: 0 }}>
-            Failed to load data
-          </div>
+          <span className="status-text is-error">Failed to load data</span>
         )}
       </div>
 
       {(leadButtons.length > 0 || unitButtons.length > 0) && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
+        <div className="section">
           <SeriesButtonRow
             lead={leadButtons}
             items={unitButtons}
@@ -831,31 +789,31 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       )}
 
       {/* Chart area */}
-      <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, height: '100%' }}>
+      <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         {viewMode === 'offers' ? (
           offersLoading && !offersData ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-text-muted)' }}>Loading…</div>
           ) : offersError && !offersData ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>Failed to load offers</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-danger)' }}>Failed to load offers</div>
           ) : offersData ? (
-            <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>}>
+            <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-text-muted)' }}>Loading…</div>}>
               <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
             </Suspense>
           ) : null
         ) : (
           <>
             {dataLoading && allCodes.length === 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-text-muted)' }}>
                 Loading…
               </div>
             )}
             {dataError && allCodes.length === 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-danger)' }}>
                 Failed to load data
               </div>
             )}
             {!dataLoading && !dataError && allCodes.length === 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--color-text-muted)' }}>
                 No data available
               </div>
             )}

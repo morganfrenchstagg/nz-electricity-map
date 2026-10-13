@@ -1,3 +1,78 @@
+/* Design tokens. The map layers and Highcharts' SVG take colours as JS values,
+   which can't read these, so their colours stay in the code that builds them. */
+:root {
+  /* Text, darkest first */
+  --color-text-strong: #111;
+  --color-text: #333;
+  --color-text-secondary: #555;
+  --color-text-muted: #888;
+  --color-text-faint: #999;
+  --color-text-disabled: #bbb;
+  /* On an accent or series colour */
+  --color-text-inverse: #fff;
+
+  /* Inputs and checkboxes */
+  --color-border-strong: #ccc;
+  /* Buttons, popovers and toolbar dividers */
+  --color-border: #ddd;
+  /* Between panel sections */
+  --color-divider: #eee;
+  /* Between list and table rows */
+  --color-divider-subtle: #f0f0f0;
+
+  --color-surface: #fff;
+  /* Group headers, hovered table rows */
+  --color-surface-subtle: #fafafa;
+  --color-surface-hover: #f5f5f5;
+  --color-surface-muted: #f0f0f0;
+  /* Secondary buttons, empty meter track */
+  --color-fill: #e7e7e7;
+
+  --color-accent: #3b82f6;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-muted: #93c5fd;
+  /* Selected rows and options */
+  --color-accent-subtle: #f0f4ff;
+
+  --color-danger: #b91c1c;
+  --color-danger-subtle: #fee2e2;
+
+  --color-backdrop: rgba(0, 0, 0, 0.4);
+
+  --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.18);
+  --shadow-modal: 0 8px 40px rgba(0, 0, 0, 0.2);
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  /* Controls floating over the map */
+  --shadow-floating: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
+  /* Badges, chart axis labels */
+  --font-size-2xs: 10px;
+  /* Captions, status text, uppercase headings, chart axis titles */
+  --font-size-xs: 11px;
+  /* Toolbar controls, secondary text, map popups and chart tooltips */
+  --font-size-sm: 12px;
+  /* Body text and most controls */
+  --font-size-base: 13px;
+  /* Panel and modal titles */
+  --font-size-lg: 15px;
+
+  /* Spacing scale, for padding. Sizes off the scale round to the nearest step. */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 8px;
+  --space-lg: 12px;
+  /* The side gutter of every panel and modal */
+  --space-xl: 16px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -7,6 +82,365 @@ html, body, #root {
   padding: 0;
   height: 100%;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+}
+
+/* Buttons and inputs don't inherit this, so their classes set their own size */
+body {
+  font-size: var(--font-size-base);
+}
+
+/* Panel and modal titles */
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+/* Small uppercase heading over a group, table column or popup section */
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* A row of a panel or modal (header, toolbar, filters…), ruled off from the next */
+.section {
+  padding: var(--space-md) var(--space-xl);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.section--header {
+  padding-block: var(--space-lg);
+}
+
+.section--toolbar {
+  padding-block: var(--space-sm);
+}
+
+/* The outer columns line up with the modal's gutter. :where() keeps these at
+   one class's specificity, so a cell's own class (e.g. .empty-state) wins. */
+.data-table :where(th, td) {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.data-table :where(th:first-child, td:first-child) {
+  padding-left: var(--space-xl);
+}
+
+.data-table :where(th:last-child, td:last-child) {
+  padding-right: var(--space-xl);
+}
+
+/* "No results" and the like, in place of a list or table */
+.empty-state {
+  padding: var(--space-2xl);
+  color: var(--color-text-faint);
+  text-align: center;
+}
+
+/* Loading, error and "Last updated" text in a toolbar */
+.status-text {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.status-text.is-error {
+  color: var(--color-danger);
+}
+
+/* Layout lives inline in the components; these are the shared looks and states. */
+
+/* NodePanel and GridOverviewPanel */
+.side-panel {
+  position: fixed;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-backdrop);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-modal);
+}
+
+.popover {
+  position: absolute;
+  padding: var(--space-sm) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+/* Vertical rule between toolbar groups */
+.divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  background: var(--color-border);
+}
+
+/* Expand, Close, Clear and the like */
+.button-secondary {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.button-primary {
+  padding: var(--space-sm) var(--space-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-primary:disabled {
+  background: var(--color-fill);
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+/* Segmented buttons (ToggleGroup) */
+.toggle-group {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.toggle-group > button {
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toggle-group > button:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.toggle-group > button[aria-pressed="true"] {
+  background: var(--color-accent-strong);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+
+/* ToggleGroup's compact form */
+.toggle-select {
+  flex-shrink: 0;
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+/* The map's Street / Satellite switch: a larger ToggleGroup */
+.toggle-group--map {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-floating);
+}
+
+.toggle-group--map > button {
+  padding: var(--space-md) var(--space-xl);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  line-height: normal;
+}
+
+.toggle-group--map > button:not(:last-child) {
+  border-right-color: var(--color-border-strong);
+}
+
+.toggle-group--map > button[aria-pressed="true"] {
+  font-weight: 500;
+}
+
+/* A chart series toggle, filled with --series-colour while it's showing */
+/* Narrow sides, so a row fits as many as it can before "+N more" */
+.series-button {
+  padding: var(--space-xs) var(--space-md);
+  border: 1.5px solid var(--series-colour);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--series-colour);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.series-button[aria-pressed="true"] {
+  background: var(--series-colour);
+  color: var(--color-text-inverse);
+}
+
+/* Clear, "+N more" and the substation generators toggle */
+.series-button--neutral {
+  --series-colour: var(--color-border-strong);
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Not aria-pressed: the generators toggle's label already says Show or Hide */
+.series-button--neutral.is-active {
+  background: var(--color-surface-muted);
+}
+
+.date-input {
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+}
+
+.date-input:disabled {
+  background: var(--color-surface-hover);
+}
+
+/* The offers view's trading period arrows */
+.stepper-button {
+  padding: var(--space-2xs) var(--space-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+.stepper-button:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.search-input {
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  outline: none;
+}
+
+/* Opens a popover of filter options */
+.filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filter-button.is-active {
+  border-color: var(--color-accent-muted);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-strong);
+  font-weight: 600;
+}
+
+/* An option in a popover */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--space-sm) var(--space-xl);
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.menu-item.is-selected {
+  background: var(--color-accent-subtle);
+}
+
+/* A selectable row in NodePickerModal's lists */
+.list-item {
+  padding: var(--space-md) var(--space-xl);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.list-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.list-item.is-selected {
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  font-weight: 600;
+}
+
+.tab {
+  margin-bottom: -1px;
+  padding: var(--space-md) var(--space-xl);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+.tab.is-active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+
+.data-row {
+  border-bottom: 1px solid var(--color-divider-subtle);
+}
+
+.data-row:hover {
+  background: var(--color-surface-subtle);
 }
 
 /* NodePanel's and GridOverviewPanel's 30d, 1y and All column charts */

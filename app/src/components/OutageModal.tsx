@@ -39,23 +39,15 @@ function formatDateTime(date: Date): string {
 
 const thStyle: React.CSSProperties = {
   textAlign: 'left',
-  padding: '8px 12px',
-  fontSize: 11,
-  fontWeight: 600,
-  color: '#888',
-  textTransform: 'uppercase',
-  letterSpacing: '0.03em',
-  borderBottom: '1px solid #eee',
+  borderBottom: '1px solid var(--color-divider)',
   whiteSpace: 'nowrap',
   position: 'sticky',
   top: 0,
-  background: 'white',
+  background: 'var(--color-surface)',
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  fontSize: 13,
-  borderBottom: '1px solid #f0f0f0',
+  borderBottom: '1px solid var(--color-divider-subtle)',
   whiteSpace: 'nowrap',
 }
 
@@ -66,23 +58,17 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
     .sort((a, b) => parseOutageDate(a.record.timeStart).getTime() - parseOutageDate(b.record.timeStart).getTime())
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: 'white', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.2)', width: 'fit-content', maxWidth: '92vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-      >
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>Outages</span>
+    <div onClick={onClose} className="modal-backdrop">
+      <div onClick={e => e.stopPropagation()} className="modal" style={{ width: 'fit-content', maxWidth: '92vw', maxHeight: '80vh' }}>
+        <div className="section section--header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span className="title">Outages</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {outageBlockPrefixes.length > 0 && (
               <a
                 href={pocpUrl(outageBlockPrefixes)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600, textDecoration: 'none' }}
+                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}
               >
                 View in POCP ↗
               </a>
@@ -90,25 +76,25 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
             <button
               onClick={onClose}
               aria-label="Close"
-              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#666', padding: 4, lineHeight: 1 }}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--font-size-lg)', color: 'var(--color-text-secondary)', padding: 'var(--space-xs)', lineHeight: 1 }}
             >
               ✕
             </button>
           </div>
         </div>
         {sorted.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: '#999', fontSize: 13 }}>No outages</div>
+          <div className="empty-state">No outages</div>
         ) : (
           <div style={{ overflow: 'auto', flex: 1 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Unit</th>
-                  <th style={thStyle}>Outage</th>
-                  <th style={thStyle}>Capacity remaining</th>
-                  <th style={thStyle}>Start</th>
-                  <th style={thStyle}>End</th>
-                  <th style={thStyle}>Status</th>
+                  <th className="eyebrow" style={thStyle}>Unit</th>
+                  <th className="eyebrow" style={thStyle}>Outage</th>
+                  <th className="eyebrow" style={thStyle}>Capacity remaining</th>
+                  <th className="eyebrow" style={thStyle}>Start</th>
+                  <th className="eyebrow" style={thStyle}>End</th>
+                  <th className="eyebrow" style={thStyle}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,18 +105,18 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
                   return (
                     <tr key={`${code}-${record.outageBlock}-${i}`}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{label}</td>
-                      <td style={{ ...tdStyle, color: '#b91c1c', fontWeight: 600 }}>{formatMW(record.mwattLost)}</td>
+                      <td style={{ ...tdStyle, color: 'var(--color-danger)', fontWeight: 600 }}>{formatMW(record.mwattLost)}</td>
                       <td style={tdStyle}>{capacityRemaining !== null ? formatMW(capacityRemaining) : '—'}</td>
-                      <td style={{ ...tdStyle, color: '#666' }}>{formatDateTime(start)}</td>
-                      <td style={{ ...tdStyle, color: '#666' }}>{formatDateTime(end)}</td>
+                      <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>{formatDateTime(start)}</td>
+                      <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>{formatDateTime(end)}</td>
                       <td style={tdStyle}>
                         {isCurrent && (
                           <span style={{
-                            background: '#fee2e2',
-                            color: '#b91c1c',
+                            background: 'var(--color-danger-subtle)',
+                            color: 'var(--color-danger)',
                             borderRadius: 4,
-                            padding: '1px 6px',
-                            fontSize: 11,
+                            padding: '1px var(--space-sm)',
+                            fontSize: 'var(--font-size-xs)',
                             fontWeight: 600,
                           }}>
                             Ongoing

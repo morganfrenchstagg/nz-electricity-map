@@ -93,29 +93,20 @@ export default function PipelineModal({ onClose }: Props) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 24px' }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: 'white', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.25)', width: '100%', maxWidth: 1200, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-      >
+    <div onClick={onClose} className="modal-backdrop" style={{ padding: 'var(--space-xl) var(--space-2xl)' }}>
+      <div onClick={e => e.stopPropagation()} className="modal" style={{ width: '100%', maxWidth: 1200, maxHeight: '90vh' }}>
         {/* Header */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Generation Pipeline</div>
+            <div className="title">Generation Pipeline</div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: '#e7e7e7', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 13, color: '#555', flexShrink: 0 }}
-          >
+          <button onClick={onClose} className="button-secondary">
             Close
           </button>
         </div>
 
         {/* Filter bar */}
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid #eee', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="section" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <FilterDropdown label="Fuel" options={ALL_FUELS} active={fuels} onToggle={v => setFuels(toggle(fuels, v))} onClear={() => setFuels(new Set())} colour={fuelColour} />
           <FilterDropdown label="Status" options={STATUS_ORDER} active={statuses} onToggle={v => setStatuses(toggle(statuses, v))} onClear={() => setStatuses(new Set())} statusColours={STATUS_COLOURS} />
           <FilterDropdown label="Year" options={ALL_YEARS} active={years} onToggle={v => setYears(toggle(years, v))} onClear={() => setYears(new Set())} />
@@ -123,7 +114,7 @@ export default function PipelineModal({ onClose }: Props) {
           {hasFilters && (
             <button
               onClick={() => { setFuels(new Set()); setYears(new Set()); setOperators(new Set()); setStatuses(new Set()) }}
-              style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: 12, cursor: 'pointer', padding: '2px 4px', fontWeight: 500, whiteSpace: 'nowrap' }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', cursor: 'pointer', padding: 'var(--space-2xs) var(--space-xs)', fontWeight: 500, whiteSpace: 'nowrap' }}
             >
               Clear all
             </button>
@@ -132,9 +123,9 @@ export default function PipelineModal({ onClose }: Props) {
 
         {/* Table */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #e5e5e5', position: 'sticky', top: 0, zIndex: 1 }}>
+              <tr style={{ background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider)', position: 'sticky', top: 0, zIndex: 1 }}>
                 <SortTh col="name" label="Project" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                 <SortTh col="fuel" label="Fuel" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                 <SortTh col="operator" label="Operator" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
@@ -143,13 +134,13 @@ export default function PipelineModal({ onClose }: Props) {
                 <SortTh col="generation" label="Annual gen" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
                 <SortTh col="cost" label="Cost" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
                 <SortTh col="openBy" label="Open by" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
-                <th style={th()}></th>
+                <th className="eyebrow" style={th()}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#999' }}>No projects match the selected filters</td>
+                  <td colSpan={9} className="empty-state">No projects match the selected filters</td>
                 </tr>
               )}
               {filtered.map((n, i) => {
@@ -160,16 +151,11 @@ export default function PipelineModal({ onClose }: Props) {
                     ? `${n.capacityMWp} MWp`
                     : '—'
                 return (
-                  <tr
-                    key={i}
-                    style={{ borderBottom: '1px solid #f0f0f0' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = '#fafafa'}
-                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = ''}
-                  >
+                  <tr key={i} className="data-row">
                     <td style={{ ...td(), fontWeight: 500 }}>
                       {n.name}
                       {n.locationDescription && (
-                        <span style={{ fontWeight: 400, color: '#888', marginLeft: 5, fontSize: 12 }}>{n.locationDescription}</span>
+                        <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 5, fontSize: 'var(--font-size-sm)' }}>{n.locationDescription}</span>
                       )}
                     </td>
                     <td style={td()}>
@@ -178,30 +164,30 @@ export default function PipelineModal({ onClose }: Props) {
                         {n.fuel}
                       </span>
                     </td>
-                    <td style={{ ...td(), color: '#555' }}>{n.operator}</td>
+                    <td style={{ ...td(), color: 'var(--color-text-secondary)' }}>{n.operator}</td>
                     <td style={td()}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: statusColour.bg, color: statusColour.text, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--space-2xs) var(--space-md)', borderRadius: 10, background: statusColour.bg, color: statusColour.text, fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {n.status}
                       </span>
                     </td>
                     <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{capacityStr}</td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#555' }}>
+                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
                       {n.yearlyGenerationGWh != null ? `${n.yearlyGenerationGWh} GWh` : '—'}
                     </td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#555' }}>
+                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
                       {n.costMillionDollars != null ? `$${n.costMillionDollars}M` : '—'}
                     </td>
                     <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       {n.openBy ? formatOpenBy(n.openBy) : '—'}
                     </td>
-                    <td style={{ ...td(), paddingLeft: 4 }}>
+                    <td style={{ ...td(), paddingLeft: 'var(--space-xs)' }}>
                       {n.link ? (
                         <a
                           href={n.link}
                           target="_blank"
                           rel="noreferrer"
                           onClick={e => e.stopPropagation()}
-                          style={{ color: '#3b82f6', fontSize: 12, textDecoration: 'none', opacity: 0.7 }}
+                          style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', textDecoration: 'none', opacity: 0.7 }}
                           title="Source"
                         >
                           ↗
@@ -227,11 +213,12 @@ function SortTh({ col, label, sortCol, sortDir, onSort, align = 'left' }: {
   return (
     <th
       onClick={() => onSort(col)}
-      style={{ ...th(), textAlign: align, cursor: 'pointer', userSelect: 'none', color: active ? '#111' : '#666' }}
+      className="eyebrow"
+      style={{ ...th(), textAlign: align, cursor: 'pointer', userSelect: 'none', color: active ? 'var(--color-text-strong)' : 'var(--color-text-secondary)' }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
         {label}
-        <span style={{ fontSize: 10, opacity: active ? 1 : 0.3 }}>
+        <span style={{ fontSize: 'var(--font-size-2xs)', opacity: active ? 1 : 0.3 }}>
           {active ? (sortDir === 'asc' ? '▲' : '▼') : '▲'}
         </span>
       </span>
@@ -271,52 +258,29 @@ function FilterDropdown({ label, options, active, onToggle, onClear, colour, sta
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '5px 10px', borderRadius: 6,
-          border: `1px solid ${isActive ? '#93c5fd' : '#ddd'}`,
-          background: isActive ? '#eff6ff' : 'white',
-          color: isActive ? '#1d4ed8' : '#444',
-          fontSize: 13, fontWeight: isActive ? 600 : 400,
-          cursor: 'pointer', whiteSpace: 'nowrap',
-        }}
+        className={isActive ? 'filter-button is-active' : 'filter-button'}
       >
         {summary}
         {isActive && (
           <span
             onClick={e => { e.stopPropagation(); onClear() }}
-            style={{ opacity: 0.5, lineHeight: 1, fontSize: 11 }}
+            style={{ opacity: 0.5, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}
           >✕</span>
         )}
-        <span style={{ opacity: 0.4, fontSize: 11 }}>▾</span>
+        <span style={{ opacity: 0.4, fontSize: 'var(--font-size-xs)' }}>▾</span>
       </button>
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-          background: 'white', border: '1px solid #ddd', borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '6px 0',
-          minWidth: 180, maxHeight: 260, overflowY: 'auto',
-        }}>
+        <div className="popover" style={{ top: 'calc(100% + 4px)', left: 0, zIndex: 50, minWidth: 180, maxHeight: 260, overflowY: 'auto' }}>
           {options.map(opt => {
             const checked = active.has(opt)
             const sc = statusColours?.[opt]
             const dot = colour ? colour(opt) : undefined
             return (
-              <div
-                key={opt}
-                onClick={() => onToggle(opt)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '6px 14px', cursor: 'pointer', fontSize: 13,
-                  background: checked ? '#eff6ff' : 'transparent',
-                }}
-                onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLDivElement).style.background = '#f5f5f5' }}
-                onMouseLeave={e => { if (!checked) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-              >
+              <div key={opt} onClick={() => onToggle(opt)} className={checked ? 'menu-item is-selected' : 'menu-item'}>
                 {dot && !sc && <span style={{ width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
                 {sc && <span style={{ width: 10, height: 10, borderRadius: 3, background: sc.bg, border: `1px solid ${sc.text}`, flexShrink: 0 }} />}
-                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? '#1d4ed8' : '#333' }}>{opt}</span>
-                {checked && <span style={{ color: '#3b82f6', fontSize: 11 }}>✓</span>}
+                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-strong)' : 'var(--color-text)' }}>{opt}</span>
+                {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
               </div>
             )
           })}
@@ -327,9 +291,9 @@ function FilterDropdown({ label, options, active, onToggle, onClear, colour, sta
 }
 
 function th(): React.CSSProperties {
-  return { padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }
+  return { textAlign: 'left', whiteSpace: 'nowrap' }
 }
 
 function td(): React.CSSProperties {
-  return { padding: '9px 14px', verticalAlign: 'middle' }
+  return { verticalAlign: 'middle' }
 }

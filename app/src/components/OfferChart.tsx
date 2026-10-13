@@ -125,18 +125,17 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
       credits: { enabled: false },
       legend: { enabled: false },
       xAxis: {
-        title: { text: 'MW', style: { fontSize: '11px' } },
-        labels: { style: { fontSize: '10px' }, formatter: function () { return formatMW(this.value as number) } },
+        title: { text: 'MW' },
+        labels: { formatter: function () { return formatMW(this.value as number) } },
         min: 0,
       },
       yAxis: {
         type: 'linear',
-        title: { text: '$/MWh', style: { fontSize: '11px' } },
+        title: { text: '$/MWh' },
         min: 0,
         // Tick positions use the same transform: log10(price + 0.01) + 2
         tickPositions: [0, 0.01, 0.1, 1, 10, 50, 100, 500, 1000, 3000, 6000, 10000].map(p => Math.log10(p + 0.01) + 2),
         labels: {
-          style: { fontSize: '10px' },
           formatter: function () {
             // Inverse: price = 10^(value - 2) - 0.01
             const price = Math.pow(10, (this.value as number) - 2) - 0.01
@@ -178,7 +177,7 @@ export default function OfferChart({ offersData, tradingPeriod, node, panelWidth
 
   if (!chartOptions) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#888', fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>
         No offers found for this trading period
       </div>
     )
