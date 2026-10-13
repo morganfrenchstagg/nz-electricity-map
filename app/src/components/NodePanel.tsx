@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
@@ -8,7 +8,7 @@ import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '.
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, isGeneratorCode, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, extractChartData, fillMonthColumns, isGeneratorCode, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
@@ -133,8 +133,6 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   // Extra series the user has toggled, by name; the rest follow the adapter's default
   const [extraSeriesShown, setExtraSeriesShown] = useState<Record<string, boolean>>({})
-  const chartRef = useRef<HighchartsReact.RefObject>(null)
-  useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [outageModalOpen, setOutageModalOpen] = useState(false)
 
@@ -459,6 +457,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
     return {
       chart: {
+        ...FIT_TO_CONTAINER,
         type: adapter.chartType, height: null, animation: false, backgroundColor: '#ffffff',
         className: isAggregate && adapter.chartType === 'area' ? 'aggregate-columns' : undefined, // see index.css
       },
@@ -839,7 +838,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>Failed to load offers</div>
           ) : offersData ? (
             <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>}>
-              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} />
             </Suspense>
           ) : null
         ) : (
@@ -860,7 +859,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
               </div>
             )}
             {chartOptions && (
-              <HighchartsReact ref={chartRef} key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
+              <HighchartsReact key={`${nodeKey}-${String(expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
             )}
           </>
         )}

@@ -77,6 +77,23 @@ export const DATETIME_LABEL_FORMATS = {
 // inline object would redraw the chart on every render. Share one instead.
 export const CHART_CONTAINER_PROPS = { style: { height: '100%' } }
 
+// Highcharts resizes a chart to fit its container 100ms after the container
+// resizes, so a chart drawn before its panel's layout settles (SeriesButtonRow
+// putting buttons behind "+N more", a header going compact) is first painted
+// at the old size. These chart options swap that for a ResizeObserver that
+// resizes it as soon as its container does, before the browser paints.
+export const FIT_TO_CONTAINER: Highcharts.ChartOptions = {
+  reflow: false,
+  events: {
+    load() {
+      const observer = new ResizeObserver(() => this.reflow())
+      // The HighchartsReact div the chart was rendered to
+      observer.observe(this.container.parentElement!)
+      Highcharts.addEvent(this, 'destroy', () => observer.disconnect())
+    },
+  },
+}
+
 // Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   switch (period) {
