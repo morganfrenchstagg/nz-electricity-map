@@ -8,10 +8,12 @@ import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 
+// An outage runs from its start up to, but not including, its end, as in
+// unitCapacityAt and mergeOutageSegments
 function activeOutageMW(unitCode: string, outages: OutageData, now: number): number {
   const records = outages[unitCode] ?? []
   return records
-    .filter((o) => outageMs(o.timeStart) <= now && now <= outageMs(o.timeEnd))
+    .filter((o) => outageMs(o.timeStart) <= now && now < outageMs(o.timeEnd))
     .reduce((sum, o) => sum + o.mwattLost, 0)
 }
 

@@ -7,11 +7,11 @@ import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
 import { mergeOutageSegments } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { tooltipTime } from '../utils/chart'
+import { tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -184,32 +184,10 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
   }, [chartData, effectiveCodes])
 
-  // Trapezoidal integral of the charted MW series over time -> MWh for the
-  // currently displayed period. Gaps larger than withGaps' threshold are
-  // skipped rather than bridged, so missing data doesn't inflate the total.
-  // Aggregate rows are already MWh, so those are just summed.
+  // MWh over the displayed period, for the units shown
   const totalGenerationMWh = useMemo(() => {
-    if (!chartData || chartData.rows.length < (isAggregate ? 1 : 2)) return null
-    const codes = [...effectiveCodes].filter(code => chartData.codes.includes(code))
-    if (codes.length === 0) return null
-    if (isAggregate) {
-      return chartData.rows.reduce((total, row) =>
-        total + codes.reduce((sum, code) => sum + ((row[code] as number) ?? 0), 0), 0)
-    }
-    const maxGapMs = 20 * 60 * 1000
-    let total = 0
-    for (let i = 1; i < chartData.rows.length; i++) {
-      const prev = chartData.rows[i - 1]
-      const curr = chartData.rows[i]
-      const t0 = nzLocalMs(prev.time)
-      const t1 = nzLocalMs(curr.time)
-      const dtMs = t1 - t0
-      if (dtMs <= 0 || dtMs > maxGapMs) continue
-      const v0 = codes.reduce((sum, code) => sum + ((prev[code] as number) ?? 0), 0)
-      const v1 = codes.reduce((sum, code) => sum + ((curr[code] as number) ?? 0), 0)
-      total += ((v0 + v1) / 2) * (dtMs / 3600000)
-    }
-    return total
+    if (!chartData) return null
+    return totalMWh(chartData.rows, [...effectiveCodes].filter(code => chartData.codes.includes(code)), isAggregate)
   }, [chartData, effectiveCodes, isAggregate])
 
   // Clear deselects every unit, and once none are selected becomes Select all
