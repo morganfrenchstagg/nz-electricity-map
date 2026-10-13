@@ -50,12 +50,22 @@ export function fuelCodeLabel(code: string): string {
   return FUEL_CODE_LABELS[code] ?? code
 }
 
-export const MAPLIBRE_COLOUR_EXPRESSION: maplibregl.ExpressionSpecification = [
-  'match',
+// ['match', input, label, output, label, output, ..., fallback]. MapLibre's
+// type needs the first label/output pair written out, which a spread of the
+// whole table can't promise, so it's split off from the rest.
+function matchExpression(
+  input: maplibregl.ExpressionSpecification,
+  [first, ...rest]: [string | number, string][],
+  fallback: string,
+): maplibregl.ExpressionSpecification {
+  return ['match', input, ...first, ...rest.flat(), fallback]
+}
+
+export const MAPLIBRE_COLOUR_EXPRESSION = matchExpression(
   ['get', 'fuel'],
-  ...Object.entries(FUEL_COLOURS).flat(),
+  Object.entries(FUEL_COLOURS),
   DEFAULT_COLOUR,
-]
+)
 
 export const VOLTAGE_COLOURS: Record<number, string> = {
   220: '#c0392b',
@@ -70,9 +80,8 @@ export function voltageColour(kv: number): string {
   return VOLTAGE_COLOURS[kv] ?? VOLTAGE_COLOUR_DEFAULT
 }
 
-export const MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION: maplibregl.ExpressionSpecification = [
-  'match',
+export const MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION = matchExpression(
   ['to-number', ['get', 'designvolt']],
-  ...Object.entries(VOLTAGE_COLOURS).flatMap(([kv, colour]) => [Number(kv), colour]),
+  Object.entries(VOLTAGE_COLOURS).map(([kv, colour]) => [Number(kv), colour]),
   VOLTAGE_COLOUR_DEFAULT,
-]
+)

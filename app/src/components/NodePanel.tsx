@@ -9,7 +9,7 @@ import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '.
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
-import { CHART_CONTAINER_PROPS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
@@ -17,7 +17,7 @@ import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
-import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
+import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const OutageModal = lazy(() => import('./OutageModal'))
@@ -537,7 +537,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       xAxis: {
         type: 'datetime',
         labels: { style: { fontSize: '10px' } },
-        dateTimeLabelFormats: { day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p' },
+        dateTimeLabelFormats: DATETIME_LABEL_FORMATS,
         plotLines: midnightPlotLines,
       },
       yAxis: isAggregate

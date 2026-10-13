@@ -55,6 +55,13 @@ export function withGaps(points: [number, number | null][]): [number, number | n
   return result
 }
 
+// Highcharts 13's types only allow the object form of each format, but plain
+// strings still work. The object form would also merge in the default
+// day.boundary format, relabelling midnight on hourly axes with the date.
+export const DATETIME_LABEL_FORMATS = {
+  day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p',
+} as Highcharts.AxisDateTimeLabelFormatsOptions
+
 // HighchartsReact calls chart.update() whenever containerProps changes, so an
 // inline object would redraw the chart on every render. Share one instead.
 export const CHART_CONTAINER_PROPS = { style: { height: '100%' } }
@@ -73,10 +80,11 @@ export function tooltipTime(ms: number, period: AggregatePeriod | null): string 
 // shortest gap between points (February's), leaving thin gaps after longer
 // months. Runs after Highcharts lays out the columns, and widens each one to
 // meet its neighbours halfway between their start dates. Both neighbours round
-// the same midpoint, so they always share an edge.
+// the same midpoint, so they always share an edge. Highcharts' types mark
+// shapeArgs read-only, but replacing it here is what sizes the drawn column.
 export function fillMonthColumns(this: Highcharts.Series) {
   const edge = (ms: number) => Math.round(this.xAxis.toPixels(ms, true))
-  for (const point of this.points) {
+  for (const point of this.points as { x: number; shapeArgs?: Highcharts.SVGAttributes }[]) {
     if (!point.shapeArgs) continue
     const month = new Date(point.x)
     const prev = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)
