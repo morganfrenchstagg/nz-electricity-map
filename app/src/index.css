@@ -152,7 +152,7 @@ body {
 
 /* Layout lives inline in the components; these are the shared looks and states. */
 
-/* NodePanel and GridOverviewPanel */
+/* Panel, which NodePanel and GridOverviewPanel sit in */
 .side-panel {
   position: fixed;
   bottom: 0;
