@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
@@ -11,14 +11,17 @@ import type { OutageRecord } from '../hooks/useOutages'
 import { extractChartData, fillMonthColumns, tooltipTime, withGaps } from '../utils/chart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter, createSubstationAdapter } from '../utils/nodeAdapter'
 import { formatMW, formatMWh } from '../utils/format'
-import NodePickerModal from './NodePickerModal'
-import OutageModal from './OutageModal'
-import OfferChart from './OfferChart'
 import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useOffers, currentTradingPeriod, tradingPeriodLabel } from '../hooks/useOffers'
+
+const NodePickerModal = lazy(() => import('./NodePickerModal'))
+const OutageModal = lazy(() => import('./OutageModal'))
+const loadOfferChart = () => import('./OfferChart')
+const OfferChart = lazy(loadOfferChart)
+
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
   bottom: 0,
@@ -166,6 +169,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         : dateMode.from)
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
+  // Fetch the chart code alongside the offers data rather than after it arrives
+  useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
   // When the latest offers load, reflect their actual date in the date picker
   useEffect(() => {
@@ -861,7 +866,9 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           ) : offersError && !offersData ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#c00' }}>Failed to load offers</div>
           ) : offersData ? (
-            <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+            <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#888' }}>Loading…</div>}>
+              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} generators={allGenerators} panelWidth={panelWidth} />
+            </Suspense>
           ) : null
         ) : (
           <>
@@ -892,22 +899,24 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 20 }}
         />
       )}
-      {pickerOpen && (
-        <NodePickerModal
-          generators={allGenerators}
-          substations={allSubstations}
-          currentNode={node}
-          onSelect={onNodeChange}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
-      {outageModalOpen && (
-        <OutageModal
-          outages={outageDetails}
-          outageBlockPrefixes={outageBlockPrefixes}
-          onClose={() => setOutageModalOpen(false)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {pickerOpen && (
+          <NodePickerModal
+            generators={allGenerators}
+            substations={allSubstations}
+            currentNode={node}
+            onSelect={onNodeChange}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+        {outageModalOpen && (
+          <OutageModal
+            outages={outageDetails}
+            outageBlockPrefixes={outageBlockPrefixes}
+            onClose={() => setOutageModalOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   )
 }

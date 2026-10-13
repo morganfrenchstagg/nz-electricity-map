@@ -10,5 +10,16 @@ export default defineConfig({
     // would wipe them (including in CI).
     outDir: '../frontend',
     emptyOutDir: false,
+    rollupOptions: {
+      output: {
+        // Split the large, rarely-changing vendor libraries into their own
+        // chunks so an app change doesn't invalidate them in the browser cache.
+        manualChunks(id) {
+          if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
+          if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
+        },
+      },
+    },
   },
 })
