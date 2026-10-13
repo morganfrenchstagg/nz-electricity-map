@@ -129,10 +129,11 @@ export function underConstructionToGeoJson(
     }
   }
 
-  const features: GeoJSON.Feature[] = [...grouped.values()].map(({ lat, long, name, fuel, units }) => ({
+  const features: GeoJSON.Feature[] = [...grouped].map(([id, { lat, long, name, fuel, units }]) => ({
     type: 'Feature',
     geometry: { type: 'Point', coordinates: [long, lat] },
     properties: {
+      id, // the shared coordinates identify the feature
       name,
       fuel,
       units: JSON.stringify(units),
