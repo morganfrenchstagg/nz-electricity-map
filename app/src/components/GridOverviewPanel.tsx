@@ -12,6 +12,7 @@ import { formatMW, formatMWh } from '../utils/format'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import NodePickerModal from './NodePickerModal'
 import PipelineModal from './PipelineModal'
+import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 
@@ -499,38 +500,21 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
 
       {/* Fuel pills */}
       {fuels.length > 0 && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {fuels.map(fuel => {
-            const active = effectiveFuels.has(fuel)
-            const colour = fuelCodeColour(fuel)
-            return (
-              <button
-                key={fuel}
-                onClick={() => toggleFuel(fuel)}
-                style={{
-                  padding: '3px 10px',
-                  borderRadius: 12,
-                  border: `1.5px solid ${colour}`,
-                  background: active ? colour : 'transparent',
-                  color: active ? 'white' : colour,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
+          <SeriesButtonRow
+            items={fuels.map(fuel => (
+              <button key={fuel} onClick={() => toggleFuel(fuel)} style={seriesButtonStyle(fuelCodeColour(fuel), effectiveFuels.has(fuel))}>
                 {fuelCodeLabel(fuel)}
               </button>
-            )
-          })}
-          <button
-            onClick={() => setActiveFuels(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
-            style={{
-              padding: '3px 8px', borderRadius: 12, border: '1px solid #ccc',
-              background: 'transparent', color: '#888', cursor: 'pointer', fontSize: 11,
-            }}
-          >
-            {activeFuels !== null && activeFuels.size === 0 ? 'Select all' : 'Clear'}
-          </button>
+            ))}
+            trail={[
+              <ClearButton
+                key="clear"
+                cleared={activeFuels !== null && activeFuels.size === 0}
+                onClick={() => setActiveFuels(activeFuels !== null && activeFuels.size === 0 ? null : new Set())}
+              />,
+            ]}
+          />
         </div>
       )}
 

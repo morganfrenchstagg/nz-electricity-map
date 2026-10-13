@@ -6,6 +6,7 @@ import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson, 
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, fuelColour, voltageColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
+import { busLabel } from '../utils/chart'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -351,9 +352,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
               const idx = data ? data.series.indexOf(code) : -1
               const loadMW = (idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : null
               const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
-              const busNum = code.length >= 1 ? parseInt(code.slice(-1), 10) : NaN
-              const label = !isNaN(kv) && !isNaN(busNum) ? `${kv}kV – ${busNum}` : code
-              return renderRow(code, label, voltageColour(kv), loadMW)
+              return renderRow(code, busLabel(code, busCodes), voltageColour(kv), loadMW)
             }).join('')
             const allUnits = generatorsRef.current.flatMap(g => g.units)
             const genRows = genCodes

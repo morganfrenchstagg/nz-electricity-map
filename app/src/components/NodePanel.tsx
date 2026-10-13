@@ -14,6 +14,7 @@ import { formatMW, formatMWh } from '../utils/format'
 import NodePickerModal from './NodePickerModal'
 import OutageModal from './OutageModal'
 import OfferChart from './OfferChart'
+import SeriesButtonRow, { ClearButton, seriesButtonStyle } from './SeriesButtonRow'
 import { PeriodToggle, ToggleGroup } from './ToggleGroup'
 import type { Period } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -123,9 +124,8 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   )
 
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
-  const [showGenerators, setShowGenerators] = useState(true)
-  const UNIT_COLLAPSE_THRESHOLD = 8
-  const [unitSelectorExpanded, setUnitSelectorExpanded] = useState(false)
+  // Extra series the user has toggled, by name; the rest follow the adapter's default
+  const [extraSeriesShown, setExtraSeriesShown] = useState<Record<string, boolean>>({})
   const chartRef = useRef<HighchartsReact.RefObject>(null)
   useEffect(() => { chartRef.current?.chart.reflow() }, [panelWidth])
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -236,18 +236,23 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
 
   const hasGeneratorCodes = node.kind === 'substation' && allCodes.some(c => c.includes(' '))
 
-  const effectiveCodes = useMemo(() => {
-    const base = activeCodes ?? new Set(allCodes)
-    if (!showGenerators) return new Set([...base].filter(c => !c.includes(' ')))
-    return base
-  }, [activeCodes, allCodes, showGenerators])
+  const effectiveCodes = useMemo(() => activeCodes ?? new Set(allCodes), [activeCodes, allCodes])
+  const generatorsShown = hasGeneratorCodes && [...effectiveCodes].some(c => c.includes(' '))
 
-  useEffect(() => { setActiveCodes(null); setShowGenerators(true) }, [node])
+  useEffect(() => { setActiveCodes(null); setExtraSeriesShown({}) }, [node])
+
+  const showUnitSelector = adapter.showUnitSelector(allCodes.length)
 
   const chartData = useMemo(() => {
     if (!data || allCodes.length === 0) return null
     return extractChartData(data, allCodes)
   }, [data, allCodes])
+
+  // Series derived from the codes (a substation's Total line), each with its own toggle button
+  const extraSeries = useMemo(
+    () => (chartData ? adapter.extraSeries(chartData.rows, chartData.codes) : []),
+    [chartData, adapter],
+  )
 
   const { title, subtitle } = adapter
   const nodeKey = node.kind === 'generator' ? node.generator.site
@@ -302,11 +307,11 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
           timeEnd: new Date(seg.end).toISOString(),
           mwattLost: seg.mw,
         }
-        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining })
+        details.push({ code, label: adapter.labelFor(code, allCodes), record: rec, capacityRemaining })
       })
     }
     return details
-  }, [outages, effectiveCodes, adapter, findUnit])
+  }, [outages, effectiveCodes, adapter, findUnit, allCodes])
 
   // First segment of each outageBlock (e.g. "RUK_STN" -> "RUK") identifies the
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
@@ -369,6 +374,37 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
     setActiveCodes(next)
   }
 
+  // Deselects every generator, or selects them all again. If no buses are
+  // selected either, hiding falls back to all buses so the chart isn't empty.
+  // The Total line includes the generators, so it's switched with them.
+  function toggleGenerators() {
+    const buses = [...effectiveCodes].filter(c => !c.includes(' '))
+    if (!generatorsShown) {
+      setActiveCodes(new Set([...buses, ...allCodes.filter(c => c.includes(' '))]))
+    } else {
+      const remaining = buses.length > 0 ? buses : allCodes.filter(c => !c.includes(' '))
+      if (remaining.length === 0) return
+      setActiveCodes(new Set(remaining))
+    }
+    setExtraSeriesShown(Object.fromEntries(extraSeries.map((s) => [s.name ?? '', !generatorsShown])))
+  }
+
+  function isExtraSeriesShown(s: Highcharts.SeriesOptionsType) {
+    return extraSeriesShown[s.name ?? ''] ?? s.visible !== false
+  }
+
+  function toggleExtraSeries(s: Highcharts.SeriesOptionsType) {
+    setExtraSeriesShown((prev) => ({ ...prev, [s.name ?? '']: !isExtraSeriesShown(s) }))
+  }
+
+  // As on the grid overview: Clear deselects every series, Total included, and
+  // once nothing is selected it becomes Select all, which turns them all on.
+  const nothingSelected = effectiveCodes.size === 0 && !extraSeries.some(isExtraSeriesShown)
+  function clearOrSelectAll() {
+    setActiveCodes(nothingSelected ? null : new Set())
+    setExtraSeriesShown(Object.fromEntries(extraSeries.map((s) => [s.name ?? '', nothingSelected])))
+  }
+
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
@@ -382,7 +418,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       const colour = adapter.colourFor(code, i)
       return {
         type: isAggregate && adapter.chartType === 'area' ? 'column' : adapter.chartType,
-        name: adapter.labelFor(code),
+        name: adapter.labelFor(code, chartData.codes),
         color: colour,
         // Highcharts rounds each column's edges to whole pixels separately, so a
         // boundary landing on a half pixel can round apart and leave a 1px gap.
@@ -404,7 +440,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       }
     })
 
-    if (showGenerators) series.push(...adapter.extraSeries(chartData.rows, chartData.codes))
+    series.push(...extraSeries.map((s) => ({ ...s, visible: isExtraSeriesShown(s) })))
     const capSeries = isAggregate ? null : adapter.capacitySeries(chartData.rows, effectiveCodes)
     if (capSeries) series.push(capSeries)
 
@@ -466,7 +502,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         shared: true,
         useHTML: true,
         formatter: function () {
-          const points = (this.points ?? []).filter((p) => p.series.name !== 'Net')
+          const points = (this.points ?? []).filter((p) => p.series.name !== 'Total')
           const time = tooltipTime(this.x as number, aggregatePeriod)
           const formatValue = isAggregate ? formatMWh : formatMW
 
@@ -535,7 +571,52 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
       },
       series,
     }
-  }, [chartData, effectiveCodes, adapter, recentData, showGenerators, hasGeneratorCodes, isAggregate, aggregatePeriod, isGenerator])
+  }, [chartData, effectiveCodes, adapter, recentData, extraSeries, extraSeriesShown, hasGeneratorCodes, isAggregate, aggregatePeriod, isGenerator])
+
+  // Series buttons: the substation generator toggle and Total lead, then the unit selector
+  const leadButtons = [
+    ...(hasGeneratorCodes ? [
+      <button
+        key="generators"
+        onClick={toggleGenerators}
+        style={{
+          ...seriesButtonStyle('#bbb', false),
+          background: generatorsShown ? '#f0f0f0' : 'white',
+          color: '#444',
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {generatorsShown ? 'Hide generators' : 'Show generators'}
+      </button>,
+    ] : []),
+    ...extraSeries.map((s) => {
+      const name = s.name ?? ''
+      return (
+        <button key={`extra-${name}`} onClick={() => toggleExtraSeries(s)} style={seriesButtonStyle(String((s as Highcharts.SeriesLineOptions).color), isExtraSeriesShown(s))}>
+          {name}
+        </button>
+      )
+    }),
+  ]
+  if (leadButtons.length > 0 && showUnitSelector) leadButtons.push(<div key="divider" style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />)
+
+  // Unit selector (generators with multiple units, substations with multiple buses/generators)
+  const unitButtons = !showUnitSelector ? [] : allCodes.map((code, i) => {
+    const button = (
+      <button key={code} onClick={() => toggleCode(code)} style={seriesButtonStyle(adapter.colourFor(code, i), effectiveCodes.has(code))}>
+        {adapter.labelFor(code, allCodes)}
+      </button>
+    )
+    // A substation's buses come first; a divider leads the first generator (codes with a space)
+    if (!(i > 0 && code.includes(' ') && !allCodes[i - 1].includes(' '))) return button
+    return (
+      <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 1, height: 16, background: '#ddd', flexShrink: 0 }} />
+        {button}
+      </div>
+    )
+  })
 
   return (
     <div style={{ ...PANEL_STYLE, width: expanded ? '100vw' : panelWidth }}>
@@ -761,64 +842,13 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
         )}
       </div>
 
-      {hasGeneratorCodes && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          <button
-            onClick={() => setShowGenerators(v => !v)}
-            style={{
-              marginTop: 6,
-              padding: '2px 8px',
-              borderRadius: 10,
-              border: '1px solid #ccc',
-              background: showGenerators ? '#f0f0f0' : 'white',
-              color: '#444',
-              cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: 500,
-            }}
-          >
-            {showGenerators ? 'Hide generators' : 'Show generators'}
-          </button>
-        </div>
-      )}
-
-      {/* Unit selector (generators with multiple units) */}
-      {adapter.showUnitSelector(allCodes.length) && (
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee', display: 'flex', flexWrap: isMobile ? 'nowrap' : 'wrap', gap: 6, overflowX: isMobile ? 'auto' : undefined }}>
-          {(unitSelectorExpanded || allCodes.length <= UNIT_COLLAPSE_THRESHOLD ? allCodes : allCodes.slice(0, UNIT_COLLAPSE_THRESHOLD)).map((code, i) => {
-            const active = effectiveCodes.has(code)
-            const colour = adapter.colourFor(code, i)
-            return (
-              <button
-                key={code}
-                onClick={() => toggleCode(code)}
-                style={{
-                  padding: '3px 10px',
-                  borderRadius: 12,
-                  border: `1.5px solid ${colour}`,
-                  background: active ? colour : 'transparent',
-                  color: active ? 'white' : colour,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                {adapter.labelFor(code)}
-              </button>
-            )
-          })}
-          {allCodes.length > UNIT_COLLAPSE_THRESHOLD && (
-            <button
-              onClick={() => setUnitSelectorExpanded(v => !v)}
-              style={{
-                padding: '3px 10px', borderRadius: 12, border: '1.5px solid #bbb',
-                background: 'transparent', color: '#666',
-                cursor: 'pointer', fontSize: 12, fontWeight: 500, flexShrink: 0,
-              }}
-            >
-              {unitSelectorExpanded ? 'Show fewer ▲' : `+${allCodes.length - UNIT_COLLAPSE_THRESHOLD} more ▼`}
-            </button>
-          )}
+      {(leadButtons.length > 0 || unitButtons.length > 0) && (
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
+          <SeriesButtonRow
+            lead={leadButtons}
+            items={unitButtons}
+            trail={unitButtons.length > 0 ? [<ClearButton key="clear" cleared={nothingSelected} onClick={clearOrSelectAll} />] : []}
+          />
         </div>
       )}
 
