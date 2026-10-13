@@ -1,7 +1,7 @@
 import type Highcharts from 'highcharts'
 import type { Generator, RecentData, Unit } from '../types'
 import type { ChartRow } from './chart'
-import type { OutageData } from '../hooks/useOutages'
+import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'

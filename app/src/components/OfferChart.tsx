@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import type { OffersData } from '../hooks/useOffers'
+import type { OffersData } from '../api'
 import type { GeneratorNode } from '../types'
 import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
