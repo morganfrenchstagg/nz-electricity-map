@@ -39,8 +39,8 @@ const PTA = generator('PTA', 'Pātea', [
 ])
 
 // An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
-function outage(from: string, to: string, mw: number): OutageRecord {
-  return { outageBlock: 'ATI_STN', timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
+function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
+  return { outageBlock: block, timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
 }
 
 // At 2:30pm, Unit 1 is 20 MW down until 4pm, and Unit 2 goes fully out from 3pm to 5pm
@@ -100,10 +100,16 @@ describe.each([
     expect(adapter.normalCapacityMW(ATI_UNITS)).toBe(84)
   })
 
-  it('adds up overlapping outages, down to no less than 0 MW', () => {
-    const adapter = adapterFor({ 'ATI2201 ATI0': [outage('12:00', '16:00', 30), outage('14:00', '15:00', 30)] })
-    expect(adapter.unitOutageMW('ATI2201 ATI0')).toBe(60)
+  it('adds up overlapping outages on different blocks, up to the installed capacity', () => {
+    const adapter = adapterFor({ 'ATI2201 ATI0': [outage('12:00', '16:00', 30, 'ATI_1'), outage('14:00', '15:00', 30)] })
+    expect(adapter.unitOutageMW('ATI2201 ATI0')).toBe(50)
     expect(adapter.capacityMW(UNIT_1)).toBe(0)
+  })
+
+  it('counts overlapping outages on the same block once, at the largest', () => {
+    const adapter = adapterFor({ 'ATI2201 ATI0': [outage('12:00', '16:00', 30), outage('14:00', '15:00', 20), outage('13:00', '17:00', 30)] })
+    expect(adapter.unitOutageMW('ATI2201 ATI0')).toBe(30)
+    expect(adapter.capacityMW(UNIT_1)).toBe(20)
   })
 
   it("ignores outages that haven't started or have ended, on NZ time", () => {
