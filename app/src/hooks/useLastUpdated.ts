@@ -1,23 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import type { DateMode } from './useDispatchData'
+import { nzLocalMs, nzNowMs } from '../utils/time'
 
-function latestTimestamp(data: RecentData): Date | null {
+function latestTimestamp(data: RecentData): number | null {
   if (!data.data.length) return null
   const last = data.data[data.data.length - 1]
   const ts = last[0]
   if (typeof ts !== 'string') return null
-  const d = new Date(ts)
-  return isNaN(d.getTime()) ? null : d
+  const ms = nzLocalMs(ts)
+  return isNaN(ms) ? null : ms
 }
 
-/*function getDateInNZ(): Date {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Pacific/Auckland" }));
-}*/
-
-function formatAgo(ts: Date): string {
-  //const timeInNZ = getDateInNZ();
-  const diffMs = Date.now() - ts.getTime()
+function formatAgo(ts: number): string {
+  const diffMs = nzNowMs() - ts
   const mins = Math.floor(diffMs / 60000)
   if (mins < 1) return 'Last updated just now'
   if (mins === 1) return 'Last updated 1 minute ago'
