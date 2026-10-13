@@ -15,10 +15,11 @@ export function installedCapacityOf(unit: UnitCapacity): number {
   return unit.installedCapacity ?? unit.capacity
 }
 
-// MW lost at `atMs`. POCP often lists one piece of work as several overlapping
-// records on the same outage block (Ōhau A has had four concurrent 66 MW OHA_5
-// records for one 66 MW unit), so a block's records don't stack: the block is
-// down by its largest active record. Separate blocks do stack, up to `maxMW`.
+// MW lost at `atMs`. An outage runs from its start up to, but not including,
+// its end. POCP often lists one piece of work as several overlapping records on
+// the same outage block (Ōhau A has had four concurrent 66 MW OHA_5 records for
+// one 66 MW unit), so a block's records don't stack: the block is down by its
+// largest active record. Separate blocks do stack, up to `maxMW`.
 export function outageMWAt(records: OutageRecord[], atMs: number, maxMW = Infinity): number {
   const byBlock = new Map<string, number>()
   for (const r of records) {
@@ -44,12 +45,13 @@ export function unitCapacityAt(unit: UnitCapacity, outages: OutageData | null, a
   return Math.max(0, installedCapacityOf(unit) - lost)
 }
 
-// A unit's outages as a timeline of distinct MW-loss segments (e.g. a 66 MW
-// unit outage with a 198 MW station outage in the middle becomes 66, then
-// 264 capped to installed capacity, then 66 again)
-export function unitOutageSegments(unit: UnitCapacity, outages: OutageData): OutageSegment[] {
-  const records = outages[unit.node] ?? []
-  const maxMW = installedCapacityOf(unit)
+// Collapses a unit's outage records into a timeline of distinct MW-loss
+// segments, counted as outageMWAt does (e.g. a 66 MW unit outage with a 198 MW
+// station outage in the middle becomes 66, then 264 capped to `maxMW`, then 66
+// again). Segments that have already fully ended are dropped, but a segment's
+// start is its real start — never clipped to "now" — so an ongoing outage still
+// shows when it actually began. Times are outageMs's, so `nowMs` must be nzNowMs().
+export function mergeOutageSegments(records: OutageRecord[], nowMs: number, maxMW = Infinity): OutageSegment[] {
   const events = [...new Set(records.flatMap((r) => [outageMs(r.timeStart), outageMs(r.timeEnd)]))]
     .sort((a, b) => a - b)
   const segments: OutageSegment[] = []
@@ -60,7 +62,7 @@ export function unitOutageSegments(unit: UnitCapacity, outages: OutageData): Out
     if (last && last.end === events[i] && Math.abs(last.mw - mw) < 0.001) last.end = events[i + 1]
     else segments.push({ start: events[i], end: events[i + 1], mw })
   }
-  return segments
+  return segments.filter((s) => s.end > nowMs)
 }
 
 // When the outage under way at `atMs` starts to ease: the end of the unbroken

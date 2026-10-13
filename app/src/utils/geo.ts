@@ -29,6 +29,10 @@ export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCol
     }
   })
 
+  // Smallest first so the largest generators draw on top. MapLibre also hit-tests in reverse
+  // data order, so clicks and hovers on overlapping points pick the largest one too
+  features.sort((a, b) => a.properties!.totalCapacityMW - b.properties!.totalCapacityMW)
+
   return { type: 'FeatureCollection', features }
 }
 
@@ -125,10 +129,11 @@ export function underConstructionToGeoJson(
     }
   }
 
-  const features: GeoJSON.Feature[] = [...grouped.values()].map(({ lat, long, name, fuel, units }) => ({
+  const features: GeoJSON.Feature[] = [...grouped].map(([id, { lat, long, name, fuel, units }]) => ({
     type: 'Feature',
     geometry: { type: 'Point', coordinates: [long, lat] },
     properties: {
+      id, // the shared coordinates identify the feature
       name,
       fuel,
       units: JSON.stringify(units),

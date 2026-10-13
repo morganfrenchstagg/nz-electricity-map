@@ -14,3 +14,12 @@ export function isCharging(unit: Unit): boolean {
 export function unitLabel(unit: Unit): string {
   return isCharging(unit) ? `${unit.name} (charging)` : unit.name
 }
+
+// Every unit by its node. A node shared by several units maps to the first.
+export function unitsByNode(generators: Generator[]): Map<string, Unit> {
+  const units = new Map<string, Unit>()
+  for (const unit of generators.flatMap((g) => g.units)) {
+    if (!units.has(unit.node)) units.set(unit.node, unit)
+  }
+  return units
+}

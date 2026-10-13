@@ -8,15 +8,29 @@ export function nzLocalMs(ts: string): number {
   return new Date(ts + 'Z').getTime()
 }
 
-export function nzNowMs(): number {
+// An instant's NZ wall-clock time, in the same convention
+export function nzWallClockMs(ms: number): number {
   return new Date(
-    new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
+    new Date(ms).toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
   ).getTime()
+}
+
+export function nzNowMs(): number {
+  return nzWallClockMs(Date.now())
 }
 
 // Today's NZ date, as "YYYY-MM-DD"
 export function todayNZ(): string {
   return new Date(nzNowMs()).toISOString().slice(0, 10)
+}
+
+// The instant a "YYYY-MM-DD" day starts in NZ, as a real timestamp rather than
+// local time as UTC. That's 13 hours before UTC midnight in NZDT, 12 in NZST;
+// NZ's clocks change at 2am or 3am, so midnight is never skipped or repeated.
+export function nzMidnightMs(isoDate: string): number {
+  const wallClock = nzLocalMs(`${isoDate}T00:00:00`)
+  const nzdt = wallClock - 13 * 60 * 60 * 1000
+  return nzWallClockMs(nzdt) === wallClock ? nzdt : wallClock - 12 * 60 * 60 * 1000
 }
 
 // Outage timestamps carry an offset (e.g. "2026-10-13T14:30:00+13:00"), but

@@ -1,3 +1,13 @@
+/**
+ * Formats a value with fewer decimal places the larger it is, so small values
+ * keep their precision without large ones getting noisy:
+ * - 1000 and over: rounded to a whole number, with thousands separators
+ * - whole numbers: as they are
+ * - 100 and over: one decimal place
+ * - 5 and over: two decimal places
+ * - under 5: three decimal places
+ * Negative values follow the same rules by their size.
+ */
 function formatWithUnit(value: number, unit: string): string {
   const abs = Math.abs(value)
 
@@ -21,23 +31,27 @@ function formatWithUnit(value: number, unit: string): string {
     return `${value.toFixed(3)} ${unit}`;
   }
 
-  if (abs === 0) {
-    return `0 ${unit}`
-  }
-
   return `${value} ${unit}`
 }
 
 /**
- * Format a MW value for display. Values ≥ 100 MW are shown as whole numbers;
- * smaller values get one decimal place to preserve meaningful precision.
+ * The month of a "YYYY-MM-DD" date, e.g. "Mar 2026". Read and written in UTC,
+ * so it doesn't land on the month before in browsers west of UTC.
+ */
+export function formatMonthYear(isoDate: string): string {
+  return new Date(`${isoDate.slice(0, 7)}-01T00:00:00Z`)
+    .toLocaleDateString('en-NZ', { timeZone: 'UTC', month: 'short', year: 'numeric' })
+}
+
+/**
+ * Format a MW value for display, at formatWithUnit's precision.
  */
 export function formatMW(value: number): string {
   return formatWithUnit(value, 'MW')
 }
 
 /**
- * Format a MWh value for display, using the same precision rules as formatMW.
+ * Format a MWh value for display, at formatWithUnit's precision.
  */
 export function formatMWh(value: number): string {
   return formatWithUnit(value, 'MWh')

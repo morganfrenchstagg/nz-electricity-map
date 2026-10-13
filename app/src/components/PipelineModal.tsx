@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { fuelColour, statusColour } from '../utils/colours'
+import { formatMonthYear } from '../utils/format'
 import FilterDropdown from './FilterDropdown'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
@@ -36,12 +37,6 @@ function sortRows(rows: NodeWithExtras[], col: SortCol, dir: SortDir): NodeWithE
     }
     return cmp * sign
   })
-}
-
-function formatOpenBy(s: string) {
-  const [y, m] = s.split('-')
-  const month = new Date(`${y}-${m}-01`).toLocaleString('en-NZ', { month: 'short' })
-  return `${month} ${y}`
 }
 
 interface Props {
@@ -171,7 +166,7 @@ export default function PipelineModal({ onClose }: Props) {
                       {n.costMillionDollars != null ? `$${n.costMillionDollars}M` : '—'}
                     </td>
                     <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                      {n.openBy ? formatOpenBy(n.openBy) : '—'}
+                      {n.openBy ? formatMonthYear(n.openBy) : '—'}
                     </td>
                     <td style={{ ...td(), paddingLeft: 'var(--space-xs)' }}>
                       {n.link ? (
