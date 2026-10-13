@@ -4,7 +4,7 @@ import Highcharts from 'highcharts'
 import type { SelectedNode, RecentData } from '../types'
 import { datesBetween, isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates } from '../hooks/useAggregates'
+import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../hooks/useOutages'
@@ -189,11 +189,12 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
   const toMax = useMemo(() => {
-    if (!fromDate) return new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const cap = yesterdayNZ()
+    if (!fromDate) return cap
     const d = new Date(fromDate + 'T00:00:00Z')
     d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
-    const cap = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
-    return d.toISOString().slice(0, 10) < cap ? d.toISOString().slice(0, 10) : cap
+    const end = d.toISOString().slice(0, 10)
+    return end < cap ? end : cap
   }, [fromDate])
 
   const rangeError = useMemo(() => {
@@ -775,7 +776,7 @@ export default function NodePanel({ node, onClose, onClear, dateMode, onDateMode
             type="date"
             value={fromDate}
             min="2020-09-11"
-            max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
+            max={yesterdayNZ()}
             onChange={e => handleFromChange(e.target.value)}
             style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
           />

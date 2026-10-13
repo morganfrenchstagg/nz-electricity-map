@@ -3,7 +3,7 @@ import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { datesBetween, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
+import { AGGREGATE_PERIODS, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, FUEL_CODE_ORDER } from '../utils/colours'
@@ -93,11 +93,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
   const [toDate, setToDate] = useState(dateMode.kind === 'range' ? dateMode.to : '')
 
   const toMax = useMemo(() => {
-    if (!fromDate) return new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const cap = yesterdayNZ()
+    if (!fromDate) return cap
     const d = new Date(fromDate + 'T00:00:00Z')
     d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
-    const cap = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
-    return d.toISOString().slice(0, 10) < cap ? d.toISOString().slice(0, 10) : cap
+    const end = d.toISOString().slice(0, 10)
+    return end < cap ? end : cap
   }, [fromDate])
 
   const rangeError = useMemo(() => {
@@ -465,7 +466,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onClose,
             type="date"
             value={fromDate}
             min="2020-09-11"
-            max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)}
+            max={yesterdayNZ()}
             onChange={e => handleFromChange(e.target.value)}
             style={{ fontSize: 11, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', color: '#333', background: 'white' }}
           />
