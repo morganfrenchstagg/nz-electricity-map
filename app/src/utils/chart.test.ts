@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractChartData, totalMWh, withGaps } from './chart'
+import { chartReach, extractChartData, totalMWh, withGaps } from './chart'
 import type { ChartRow } from './chart'
 
 const MIN = 60 * 1000
@@ -43,6 +43,26 @@ describe('extractChartData', () => {
         { time: '2026-10-13T14:30:00', 'WKM2201 WKM0': 31, 'ATI2201 ATI0': 11 },
       ],
     })
+  })
+})
+
+describe('chartReach', () => {
+  it('is the largest total at a time when stacked', () => {
+    expect(chartReach([[100, 200], [300, 400], [50, 50]], true)).toBe(700)
+  })
+
+  it('stacks positive and negative values apart', () => {
+    expect(chartReach([[3000, -500, 2000]], true)).toBe(5000)
+    expect(chartReach([[100, -400, -300]], true)).toBe(700)
+  })
+
+  it('is the largest single value when not stacked', () => {
+    expect(chartReach([[100, 200], [300, -400]], false)).toBe(400)
+  })
+
+  it('is zero with nothing to chart', () => {
+    expect(chartReach([], true)).toBe(0)
+    expect(chartReach([[], []], false)).toBe(0)
   })
 })
 

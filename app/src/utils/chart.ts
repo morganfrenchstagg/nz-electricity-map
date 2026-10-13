@@ -87,6 +87,25 @@ export function totalMWh(rows: ChartRow[], codes: string[], aggregate: boolean):
   return total
 }
 
+// How far a chart's values reach from zero, given a row of the series' values
+// at each time. Stacked, that's the largest total at any one time, with
+// positive and negative values stacking apart as Highcharts stacks them.
+// Otherwise it's the largest single value.
+export function chartReach(rows: number[][], stacked: boolean): number {
+  let reach = 0
+  for (const row of rows) {
+    let up = 0
+    let down = 0
+    for (const value of row) {
+      if (!stacked) reach = Math.max(reach, Math.abs(value || 0))
+      else if (value > 0) up += value
+      else if (value < 0) down -= value
+    }
+    reach = Math.max(reach, up, down)
+  }
+  return reach
+}
+
 // Highcharts 13's types only allow the object form of each format, but plain
 // strings still work. The object form would also merge in the default
 // day.boundary format, relabelling midnight on hourly axes with the date.

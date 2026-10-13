@@ -6,8 +6,8 @@ import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, midnightPlotLines, tooltipTime, withGaps } from '../utils/chart'
-import { formatMW, formatMWh } from '../utils/format'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, tooltipTime, withGaps } from '../utils/chart'
+import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -90,12 +90,20 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!data || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
 
+    // Each shown fuel's total at each time
+    const shownFuels = fuels.filter(f => effectiveFuels.has(f))
+    const fuelTotals = data.data.map(row => shownFuels.map(fuel =>
+      (fuelToIndices.get(fuel)!).reduce((sum, i) => sum + (((row[i] as number) || 0)), 0),
+    ))
+    // Aggregate totals are MWh, charted in GWh unless the columns stay small
+    const unit = isAggregate ? energyUnit(chartReach(fuelTotals, true)) : MW_UNIT
+
     // Aggregate totals: stacked areas become stacked columns, which already stack
     // negative values (battery charging) separately.
-    const series: Highcharts.SeriesOptionsType[] = fuels.filter(f => effectiveFuels.has(f)).map(fuel => {
-      const points: [number, number][] = data.data.map(row => [
+    const series: Highcharts.SeriesOptionsType[] = shownFuels.map((fuel, f) => {
+      const points: [number, number][] = data.data.map((row, r) => [
         nzLocalMs(row[0] as string),
-        (fuelToIndices.get(fuel)!).reduce((sum, i) => sum + (((row[i] as number) || 0)), 0),
+        fuelTotals[r][f] / unit.size,
       ])
       const colour = fuelCodeColour(fuel)
       return {
@@ -170,7 +178,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         plotLines: isAggregate ? [] : midnightPlotLines(data.data.map(row => row[0] as string)),
       },
       yAxis: {
-        title: { text: isAggregate ? 'MWh' : 'MW' },
+        title: { text: unit.label },
         softMin: 0,
         gridLineDashStyle: 'Dash',
       },
@@ -194,7 +202,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         formatter: function () {
           const points = this.points ?? []
           const time = tooltipTime(this.x as number, aggregatePeriod)
-          const formatValue = isAggregate ? formatMWh : formatMW
+          const formatValue = unit.format
           const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
 
           const rows = points

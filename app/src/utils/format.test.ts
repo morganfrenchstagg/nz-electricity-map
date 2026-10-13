@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMonthYear, formatMW, formatMWh } from './format'
+import { energyUnit, formatEnergy, formatGWh, formatMonthYear, formatMW, formatMWh } from './format'
 
 describe('formatMW', () => {
   it('rounds 1000 and over to whole numbers with thousands separators', () => {
@@ -39,6 +39,40 @@ describe('formatMWh', () => {
     expect(formatMWh(48213.7)).toBe('48,214 MWh')
     expect(formatMWh(12.3456)).toBe('12.35 MWh')
     expect(formatMWh(0)).toBe('0 MWh')
+  })
+})
+
+describe('formatGWh', () => {
+  it('uses the same precision as formatMW', () => {
+    expect(formatGWh(4213.7)).toBe('4,214 GWh')
+    expect(formatGWh(12.3456)).toBe('12.35 GWh')
+    expect(formatGWh(0)).toBe('0 GWh')
+  })
+})
+
+describe('energyUnit', () => {
+  it('picks MWh under 5 GWh', () => {
+    expect(energyUnit(0)).toMatchObject({ label: 'MWh', size: 1 })
+    expect(energyUnit(4999.9)).toMatchObject({ label: 'MWh', size: 1 })
+    expect(energyUnit(-4999.9)).toMatchObject({ label: 'MWh', size: 1 })
+  })
+
+  it('picks GWh from 5 GWh', () => {
+    expect(energyUnit(5000)).toMatchObject({ label: 'GWh', size: 1000 })
+    expect(energyUnit(-120000)).toMatchObject({ label: 'GWh', size: 1000 })
+  })
+})
+
+describe('formatEnergy', () => {
+  it('formats under 5 GWh in MWh', () => {
+    expect(formatEnergy(4213.7)).toBe('4,214 MWh')
+    expect(formatEnergy(12.3456)).toBe('12.35 MWh')
+  })
+
+  it('formats 5 GWh and over in GWh', () => {
+    expect(formatEnergy(5000)).toBe('5 GWh')
+    expect(formatEnergy(48213.7)).toBe('48.21 GWh')
+    expect(formatEnergy(1234567)).toBe('1,235 GWh')
   })
 })
 
