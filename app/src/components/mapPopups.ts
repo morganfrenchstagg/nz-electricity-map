@@ -58,10 +58,15 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
       : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(u.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
         : formatMW(available)
     const isGenerating = (genMW ?? 0) !== 0
+    // A unit named after its generator would repeat the popup's heading, so it goes unnamed
+    const name = u.name === generator.name ? '' : u.name
+    const label = !isCharging(u) ? name
+      : name ? `${name} <span style="color:var(--color-text-muted)">(charging)</span>`
+        : '<span style="color:var(--color-text-muted)">Charging</span>'
     return `<div style="margin-bottom:5px">
       <div style="display:flex;align-items:center;gap:6px">
         <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${isCharging(u) ? `${u.name} <span style="color:var(--color-text-muted)">(charging)</span>` : u.name}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${label}</span>
         <span style="color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
       </div>
       <div style="display:flex;justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;margin-top:3px;margin-left:14px;overflow:hidden">
