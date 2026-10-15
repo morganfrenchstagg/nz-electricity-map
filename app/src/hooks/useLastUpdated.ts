@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import type { DateMode } from './useDispatchData'
 import { nzLocalMs, nzNowMs } from '../utils/time'
+import { pollWhileVisible } from '../utils/poll'
 
 function latestTimestamp(data: RecentData): number | null {
   if (!data.data.length) return null
@@ -38,8 +39,7 @@ export function useLastUpdated(recentData: RecentData | null, dateMode: DateMode
 
     setLabel(formatAgo(ts))
 
-    const id = setInterval(() => setLabel(formatAgo(ts)), 30000)
-    return () => clearInterval(id)
+    return pollWhileVisible(() => setLabel(formatAgo(ts)), 30000)
   }, [recentData, dateMode])
 
   return label

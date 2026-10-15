@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchOutages, peekOutages } from '../api'
 import type { OutageData } from '../api'
+import { pollWhileVisible } from '../utils/poll'
 
 // Only reaches the network once the last response's max-age runs out (see api.ts)
 const REFRESH_MS = 5 * 60 * 1000
@@ -16,8 +17,8 @@ export function useOutages(): OutageData | null {
         .catch(() => {})
     }
     load()
-    const interval = setInterval(load, REFRESH_MS)
-    return () => { cancelled = true; clearInterval(interval) }
+    const stopPolling = pollWhileVisible(load, REFRESH_MS)
+    return () => { cancelled = true; stopPolling() }
   }, [])
 
   return outages
