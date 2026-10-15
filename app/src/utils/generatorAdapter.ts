@@ -22,6 +22,18 @@ function movedNodesOf(units: Unit[]): Record<string, string> {
   return moved
 }
 
+// MW the charging units among `units` can draw at `atMs`. They're listed with
+// negative capacity, so this is its size, for the chart to go that far below zero.
+function chargeCapacityOf(units: Unit[], outages: OutageData | null, atMs: number): number {
+  return units.filter(isCharging).reduce((sum, u) => sum + Math.abs(unitCapacityAt(u, outages, atMs)), 0)
+}
+
+// The capacity line's label. Over batteries alone, charging below zero, it's
+// their discharge capacity; with other fuels in, it's capacity as usual.
+function capacityLabel(units: Unit[]): string {
+  return units.some(isCharging) && units.every((u) => isCharging(u) || u.fuelCode === 'BESS') ? 'Discharge' : 'Capacity'
+}
+
 // What GeneratorPanel charts for one generator, or several picked together
 export interface GeneratorAdapter {
   title: string
@@ -115,47 +127,46 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
+      const chargeCapacity = chargeCapacityOf(units, outages, now)
 
       const capacityPlotLines: Highcharts.YAxisPlotLinesOptions[] = []
-      if (!outages) {
-        if (adjusted > 0) {
-          capacityPlotLines.push({
-            value: adjusted,
-            color: '#222222',
-            width: 1,
-            dashStyle: 'Solid',
-            label: {
-              text: `${chargeCapacity > 0 ? 'Discharge' : 'Capacity'}: ${formatMW(adjusted)}`,
-              style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
-              align: 'right',
-              x: -4,
-            },
-            zIndex: 3,
-          })
-        }
-        if (chargeCapacity > 0) {
-          capacityPlotLines.push({
-            value: -chargeCapacity,
-            color: '#222222',
-            width: 1,
-            dashStyle: 'Solid',
-            label: {
-              text: `Charge: ${formatMW(chargeCapacity)}`,
-              style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
-              align: 'right',
-              x: -4,
-            },
-            zIndex: 3,
-          })
-        }
+      // When outage data is loaded, capacitySeries' step line replaces this one
+      if (!outages && adjusted > 0) {
+        capacityPlotLines.push({
+          value: adjusted,
+          color: '#222222',
+          width: 1,
+          dashStyle: 'Solid',
+          label: {
+            text: `${capacityLabel(units)}: ${formatMW(adjusted)}`,
+            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            align: 'right',
+            x: -4,
+          },
+          zIndex: 3,
+        })
+      }
+      // The step line leaves out charging, so its line is drawn either way
+      if (chargeCapacity > 0) {
+        capacityPlotLines.push({
+          value: -chargeCapacity,
+          color: '#222222',
+          width: 1,
+          dashStyle: 'Solid',
+          label: {
+            text: `Charge: ${formatMW(chargeCapacity)}`,
+            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            align: 'right',
+            x: -4,
+          },
+          zIndex: 3,
+        })
       }
 
       return {
         title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,
         softMax: softMaxCap + 1,
-        // when outage data is loaded, the step-line series replaces the static plotLine
         gridLineDashStyle: 'Dash',
         plotLines: capacityPlotLines,
       }
@@ -225,7 +236,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
           y: point[1],
           dataLabels: i === lastIndex ? {
             enabled: true,
-            format: `Capacity: ${formatMW(point[1] as number)}`,
+            format: `${capacityLabel(units)}: ${formatMW(point[1] as number)}`,
             align: 'right',
             style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
             crop: false,
@@ -320,7 +331,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
           if (cap > softMaxCap) softMaxCap = cap
         }
       }
-      const chargeCapacity = units.filter(isCharging).reduce((sum, u) => sum + unitCapacityAt(u, outages, now), 0)
+      const chargeCapacity = chargeCapacityOf(units, outages, now)
       return {
         title: { text: 'MW' },
         softMin: chargeCapacity > 0 ? -(chargeCapacity + 1) : 0,

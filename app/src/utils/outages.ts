@@ -15,6 +15,19 @@ export function installedCapacityOf(unit: UnitCapacity): number {
   return unit.installedCapacity ?? unit.capacity
 }
 
+// The most an outage can take from a unit. A battery's charging unit is listed
+// with negative capacity, as it draws power, but MW lost are always positive.
+export function maxOutageMWOf(unit: UnitCapacity): number {
+  return Math.abs(installedCapacityOf(unit))
+}
+
+// What losing `lostMW` leaves of a unit's installed capacity, keeping its sign,
+// so a charging unit's capacity stays negative (and none left is 0, not -0)
+export function capacityLeftAfter(unit: UnitCapacity, lostMW: number): number {
+  const left = Math.max(0, maxOutageMWOf(unit) - lostMW)
+  return installedCapacityOf(unit) < 0 && left > 0 ? -left : left
+}
+
 // MW lost at `atMs`. An outage runs from its start up to, but not including,
 // its end. POCP often lists one piece of work as several overlapping records on
 // the same outage block (Ōhau A has had four concurrent 66 MW OHA_5 records for
@@ -33,7 +46,7 @@ export function outageMWAt(records: OutageRecord[], atMs: number, maxMW = Infini
 }
 
 export function unitOutageMWAt(unit: UnitCapacity, outages: OutageData, atMs: number): number {
-  return outageMWAt(outages[unit.node] ?? [], atMs, installedCapacityOf(unit))
+  return outageMWAt(outages[unit.node] ?? [], atMs, maxOutageMWOf(unit))
 }
 
 // Available capacity at `atMs`: MSGC without an outage, or what an outage
@@ -42,7 +55,7 @@ export function unitCapacityAt(unit: UnitCapacity, outages: OutageData | null, a
   if (!outages) return unit.capacity
   const lost = unitOutageMWAt(unit, outages, atMs)
   if (lost <= 0) return unit.capacity
-  return Math.max(0, installedCapacityOf(unit) - lost)
+  return capacityLeftAfter(unit, lost)
 }
 
 // Collapses a unit's outage records into a timeline of distinct MW-loss
