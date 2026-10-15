@@ -17,8 +17,15 @@ export type DateMode =
   | { kind: 'lastYear' }
   | { kind: 'all' }
 
+// Today and 3d are the only views kept up to date. Past days and aggregates are
+// left alone until one of them is picked again.
+export function isLiveMode(mode: DateMode): mode is Extract<DateMode, { kind: 'recent' | 'today' }> {
+  return mode.kind === 'recent' || mode.kind === 'today'
+}
+
 // The 30d, 1y and All views chart aggregates (useAggregates) in the node panels
-// and GridOverviewPanel; the map keeps showing live data underneath them.
+// and GridOverviewPanel; the map keeps showing live data underneath them, as it
+// was when the view was picked.
 export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
   return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
 }
@@ -85,8 +92,8 @@ export function useDispatchData(mode: DateMode): {
   useEffect(() => {
     let cancelled = false
     let shown: RecentData[] | null = null
-    const live = mode.kind === 'recent' || mode.kind === 'today' || isAggregateMode(mode)
-    const keys = live ? ['recent'] : mode.kind === 'date' ? [mode.date] : datesBetween(mode.from, mode.to)
+    const live = isLiveMode(mode)
+    const keys = live || isAggregateMode(mode) ? ['recent'] : mode.kind === 'date' ? [mode.date] : datesBetween(mode.from, mode.to)
 
     function show(days: RecentData[]) {
       const prev = shown

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
+import { isLiveMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { nzLocalMs, nzNowMs } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
@@ -25,7 +26,7 @@ export function useLastUpdated(recentData: RecentData | null, dateMode: DateMode
   const [label, setLabel] = useState<string | null>(null)
 
   useEffect(() => {
-    if (dateMode.kind !== 'recent' && dateMode.kind !== 'today') {
+    if (!isLiveMode(dateMode)) {
       setLabel(null)
       return
     }

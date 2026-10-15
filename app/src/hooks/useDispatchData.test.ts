@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RecentData } from '../types'
-import { datesBetween, daysBetween, isAggregateMode, mergeData, MAX_RANGE_DAYS } from './useDispatchData'
+import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS } from './useDispatchData'
 
 describe('datesBetween', () => {
   it('includes both ends', () => {
@@ -54,6 +54,21 @@ describe('isAggregateMode', () => {
     expect(isAggregateMode({ kind: 'today' })).toBe(false)
     expect(isAggregateMode({ kind: 'date', date: '2026-10-13' })).toBe(false)
     expect(isAggregateMode({ kind: 'range', from: '2026-10-01', to: '2026-10-13' })).toBe(false)
+  })
+})
+
+describe('isLiveMode', () => {
+  it('is true for Today and 3d, the views kept up to date', () => {
+    expect(isLiveMode({ kind: 'today' })).toBe(true)
+    expect(isLiveMode({ kind: 'recent' })).toBe(true)
+  })
+
+  it('is false for past days and aggregates', () => {
+    expect(isLiveMode({ kind: 'date', date: '2026-10-13' })).toBe(false)
+    expect(isLiveMode({ kind: 'range', from: '2026-10-01', to: '2026-10-13' })).toBe(false)
+    expect(isLiveMode({ kind: 'last30' })).toBe(false)
+    expect(isLiveMode({ kind: 'lastYear' })).toBe(false)
+    expect(isLiveMode({ kind: 'all' })).toBe(false)
   })
 })
 

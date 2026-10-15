@@ -33,10 +33,12 @@ interface Props {
   leftPanelOpen: boolean
   panelWidth: number
   recentData: RecentData | null
+  // Whether Today or 3d is open, so outages are kept up to date (see useOutages)
+  live: boolean
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, isMobile = false }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, live, isMobile = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
@@ -58,7 +60,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     recentDataRef.current = recentData
     refreshHoverRef.current()
   }, [recentData])
-  const outages = useOutages()
+  const outages = useOutages(live)
   const outagesRef = useRef<OutageData | null>(outages)
   useEffect(() => {
     outagesRef.current = outages
