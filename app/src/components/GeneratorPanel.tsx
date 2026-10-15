@@ -5,7 +5,7 @@ import { isAggregateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
-import { installedCapacityOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
+import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
 import type { OutageSegment } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
 import { chartReach, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
@@ -133,7 +133,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     const result: { code: string; unit: Unit; segments: OutageSegment[] }[] = []
     for (const code of effectiveCodes) {
       const unit = findUnit(code)
-      if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], nowMs, installedCapacityOf(unit)) })
+      if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], nowMs, maxOutageMWOf(unit)) })
     }
     return result
   }, [outages, effectiveCodes, findUnit])
@@ -161,7 +161,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           timeEnd: new Date(seg.end).toISOString(),
           mwattLost: seg.mw,
         }
-        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining: Math.max(0, installedCapacityOf(unit) - seg.mw) })
+        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining: capacityLeftAfter(unit, seg.mw) })
       })
     }
     return details

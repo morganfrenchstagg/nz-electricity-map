@@ -27,9 +27,17 @@ const ATI = generator('ATI', 'Ātiamuri', [
 const ATI_UNITS = new Set(['ATI2201 ATI0', 'ATI2201 ATI1'])
 const UNIT_1 = new Set(['ATI2201 ATI0'])
 const TAP = generator('TAP', 'Te Āpiti', [unit('WDV1101 TAP0', 'Te Āpiti', 'Wind', 90)], { operator: 'Meridian' })
+// A battery's charging unit is listed with negative capacity, as it draws power
 const BAT = generator('BAT', 'Rotohiko', [
   unit('BAT0331 BAT0', 'Battery', 'Battery (Discharging)', 100),
-  unit('BAT0331 BAT1', 'Battery', 'Battery (Charging)', 80),
+  unit('BAT0331 BAT1', 'Battery', 'Battery (Charging)', -80),
+])
+const BAT_UNITS = new Set(['BAT0331 BAT0', 'BAT0331 BAT1'])
+// A battery beside a solar farm, as at Ruakākā
+const HYB = generator('HYB', 'Hybrid', [
+  unit('HYB0331 HYB0', 'Solar', 'Solar', 20),
+  unit('HYB0331 HYB1', 'Battery', 'Battery (Discharging)', 10),
+  unit('HYB0331 HYB2', 'Battery', 'Battery (Charging)', -10),
 ])
 // The first unit moved substation; the second retired outright
 const PTA = generator('PTA', 'Pātea', [
@@ -161,12 +169,7 @@ describe('createGeneratorAdapter', () => {
   })
 
   it('lists each fuel once, counting a battery as one', () => {
-    const hybrid = generator('HYB', 'Hybrid', [
-      unit('HYB0331 HYB0', 'Solar', 'Solar', 20),
-      unit('HYB0331 HYB1', 'Battery', 'Battery (Discharging)', 10),
-      unit('HYB0331 HYB2', 'Battery', 'Battery (Charging)', 10),
-    ])
-    expect(createGeneratorAdapter(hybrid, null).subtitleFuels).toEqual([
+    expect(createGeneratorAdapter(HYB, null).subtitleFuels).toEqual([
       { label: 'Battery', colour: fuelColour('Battery') },
       { label: 'Solar', colour: fuelColour('Solar') },
     ])
@@ -224,8 +227,41 @@ describe('createGeneratorAdapter', () => {
       expect(plotLines(options)).toEqual([[100, 'Discharge: 100 MW'], [-80, 'Charge: 80 MW']])
       expect(options.softMin).toBe(-81)
       // Charging draws power, so it isn't capacity
-      expect(adapter.capacityMW(new Set(['BAT0331 BAT0', 'BAT0331 BAT1']))).toBe(100)
+      expect(adapter.capacityMW(BAT_UNITS)).toBe(100)
     })
+
+    it("keeps a battery's charge line once outages load, as the step line leaves charging out", () => {
+      const adapter = createGeneratorAdapter(BAT, {})
+      const options = adapter.yAxisOptions(BAT_UNITS, rows('14:00', '18:00'))
+      expect(plotLines(options)).toEqual([[-80, 'Charge: 80 MW']])
+      expect(options).toMatchObject({ softMin: -81, softMax: 101 })
+      expect(stepPoints(adapter.capacitySeries(rows('14:00', '18:00'), BAT_UNITS))).toEqual([[at('14:00'), 100], [at('18:00'), 100]])
+    })
+
+    it('takes an outage on charging off the charge line', () => {
+      const options = createGeneratorAdapter(BAT, { 'BAT0331 BAT1': [outage('12:00', '16:00', 30, 'BAT_1')] }).yAxisOptions(BAT_UNITS, rows('14:00', '18:00'))
+      expect(plotLines(options)).toEqual([[-50, 'Charge: 50 MW']])
+    })
+
+    it('only charts discharge capacity as such for batteries alone', () => {
+      expect(plotLines(createGeneratorAdapter(HYB, null).yAxisOptions(undefined, rows('14:00', '18:00'))))
+        .toEqual([[30, 'Capacity: 30 MW'], [-10, 'Charge: 10 MW']])
+      // Without its charging unit, a battery's discharge is all it has
+      expect(plotLines(createGeneratorAdapter(BAT, null).yAxisOptions(new Set(['BAT0331 BAT0']), rows('14:00', '18:00'))))
+        .toEqual([[100, 'Capacity: 100 MW']])
+    })
+
+    it('labels the step line as discharge for a battery', () => {
+      const series = createGeneratorAdapter(BAT, {}).capacitySeries(rows('14:00', '18:00'), BAT_UNITS) as Highcharts.SeriesLineOptions
+      expect(((series.data![1] as Highcharts.PointOptionsObject).dataLabels as Highcharts.DataLabelsOptions).format).toBe('Discharge: 100 MW')
+    })
+  })
+
+  it("counts no outage on a battery's charging unit when it has none", () => {
+    expect(createGeneratorAdapter(BAT, {}).unitOutageMW('BAT0331 BAT1')).toBe(0)
+    // So it doesn't offset an outage on another unit, as GeneratorPanel adds them up
+    const adapter = createGeneratorAdapter(BAT, { 'BAT0331 BAT0': [outage('12:00', '16:00', 40, 'BAT_0')] })
+    expect([...BAT_UNITS].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0)).toBe(40)
   })
 })
 

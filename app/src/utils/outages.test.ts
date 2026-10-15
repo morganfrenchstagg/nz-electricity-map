@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutageRecord } from '../api'
-import { mergeOutageSegments, outageEasesAt } from './outages'
+import type { Unit } from '../types'
+import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt, unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs } from './time'
 
 afterEach(() => { vi.useRealTimers() })
@@ -107,5 +108,61 @@ describe('outageEasesAt', () => {
     const segments = mergeOutageSegments([outage('08:00', '10:00', 3, 'ATI_1'), outage('12:00', '14:00', 5, 'ATI_2')], BEFORE_ALL)
     expect(outageEasesAt(segments, at('09:00'))).toBe(at('10:00'))
     expect(outageEasesAt(segments, at('11:00'))).toBeNull()
+  })
+})
+
+// A battery's charging unit is listed with negative capacity, as the API sends it
+const CHARGING: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'HLY2201 HLY91', capacity: -100 }
+// 42 MW normally, 50 MW installed
+const HYDRO: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'ATI2201 ATI0', capacity: 42, installedCapacity: 50 }
+
+describe('unitOutageMWAt', () => {
+  it('is nothing for a charging unit without outages', () => {
+    expect(unitOutageMWAt(CHARGING, {}, at('11:00'))).toBe(0)
+    expect(unitOutageMWAt(CHARGING, { [CHARGING.node]: [] }, at('11:00'))).toBe(0)
+  })
+
+  it("stacks a charging unit's blocks up to the size of its capacity", () => {
+    const outages = { [CHARGING.node]: [outage('08:00', '12:00', 60, 'HLY_9'), outage('10:00', '12:00', 60, 'HLY_STN')] }
+    expect(unitOutageMWAt(CHARGING, outages, at('09:00'))).toBe(60)
+    expect(unitOutageMWAt(CHARGING, outages, at('11:00'))).toBe(100)
+  })
+})
+
+describe('unitCapacityAt', () => {
+  it("is a charging unit's usual negative capacity without an outage", () => {
+    expect(unitCapacityAt(CHARGING, null, at('11:00'))).toBe(-100)
+    expect(unitCapacityAt(CHARGING, {}, at('11:00'))).toBe(-100)
+  })
+
+  it('takes an outage off the size of what a charging unit can draw', () => {
+    const outages = { [CHARGING.node]: [outage('08:00', '12:00', 30, 'HLY_9'), outage('10:00', '12:00', 100, 'HLY_STN')] }
+    expect(unitCapacityAt(CHARGING, outages, at('09:00'))).toBe(-70)
+    expect(unitCapacityAt(CHARGING, outages, at('11:00'))).toBe(0)
+  })
+
+  it('takes an outage off installed capacity for a generating unit', () => {
+    const outages = { [HYDRO.node]: [outage('08:00', '12:00', 20)] }
+    expect(unitCapacityAt(HYDRO, outages, at('07:00'))).toBe(42)
+    expect(unitCapacityAt(HYDRO, outages, at('09:00'))).toBe(30)
+  })
+})
+
+describe('capacityLeftAfter', () => {
+  it('keeps the sign of what a unit can do, down to nothing', () => {
+    expect(capacityLeftAfter(HYDRO, 20)).toBe(30)
+    expect(capacityLeftAfter(HYDRO, 80)).toBe(0)
+    expect(capacityLeftAfter(CHARGING, 40)).toBe(-60)
+    expect(capacityLeftAfter(CHARGING, 140)).toBe(0)
+  })
+})
+
+describe('maxOutageMWOf', () => {
+  it("lets a charging unit's outages through mergeOutageSegments", () => {
+    const records = [outage('08:00', '12:00', 60, 'HLY_9'), outage('10:00', '12:00', 60, 'HLY_STN')]
+    expect(mergeOutageSegments(records, BEFORE_ALL, maxOutageMWOf(CHARGING))).toEqual([
+      { start: at('08:00'), end: at('10:00'), mw: 60 },
+      { start: at('10:00'), end: at('12:00'), mw: 100 },
+    ])
   })
 })
