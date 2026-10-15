@@ -1,10 +1,10 @@
 import { ucUnitsForSite } from '../utils/geo'
 import type { UnderConstructionUnit } from '../utils/geo'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
-import { fuelColour, statusColour, voltageColour } from '../utils/colours'
+import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
-import { isCharging } from '../utils/generators'
+import { isCharging, shortUnitName } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import { nzNowMs } from '../utils/time'
 import type { OutageData } from '../api'
@@ -35,50 +35,78 @@ function renderStatusPill(status: string): string {
 // The generator panel's capacity bar stripes, in red to stand out on a 3px bar
 const OUTAGE_STRIPES = 'repeating-linear-gradient(45deg, var(--color-danger) 0, var(--color-danger) 2px, transparent 2px, transparent 5px)'
 
+type PopupUnit = Unit & { outageMW: number; available: number }
+
+function dotHtml(colour: string): string {
+  return `<span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>`
+}
+
+// A unit's 3px bar: its generation from the start, and any outage at the far end.
+// An outage leaves what's left of installed capacity (see unitCapacityAt), so the
+// bar is then scaled to installed capacity to fit the outage in beside generation.
+// `reversed` runs it right to left, for a battery's charging half.
+function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): string {
+  const scale = Math.abs(u.outageMW > 0 ? installedCapacityOf(u) : u.available)
+  const fillPct = genMW !== null && scale !== 0 ? Math.min(100, (Math.abs(genMW) / scale) * 100) : 0
+  return `<div style="flex:1;display:flex;${reversed ? 'flex-direction:row-reverse;' : ''}justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;overflow:hidden">
+    <div style="width:${fillPct}%;background:${fuelColour(u.fuel)};border-radius:2px"></div>
+    ${u.outageMW > 0 ? `<div style="width:${Math.min(100 - fillPct, (u.outageMW / scale) * 100)}%;background:${OUTAGE_STRIPES}"></div>` : ''}
+  </div>`
+}
+
 export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null): string {
   const lastRow = data?.data[data.data.length - 1]
   const nowMs = nzNowMs()
-  const activeUnits = generator.units
+  const genOf = (u: Unit): number | null => {
+    const idx = data ? data.series.indexOf(u.node) : -1
+    return (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+  }
+  const activeUnits: PopupUnit[] = generator.units
     .filter(u => u.active !== false)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(u => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, nowMs) : 0, available: unitCapacityAt(u, outages, nowMs) }))
-  const unitRows = activeUnits.map(u => {
-    const { outageMW, available } = u
-    const idx = data ? data.series.indexOf(u.node) : -1
-    const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+  // A battery's charging unit goes by its discharging unit's name, and shares its row:
+  // one bar out from zero in the middle, charging to the left and discharging to the right
+  const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)
+  const pairedCharging = new Set(activeUnits.map(chargingUnitOf))
+  // The popup's heading already names the generator, so unit names drop it, and a
+  // unit named just as its generator goes unnamed
+  const rows = activeUnits.filter(u => !pairedCharging.has(u)).map(u => ({ u, name: shortUnitName(u.name, generator.name) }))
+  // With one row, or none named, the fuel goes under the heading as in the generator
+  // panel, in place of a dot on each row
+  const fuelInHeading = rows.length === 1 || rows.every(r => !r.name)
+  const unitRows = rows.map(({ u, name }) => {
+    const charging = chargingUnitOf(u)
+    const chargeMW = charging ? genOf(charging) : null
+    const dischargeMW = genOf(u)
+    const genMW = chargeMW === null ? dischargeMW : (dischargeMW ?? 0) + chargeMW
+    // A charging battery is measured against what it can draw rather than what it can give
+    const capUnit = charging && (genMW ?? 0) < 0 ? charging : u
+    const { outageMW, available } = capUnit
     const pct = genMW !== null && available !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(available)) * 100)) : 0
-    // An outage leaves what's left of installed capacity (see unitCapacityAt), so
-    // the bar is then scaled to installed capacity to fit the outage in beside generation
-    const barScale = outageMW > 0 ? installedCapacityOf(u) : available
-    const barPct = genMW !== null && barScale !== 0 ? Math.min(100, (Math.abs(genMW) / Math.abs(barScale)) * 100) : 0
     const colour = fuelColour(u.fuel)
     const genStr = genMW !== null ? formatMW(genMW) : '—'
     // An outage strikes out the usual capacity for what's left, in red
-    const capStr = u.capacity === 0 ? null
-      : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(u.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
+    const capStr = capUnit.capacity === 0 ? null
+      : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(capUnit.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
         : formatMW(available)
     const isGenerating = (genMW ?? 0) !== 0
-    // A unit named after its generator would repeat the popup's heading, so it goes unnamed
-    const name = u.name === generator.name ? '' : u.name
     const label = !isCharging(u) ? name
       : name ? `${name} <span style="color:var(--color-text-muted)">(charging)</span>`
         : '<span style="color:var(--color-text-muted)">Charging</span>'
-    return `<div style="margin-bottom:5px">
+    return `<div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
+        ${fuelInHeading ? '' : dotHtml(colour)}
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${label}</span>
         <span style="color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;margin-top:3px;margin-left:14px;overflow:hidden">
-        <div style="height:3px;width:${barPct}%;background:${colour};border-radius:2px"></div>
-        ${outageMW > 0 ? `<div style="height:3px;width:${Math.min(100 - barPct, (outageMW / barScale) * 100)}%;background:${OUTAGE_STRIPES}"></div>` : ''}
+      <div style="display:flex;align-items:center;margin-top:3px;margin-left:${fuelInHeading ? 0 : 14}px">
+        ${charging ? `${unitBarHtml(charging, chargeMW, true)}<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>` : ''}
+        ${unitBarHtml(u, dischargeMW)}
       </div>
     </div>`
   }).join('')
-  const totalGen = activeUnits.reduce((sum, u) => {
-    const idx = data ? data.series.indexOf(u.node) : -1
-    return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
-  }, 0)
+  const totalGen = activeUnits.reduce((sum, u) => sum + (genOf(u) ?? 0), 0)
   const generatingUnits = activeUnits.filter(u => !isCharging(u))
   const totalCap = generatingUnits.reduce((sum, u) => sum + u.available, 0)
   const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
@@ -87,9 +115,20 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   const totalCapStr = hasOutage
     ? `<s style="color:var(--color-text-faint)">${formatMW(generatingUnits.reduce((sum, u) => sum + u.capacity, 0))}</s> ${formatMW(totalCap)}`
     : formatMW(totalCap)
+  // A single row would only repeat itself as the total
+  const totalRow = rows.length > 1 ? `
+    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:var(--space-md)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:var(--color-text-muted)">Total</span>
+        <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${totalCapStr} (${totalPct}%)</span></span>
+      </div>
+    </div>` : ''
+  const fuels = fuelInHeading
+    ? fuelFamilies(activeUnits.map(u => u.fuel)).map(f => `<span style="display:flex;align-items:center;gap:3px"><span style="margin-right:3px">|</span>${dotHtml(f.colour)}${f.label}</span>`).join('')
+    : ''
   const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
   const ucSection = ucUnits.length > 0 ? `
-    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
+    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:${totalRow ? '2px' : 'var(--space-md)'}">
       <div class="eyebrow" style="margin-bottom:4px">Under Construction</div>
       ${ucUnits.map((u, i) => {
         const label = u.locationDescription ?? `Unit ${i + 1}`
@@ -108,14 +147,11 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
       <span style="font-weight:600">${generator.name}</span>
       <span style="background:var(--color-accent-subtle);color:var(--color-accent-strong);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">${generator.site}</span>
     </div>
-    <div style="color:var(--color-text-muted);margin-bottom:6px">${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</div>
-    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-bottom:4px">${unitRows}</div>
-    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="color:var(--color-text-muted)">Total</span>
-        <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${totalCapStr} (${totalPct}%)</span></span>
-      </div>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0 6px;color:var(--color-text-muted);margin-bottom:6px">
+      <span>${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</span>${fuels}
     </div>
+    <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">${unitRows}</div>
+    ${totalRow}
     ${ucSection}
   </div>`
 }
@@ -155,7 +191,7 @@ export function substationPopupHtml(substation: Substation, data: RecentData | n
     const isActive = (loadMW ?? 0) !== 0
     const loadStr = loadMW !== null ? formatMW(loadMW) : '—'
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-      <span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>
+      ${dotHtml(colour)}
       <span style="flex:1;color:${isActive ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${label}</span>
       <span style="color:${isActive ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
     </div>`

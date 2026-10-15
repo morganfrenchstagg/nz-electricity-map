@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { unitsByNode } from './generators'
+import { shortUnitName, unitsByNode } from './generators'
 import type { Generator, Unit } from '../types'
 
 const unit = (node: string, name: string): Unit => ({ name, unitCode: name, node, capacity: 10, fuel: 'Hydro', fuelCode: 'hyd' })
@@ -12,6 +12,29 @@ const generator = (site: string, units: Unit[]): Generator => ({
   gridZone: '1',
   island: 'NI',
   operator: 'Operator',
+})
+
+describe('shortUnitName', () => {
+  it('drops the generator name leading a unit name', () => {
+    expect(shortUnitName('Huntly Unit 5', 'Huntly')).toBe('Unit 5')
+    expect(shortUnitName('Huntly BESS', 'Huntly')).toBe('BESS')
+  })
+
+  it('drops a separator after the generator name', () => {
+    expect(shortUnitName('SolarZero - South Island', 'SolarZero')).toBe('South Island')
+  })
+
+  it('leaves nothing of a unit named just as its generator', () => {
+    expect(shortUnitName('Tokaanu', 'Tokaanu')).toBe('')
+  })
+
+  it('keeps a unit name that only starts with the same letters', () => {
+    expect(shortUnitName('Tekapo A', 'Te')).toBe('Tekapo A')
+  })
+
+  it('keeps a unit name the generator name does not lead', () => {
+    expect(shortUnitName('Taranaki Combined Cycle', 'Stratford')).toBe('Taranaki Combined Cycle')
+  })
 })
 
 describe('unitsByNode', () => {
