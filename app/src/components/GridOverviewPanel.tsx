@@ -6,7 +6,7 @@ import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -170,6 +170,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         className: isAggregate ? 'aggregate-columns' : undefined, // see index.css
       },
       title: { text: undefined },
+      ...timeChartAccessibility(
+        `${island === 'all' ? 'New Zealand' : island === 'NI' ? 'North Island' : 'South Island'} generation by fuel`,
+        'Generation from each fuel, stacked',
+        aggregatePeriod,
+        unit,
+      ),
       credits: { enabled: false },
       legend: { enabled: false },
       xAxis: {
@@ -237,7 +243,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod])
+  }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod, island])
 
   // The pipeline button wraps under the title when there isn't room beside it
   const header = (
