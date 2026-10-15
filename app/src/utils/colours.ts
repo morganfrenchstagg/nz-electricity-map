@@ -26,6 +26,13 @@ export function fuelFamily(fuel: string): string {
   return fuel === 'Battery (Charging)' || fuel === 'Battery (Discharging)' ? 'Battery' : fuel
 }
 
+// Each fuel family among `fuels` (unit.fuel names), in display order, with its colour
+export function fuelFamilies(fuels: string[]): { label: string; colour: string }[] {
+  return [...new Set(fuels.map(fuelFamily))]
+    .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
+    .map((label) => ({ label, colour: fuelColour(label) }))
+}
+
 // Derived lookups — all keyed by fuel code
 export const FUEL_CODE_COLOURS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.colour]))

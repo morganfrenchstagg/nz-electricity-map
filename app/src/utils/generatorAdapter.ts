@@ -3,7 +3,7 @@ import type { Generator, RecentData, Unit } from '../types'
 import type { ChartRow } from './chart'
 import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
-import { fuelColour, fuelFamily, FUEL_NAME_SORT_INDEX } from './colours'
+import { fuelColour, fuelFamilies, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
 import { isCharging, unitLabel } from './generators'
 import { unitCapacityAt, unitOutageMWAt } from './outages'
@@ -55,9 +55,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   // Moved units are charted under their current node only
   const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
 
-  const subtitleFuels = [...new Set(activeUnits.map((u) => fuelFamily(u.fuel)))]
-    .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
-    .map((label) => ({ label, colour: fuelColour(label) }))
+  const subtitleFuels = fuelFamilies(activeUnits.map((u) => u.fuel))
 
   return {
     title: generator.name,
@@ -263,9 +261,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     return null
   }
 
-  const subtitleFuels = [...new Set(allActiveUnits.map(u => fuelFamily(u.fuel)))]
-    .sort((a, b) => (FUEL_NAME_SORT_INDEX[a] ?? 99) - (FUEL_NAME_SORT_INDEX[b] ?? 99))
-    .map(label => ({ label, colour: fuelColour(label) }))
+  const subtitleFuels = fuelFamilies(allActiveUnits.map(u => u.fuel))
 
   const title = generators.length <= 2
     ? generators.map(g => g.name).join(', ')
