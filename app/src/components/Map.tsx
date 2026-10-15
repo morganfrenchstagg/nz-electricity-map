@@ -210,7 +210,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         onClearRef.current()
       })
 
-      const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '300px' })
+      const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '380px' })
       let hovered: maplibregl.MapGeoJSONFeature | undefined
 
       const hoverHtml = (feature: maplibregl.MapGeoJSONFeature): string | null => {
