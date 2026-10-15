@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import type Highcharts from 'highcharts'
 import type { GeneratorNode, Unit } from '../types'
-import { isAggregateMode } from '../hooks/useDispatchData'
+import { isAggregateMode, isLiveMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
@@ -52,7 +52,7 @@ interface Props extends NodePanelProps {
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
 export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, ...panel }: Props) {
-  const outages = useOutages()
+  const outages = useOutages(isLiveMode(dateMode))
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
@@ -73,7 +73,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const [outageModalOpen, setOutageModalOpen] = useState(false)
 
   const offerDate = viewMode === 'offers'
-    ? (dateMode.kind === 'today' || dateMode.kind === 'recent' || isAggregateMode(dateMode) ? 'latest'
+    ? (isLiveMode(dateMode) || isAggregateMode(dateMode) ? 'latest'
       : dateMode.kind === 'date' ? dateMode.date
         : dateMode.from)
     : null
