@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { fetchDispatch, peekDispatch } from '../api'
 import { todayNZ } from '../utils/time'
+import { pollWhileVisible } from '../utils/poll'
 
 // Cheap: only reaches the network once the cached dispatch/recent expires (see api.ts)
 const POLL_MS = 15 * 1000
@@ -122,11 +123,11 @@ export function useDispatchData(mode: DateMode): {
     }
 
     load()
-    const timer = live ? setInterval(load, POLL_MS) : undefined
+    const stopPolling = live ? pollWhileVisible(load, POLL_MS) : undefined
 
     return () => {
       cancelled = true
-      clearInterval(timer)
+      stopPolling?.()
     }
   }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
