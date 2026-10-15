@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { chartReach, extractChartData, totalMWh, withGaps } from './chart'
+import type Highcharts from 'highcharts'
+import { chartReach, extractChartData, timeChartAccessibility, totalMWh, withGaps } from './chart'
 import type { ChartRow } from './chart'
+import { MW_UNIT, energyUnit } from './format'
 
 const MIN = 60 * 1000
 
@@ -105,5 +107,29 @@ describe('totalMWh', () => {
     expect(totalMWh([row('14:00', { A: 60 }), row('14:05', { A: 60 })], [], false)).toBeNull()
     expect(totalMWh([row('14:00', { A: 60 })], ['A'], false)).toBeNull()
     expect(totalMWh([], ['A'], true)).toBeNull()
+  })
+})
+
+describe('timeChartAccessibility', () => {
+  // A point as the accessibility module passes it to descriptionFormatter
+  const point = (x: number, y: number, name: string) => ({ x, y, series: { name } }) as unknown as Highcharts.Point
+
+  it('names the chart for screen readers', () => {
+    expect(timeChartAccessibility('Huntly generation', 'Generation', null, MW_UNIT).lang?.accessibility?.defaultChartTitle)
+      .toBe('Huntly generation')
+  })
+
+  it('describes the unit and how often there is a point', () => {
+    expect(timeChartAccessibility('', 'Generation', null, MW_UNIT).accessibility?.description)
+      .toBe('Generation, in MW every 5 minutes.')
+    expect(timeChartAccessibility('', 'Generation', 'weekly', energyUnit(10000)).accessibility?.description)
+      .toBe('Generation, in GWh each week.')
+  })
+
+  it('reads a point out as its tooltip is headed, in the unit', () => {
+    const describe5Min = timeChartAccessibility('', '', null, MW_UNIT).accessibility?.point?.descriptionFormatter
+    expect(describe5Min?.(point(Date.UTC(2026, 9, 13, 14, 30), 1234.5, 'Hydro'))).toBe('13 Oct 02:30 PM, 1,235 MW. Hydro.')
+    const describeDay = timeChartAccessibility('', '', 'daily', energyUnit(10000)).accessibility?.point?.descriptionFormatter
+    expect(describeDay?.(point(Date.UTC(2026, 9, 13), 12.5, 'Wind'))).toBe('Tue 13 Oct, 12.50 GWh. Wind.')
   })
 })

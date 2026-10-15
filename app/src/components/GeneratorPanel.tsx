@@ -8,7 +8,7 @@ import type { OutageRecord } from '../api'
 import { installedCapacityOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
 import type { OutageSegment } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { chartReach, tooltipTime, totalMWh } from '../utils/chart'
+import { chartReach, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT } from '../utils/format'
@@ -260,6 +260,12 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         }
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
+      accessibility: timeChartAccessibility(
+        `${adapter.title} generation`,
+        stacked ? 'Generation from each unit, stacked' : 'Generation',
+        aggregatePeriod,
+        unit,
+      ),
     })
   }, [chartData, effectiveCodes, adapter, recentData, isAggregate, aggregatePeriod])
 
@@ -444,7 +450,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             <ChartMessage error>Failed to load offers</ChartMessage>
           ) : offersData ? (
             <Suspense fallback={<ChartMessage>Loading…</ChartMessage>}>
-              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} />
+              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
             </Suspense>
           ) : null
         ) : (

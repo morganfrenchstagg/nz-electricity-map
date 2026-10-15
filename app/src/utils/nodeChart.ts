@@ -25,12 +25,14 @@ interface NodeChartOptions {
   legend?: boolean
   yAxis: Highcharts.YAxisOptions
   tooltipFormatter: Highcharts.TooltipFormatterCallbackFunction
+  // The chart's name and description for screen readers (see timeChartAccessibility)
+  accessibility: Pick<Highcharts.Options, 'lang' | 'accessibility'>
 }
 
 // The chart GeneratorPanel and SubstationPanel share: a series per code, and a
 // line at each midnight of the dispatch data, around each panel's own axis,
 // tooltip and extra series.
-export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, type, stacking, labelFor, colourFor, transformValue = identity, extraSeries = [], legend = false, yAxis, tooltipFormatter }: NodeChartOptions): Highcharts.Options {
+export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, type, stacking, labelFor, colourFor, transformValue = identity, extraSeries = [], legend = false, yAxis, tooltipFormatter, accessibility }: NodeChartOptions): Highcharts.Options {
   const isAggregate = aggregatePeriod !== null
   // Aggregate totals: stacked areas become stacked columns (which already stack
   // negative values separately, so no 'neg' stack), and lines get markers.
@@ -73,6 +75,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
       className: columns ? 'aggregate-columns' : undefined, // see index.css
     },
     title: { text: undefined },
+    ...accessibility,
     credits: { enabled: false },
     legend: { enabled: legend, itemStyle: { fontWeight: 'normal' } },
     xAxis: {

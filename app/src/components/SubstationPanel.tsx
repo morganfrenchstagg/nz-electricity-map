@@ -3,7 +3,7 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { busLabel, chartReach, isGeneratorCode, substationCodes, tooltipTime, unitOfCode } from '../utils/chart'
+import { busLabel, chartReach, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { fuelColour, voltageColour } from '../utils/colours'
@@ -180,8 +180,14 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         }
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
+      accessibility: timeChartAccessibility(
+        `${substation.description} Substation load`,
+        hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus',
+        aggregatePeriod,
+        unit,
+      ),
     })
-  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, isAggregate, aggregatePeriod])
+  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, isAggregate, aggregatePeriod, substation, hasGenerators])
 
   // Series buttons: the generators toggle and Total lead, then a button per bus and generator
   const showUnitSelector = allCodes.length > 1

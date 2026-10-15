@@ -1,6 +1,7 @@
 import Highcharts from 'highcharts'
 import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
+import type { DisplayUnit } from './format'
 import { nzLocalMs } from './time'
 
 export interface ChartRow {
@@ -160,6 +161,39 @@ export function tooltipTime(ms: number, period: AggregatePeriod | null): string 
     case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
     default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
   }
+}
+
+// Screen reader options for a chart (Highcharts' accessibility module, loaded
+// in main.tsx). The charts have no titles of their own, their panels' headers
+// naming them instead, so without `title` every one would be read out as "Chart".
+export function chartAccessibility(title: string, accessibility: Highcharts.AccessibilityOptions): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
+  return { lang: { accessibility: { defaultChartTitle: title } }, accessibility }
+}
+
+// How often a chart over time has a point: every 5 minutes of dispatch data,
+// or the day, week or month each of an aggregate view's totals covers
+function everyInterval(period: AggregatePeriod | null): string {
+  switch (period) {
+    case 'daily': return 'each day'
+    case 'weekly': return 'each week'
+    case 'monthly': return 'each month'
+    default: return 'every 5 minutes'
+  }
+}
+
+// Screen reader options for a chart over time whose values are in `unit`.
+// `description` says what's charted, and is followed by the unit and how often.
+// Each point is read out with the time its tooltip is headed with, rather than
+// Highcharts' own US-style date, and its value in the unit.
+export function timeChartAccessibility(title: string, description: string, period: AggregatePeriod | null, unit: DisplayUnit): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
+  return chartAccessibility(title, {
+    description: `${description}, in ${unit.label} ${everyInterval(period)}.`,
+    // An aggregate view's points are all at midnight, so its range needs no time
+    screenReaderSection: { axisRangeDateFormat: period ? '%e %b %Y' : '%e %b %Y %I:%M %p' },
+    point: {
+      descriptionFormatter: (point) => `${tooltipTime(point.x, period)}, ${unit.format(point.y ?? 0)}. ${point.series.name}.`,
+    },
+  })
 }
 
 // Months run 28–31 days, but Highcharts gives every column the width of the
