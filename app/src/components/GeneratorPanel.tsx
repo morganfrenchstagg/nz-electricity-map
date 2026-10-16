@@ -8,7 +8,7 @@ import type { OutageRecord } from '../api'
 import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
 import type { OutageSegment } from '../utils/outages'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { chartReach, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
+import { chartReach, dataInterval, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT } from '../utils/format'
@@ -273,6 +273,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         stacked ? 'Generation from each unit, stacked' : 'Generation',
         aggregatePeriod,
         unit,
+        dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
   }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod])

@@ -8,7 +8,7 @@ import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, dataInterval, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -186,6 +186,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         'Generation from each fuel, stacked',
         aggregatePeriod,
         unit,
+        dataInterval(data.data.map(row => row[0] as string)),
       ),
       credits: { enabled: false },
       legend: { enabled: false },

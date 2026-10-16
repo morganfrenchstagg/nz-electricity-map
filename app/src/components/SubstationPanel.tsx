@@ -3,7 +3,7 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { busLabel, chartReach, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
+import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { fuelColour, voltageColour } from '../utils/colours'
@@ -185,6 +185,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus',
         aggregatePeriod,
         unit,
+        dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
   }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, isAggregate, aggregatePeriod, substation, hasGenerators])
