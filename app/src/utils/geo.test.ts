@@ -4,8 +4,9 @@ import { nzLocalMs } from './time'
 import type { Generator, Unit } from '../types'
 import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
 
+// In service since EMI's register began, unless given other dates
 const unit = (node: string, capacity: number, extra: Partial<Unit> = {}): Unit =>
-  ({ name: node, unitCode: node.split(' ')[1], node, capacity, fuel: 'Wind', fuelCode: 'WIN', ...extra })
+  ({ name: node, unitCode: node.split(' ')[1], node, capacity, fuel: 'Wind', fuelCode: 'WIN', commissioned: '1899-12-31T12:30:00.000Z', ...extra })
 
 const generator = (site: string, units: Unit[]): Generator => ({
   site, name: site, units, location: { lat: -40, long: 175 }, gridZone: '1', island: 'NI', operator: 'Operator',
@@ -31,6 +32,12 @@ describe('generatorsToGeoJson', () => {
 
   it('leaves off generators not yet in service', () => {
     expect(sites(generatorsToGeoJson([KWD], day('2023-08-09')))).toEqual([])
+  })
+
+  it('leaves out units still being commissioned, which have no commissioning date yet', () => {
+    const RUK = generator('RUK', [unit('BRB0331 RUK0', 100), unit('BRB0331 RUS0', 130, { commissioned: undefined })])
+    const KWK = generator('KWK', [unit('MPE1101 KWK0', 77, { commissioned: undefined })])
+    expect(sites(generatorsToGeoJson([RUK, KWK], day('2026-10-13')))).toEqual([['RUK', 100]])
   })
 })
 

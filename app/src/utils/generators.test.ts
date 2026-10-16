@@ -80,9 +80,12 @@ describe('inServiceAt', () => {
     expect(inServiceAt(served(), nz('2025-09-05T19:30:00'))).toBe(false)
   })
 
-  it('is in service from the start without a commissioning date, and on without a decommissioning date', () => {
-    expect(inServiceAt(served({ commissioned: undefined }), nz('1990-01-01T00:00:00'))).toBe(true)
+  it('stays in service without a decommissioning date', () => {
     expect(inServiceAt(served({ decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(true)
+  })
+
+  it("isn't in service without a commissioning date, as it's still being commissioned", () => {
+    expect(inServiceAt(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(false)
   })
 
   it("is in service since EMI's register began for plant that predates it", () => {
@@ -98,6 +101,10 @@ describe('inServiceDuring', () => {
     expect(inServiceDuring(served(), day('2021-07-21'))).toBe(true)
     expect(inServiceDuring(served(), day('2025-09-05'))).toBe(true)
     expect(inServiceDuring(served(), day('2025-09-06'))).toBe(false)
+  })
+
+  it("isn't in service in any period while it's still being commissioned", () => {
+    expect(inServiceDuring(served({ commissioned: undefined, decomissioned: undefined }), day('2026-10-13'))).toBe(false)
   })
 })
 
@@ -120,16 +127,22 @@ describe('serviceChangesBetween', () => {
     expect(changes).toEqual([nz('2021-07-21T14:00:00'), nz('2025-09-05T19:30:00')])
   })
 
-  it('leaves out changes outside the window, and units always in service', () => {
+  it('leaves out changes outside the window, and units still being commissioned', () => {
     expect(serviceChangesBetween([served()], nz('2022-01-01T00:00:00'), nz('2023-01-01T00:00:00'))).toEqual([])
-    expect(serviceChangesBetween([unit('ATI2201 ATI0', 'Ātiamuri')], nz('2022-01-01T00:00:00'), nz('2023-01-01T00:00:00'))).toEqual([])
+    expect(serviceChangesBetween([served({ commissioned: undefined, decomissioned: undefined })], nz('2022-01-01T00:00:00'), nz('2030-01-01T00:00:00'))).toEqual([])
   })
 })
 
 describe('isRetired', () => {
-  it('is retired once none of its units are in service', () => {
+  it('is retired once all of its units are decommissioned', () => {
     const g = generator('TUR', [served(), served({ node: 'LTN2201 TUR1', decomissioned: '2025-09-06T00:00:00.000Z' })])
     expect(isRetired(g, nz('2025-09-05T20:00:00'))).toBe(false)
     expect(isRetired(g, nz('2025-09-07T00:00:00'))).toBe(true)
+  })
+
+  it("isn't retired while a unit is still being commissioned", () => {
+    const commissioning = served({ node: 'LTN2201 TUR1', commissioned: undefined, decomissioned: undefined })
+    expect(isRetired(generator('TUR', [commissioning]), nz('2026-10-13T00:00:00'))).toBe(false)
+    expect(isRetired(generator('TUR', [served(), commissioning]), nz('2026-10-13T00:00:00'))).toBe(false)
   })
 })

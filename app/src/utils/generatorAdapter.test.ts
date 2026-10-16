@@ -12,8 +12,9 @@ const FUEL_CODES: Record<string, string> = {
   Hydro: 'HYD', Wind: 'WIN', Solar: 'SOL', 'Battery (Discharging)': 'BESS', 'Battery (Charging)': 'BESS-C',
 }
 
+// In service since EMI's register began, as most units are, unless given other dates
 function unit(node: string, name: string, fuel: string, capacity: number, extra: Partial<Unit> = {}): Unit {
-  return { node, name, unitCode: node.split(' ')[1], capacity, fuel, fuelCode: FUEL_CODES[fuel], ...extra }
+  return { node, name, unitCode: node.split(' ')[1], capacity, fuel, fuelCode: FUEL_CODES[fuel], commissioned: '1899-12-31T12:30:00.000Z', ...extra }
 }
 
 function generator(site: string, name: string, units: Unit[], extra: Partial<Generator> = {}): Generator {
@@ -227,6 +228,16 @@ describe('createGeneratorAdapter', () => {
     expect(stepPoints(series)).toEqual([[ms('12:00'), 41], [ms('14:00'), 31], [ms('16:00'), 31]])
     // And reaches as high as the units in service ever were
     expect(createGeneratorAdapter(PTA, {}, day('2026-06-25')).yAxisOptions(PTA_UNITS, afternoon).softMax).toBe(42)
+  })
+
+  it("leaves out a unit still being commissioned, which has no commissioning date yet", () => {
+    const RUK = generator('RUK', 'Ruakākā', [
+      unit('BRB0331 RUK0', 'Battery', 'Battery (Discharging)', 100),
+      unit('BRB0331 RUS0', 'Solar', 'Solar', 130, { commissioned: undefined }),
+    ])
+    const adapter = createGeneratorAdapter(RUK, null)
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0', 'BRB0331 RUS0']))).toEqual(['BRB0331 RUK0'])
+    expect(adapter.capacityMW(new Set(['BRB0331 RUK0', 'BRB0331 RUS0']))).toBe(100)
   })
 
   it("names a generator's fuels for a day before it was in service", () => {

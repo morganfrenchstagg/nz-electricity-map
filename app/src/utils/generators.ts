@@ -22,9 +22,9 @@ function instantMs(iso: string): number {
 // A unit is in service from its commissioning through its decommissioning, the
 // last instant it was (as when a unit moves node, e.g. Pātea's old nodes end at
 // 1:59:59.999pm as its new ones start at 2pm). One not yet given a commissioning
-// date (still being commissioned) counts from the start.
+// date is still being commissioned, so isn't in service yet.
 function serviceStart(unit: Unit): number {
-  return unit.commissioned ? instantMs(unit.commissioned) : -Infinity
+  return unit.commissioned ? instantMs(unit.commissioned) : Infinity
 }
 
 function serviceEnd(unit: Unit): number {
@@ -52,9 +52,10 @@ export function serviceChangesBetween(units: Unit[], from: number, to: number): 
     .filter((ms) => ms > from && ms <= to)
 }
 
-// A generator is retired once none of its units are in service
+// A generator is retired once all of its units are decommissioned. One whose units
+// are still being commissioned isn't.
 export function isRetired(g: Generator, atMs = nzNowMs()): boolean {
-  return !g.units.some((u) => inServiceAt(u, atMs))
+  return g.units.every((u) => isDecommissioned(u, atMs))
 }
 
 export function isCharging(unit: Unit): boolean {
