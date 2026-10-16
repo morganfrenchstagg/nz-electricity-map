@@ -1,5 +1,6 @@
 import type { Generator, RecentData, Substation } from './types'
 import { nzLocalMs, nzNowMs } from './utils/time'
+import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 
 // Every API request belongs here. Freshness follows each response's max-age, so
 // this cache agrees with the browser's HTTP cache instead of keeping its own
@@ -46,6 +47,8 @@ export const TRANSMISSION_LINES_URL = `${API_BASE}/transmission-lines`
 interface CacheOptions<T> {
   notFound?: T
   freshFor?: (value: T) => number
+  // In place of fetching `path`, e.g. to fetch only what's new since the value held
+  load?: (held: T | undefined) => Promise<{ value: T; maxAgeMs: number }>
 }
 
 interface CacheEntry {
@@ -64,13 +67,13 @@ async function getJson<T>(path: string, notFound?: T): Promise<{ value: T; maxAg
   return { value: await res.json() as T, maxAgeMs: maxAge ? Number(maxAge[1]) * 1000 : 0 }
 }
 
-function cachedJson<T>(path: string, { notFound, freshFor }: CacheOptions<T> = {}): Promise<T> {
+function cachedJson<T>(path: string, { notFound, freshFor, load }: CacheOptions<T> = {}): Promise<T> {
   const hit = cache.get(path)
   if (hit && Date.now() < hit.expires) return hit.promise as Promise<T>
   const entry: CacheEntry = {
     value: hit?.value,
     expires: Infinity, // so callers share the request while it's in flight
-    promise: getJson(path, notFound).then(
+    promise: (load ? load(hit?.value as T | undefined) : getJson(path, notFound)).then(
       ({ value, maxAgeMs }) => {
         entry.value = value
         entry.expires = Date.now() + (freshFor ? freshFor(value) : maxAgeMs)
@@ -108,9 +111,20 @@ export function peekDefinitions(): DefinitionsResponse | undefined {
   return lastJson('definitions')
 }
 
+// Once the recent intervals are held, only the ones after the newest are
+// fetched, rather than all 3 days again. If the nodes have changed it's all
+// fetched again, as the held rows' columns no longer line up (see appendRecent).
+async function loadRecentDispatch(held: RecentData | undefined): Promise<{ value: RecentData; maxAgeMs: number }> {
+  const since = held && newestTimestamp(held)
+  if (!held || !since) return getJson('dispatch/recent')
+  const added = await getJson<RecentData>(`dispatch/recent?since=${encodeURIComponent(since)}`)
+  const value = appendRecent(held, added.value)
+  return value ? { ...added, value } : getJson('dispatch/recent')
+}
+
 // `day` is a "YYYY-MM-DD" date, or 'recent' for the rolling latest window.
 export function fetchDispatch(day: string): Promise<RecentData> {
-  return cachedJson(`dispatch/${day}`, day === 'recent' ? { freshFor: untilNextDispatch } : {})
+  return cachedJson(`dispatch/${day}`, day === 'recent' ? { freshFor: untilNextDispatch, load: loadRecentDispatch } : {})
 }
 
 export function peekDispatch(day: string): RecentData | undefined {
