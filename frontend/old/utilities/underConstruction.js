@@ -1,50 +1,5 @@
 export const underConstruction = [
     {
-        "name": "Kaiwera Downs",
-        "locationDescription": "Stage 2",
-        "site": "KWD",
-        "fuel": "Wind",
-        "operator": "Mercury",
-        "status": "Commissioning",
-        "costMillionDollars": 486,
-        "capacityMW": 155,
-        "yearlyGenerationGWh": 525,
-        "openBy": "2026-03-30",
-        "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/kaiwera-downs-wind-farm"
-    },
-    {
-        "name": "Kōwhai Park",
-        "locationDescription": "Phase 1",
-        "site": "",
-        "substation": "Norwood",
-        "fuel": "Solar",
-        "operator": "Contact Energy / Lightsource bp",
-        "status": "Commissioning",
-        "costMillionDollars": 273,
-        "capacityMW": 150,
-        "capacityMWp": 168,
-        "yearlyGenerationGWh": 275,
-        "openBy": "2026-07-30",
-        "location": {
-            "lat": -43.49277380784132, //todo - refine this down further
-            "long": 172.50953626586775
-        },
-        "link": "https://www.christchurchairport.co.nz/about-us/sustainability/kowhai-park/"
-    },
-    {
-        "name": "Huntly",
-        "locationDescription": "BESS Stage 1",
-        "site": "HLY",
-        "fuel": "Battery",
-        "operator": "Genesis Energy",
-        "status": "Commissioning",
-        "costMillionDollars": 150,
-        "capacityMW": 100,
-        "capacityMWh": 200,
-        "openBy": "2026-07-30",
-        "link": "https://api.nzx.com/public/announcement/436601/attachment/425263/436601-425263.pdf"
-    },
-    {
         "name": "Huntly",
         "locationDescription": "BESS Stage 2",
         "site": "HLY",
@@ -87,22 +42,6 @@ export const underConstruction = [
         },
     },
     {
-        "name": "Tauhei",
-        "site": "TAH",
-        "fuel": "Solar",
-        "operator": "Harmoney Energy / First Renewables",
-        "status": "Commissioning",
-        "capacityMW": 150,
-        "capacityMWp": 202,
-        "yearlyGenerationGWh": 280,
-        "openBy": "2026-06-30",
-        "link": "https://www.nzherald.co.nz/business/companies/energy/harmony-clarus-to-build-nzs-biggest-solar-farm/WT6NL3WI3ZG6XBUAOXBNHWYUPY/",
-        "location": {
-            "lat": -37.58021852639933,
-            "long": 175.71220320550398
-        }
-    },
-    {
         "name": "Ruakākā",
         "locationDescription": "Solar Farm",
         "site": "RUK",
@@ -118,22 +57,6 @@ export const underConstruction = [
             "lat": -35.847508029631044,
             "long": 174.47769233992352
         },
-    },
-    {
-        "name": "Clandeboye",
-        "site": "CLB",
-        "fuel": "Solar",
-        "operator": "Lodestone Energy",
-        "status": "Commissioning",
-        "capacityMW": 24,
-        "capacityMWp": 27.7,
-        "yearlyGenerationGWh": 43,
-        "openBy": "2026-07-30",
-        "location": {
-            "lat": -44.19057439138792,
-            "long": 171.40868907547915
-        },
-        "link": "https://lodestoneenergy.co.nz/canterbury-solar-farm-project-underway/"
     },
     {
         "name": "Te Rāhui",
@@ -277,23 +200,10 @@ export const underConstruction = [
         "link": "https://www.meridianenergy.co.nz/new-projects/te-rere-hau"
     },
     {
-        "name": "Foxton",
-        "fuel": "Solar",
-        "operator": "Aquila Clean Energy APAC",
-        "status": "Early Works",
-        "capacityMWp": 40,
-        "openBy": "2028-12-31",
-        "location": {
-            "lat": -40.45942811335417,
-            "long": 175.27174409437094
-        },
-        "link": "https://foxtonsolarfarm.co.nz/"
-    },
-    {
         "name": "Central Hawke's Bay",
         "fuel": "Solar",
         "operator": "Lodestone Energy / Centralines",
-        "status": "Early Works",
+        "status": "Committed",
         "capacityMWp": 31.5,
         "yearlyGenerationGWh": 49,
         "openBy": "2027-03-31",
@@ -332,6 +242,6 @@ export const underConstruction = [
             "lat": -43.701070880796095,
             "long": 172.28348218402581
         },
-        "link": "https://www.genesisenergy.co.nz/about/news/genesis-gives-green-light-to-125-million-leeston-solar-farm" 
+        "link": "https://www.genesisenergy.co.nz/about/news/genesis-gives-green-light-to-125-million-leeston-solar-farm"
     }
 ]
