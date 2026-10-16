@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Generator, Substation, SelectedNode } from '../types'
-import { fuelColour, fuelFamily, FUEL_CODE_ORDER } from '../utils/colours'
+import { fuelColour, fuelFamilies, fuelFamily } from '../utils/colours'
 import { isRetired } from '../utils/generators'
 import FilterDropdown from './FilterDropdown'
 
@@ -57,20 +57,10 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     })
   }
 
-  const availableFuels = useMemo(() => {
-    const fuels = new Set(generators.flatMap(g => g.units.map(u => fuelFamily(u.fuel))))
-    return (FUEL_CODE_ORDER as readonly string[])
-      .map(code => {
-        // Map fuel codes to the display names used in the generator list
-        const codeToName: Record<string, string> = {
-          HYD: 'Hydro', WIN: 'Wind', GEO: 'Geothermal', SOL: 'Solar',
-          GAS: 'Gas', CLG: 'Coal/Gas', DIE: 'Diesel', BESS: 'Battery', 'BESS-C': 'Battery',
-        }
-        return codeToName[code] ?? null
-      })
-      .filter((name): name is string => name !== null && fuels.has(name))
-      .filter((name, i, arr) => arr.indexOf(name) === i) // dedupe Battery
-  }, [generators])
+  const availableFuels = useMemo(
+    () => fuelFamilies(generators.flatMap(g => g.units.map(u => u.fuel))).map(f => f.label),
+    [generators],
+  )
 
   const toggleFuel = (fuel: string) => {
     setSelectedFuels(prev => {
