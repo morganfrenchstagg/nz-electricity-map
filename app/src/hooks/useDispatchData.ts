@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { fetchDispatch, peekDispatch } from '../api'
+import { AGGREGATE_PERIODS, aggregateWindow } from './useAggregates'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import type { Period } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
@@ -35,9 +36,10 @@ export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kin
 const RECENT_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
-// The span of time a view's dispatch data covers, to show the units in service then.
-// The 30d, 1y and All views map live data, so they're for now; their charts show
-// every unit's history regardless (see GeneratorAdapter.getCodes).
+// The span of time a view's data covers, to show the units in service then. The
+// 30d, 1y and All views cover their charts' days through to now, as the map shows
+// live data under them, so it has every generator they chart, retired ones too.
+// Their charts show every unit's history regardless (see GeneratorAdapter.getCodes).
 export function periodOf(mode: DateMode): Period {
   const now = nzNowMs()
   const dayStart = (date: string) => nzLocalMs(`${date}T00:00:00`)
@@ -46,7 +48,7 @@ export function periodOf(mode: DateMode): Period {
     case 'today': return { from: dayStart(todayNZ()), to: now }
     case 'date': return { from: dayStart(mode.date), to: dayStart(mode.date) + DAY_MS - 1 }
     case 'range': return { from: dayStart(mode.from), to: dayStart(mode.to) + DAY_MS - 1 }
-    default: return { from: now, to: now }
+    default: return { from: dayStart(aggregateWindow(AGGREGATE_PERIODS[mode.kind]!).from), to: now }
   }
 }
 

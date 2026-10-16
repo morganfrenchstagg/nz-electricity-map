@@ -219,7 +219,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                         </span>
                         <span style={{ flex: 1 }}>
                           {g.name}
-                          {/* Retired generators aren't on the map, but their history can still be charted */}
+                          {/* Retired generators are only on the map for views back to when they ran, but their history can still be charted */}
                           {isRetired(g) && (
                             <span style={{ marginLeft: 6, fontSize: 'var(--font-size-2xs)', padding: '0 var(--space-sm)', borderRadius: 3, border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontWeight: 600, verticalAlign: 'middle' }}>
                               Retired
