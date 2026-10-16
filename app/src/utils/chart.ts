@@ -55,20 +55,65 @@ export function busLabel(code: string, siteCodes: string[]): string {
   return shared ? `${kv}kV – ${code.slice(-1)}` : `${kv}kV`
 }
 
-const GAP_MS = 20 * 60 * 1000
+const MINUTE_MS = 60 * 1000
+const HOUR_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * HOUR_MS
+// Dispatch data has a point every 5 minutes, but days before 11 September 2020
+// are metered generation, with a point every half-hour trading period
+const DISPATCH_INTERVAL_MS = 5 * MINUTE_MS
+const TRADING_PERIOD_MS = 30 * MINUTE_MS
+// A step of more than this many of the data's intervals is a gap in it: over
+// 20 minutes of dispatch data, or 2 hours of trading periods
+const GAP_INTERVALS = 4
 
-export function withGaps(points: [number, number | null][]): [number, number | null][] {
-  const result: [number, number | null][] = []
-  for (let i = 0; i < points.length; i++) {
-    if (i > 0 && points[i][0] - points[i - 1][0] > GAP_MS) {
-      result.push([points[i - 1][0] + 1, null])
+// How often each day of `times` has a point: its shortest step between points,
+// which missing points don't lengthen. Keyed by the day (days since 1970, in
+// the "local time as UTC" convention), so half-hourly and 5-minute days in the
+// same range each keep their own.
+function intervalsByDay(times: number[]): Map<number, number> {
+  const intervals = new Map<number, number>()
+  for (let i = 1; i < times.length; i++) {
+    const day = Math.floor(times[i] / DAY_MS)
+    const step = times[i] - times[i - 1]
+    if (step > 0 && Math.floor(times[i - 1] / DAY_MS) === day) {
+      intervals.set(day, Math.min(step, intervals.get(day) ?? Infinity))
     }
-    result.push(points[i])
   }
-  return result
+  return intervals
 }
 
-const HOUR_MS = 60 * 60 * 1000
+// How often a run of dispatch timestamps has a point: the shortest of its days'
+// intervals, or 5 minutes when no day has two points to tell by
+export function dataInterval(times: string[]): number {
+  const intervals = [...intervalsByDay(times.map(nzLocalMs)).values()]
+  return intervals.length > 0 ? Math.min(...intervals) : DISPATCH_INTERVAL_MS
+}
+
+// Whether the step to each of `times` from the one before it is a gap in the
+// data: more than GAP_INTERVALS of the longer interval of the days either side,
+// so a range running from half-hourly days into 5-minute ones isn't broken
+// where it changes over
+function gapsBefore(times: number[]): boolean[] {
+  const intervals = intervalsByDay(times)
+  const intervalOn = (ms: number) => intervals.get(Math.floor(ms / DAY_MS)) ?? 0
+  return times.map((ms, i) => {
+    if (i === 0) return false
+    const interval = Math.max(intervalOn(times[i - 1]), intervalOn(ms)) || DISPATCH_INTERVAL_MS
+    return ms - times[i - 1] > GAP_INTERVALS * interval
+  })
+}
+
+// Breaks a line at each gap in its data (see gapsBefore), with a null just
+// after the point before the gap
+export function withGaps(points: [number, number | null][]): [number, number | null][] {
+  const gaps = gapsBefore(points.map(([ms]) => ms))
+  const result: [number, number | null][] = []
+  points.forEach((point, i) => {
+    if (gaps[i]) result.push([points[i - 1][0] + 1, null])
+    result.push(point)
+  })
+  return result
+}
 
 // The MWh `codes` generated over `rows`. Dispatch rows are MW, integrated over
 // time with the trapezoidal rule. Gaps that withGaps breaks the line at are
@@ -79,10 +124,12 @@ export function totalMWh(rows: ChartRow[], codes: string[], aggregate: boolean):
   if (codes.length === 0 || rows.length < (aggregate ? 1 : 2)) return null
   const rowTotal = (row: ChartRow) => codes.reduce((sum, code) => sum + ((row[code] as number) ?? 0), 0)
   if (aggregate) return rows.reduce((total, row) => total + rowTotal(row), 0)
+  const times = rows.map((row) => nzLocalMs(row.time))
+  const gaps = gapsBefore(times)
   let total = 0
   for (let i = 1; i < rows.length; i++) {
-    const dtMs = nzLocalMs(rows[i].time) - nzLocalMs(rows[i - 1].time)
-    if (dtMs <= 0 || dtMs > GAP_MS) continue
+    const dtMs = times[i] - times[i - 1]
+    if (dtMs <= 0 || gaps[i]) continue
     total += ((rowTotal(rows[i - 1]) + rowTotal(rows[i])) / 2) * (dtMs / HOUR_MS)
   }
   return total
@@ -170,14 +217,15 @@ export function chartAccessibility(title: string, accessibility: Highcharts.Acce
   return { lang: { accessibility: { defaultChartTitle: title } }, accessibility }
 }
 
-// How often a chart over time has a point: every 5 minutes of dispatch data,
-// or the day, week or month each of an aggregate view's totals covers
-function everyInterval(period: AggregatePeriod | null): string {
+// How often a chart over time has a point: every 5 minutes or half hour of
+// dispatch data (its `intervalMs`, see dataInterval), or the day, week or month
+// each of an aggregate view's totals covers
+function everyInterval(period: AggregatePeriod | null, intervalMs: number): string {
   switch (period) {
     case 'daily': return 'each day'
     case 'weekly': return 'each week'
     case 'monthly': return 'each month'
-    default: return 'every 5 minutes'
+    default: return intervalMs >= TRADING_PERIOD_MS ? 'every half hour' : 'every 5 minutes'
   }
 }
 
@@ -185,9 +233,9 @@ function everyInterval(period: AggregatePeriod | null): string {
 // `description` says what's charted, and is followed by the unit and how often.
 // Each point is read out with the time its tooltip is headed with, rather than
 // Highcharts' own US-style date, and its value in the unit.
-export function timeChartAccessibility(title: string, description: string, period: AggregatePeriod | null, unit: DisplayUnit): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
+export function timeChartAccessibility(title: string, description: string, period: AggregatePeriod | null, unit: DisplayUnit, intervalMs = DISPATCH_INTERVAL_MS): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
   return chartAccessibility(title, {
-    description: `${description}, in ${unit.label} ${everyInterval(period)}.`,
+    description: `${description}, in ${unit.label} ${everyInterval(period, intervalMs)}.`,
     // An aggregate view's points are all at midnight, so its range needs no time
     screenReaderSection: { axisRangeDateFormat: period ? '%e %b %Y' : '%e %b %Y %I:%M %p' },
     point: {
