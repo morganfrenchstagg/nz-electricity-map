@@ -4,7 +4,7 @@ import { underConstruction } from '../../../frontend/old/utilities/underConstruc
 import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
-import { inServiceDuring, isCharging, isCommissioning, shortUnitName, unitNotes } from '../utils/generators'
+import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
@@ -57,6 +57,8 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
 // `period` is what the map shows (see periodOf): its units, and their outages at its end.
 // The `live` views (Today and 3d) also list units still being commissioned once they're
 // dispatching, shown as though in full outage so they don't count towards capacity.
+// Units retired by its end are listed without capacity, except those that moved node
+// (as Pātea's did), which are only listed at the node they moved to.
 export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean): string {
   const lastRow = data?.data[data.data.length - 1]
   const atMs = period.to
@@ -65,12 +67,15 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
     return (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
   }
   const commissioning = (u: Unit) => live && isCommissioning(u, atMs) && genOf(u) !== null
+  const retired = (u: Unit) => isDecommissioned(u, atMs)
+  const movedOn = (u: Unit) => retired(u) && generator.units.some(s => s.unitCode === u.unitCode && inServiceAt(s, atMs))
   const activeUnits: PopupUnit[] = generator.units
-    .filter(u => inServiceDuring(u, period) || commissioning(u))
+    .filter(u => (inServiceDuring(u, period) && !movedOn(u)) || commissioning(u))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(u => commissioning(u)
       ? { ...u, outageMW: Math.abs(installedCapacityOf(u)), available: 0 }
-      : { ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) })
+      : retired(u) ? { ...u, capacity: 0, outageMW: 0, available: 0 }
+        : { ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) })
   // A battery's charging unit goes by its discharging unit's name, and shares its row:
   // one bar out from zero in the middle, charging to the left and discharging to the right
   const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)
@@ -97,7 +102,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
       : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(capUnit.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
         : formatMW(available)
     const isGenerating = (genMW ?? 0) !== 0
-    const notes = unitNotes(u)
+    const notes = [unitNotes(u), retired(u) && 'retired'].filter(Boolean).join(', ')
     const label = !notes ? name
       : name ? `${name} <span style="color:var(--color-text-muted)">(${notes})</span>`
         : `<span style="color:var(--color-text-muted)">${notes[0].toUpperCase()}${notes.slice(1)}</span>`

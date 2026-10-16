@@ -135,9 +135,9 @@ describe('periodOf', () => {
     expect(periodOf({ kind: 'range', from: '2025-09-01', to: '2025-09-05' })).toEqual({ from: nzLocalMs('2025-09-01T00:00:00'), to: nzLocalMs('2025-09-06T00:00:00') - 1 })
   })
 
-  it('is now for the aggregate views, as the map shows live data under them', () => {
-    for (const kind of ['last30', 'lastYear', 'all'] as const) {
-      expect(periodOf({ kind })).toEqual({ from: now(), to: now() })
-    }
+  it("covers the aggregate views' charts through to now, as the map shows live data under them", () => {
+    expect(periodOf({ kind: 'last30' })).toEqual({ from: nzLocalMs('2026-09-13T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'lastYear' })).toEqual({ from: nzLocalMs('2025-10-13T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'all' })).toEqual({ from: nzLocalMs('2020-10-01T00:00:00'), to: now() })
   })
 })
