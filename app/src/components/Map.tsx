@@ -3,6 +3,8 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
+import { isLiveMode, periodOf } from '../hooks/useDispatchData'
+import type { DateMode } from '../hooks/useDispatchData'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
 import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
@@ -34,12 +36,13 @@ interface Props {
   leftPanelOpen: boolean
   panelWidth: number
   recentData: RecentData | null
-  // Whether Today or 3d is open, so outages are kept up to date (see useOutages)
-  live: boolean
+  // The generators in service during it are on the map, and Today and 3d keep
+  // outages up to date (see useOutages)
+  dateMode: DateMode
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, live, isMobile = false }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, dateMode, isMobile = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
@@ -57,11 +60,14 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
   useEffect(() => { panelWidthRef.current = panelWidth }, [panelWidth])
   const isMobileRef = useRef(isMobile)
   useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
+  // Ahead of recentData's, so a popup refreshed for a new day's data shows that day's units
+  const dateModeRef = useRef(dateMode)
+  useEffect(() => { dateModeRef.current = dateMode }, [dateMode])
   useEffect(() => {
     recentDataRef.current = recentData
     refreshHoverRef.current()
   }, [recentData])
-  const outages = useOutages(live)
+  const outages = useOutages(isLiveMode(dateMode))
   const outagesRef = useRef<OutageData | null>(outages)
   useEffect(() => {
     outagesRef.current = outages
@@ -223,7 +229,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current) : null
+          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current)) : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
@@ -267,20 +273,20 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     if (!map || generators.length === 0) return
     const update = () => {
       const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
-      src?.setData(generatorsToGeoJson(generators))
+      src?.setData(generatorsToGeoJson(generators, periodOf(dateMode)))
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
-  }, [generators])
+  }, [generators, dateMode])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
       const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
-      src?.setData(underConstructionToGeoJson(underConstruction, generators))
+      src?.setData(underConstructionToGeoJson(underConstruction, generators, periodOf(dateMode)))
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
-  }, [generators])
+  }, [generators, dateMode])
 
   useEffect(() => {
     const map = mapRef.current

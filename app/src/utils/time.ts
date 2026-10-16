@@ -19,6 +19,12 @@ export function nzNowMs(): number {
   return nzWallClockMs(Date.now())
 }
 
+// A span of time, both ends included, in the same convention
+export interface Period {
+  from: number
+  to: number
+}
+
 // Today's NZ date, as "YYYY-MM-DD"
 export function todayNZ(): string {
   return new Date(nzNowMs()).toISOString().slice(0, 10)

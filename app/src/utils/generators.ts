@@ -1,9 +1,60 @@
 import type { Generator, Unit } from '../types'
 import { CHARGING_FUEL_CODE } from './colours'
+import { nzNowMs, nzWallClockMs } from './time'
+import type { Period } from './time'
 
-// A generator is retired once all of its units are
-export function isRetired(g: Generator): boolean {
-  return !g.units.some((u) => u.active !== false)
+// Commissioning dates are real instants (e.g. "2021-07-21T02:00:00.000Z"), put in the
+// "local time as UTC" convention (see utils/time.ts) to compare with dispatch times.
+// The same few dozen dates come up on every render, so each is converted once.
+const instants = new Map<string, number>()
+function instantMs(iso: string): number {
+  let ms = instants.get(iso)
+  if (ms === undefined) {
+    const instant = Date.parse(iso)
+    // nzWallClockMs goes by the second, so the milliseconds go back on (an end at 1:59:59.999pm
+    // must stay before a start at 2pm)
+    ms = nzWallClockMs(instant) + ((instant % 1000) + 1000) % 1000
+    instants.set(iso, ms)
+  }
+  return ms
+}
+
+// A unit is in service from its commissioning through its decommissioning, the
+// last instant it was (as when a unit moves node, e.g. Pātea's old nodes end at
+// 1:59:59.999pm as its new ones start at 2pm). One not yet given a commissioning
+// date (still being commissioned) counts from the start.
+function serviceStart(unit: Unit): number {
+  return unit.commissioned ? instantMs(unit.commissioned) : -Infinity
+}
+
+function serviceEnd(unit: Unit): number {
+  return unit.decomissioned ? instantMs(unit.decomissioned) : Infinity
+}
+
+export function inServiceAt(unit: Unit, atMs: number): boolean {
+  return serviceStart(unit) <= atMs && atMs <= serviceEnd(unit)
+}
+
+// In service at any point in the period, so it has dispatch data to show there
+export function inServiceDuring(unit: Unit, period: Period): boolean {
+  return serviceStart(unit) <= period.to && period.from <= serviceEnd(unit)
+}
+
+export function isDecommissioned(unit: Unit, atMs = nzNowMs()): boolean {
+  return serviceEnd(unit) < atMs
+}
+
+// Where any of the units come into or go out of service between `from` and `to`,
+// stepping their total capacity
+export function serviceChangesBetween(units: Unit[], from: number, to: number): number[] {
+  return units
+    .flatMap((u) => [serviceStart(u), serviceEnd(u) + 1])
+    .filter((ms) => ms > from && ms <= to)
+}
+
+// A generator is retired once none of its units are in service
+export function isRetired(g: Generator, atMs = nzNowMs()): boolean {
+  return !g.units.some((u) => inServiceAt(u, atMs))
 }
 
 export function isCharging(unit: Unit): boolean {

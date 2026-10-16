@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentData } from '../types'
-import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS } from './useDispatchData'
+import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS, periodOf } from './useDispatchData'
+import { nzLocalMs } from '../utils/time'
 
 describe('datesBetween', () => {
   it('includes both ends', () => {
@@ -112,5 +113,31 @@ describe('mergeData', () => {
     const merged = mergeData([{ ...day1, pricing: [] }, { ...day2, pricing: [] }])
     expect(merged.data).toHaveLength(2)
     expect(merged.pricing).toEqual([])
+  })
+})
+
+describe('periodOf', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime('2026-10-13T01:30:00Z') // 2:30pm NZDT
+  })
+  afterEach(() => { vi.useRealTimers() })
+
+  const now = () => nzLocalMs('2026-10-13T14:30:00')
+
+  it('covers the last three days for 3d, and since midnight for Today', () => {
+    expect(periodOf({ kind: 'recent' })).toEqual({ from: nzLocalMs('2026-10-10T14:30:00'), to: now() })
+    expect(periodOf({ kind: 'today' })).toEqual({ from: nzLocalMs('2026-10-13T00:00:00'), to: now() })
+  })
+
+  it('covers the whole of a picked day or range, in NZ time', () => {
+    expect(periodOf({ kind: 'date', date: '2025-09-05' })).toEqual({ from: nzLocalMs('2025-09-05T00:00:00'), to: nzLocalMs('2025-09-06T00:00:00') - 1 })
+    expect(periodOf({ kind: 'range', from: '2025-09-01', to: '2025-09-05' })).toEqual({ from: nzLocalMs('2025-09-01T00:00:00'), to: nzLocalMs('2025-09-06T00:00:00') - 1 })
+  })
+
+  it('is now for the aggregate views, as the map shows live data under them', () => {
+    for (const kind of ['last30', 'lastYear', 'all'] as const) {
+      expect(periodOf({ kind })).toEqual({ from: now(), to: now() })
+    }
   })
 })

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import type Highcharts from 'highcharts'
 import type { GeneratorNode, Unit } from '../types'
-import { isAggregateMode, isLiveMode } from '../hooks/useDispatchData'
+import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
@@ -58,11 +58,12 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
+  // The period is read as the adapter's made, so live views' capacity keeps up with the outages polled
   const adapter = useMemo(
     () => node.kind === 'generator'
-      ? createGeneratorAdapter(node.generator, outages)
-      : createMultiGeneratorAdapter(node.generators, outages),
-    [node, outages],
+      ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode))
+      : createMultiGeneratorAdapter(node.generators, outages, periodOf(dateMode)),
+    [node, outages, dateMode],
   )
 
   const { aggregatePeriod, isAggregate, allCodes, chartData, loading: dataLoading, error: dataError } = useNodeData({
@@ -70,6 +71,13 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes,
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
+  // The units counted towards capacity and outages. The data leaves out units that
+  // didn't dispatch, so they aren't charted or picked out, but while every unit
+  // charted is shown, they're counted too (the adapter keeps to those in service).
+  const capacityCodes = useMemo(
+    () => effectiveCodes.size === allCodes.length ? new Set(adapter.queryNodes) : effectiveCodes,
+    [effectiveCodes, allCodes, adapter],
+  )
   const [outageModalOpen, setOutageModalOpen] = useState(false)
 
   const offerDate = viewMode === 'offers'
@@ -110,11 +118,11 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const nodeKey = node.kind === 'generator' ? node.generator.site : node.generators.map(g => g.site).join(',')
 
-  const capacity = adapter.capacityMW(effectiveCodes)
-  const normalCapacity = adapter.normalCapacityMW(effectiveCodes)
+  const capacity = adapter.capacityMW(capacityCodes)
+  const normalCapacity = adapter.normalCapacityMW(capacityCodes)
   const totalOutageMW = useMemo(
-    () => [...effectiveCodes].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0),
-    [effectiveCodes, adapter],
+    () => [...capacityCodes].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0),
+    [capacityCodes, adapter],
   )
 
   const findUnit = useCallback((code: string) => {
@@ -131,12 +139,12 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     if (!outages) return []
     const nowMs = nzNowMs()
     const result: { code: string; unit: Unit; segments: OutageSegment[] }[] = []
-    for (const code of effectiveCodes) {
+    for (const code of capacityCodes) {
       const unit = findUnit(code)
       if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], nowMs, maxOutageMWOf(unit)) })
     }
     return result
-  }, [outages, effectiveCodes, findUnit])
+  }, [outages, capacityCodes, findUnit])
 
   // The soonest any current outage starts to ease, rather than the soonest any
   // record ends: a record that hasn't started yet, or overlaps another on the
@@ -173,14 +181,14 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     if (!outages) return []
     const nowMs = nzNowMs()
     const prefixes = new Set<string>()
-    for (const code of effectiveCodes) {
+    for (const code of capacityCodes) {
       for (const rec of (outages[code] ?? [])) {
         if (outageMs(rec.timeEnd) <= nowMs) continue
         prefixes.add(rec.outageBlock.split('_')[0])
       }
     }
     return [...prefixes]
-  }, [outages, effectiveCodes])
+  }, [outages, capacityCodes])
 
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
@@ -205,7 +213,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
-    const capSeries = isAggregate ? null : adapter.capacitySeries(chartData.rows, effectiveCodes)
+    const capSeries = isAggregate ? null : adapter.capacitySeries(chartData.rows, capacityCodes)
 
     // Step-left lookup: capacity at a given timestamp from the step-line data
     const capPoints = capSeries
@@ -243,7 +251,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       legend: adapter.showLegend,
       yAxis: isAggregate
         ? { title: { text: unit.label }, softMin: 0, gridLineDashStyle: 'Dash' }
-        : adapter.yAxisOptions(effectiveCodes, chartData.rows),
+        : adapter.yAxisOptions(capacityCodes, chartData.rows),
       tooltipFormatter: function () {
         const points = this.points ?? []
         const formatValue = unit.format
@@ -267,7 +275,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         unit,
       ),
     })
-  }, [chartData, effectiveCodes, adapter, recentData, isAggregate, aggregatePeriod])
+  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod])
 
   // A button per unit, when there's more than one
   const unitButtons = allCodes.length < 2 ? [] : allCodes.map((code) => (

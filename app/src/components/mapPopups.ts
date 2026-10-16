@@ -4,9 +4,9 @@ import { underConstruction } from '../../../frontend/old/utilities/underConstruc
 import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
-import { isCharging, shortUnitName } from '../utils/generators'
+import { inServiceDuring, isCharging, shortUnitName } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
-import { nzNowMs } from '../utils/time'
+import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, Unit } from '../types'
 
@@ -54,17 +54,18 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
   </div>`
 }
 
-export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null): string {
+// `period` is what the map shows (see periodOf): its units, and their outages at its end
+export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period): string {
   const lastRow = data?.data[data.data.length - 1]
-  const nowMs = nzNowMs()
+  const atMs = period.to
   const genOf = (u: Unit): number | null => {
     const idx = data ? data.series.indexOf(u.node) : -1
     return (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
   }
   const activeUnits: PopupUnit[] = generator.units
-    .filter(u => u.active !== false)
+    .filter(u => inServiceDuring(u, period))
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(u => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, nowMs) : 0, available: unitCapacityAt(u, outages, nowMs) }))
+    .map(u => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) }))
   // A battery's charging unit goes by its discharging unit's name, and shares its row:
   // one bar out from zero in the middle, charging to the left and discharging to the right
   const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)

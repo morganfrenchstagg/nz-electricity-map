@@ -4,7 +4,7 @@ import GeneratorPanel from './components/GeneratorPanel'
 import SubstationPanel from './components/SubstationPanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { Generator, Substation } from './types'
-import { isLiveMode, useDispatchData } from './hooks/useDispatchData'
+import { useDispatchData } from './hooks/useDispatchData'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
@@ -83,7 +83,7 @@ export default function App() {
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} live={isLiveMode(dateMode)} isMobile={isMobile} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
       {selectedNode && (selectedNode.kind === 'substation'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
         : <GeneratorPanel
