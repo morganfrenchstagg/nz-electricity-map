@@ -1,4 +1,10 @@
+import { lazy, Suspense, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
+
+const InfoModal = lazy(() => import('./InfoModal'))
+
+// Narrowest panel with room for the grid panel's title beside "About this site", Expand and Close
+const SHORT_ABOUT_BELOW_PX = 440
 
 // What App passes each panel for the frame it sits in
 export interface PanelProps {
@@ -21,13 +27,19 @@ interface Props extends PanelProps {
 }
 
 // The resizable side panel that GeneratorPanel, SubstationPanel and
-// GridOverviewPanel fill: a header ending in the buttons to expand it over the
-// map or close it, then whatever the panel puts below.
+// GridOverviewPanel fill: a header ending in the buttons to open About this site,
+// expand the panel over the map or close it, then whatever the panel puts below.
 export default function Panel({ header, headerRef, visible = true, children, onClose, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
+  const [infoOpen, setInfoOpen] = useState(false)
+
   return (
     <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>
       <div ref={headerRef} className="section section--header" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         {header}
+        {/* Shortened on mobile or a narrow panel, where the full label would cover the end of the grid panel's title */}
+        <button onClick={() => setInfoOpen(true)} className="button-secondary" style={isMobile ? { padding: 'var(--space-sm) var(--space-lg)' } : undefined} aria-label="About this site">
+          {isMobile || (!expanded && panelWidth < SHORT_ABOUT_BELOW_PX) ? 'About' : 'About this site'}
+        </button>
         {/* On mobile the panel is always expanded (see App), so closing it is the way back to the map */}
         {isMobile ? (
           <button onClick={onClose} className="button-secondary" style={{ padding: 'var(--space-sm) var(--space-lg)' }} aria-label="Show map">
@@ -46,6 +58,9 @@ export default function Panel({ header, headerRef, visible = true, children, onC
           </>
         )}
       </div>
+      <Suspense fallback={null}>
+        {infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}
+      </Suspense>
       {children}
       {!expanded && !isMobile && (
         <div

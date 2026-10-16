@@ -272,6 +272,33 @@ body {
   cursor: pointer;
 }
 
+/* A headed block of InfoModal's text */
+.info-section {
+  line-height: 1.5;
+}
+
+.info-section + .info-section {
+  margin-top: var(--space-xl);
+}
+
+.info-section h2 {
+  margin: 0 0 var(--space-xs);
+}
+
+.info-section :where(p, ul) {
+  margin: 0 0 var(--space-md);
+}
+
+.info-section ul {
+  padding-left: var(--space-xl);
+}
+
+/* Wrap the map's attribution, once opened from its ⓘ button, beside the panel
+   (Map sets --map-panel-inset) rather than running it underneath */
+.maplibregl-ctrl-bottom-right {
+  max-width: calc(100% - var(--map-panel-inset, 0px));
+}
+
 /* The map's Street / Satellite switch: a larger ToggleGroup */
 .toggle-group--map {
   border-color: var(--color-border-strong);
