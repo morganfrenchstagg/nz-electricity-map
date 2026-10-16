@@ -1,11 +1,11 @@
 import { useState, useMemo, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { periodOf } from '../hooks/useDispatchData'
+import { isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode, Unit } from '../types'
-import { inServiceAt, inServiceDuring } from '../utils/generators'
+import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
@@ -59,6 +59,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
     const period = periodOf(dateMode)
+    const live = isLiveMode(dateMode)
     const fuelToIndices = new Map<string, number[]>()
     const fuelToUnits = new Map<string, Unit[]>()
     for (const gen of generators) {
@@ -68,8 +69,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         // Capacity counts every unit in service, including those that didn't dispatch,
         // which the data leaves out
         if (inPeriod) fuelToUnits.set(unit.fuelCode, [...(fuelToUnits.get(unit.fuelCode) ?? []), unit])
-        // The aggregate views include retired units' history
-        if (!inPeriod && !isAggregate) continue
+        // The live views also chart units still being commissioned once they're dispatching,
+        // though they don't count towards capacity, and the aggregate views include retired units' history
+        if (!inPeriod && !(live && isCommissioning(unit, period.to)) && !isAggregate) continue
         const idx = data.series.indexOf(unit.node)
         if (idx === -1) continue
         const existing = fuelToIndices.get(unit.fuelCode) ?? []

@@ -68,6 +68,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     refreshHoverRef.current()
   }, [recentData])
   const outages = useOutages(isLiveMode(dateMode))
+  // The nodes dispatching in the live views, where units still being commissioned are shown once they are
+  const dispatching = useMemo(
+    () => isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined,
+    [dateMode, recentData],
+  )
   const outagesRef = useRef<OutageData | null>(outages)
   useEffect(() => {
     outagesRef.current = outages
@@ -229,7 +234,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current)) : null
+          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current)) : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
@@ -273,20 +278,20 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     if (!map || generators.length === 0) return
     const update = () => {
       const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
-      src?.setData(generatorsToGeoJson(generators, periodOf(dateMode)))
+      src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
-  }, [generators, dateMode])
+  }, [generators, dateMode, dispatching])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
       const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
-      src?.setData(underConstructionToGeoJson(underConstruction, generators, periodOf(dateMode)))
+      src?.setData(underConstructionToGeoJson(underConstruction, generators, periodOf(dateMode), dispatching))
     }
     map.isStyleLoaded() ? update() : map.once('load', update)
-  }, [generators, dateMode])
+  }, [generators, dateMode, dispatching])
 
   useEffect(() => {
     const map = mapRef.current

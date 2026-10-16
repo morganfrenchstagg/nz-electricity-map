@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { inServiceAt, inServiceDuring, isDecommissioned, isRetired, serviceChangesBetween, shortUnitName, unitsByNode } from './generators'
+import { inServiceAt, inServiceDuring, isCommissioning, isDecommissioned, isRetired, serviceChangesBetween, shortUnitName, unitLabel, unitsByNode } from './generators'
 import { nzLocalMs } from './time'
 import type { Generator, Unit } from '../types'
 
@@ -144,5 +144,22 @@ describe('isRetired', () => {
     const commissioning = served({ node: 'LTN2201 TUR1', commissioned: undefined, decomissioned: undefined })
     expect(isRetired(generator('TUR', [commissioning]), nz('2026-10-13T00:00:00'))).toBe(false)
     expect(isRetired(generator('TUR', [served(), commissioning]), nz('2026-10-13T00:00:00'))).toBe(false)
+  })
+})
+
+describe('isCommissioning', () => {
+  it("is commissioning without a commissioning date, or before it's due", () => {
+    expect(isCommissioning(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(true)
+    expect(isCommissioning(served(), nz('2021-07-21T13:59:59'))).toBe(true)
+    expect(isCommissioning(served(), nz('2021-07-21T14:00:00'))).toBe(false)
+  })
+})
+
+describe('unitLabel', () => {
+  it('marks a unit still being commissioned, and a charging unit', () => {
+    const commissioning = served({ name: 'Solar', commissioned: undefined, decomissioned: undefined })
+    expect(unitLabel(commissioning)).toBe('Solar (commissioning)')
+    expect(unitLabel({ ...commissioning, fuelCode: 'BESS-C' })).toBe('Solar (charging, commissioning)')
+    expect(unitLabel(served({ name: 'Turitea', decomissioned: undefined }))).toBe('Turitea')
   })
 })

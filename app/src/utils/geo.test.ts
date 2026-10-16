@@ -39,6 +39,12 @@ describe('generatorsToGeoJson', () => {
     const KWK = generator('KWK', [unit('MPE1101 KWK0', 77, { commissioned: undefined })])
     expect(sites(generatorsToGeoJson([RUK, KWK], day('2026-10-13')))).toEqual([['RUK', 100]])
   })
+
+  it("maps a generator still being commissioned once it's dispatching in the live views, without its capacity", () => {
+    const KWK = generator('KWK', [unit('MPE1101 KWK0', 77, { commissioned: undefined })])
+    expect(sites(generatorsToGeoJson([KWK], day('2026-10-13'), new Set(['MPE1101 KWK0'])))).toEqual([['KWK', 0]])
+    expect(sites(generatorsToGeoJson([KWK], day('2026-10-13'), new Set()))).toEqual([])
+  })
 })
 
 describe('underConstructionToGeoJson', () => {

@@ -5,7 +5,7 @@ import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamilies, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
-import { inServiceAt, inServiceDuring, isCharging, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
+import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
 import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 import type { Period } from './time'
@@ -103,8 +103,9 @@ function capacityLabel(units: Unit[]): string {
 export interface GeneratorAdapter {
   title: string
   subtitle: string
-  // Dispatch data charts the units in service during the view's period; the
-  // aggregate views pass includeRetired to chart every unit's history.
+  // Dispatch data charts the units in service during the view's period (and in the
+  // live views, any still being commissioned that are dispatching); the aggregate
+  // views pass includeRetired to chart every unit's history.
   getCodes(recent: RecentData, includeRetired?: boolean): string[]
   labelFor(code: string): string
   colourFor(code: string): string
@@ -125,10 +126,12 @@ export interface GeneratorAdapter {
 
 // `period` is the view's (see periodOf), in the same "local time as UTC" convention
 // used by outageMs, so comparisons with outage timestamps are consistent. Capacity
-// is read at its end, beside the latest dispatch.
-export function createGeneratorAdapter(generator: Generator, outages: OutageData | null, period = nowPeriod()): GeneratorAdapter {
+// is read at its end, beside the latest dispatch. `live` views (Today and 3d) also
+// chart units still being commissioned once they're dispatching, without their capacity.
+export function createGeneratorAdapter(generator: Generator, outages: OutageData | null, period = nowPeriod(), live = false): GeneratorAdapter {
   const at = period.to
   const activeUnits = generator.units.filter((u) => inServiceDuring(u, period))
+  const shownUnits = live ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at)) : activeUnits
   const movedNodes = movedNodesOf(generator.units)
   // Moved units are charted under their current node only
   const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
@@ -141,7 +144,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     subtitle: generator.operator + (generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''),
 
     getCodes(recent, includeRetired = false) {
-      return (includeRetired ? historyUnits : activeUnits)
+      return (includeRetired ? historyUnits : shownUnits)
         .slice()
         .sort((a, b) => {
           const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
@@ -273,11 +276,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   }
 }
 
-export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null, period = nowPeriod()): GeneratorAdapter {
+export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null, period = nowPeriod(), live = false): GeneratorAdapter {
   const at = period.to
 
   const allUnits = generators.flatMap(g => g.units)
   const allActiveUnits = allUnits.filter(u => inServiceDuring(u, period))
+  const allShownUnits = live ? allUnits.filter(u => allActiveUnits.includes(u) || isCommissioning(u, at)) : allActiveUnits
   const movedNodes = Object.assign({}, ...generators.map(g => movedNodesOf(g.units))) as Record<string, string>
 
   const genNameFor = (code: string) => {
@@ -302,7 +306,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 
     getCodes(recent, includeRetired = false) {
       // Moved units are charted under their current node only
-      return (includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allActiveUnits)
+      return (includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allShownUnits)
         .filter(u => recent.series.includes(u.node))
         .sort((a, b) => {
           const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)

@@ -61,8 +61,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // The period is read as the adapter's made, so live views' capacity keeps up with the outages polled
   const adapter = useMemo(
     () => node.kind === 'generator'
-      ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode))
-      : createMultiGeneratorAdapter(node.generators, outages, periodOf(dateMode)),
+      ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode), isLiveMode(dateMode))
+      : createMultiGeneratorAdapter(node.generators, outages, periodOf(dateMode), isLiveMode(dateMode)),
     [node, outages, dateMode],
   )
 

@@ -44,6 +44,12 @@ export function isDecommissioned(unit: Unit, atMs = nzNowMs()): boolean {
   return serviceEnd(unit) < atMs
 }
 
+// Not in service yet: still being commissioned, or due to be. The live views show
+// one once it's dispatching, though it doesn't count towards capacity until it's in service.
+export function isCommissioning(unit: Unit, atMs = nzNowMs()): boolean {
+  return atMs < serviceStart(unit)
+}
+
 // Where any of the units come into or go out of service between `from` and `to`,
 // stepping their total capacity
 export function serviceChangesBetween(units: Unit[], from: number, to: number): number[] {
@@ -62,9 +68,15 @@ export function isCharging(unit: Unit): boolean {
   return unit.fuelCode === CHARGING_FUEL_CODE
 }
 
-// A battery's charging unit is marked to tell it apart from its discharging one
+// What a unit's name is marked with: a battery's charging unit, to tell it apart
+// from its discharging one, and a unit still being commissioned
+export function unitNotes(unit: Unit): string {
+  return [isCharging(unit) && 'charging', isCommissioning(unit) && 'commissioning'].filter(Boolean).join(', ')
+}
+
 export function unitLabel(unit: Unit): string {
-  return isCharging(unit) ? `${unit.name} (charging)` : unit.name
+  const notes = unitNotes(unit)
+  return notes ? `${unit.name} (${notes})` : unit.name
 }
 
 // A unit's name without its generator's leading it ("Huntly Unit 5" is "Unit 5"),

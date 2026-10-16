@@ -240,6 +240,25 @@ describe('createGeneratorAdapter', () => {
     expect(adapter.capacityMW(new Set(['BRB0331 RUK0', 'BRB0331 RUS0']))).toBe(100)
   })
 
+  it("charts a unit still being commissioned once it's dispatching in the live views, without its capacity", () => {
+    const RUK = generator('RUK', 'Ruakākā', [
+      unit('BRB0331 RUK0', 'Battery', 'Battery (Discharging)', 100),
+      unit('BRB0331 RUS0', 'Solar', 'Solar', 130, { commissioned: undefined }),
+    ])
+    const units = new Set(['BRB0331 RUK0', 'BRB0331 RUS0'])
+    const adapter = createGeneratorAdapter(RUK, {}, undefined, true)
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0', 'BRB0331 RUS0']))).toEqual(['BRB0331 RUK0', 'BRB0331 RUS0'])
+    expect(adapter.labelFor('BRB0331 RUS0')).toBe('Solar (commissioning)')
+    expect(adapter.capacityMW(units)).toBe(100)
+    expect(adapter.normalCapacityMW(units)).toBe(100)
+    expect(stepPoints(adapter.capacitySeries(rows('14:00', '18:00'), units))).toEqual([[at('14:00'), 100], [at('18:00'), 100]])
+    // Not until it's dispatching
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0']))).toEqual(['BRB0331 RUK0'])
+    // Nor together with other generators outside the live views
+    expect(createMultiGeneratorAdapter([RUK, TAP], null).getCodes(dataFor(['BRB0331 RUS0', 'WDV1101 TAP0']))).toEqual(['WDV1101 TAP0'])
+    expect(createMultiGeneratorAdapter([RUK, TAP], null, undefined, true).getCodes(dataFor(['BRB0331 RUS0', 'WDV1101 TAP0']))).toEqual(['BRB0331 RUS0', 'WDV1101 TAP0'])
+  })
+
   it("names a generator's fuels for a day before it was in service", () => {
     expect(createGeneratorAdapter(PTA, null, day('1990-01-01')).subtitleFuels).toEqual([{ label: 'Hydro', colour: fuelColour('Hydro') }])
   })
