@@ -9,6 +9,7 @@ import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '
 import { unitsByNode } from '../utils/generators'
 import { generatorPopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
 import { TRANSMISSION_LINES_URL } from '../api'
+import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
@@ -87,7 +88,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       style: STYLE_URL,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
+      attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION_HTML },
     })
+    // Compact attribution starts open until the map is first dragged; start on just its ⓘ button
+    map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
@@ -100,7 +104,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         type: 'raster',
         tiles: [LINZ_AERIAL_URL],
         tileSize: 256,
-        attribution: '© <a href="https://www.linz.govt.nz/crown-property/crown-copyright">LINZ CC BY 4.0</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+        // Credited in DATA_ATTRIBUTION_HTML, so it shows in either map style
       })
       map.addLayer({
         id: 'linz-aerial-layer',
@@ -338,14 +342,17 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     map.isStyleLoaded() ? set() : map.once('load', set)
   }, [showAerial])
 
+  // How much of the map's left side the panel covers
+  const panelInset = (!isMobile && leftPanelOpen) ? panelWidth : 0
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100vh', '--map-panel-inset': `${panelInset}px` } as React.CSSProperties}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       <div
         role="group"
         aria-label="Map style"
         className="toggle-group toggle-group--map"
-        style={{ position: 'absolute', top: 10, left: (!isMobile && leftPanelOpen) ? panelWidth + 10 : 10, zIndex: 10 }}
+        style={{ position: 'absolute', top: 10, left: panelInset + 10, zIndex: 10 }}
       >
         {(['street', 'aerial'] as const).map((mode) => (
           <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>

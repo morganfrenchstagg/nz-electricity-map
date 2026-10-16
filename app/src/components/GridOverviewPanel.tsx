@@ -245,11 +245,12 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     }
   }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod, island])
 
-  // The pipeline button wraps under the title when there isn't room beside it
+  // The pipeline button wraps under the title when there isn't room beside it,
+  // and on the narrowest panels the title is cut short to keep the picker's ▾ in view
   const header = (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="title" style={{ whiteSpace: 'nowrap' }}>NZ Grid Generation</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>NZ Grid Generation</span>
         <button
           onClick={() => setPickerOpen(true)}
           style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
