@@ -6,13 +6,15 @@ import type { ChartRow } from './chart'
 import { fuelColour } from './colours'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from './generatorAdapter'
 import { nzLocalMs } from './time'
+import type { Period } from './time'
 
 const FUEL_CODES: Record<string, string> = {
   Hydro: 'HYD', Wind: 'WIN', Solar: 'SOL', 'Battery (Discharging)': 'BESS', 'Battery (Charging)': 'BESS-C',
 }
 
+// In service since EMI's register began, as most units are, unless given other dates
 function unit(node: string, name: string, fuel: string, capacity: number, extra: Partial<Unit> = {}): Unit {
-  return { node, name, unitCode: node.split(' ')[1], capacity, fuel, fuelCode: FUEL_CODES[fuel], ...extra }
+  return { node, name, unitCode: node.split(' ')[1], capacity, fuel, fuelCode: FUEL_CODES[fuel], commissioned: '1899-12-31T12:30:00.000Z', ...extra }
 }
 
 function generator(site: string, name: string, units: Unit[], extra: Partial<Generator> = {}): Generator {
@@ -39,12 +41,20 @@ const HYB = generator('HYB', 'Hybrid', [
   unit('HYB0331 HYB1', 'Battery', 'Battery (Discharging)', 10),
   unit('HYB0331 HYB2', 'Battery', 'Battery (Charging)', -10),
 ])
-// The first unit moved substation; the second retired outright
+// The first unit moved substation at 2pm on 25 June 2026 (NZST); the second retired outright then
+const MOVED_AT = '2026-06-25T02:00:00.000Z'
 const PTA = generator('PTA', 'Pātea', [
-  unit('HWA1101 PTA0', 'Pātea', 'Hydro', 31, { active: false }),
-  unit('HWA1101 PTA1', 'Pātea 2', 'Hydro', 10, { active: false }),
-  unit('OHA0331 PTA0', 'Pātea', 'Hydro', 31),
+  unit('HWA1101 PTA0', 'Pātea', 'Hydro', 31, { decomissioned: '2026-06-25T01:59:59.999Z' }),
+  unit('HWA1101 PTA1', 'Pātea 2', 'Hydro', 10, { decomissioned: '2026-06-25T01:59:59.999Z' }),
+  unit('OHA0331 PTA0', 'Pātea', 'Hydro', 31, { commissioned: MOVED_AT }),
 ])
+const PTA_UNITS = new Set(PTA.units.map((u) => u.node))
+
+// A day in NZ, as periodOf has it for a picked date
+function day(date: string): Period {
+  const from = nzLocalMs(`${date}T00:00:00`)
+  return { from, to: from + 24 * 60 * 60 * 1000 - 1 }
+}
 
 // An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
 function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
@@ -175,7 +185,7 @@ describe('createGeneratorAdapter', () => {
     ])
   })
 
-  it('charts the active units that have data, by fuel then name', () => {
+  it('charts the units in service that have data, by fuel then name', () => {
     const adapter = createGeneratorAdapter(ATI, null)
     expect(adapter.getCodes(dataFor(['ATI2201 ATI1', 'WKM2201 WKM0', 'ATI2201 ATI0']))).toEqual(['ATI2201 ATI0', 'ATI2201 ATI1'])
     expect(adapter.getCodes(dataFor(['ATI2201 ATI1']))).toEqual(['ATI2201 ATI1'])
@@ -188,6 +198,69 @@ describe('createGeneratorAdapter', () => {
     expect(adapter.queryNodes).toEqual(['HWA1101 PTA0', 'HWA1101 PTA1', 'OHA0331 PTA0'])
     expect(adapter.getCodes(data)).toEqual(['OHA0331 PTA0'])
     expect(adapter.getCodes(data, true)).toEqual(['OHA0331 PTA0', 'HWA1101 PTA1'])
+  })
+
+  it('charts the units in service at any time in its period', () => {
+    const data = dataFor(['HWA1101 PTA0', 'HWA1101 PTA1', 'OHA0331 PTA0'])
+    expect(createGeneratorAdapter(PTA, null, day('2026-06-24')).getCodes(data)).toEqual(['HWA1101 PTA0', 'HWA1101 PTA1'])
+    // The day it moved, it has both nodes' data
+    expect(createGeneratorAdapter(PTA, null, day('2026-06-25')).getCodes(data)).toEqual(['HWA1101 PTA0', 'OHA0331 PTA0', 'HWA1101 PTA1'])
+    expect(createGeneratorAdapter(PTA, null, day('2026-06-26')).getCodes(data)).toEqual(['OHA0331 PTA0'])
+  })
+
+  it('counts the capacity of the units in service at the end of its period', () => {
+    expect(createGeneratorAdapter(PTA, null, day('2026-06-24')).capacityMW(PTA_UNITS)).toBe(41)
+    const movingDay = createGeneratorAdapter(PTA, null, day('2026-06-25'))
+    expect(movingDay.capacityMW(PTA_UNITS)).toBe(31)
+    expect(movingDay.normalCapacityMW(PTA_UNITS)).toBe(31)
+    expect(plotLines(movingDay.yAxisOptions(PTA_UNITS))).toEqual([[31, 'Capacity: 31 MW']])
+  })
+
+  it('counts no outage on a unit out of service', () => {
+    const outages = { 'HWA1101 PTA0': [{ outageBlock: 'PTA_1', timeStart: '2026-06-25T00:00:00+12:00', timeEnd: '2026-06-27T00:00:00+12:00', mwattLost: 31 }] }
+    expect(createGeneratorAdapter(PTA, outages, day('2026-06-25')).unitOutageMW('HWA1101 PTA0')).toBe(0)
+  })
+
+  it('steps the capacity line as units come into and go out of service', () => {
+    const afternoon = [{ time: '2026-06-25T12:00:00' }, { time: '2026-06-25T16:00:00' }]
+    const series = createGeneratorAdapter(PTA, {}, day('2026-06-25')).capacitySeries(afternoon, PTA_UNITS)
+    const ms = (time: string) => nzLocalMs(`2026-06-25T${time}:00`)
+    expect(stepPoints(series)).toEqual([[ms('12:00'), 41], [ms('14:00'), 31], [ms('16:00'), 31]])
+    // And reaches as high as the units in service ever were
+    expect(createGeneratorAdapter(PTA, {}, day('2026-06-25')).yAxisOptions(PTA_UNITS, afternoon).softMax).toBe(42)
+  })
+
+  it("leaves out a unit still being commissioned, which has no commissioning date yet", () => {
+    const RUK = generator('RUK', 'Ruakākā', [
+      unit('BRB0331 RUK0', 'Battery', 'Battery (Discharging)', 100),
+      unit('BRB0331 RUS0', 'Solar', 'Solar', 130, { commissioned: undefined }),
+    ])
+    const adapter = createGeneratorAdapter(RUK, null)
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0', 'BRB0331 RUS0']))).toEqual(['BRB0331 RUK0'])
+    expect(adapter.capacityMW(new Set(['BRB0331 RUK0', 'BRB0331 RUS0']))).toBe(100)
+  })
+
+  it("charts a unit still being commissioned once it's dispatching in the live views, without its capacity", () => {
+    const RUK = generator('RUK', 'Ruakākā', [
+      unit('BRB0331 RUK0', 'Battery', 'Battery (Discharging)', 100),
+      unit('BRB0331 RUS0', 'Solar', 'Solar', 130, { commissioned: undefined }),
+    ])
+    const units = new Set(['BRB0331 RUK0', 'BRB0331 RUS0'])
+    const adapter = createGeneratorAdapter(RUK, {}, undefined, true)
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0', 'BRB0331 RUS0']))).toEqual(['BRB0331 RUK0', 'BRB0331 RUS0'])
+    expect(adapter.labelFor('BRB0331 RUS0')).toBe('Solar (commissioning)')
+    expect(adapter.capacityMW(units)).toBe(100)
+    expect(adapter.normalCapacityMW(units)).toBe(100)
+    expect(stepPoints(adapter.capacitySeries(rows('14:00', '18:00'), units))).toEqual([[at('14:00'), 100], [at('18:00'), 100]])
+    // Not until it's dispatching
+    expect(adapter.getCodes(dataFor(['BRB0331 RUK0']))).toEqual(['BRB0331 RUK0'])
+    // Nor together with other generators outside the live views
+    expect(createMultiGeneratorAdapter([RUK, TAP], null).getCodes(dataFor(['BRB0331 RUS0', 'WDV1101 TAP0']))).toEqual(['WDV1101 TAP0'])
+    expect(createMultiGeneratorAdapter([RUK, TAP], null, undefined, true).getCodes(dataFor(['BRB0331 RUS0', 'WDV1101 TAP0']))).toEqual(['BRB0331 RUS0', 'WDV1101 TAP0'])
+  })
+
+  it("names a generator's fuels for a day before it was in service", () => {
+    expect(createGeneratorAdapter(PTA, null, day('1990-01-01')).subtitleFuels).toEqual([{ label: 'Hydro', colour: fuelColour('Hydro') }])
   })
 
   it("labels units by name, marking a battery's charging", () => {
@@ -283,7 +356,7 @@ describe('createMultiGeneratorAdapter', () => {
     expect(adapter.labelFor('XYZ2201 XYZ0')).toBe('XYZ2201 XYZ0')
   })
 
-  it("charts every generator's active units together, by fuel then name", () => {
+  it("charts every generator's units in service together, by fuel then name", () => {
     const adapter = createMultiGeneratorAdapter([ATI, TAP, BAT], null)
     const data = dataFor(['WDV1101 TAP0', 'ATI2201 ATI1', 'BAT0331 BAT1', 'ATI2201 ATI0', 'BAT0331 BAT0'])
     // A battery's charging sorts last, after every generating fuel

@@ -4,7 +4,8 @@ import { nzLocalMs, nzNowMs } from './utils/time'
 // Every API request belongs here. Freshness follows each response's max-age, so
 // this cache agrees with the browser's HTTP cache instead of keeping its own
 // copy of how long each endpoint lasts.
-const API_BASE = 'https://api.electricitymap.frenchsta.gg/v1'
+// VITE_API_BASE points the app at another API, e.g. a local `wrangler dev` (see README)
+const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000

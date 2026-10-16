@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { fetchDispatch, peekDispatch } from '../api'
-import { todayNZ } from '../utils/time'
+import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
+import type { Period } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
 
 // Cheap: only reaches the network once the cached dispatch/recent expires (see api.ts)
@@ -28,6 +29,25 @@ export function isLiveMode(mode: DateMode): mode is Extract<DateMode, { kind: 'r
 // was when the view was picked.
 export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
   return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
+}
+
+// How much the 3d view's rolling window holds
+const RECENT_DAYS = 3
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// The span of time a view's dispatch data covers, to show the units in service then.
+// The 30d, 1y and All views map live data, so they're for now; their charts show
+// every unit's history regardless (see GeneratorAdapter.getCodes).
+export function periodOf(mode: DateMode): Period {
+  const now = nzNowMs()
+  const dayStart = (date: string) => nzLocalMs(`${date}T00:00:00`)
+  switch (mode.kind) {
+    case 'recent': return { from: now - RECENT_DAYS * DAY_MS, to: now }
+    case 'today': return { from: dayStart(todayNZ()), to: now }
+    case 'date': return { from: dayStart(mode.date), to: dayStart(mode.date) + DAY_MS - 1 }
+    case 'range': return { from: dayStart(mode.from), to: dayStart(mode.to) + DAY_MS - 1 }
+    default: return { from: now, to: now }
+  }
 }
 
 export function datesBetween(from: string, to: string): string[] {

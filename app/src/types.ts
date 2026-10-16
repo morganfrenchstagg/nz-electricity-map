@@ -5,7 +5,9 @@ export interface Unit {
   capacity: number
   fuel: string
   fuelCode: string
-  active?: boolean
+  // When the unit came into and went out of service, as ISO instants (see utils/generators)
+  commissioned?: string
+  decomissioned?: string
   installedCapacity?: number
   outageBlock?: string
 }

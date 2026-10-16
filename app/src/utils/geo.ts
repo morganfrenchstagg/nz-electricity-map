@@ -1,15 +1,21 @@
-import type { Generator, Substation } from '../types'
+import type { Generator, Substation, Unit } from '../types'
 import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
-import { isCharging, isRetired } from './generators'
+import { inServiceDuring, isCharging, isCommissioning } from './generators'
+import type { Period } from './time'
 
-// Retired generators are left off the map
-const isOnMap = (g: Generator) => !isRetired(g)
+// The units shown for the period: those in service during it, and in the live views,
+// any still being commissioned that are among the nodes `dispatching`
+const isShown = (u: Unit, period: Period, dispatching?: Set<string>) =>
+  inServiceDuring(u, period) || (dispatching !== undefined && dispatching.has(u.node) && isCommissioning(u, period.to))
 
-export function generatorsToGeoJson(generators: Generator[]): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = generators.filter(isOnMap).map((g) => {
-    const activeUnits = g.units.filter((u) => u.active !== false)
+const isOnMap = (g: Generator, period: Period, dispatching?: Set<string>) => g.units.some((u) => isShown(u, period, dispatching))
+
+// Only generators with a unit shown are on the map. Their capacity leaves out units still being commissioned.
+export function generatorsToGeoJson(generators: Generator[], period: Period, dispatching?: Set<string>): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = generators.filter((g) => isOnMap(g, period, dispatching)).map((g) => {
+    const activeUnits = g.units.filter((u) => isShown(u, period, dispatching))
     const dominantFuel = activeUnits[0]?.fuel ?? g.units[0]?.fuel ?? 'Unknown'
-    const totalCapacityMW = activeUnits.filter(u => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
+    const totalCapacityMW = activeUnits.filter(u => !isCharging(u) && inServiceDuring(u, period)).reduce((sum, u) => sum + u.capacity, 0)
 
     return {
       type: 'Feature',
@@ -86,9 +92,11 @@ export function ucUnitsForSite(nodes: UnderConstructionNode[], site: string): Un
 export function underConstructionToGeoJson(
   nodes: UnderConstructionNode[],
   generators: Generator[],
+  period: Period,
+  dispatching?: Set<string>,
 ): GeoJSON.FeatureCollection {
   // Nodes whose site matches a generator on the map are shown in the generator tooltip instead
-  const generatorSites = new Set(generators.filter(isOnMap).map(g => g.site))
+  const generatorSites = new Set(generators.filter(g => isOnMap(g, period, dispatching)).map(g => g.site))
 
   // Group nodes by resolved coordinates so co-located units share one feature
   const grouped = new Map<string, { lat: number; long: number; name: string; fuel: string; units: UnderConstructionUnit[] }>()

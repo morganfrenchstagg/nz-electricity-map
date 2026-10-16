@@ -1,9 +1,11 @@
 import { useState, useMemo, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
+import { isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
-import type { RecentData, SelectedNode } from '../types'
+import type { RecentData, SelectedNode, Unit } from '../types'
+import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
@@ -54,28 +56,34 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
-  const { fuels, fuelToIndices, fuelToCapacity } = useMemo(() => {
-    if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToCapacity: new Map<string, number>() }
+  const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
+    if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
+    const period = periodOf(dateMode)
+    const live = isLiveMode(dateMode)
     const fuelToIndices = new Map<string, number[]>()
-    const fuelToCapacity = new Map<string, number>()
+    const fuelToUnits = new Map<string, Unit[]>()
     for (const gen of generators) {
       if (island !== 'all' && gen.island !== island) continue
       for (const unit of gen.units) {
-        // The aggregate views include retired units' history
-        if (unit.active === false && !isAggregate) continue
+        const inPeriod = inServiceDuring(unit, period)
+        // Capacity counts every unit in service, including those that didn't dispatch,
+        // which the data leaves out
+        if (inPeriod) fuelToUnits.set(unit.fuelCode, [...(fuelToUnits.get(unit.fuelCode) ?? []), unit])
+        // The live views also chart units still being commissioned once they're dispatching,
+        // though they don't count towards capacity, and the aggregate views include retired units' history
+        if (!inPeriod && !(live && isCommissioning(unit, period.to)) && !isAggregate) continue
         const idx = data.series.indexOf(unit.node)
         if (idx === -1) continue
         const existing = fuelToIndices.get(unit.fuelCode) ?? []
         fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
-        fuelToCapacity.set(unit.fuelCode, (fuelToCapacity.get(unit.fuelCode) ?? 0) + unit.capacity)
       }
     }
     const fuels = [
       ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
       ...[...fuelToIndices.keys()].filter(f => !(FUEL_CODE_ORDER as readonly string[]).includes(f)),
     ]
-    return { fuels, fuelToIndices, fuelToCapacity }
-  }, [data, generators, island, isAggregate])
+    return { fuels, fuelToIndices, fuelToUnits }
+  }, [data, generators, island, isAggregate, dateMode])
 
   // Memoised so the chart options below don't rebuild on every render
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
@@ -155,12 +163,16 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       })
     }
 
-    // Total installed capacity (MSGC) per fuel, keyed by the series name shown in
-    // the tooltip (fuelCodeLabel) so the shared formatter can look it up per point.
-    const capacityByName = new Map<string, number>()
+    // Each fuel's units, keyed by the series name shown in the tooltip (fuelCodeLabel)
+    // so the shared formatter can look them up per point
+    const unitsByName = new Map<string, Unit[]>()
     for (const fuel of fuels) {
-      capacityByName.set(fuelCodeLabel(fuel), fuelToCapacity.get(fuel) ?? 0)
+      unitsByName.set(fuelCodeLabel(fuel), fuelToUnits.get(fuel) ?? [])
     }
+    // A fuel's total installed capacity (MSGC) at a time: its units in service then
+    const capacityAt = (name: string, ms: number) => (unitsByName.get(name) ?? [])
+      .filter(u => inServiceAt(u, ms))
+      .reduce((sum, u) => sum + u.capacity, 0)
 
     return {
       chart: {
@@ -218,7 +230,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
               const ratioOfTotal = (p.y ?? 0) / total;
               const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
               // No capacity comparison for aggregate totals
-              const cap = capacityByName.get(p.series.name) ?? 0
+              const cap = capacityAt(p.series.name, this.x as number)
               const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
               return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
             })
@@ -242,7 +254,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, fuelToIndices, fuelToCapacity, effectiveFuels, isAggregate, aggregatePeriod, island])
+  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island])
 
   // The pipeline button wraps under the title when there isn't room beside it,
   // and on the narrowest panels the title is cut short to keep the picker's ▾ in view
