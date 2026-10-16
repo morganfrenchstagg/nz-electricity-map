@@ -5,16 +5,18 @@ const DEFAULT_COLOUR = '#ff0000'
 // Single source of truth for fuel identity, display, and colour.
 // fuelNames lists all unit.fuel values that map to this fuel code
 // (used to build FUEL_COLOURS for MapLibre and the generator adapter).
+// renewable marks the fuels counted in the grid's renewable share.
 const FUELS = [
-  { code: 'HYD', label: 'Hydro', colour: 'rgb(69, 130, 180)', fuelNames: ['Hydro'] },
-  { code: 'WIN', label: 'Wind', colour: 'rgb(65, 117, 5)', fuelNames: ['Wind'] },
-  { code: 'GEO', label: 'Geothermal', colour: '#ff0000', fuelNames: ['Geothermal'] },
-  { code: 'SOL', label: 'Solar', colour: 'rgb(254, 213, 0)', fuelNames: ['Solar'] },
-  { code: 'GAS', label: 'Gas', colour: 'rgb(253, 180, 98)', fuelNames: ['Gas'] },
-  { code: 'CLG', label: 'Coal / Gas', colour: 'rgb(139, 87, 42)', fuelNames: ['Coal/Gas'] },
-  { code: 'DIE', label: 'Diesel', colour: 'rgb(135, 72, 0)', fuelNames: ['Diesel'] },
-  { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'] },
-  { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'] },
+  { code: 'HYD', label: 'Hydro', colour: 'rgb(69, 130, 180)', fuelNames: ['Hydro'], renewable: true },
+  { code: 'WIN', label: 'Wind', colour: 'rgb(65, 117, 5)', fuelNames: ['Wind'], renewable: true },
+  { code: 'GEO', label: 'Geothermal', colour: '#ff0000', fuelNames: ['Geothermal'], renewable: true },
+  { code: 'SOL', label: 'Solar', colour: 'rgb(254, 213, 0)', fuelNames: ['Solar'], renewable: true },
+  { code: 'GAS', label: 'Gas', colour: 'rgb(253, 180, 98)', fuelNames: ['Gas'], renewable: false },
+  { code: 'CLG', label: 'Coal / Gas', colour: 'rgb(139, 87, 42)', fuelNames: ['Coal/Gas'], renewable: false },
+  { code: 'DIE', label: 'Diesel', colour: 'rgb(135, 72, 0)', fuelNames: ['Diesel'], renewable: false },
+  { code: 'BIO', label: 'Biomass', colour: '#6a3d9a', fuelNames: ['Biomass'], renewable: true },
+  { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'], renewable: true },
+  { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'], renewable: false },
 ] as const
 
 // A battery's charging is listed as a unit of its own. It draws power rather
@@ -40,8 +42,11 @@ export const FUEL_CODE_COLOURS: Record<string, string> =
 export const FUEL_CODE_LABELS: Record<string, string> =
   Object.fromEntries(FUELS.map(f => [f.code, f.label]))
 
-// Canonical display order for fuel codes (used in GridOverviewPanel and NodePickerModal)
-export const FUEL_CODE_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'GEO', 'BESS-C'] as const
+export const RENEWABLE_FUEL_CODES: ReadonlySet<string> =
+  new Set(FUELS.filter(f => f.renewable).map(f => f.code))
+
+// Canonical display order for fuel codes (used in GridOverviewPanel, and by fuel name via FUEL_NAME_SORT_INDEX)
+export const FUEL_CODE_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'BIO', 'GEO', 'BESS-C'] as const
 
 // Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
 export const FUEL_NAME_SORT_INDEX: Record<string, number> =

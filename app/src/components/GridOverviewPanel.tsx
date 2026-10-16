@@ -5,7 +5,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
@@ -128,7 +128,6 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     })
 
     // Build per-timestamp renewable percentage
-    const RENEWABLE_FUEL_CODES = new Set(['HYD', 'GEO', 'WIN', 'SOL', 'BESS'])
     const renewableIndices = [...fuelToIndices.entries()]
       .filter(([fuel]) => RENEWABLE_FUEL_CODES.has(fuel))
       .flatMap(([, indices]) => indices)
