@@ -6,7 +6,8 @@ export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
 //   ?node=          the open node panel: generator:HLY, generators:HLY,TCC or substation:OTA
-//   ?mode=          today | recent | last30 | lastYear | all, or instead
+//   ?mode=          today | recent | last30 | lastYear | 5y | all, with
+//   ?aggregation=   quarterly for All's quarterly rather than yearly totals, or instead
 //   ?date=          a single day, or
 //   ?from=&to=      a custom range
 //   ?view=offers    the generator panel's Offers view, with
@@ -15,9 +16,9 @@ export type ViewMode = 'generation' | 'offers'
 //   ?expanded=true  the panel is expanded
 //   /pipeline       the pipeline modal is open
 // Any other params the link had (e.g. utm_source) are kept, after these.
-const PARAMS = ['node', 'mode', 'date', 'from', 'to', 'view', 'tp', 'fuels', 'expanded']
+const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', 'expanded']
 
-const PERIOD_MODES = ['today', 'recent', 'last30', 'lastYear', 'all'] as const
+const PERIOD_MODES = ['today', 'recent', 'last30', 'lastYear', '5y', 'all'] as const
 
 interface UrlState {
   node: string | null
@@ -32,7 +33,7 @@ interface UrlState {
 function readUrl(): UrlState {
   const p = new URLSearchParams(window.location.search)
   const from = p.get('from'), to = p.get('to'), date = p.get('date'), mode = p.get('mode')
-  const period = PERIOD_MODES.find(m => m === mode)
+  const period = PERIOD_MODES.find(m => m === mode) ?? 'today'
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)
   const fuels = p.get('fuels')
@@ -40,7 +41,8 @@ function readUrl(): UrlState {
     node: p.get('node'),
     dateMode: from && to ? { kind: 'range', from, to }
       : date ? { kind: 'date', date }
-        : { kind: period ?? 'today' },
+        : period === 'all' ? { kind: 'all', aggregation: p.get('aggregation') === 'quarterly' ? 'quarterly' : 'annual' }
+          : { kind: period },
     viewMode,
     tradingPeriod: viewMode === 'offers' && !isNaN(tp) ? tp : 1,
     activeFuels: fuels ? new Set(fuels.split(',').filter(Boolean)) : null,
@@ -55,7 +57,10 @@ function writeUrl(state: UrlState) {
   const { dateMode } = state
   if (dateMode.kind === 'date') p.set('date', dateMode.date)
   else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
-  else p.set('mode', dateMode.kind)
+  else {
+    p.set('mode', dateMode.kind)
+    if (dateMode.kind === 'all' && dateMode.aggregation === 'quarterly') p.set('aggregation', 'quarterly')
+  }
   if (state.viewMode === 'offers') { p.set('view', 'offers'); p.set('tp', String(state.tradingPeriod)) }
   if (state.activeFuels) p.set('fuels', [...state.activeFuels].join(','))
   if (state.expanded) p.set('expanded', 'true')

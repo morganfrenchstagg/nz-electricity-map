@@ -1,23 +1,32 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { mergeData } from './useDispatchData'
-import type { DateMode } from './useDispatchData'
+import type { AggregateMode, DateMode } from './useDispatchData'
 import { fetchAggregates } from '../api'
 import { nzLocalMs, todayNZ } from '../utils/time'
 
 export const DAILY_RANGE_DAYS = 30
 export const WEEKLY_RANGE_WEEKS = 52
-// Dispatch data starts on 11 September 2020, so the first complete month is October
-const FIRST_COMPLETE_MONTH = '2020-10-01'
+export const MONTHLY_RANGE_MONTHS = 60
+// Metered generation starts on 1 August 1997, so the first complete quarter is
+// October to December, and the first complete year 1998
+export const FIRST_DAY = '1997-08-01'
+const FIRST_COMPLETE_QUARTER = '1997-10-01'
+const FIRST_COMPLETE_YEAR = '1998-01-01'
 const DAY_MS = 86400000
 
-export type AggregatePeriod = 'daily' | 'weekly' | 'monthly'
+export type AggregatePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual'
 
-// The 30d, 1y and All views swap the 5-minute dispatch data for these MWh totals.
-export const AGGREGATE_PERIODS: Partial<Record<DateMode['kind'], AggregatePeriod>> = {
-  last30: 'daily',
-  lastYear: 'weekly',
-  all: 'monthly',
+// The 30d, 1y, 5y and All views swap the 5-minute dispatch data for MWh totals,
+// each covering this period. Null for the views that chart dispatch data.
+export function aggregatePeriodOf(mode: DateMode): AggregatePeriod | null {
+  switch (mode.kind) {
+    case 'last30': return 'daily'
+    case 'lastYear': return 'weekly'
+    case '5y': return 'monthly'
+    case 'all': return mode.aggregation
+    default: return null
+  }
 }
 
 // The midnight starting today in NZ, in the "local time as UTC" convention
@@ -49,13 +58,40 @@ function completeWeekWindow(weeks: number): { from: string; to: string } {
   return { from: isoDate(thisMonday - weeks * 7 * DAY_MS), to: isoDate(thisMonday - 7 * DAY_MS) }
 }
 
-// Every complete NZ month of data, ending last month. Monthly rows
-// are keyed by the 1st of each month.
-function completeMonthWindow(): { from: string; to: string } {
-  const lastMonth = new Date(todayMs())
-  lastMonth.setUTCDate(1)
-  lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1)
-  return { from: FIRST_COMPLETE_MONTH, to: isoDate(lastMonth.getTime()) }
+// The 1st of the NZ month `ago` months before this one
+function monthsAgo(ago: number): string {
+  const d = new Date(todayMs())
+  d.setUTCDate(1)
+  d.setUTCMonth(d.getUTCMonth() - ago)
+  return isoDate(d.getTime())
+}
+
+// The last `months` complete NZ months, ending last month. Monthly rows are
+// keyed by the 1st of each month.
+function completeMonthWindow(months: number): { from: string; to: string } {
+  return { from: monthsAgo(months), to: monthsAgo(1) }
+}
+
+// The calendar quarter a "YYYY-MM-DD" date falls in, by its first day: 1
+// January, April, July or October
+function quarterStart(date: string): string {
+  const month = Number(date.slice(5, 7))
+  return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
+}
+
+// Every complete NZ calendar quarter of data, ending with the one before this
+// quarter. Quarterly rows are keyed by each quarter's first day (see sumQuarters).
+function completeQuarterWindow(): { from: string; to: string } {
+  const thisQuarter = quarterStart(monthsAgo(0))
+  const lastQuarter = new Date(thisQuarter + 'T00:00:00Z')
+  lastQuarter.setUTCMonth(lastQuarter.getUTCMonth() - 3)
+  return { from: FIRST_COMPLETE_QUARTER, to: isoDate(lastQuarter.getTime()) }
+}
+
+// Every complete NZ year of data, ending last year. Annual rows are keyed by
+// 1 January of each year.
+function completeYearWindow(): { from: string; to: string } {
+  return { from: FIRST_COMPLETE_YEAR, to: `${Number(todayNZ().slice(0, 4)) - 1}-01-01` }
 }
 
 function monthsBetween(from: string, to: string): string[] {
@@ -83,19 +119,43 @@ function monthlyYearsBetween(from: string, to: string): string[] {
   return years
 }
 
-// The dates a period's chart covers, and the aggregate files (see
+// The dates an aggregate view's chart covers, and the aggregate files (see
 // fetchAggregates) holding them.
-export function aggregateWindow(period: AggregatePeriod): { from: string; to: string; paths: string[] } {
-  if (period === 'daily') {
+export function aggregateWindow(mode: AggregateMode): { from: string; to: string; paths: string[] } {
+  if (mode.kind === 'last30') {
     const { from, to } = completeDayWindow(DAILY_RANGE_DAYS)
     return { from, to, paths: monthsBetween(from, to) }
   }
-  if (period === 'weekly') {
+  if (mode.kind === 'lastYear') {
     const { from, to } = completeWeekWindow(WEEKLY_RANGE_WEEKS)
     return { from, to, paths: weeklyYearsBetween(from, to) }
   }
-  const { from, to } = completeMonthWindow()
+  if (mode.kind === '5y') {
+    const { from, to } = completeMonthWindow(MONTHLY_RANGE_MONTHS)
+    return { from, to, paths: monthlyYearsBetween(from, to) }
+  }
+  if (mode.aggregation === 'annual') {
+    // Every year's totals are in the one file
+    return { ...completeYearWindow(), paths: ['annual'] }
+  }
+  // There's no quarterly API, so quarters are summed from each year's monthly
+  // totals (see sumQuarters). Years with no data yet 404, and are fetched as
+  // empty (see fetchAggregates).
+  const { from, to } = completeQuarterWindow()
   return { from, to, paths: monthlyYearsBetween(from, to) }
+}
+
+// Monthly rows, in order, summed into a row for each calendar quarter, keyed
+// by the quarter's first day. A quarter missing months sums the ones it has.
+export function sumQuarters(rows: (string | number)[][]): (string | number)[][] {
+  const quarters: (string | number)[][] = []
+  for (const [date, ...values] of rows) {
+    const start = quarterStart(date as string)
+    const quarter = quarters[quarters.length - 1]
+    if (quarter?.[0] === start) values.forEach((v, i) => { quarter[i + 1] = (quarter[i + 1] as number) + (v as number) })
+    else quarters.push([start, ...values])
+  }
+  return quarters
 }
 
 /**
@@ -123,40 +183,46 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
 }
 
 /**
- * Energy totals (MWh) for the given nodes: daily over the last 30 complete
- * days, weekly over the last 52 complete weeks, or monthly over every complete
- * month since data begins. Rows are shaped like dispatch data, timestamped at
- * local midnight at the start of each day/week/month, so they can go through
- * the same chart helpers. Pass 'all' for every node, or null to skip fetching.
+ * Energy totals (MWh) for the given nodes over an aggregate view: daily over
+ * the last 30 complete days, weekly over the last 52 complete weeks, monthly
+ * over the last 60 complete months, or annually or quarterly over everything
+ * since data begins. Rows are shaped like dispatch data, timestamped at local
+ * midnight at the start of each day/week/month/quarter/year, so they can go
+ * through the same chart helpers. Pass 'all' for every node, or null to skip
+ * fetching.
  */
-export function useAggregates(nodes: string[] | 'all' | null, period: AggregatePeriod | null): {
+export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMode | null): {
   aggregateData: RecentData | null
   loading: boolean
   error: string | null
 } {
-  // Tagged with its period so a switch between e.g. 30d and 1y doesn't briefly
-  // chart one period's rows formatted as the other while the new ones load.
-  const [result, setResult] = useState<{ period: AggregatePeriod; data: RecentData } | null>(null)
+  // A new dateMode object for the same view (e.g. its button clicked again)
+  // doesn't fetch it again
+  const modeKey = mode && JSON.stringify(mode)
+  // Tagged with its view so a switch between e.g. 30d and 1y doesn't briefly
+  // chart one view's rows formatted as the other while the new ones load.
+  const [result, setResult] = useState<{ modeKey: string; data: RecentData } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const nodesKey = nodes === 'all' ? '' : nodes && nodes.length > 0 ? nodes.join(',') : null
 
   useEffect(() => {
-    if (nodesKey === null || !period) { setLoading(false); return }
+    if (nodesKey === null || !mode || !modeKey) { setLoading(false); return }
     let cancelled = false
     setLoading(true)
     setError(null)
 
-    const { from, to, paths } = aggregateWindow(period)
+    const { from, to, paths } = aggregateWindow(mode)
     Promise.all(paths.map(p => fetchAggregates(p, nodesKey)))
       .then(responses => {
         if (cancelled) return
         const merged = mergeData(responses.map(r => ({ ...r, pricing: [] })))
+        const rows = aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(merged.data) : merged.data
         setResult({
-          period,
+          modeKey,
           data: {
             series: merged.series,
-            data: merged.data
+            data: rows
               .filter(row => (row[0] as string) >= from && (row[0] as string) <= to)
               .map(([date, ...values]) => [`${date}T00:00:00`, ...values]),
             pricing: [],
@@ -171,7 +237,7 @@ export function useAggregates(nodes: string[] | 'all' | null, period: AggregateP
       })
 
     return () => { cancelled = true }
-  }, [nodesKey, period])
+  }, [nodesKey, modeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { aggregateData: result?.period === period ? result.data : null, loading, error }
+  return { aggregateData: result?.modeKey === modeKey ? result.data : null, loading, error }
 }

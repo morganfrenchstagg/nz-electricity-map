@@ -200,12 +200,18 @@ export const FIT_TO_CONTAINER: Highcharts.ChartOptions = {
   },
 }
 
-// Tooltip heading: a 5-minute timestamp, or the day, week or month a total covers.
+// Tooltip heading: a 5-minute timestamp, or the day, week, month, quarter or year a total covers.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   switch (period) {
     case 'daily': return Highcharts.dateFormat('%a %e %b', ms)
     case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * 86400000)}`
     case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
+    case 'quarterly': {
+      const start = new Date(ms)
+      const lastMonth = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 2, 1)
+      return `${Highcharts.dateFormat('%b', ms)} – ${Highcharts.dateFormat('%b %Y', lastMonth)}`
+    }
+    case 'annual': return Highcharts.dateFormat('%Y', ms)
     default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
   }
 }
@@ -218,13 +224,15 @@ export function chartAccessibility(title: string, accessibility: Highcharts.Acce
 }
 
 // How often a chart over time has a point: every 5 minutes or half hour of
-// dispatch data (its `intervalMs`, see dataInterval), or the day, week or month
-// each of an aggregate view's totals covers
+// dispatch data (its `intervalMs`, see dataInterval), or the day, week, month,
+// quarter or year each of an aggregate view's totals covers
 function everyInterval(period: AggregatePeriod | null, intervalMs: number): string {
   switch (period) {
     case 'daily': return 'each day'
     case 'weekly': return 'each week'
     case 'monthly': return 'each month'
+    case 'quarterly': return 'each quarter'
+    case 'annual': return 'each year'
     default: return intervalMs >= TRADING_PERIOD_MS ? 'every half hour' : 'every 5 minutes'
   }
 }
@@ -244,21 +252,31 @@ export function timeChartAccessibility(title: string, description: string, perio
   })
 }
 
-// Months run 28–31 days, but Highcharts gives every column the width of the
-// shortest gap between points (February's), leaving thin gaps after longer
-// months. Runs after Highcharts lays out the columns, and widens each one to
-// meet its neighbours halfway between their start dates. Both neighbours round
-// the same midpoint, so they always share an edge. Highcharts' types mark
-// shapeArgs read-only, but replacing it here is what sizes the drawn column.
-export function fillMonthColumns(this: Highcharts.Series) {
-  const edge = (ms: number) => Math.round(this.xAxis.toPixels(ms, true))
-  for (const point of this.points as { x: number; shapeArgs?: Highcharts.SVGAttributes }[]) {
+// Months run 28–31 days, quarters 90–92 and years 365–366, but Highcharts
+// gives every column the width of the shortest gap between points (February's,
+// or a non-leap year's), leaving thin gaps after longer ones. Runs after Highcharts lays out
+// the columns, and widens each one, `months` long, to meet its neighbours
+// halfway between their start dates. Both neighbours round the same midpoint,
+// so they always share an edge. Highcharts' types mark shapeArgs read-only,
+// but replacing it here is what sizes the drawn column.
+function fillColumns(series: Highcharts.Series, months: number) {
+  const edge = (ms: number) => Math.round(series.xAxis.toPixels(ms, true))
+  for (const point of series.points as { x: number; shapeArgs?: Highcharts.SVGAttributes }[]) {
     if (!point.shapeArgs) continue
-    const month = new Date(point.x)
-    const prev = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)
-    const next = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
+    const start = new Date(point.x)
+    const prev = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - months, 1)
+    const next = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + months, 1)
     const left = edge((prev + point.x) / 2)
     const right = edge((point.x + next) / 2)
     point.shapeArgs = { ...point.shapeArgs, x: left, width: right - left }
   }
+}
+
+// The series events that size a monthly, quarterly or annual chart's columns
+// (see fillColumns). Not in Highcharts' types, but any function under `events`
+// is registered as a listener, and columns fire this after layout.
+export function columnFillEvents(period: AggregatePeriod | null): Highcharts.SeriesEventsOptionsObject | undefined {
+  const months = period === 'monthly' ? 1 : period === 'quarterly' ? 3 : period === 'annual' ? 12 : 0
+  if (!months) return undefined
+  return { afterColumnTranslate(this: Highcharts.Series) { fillColumns(this, months) } } as Highcharts.SeriesEventsOptionsObject
 }

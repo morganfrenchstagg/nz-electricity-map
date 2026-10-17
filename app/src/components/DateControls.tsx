@@ -1,7 +1,7 @@
 import type { DateMode } from '../hooks/useDispatchData'
-import { yesterdayNZ } from '../hooks/useAggregates'
+import { FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
 import type { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { PeriodToggle } from './ToggleGroup'
+import { AggregationToggle, PeriodToggle } from './ToggleGroup'
 
 interface Props {
   dateMode: DateMode
@@ -15,24 +15,28 @@ interface Props {
   empty: boolean
 }
 
-// The period toggle, from–to date inputs and data status in every panel's
-// toolbar. GeneratorPanel's Offers view has its own.
+// The period toggle (and the All view's Yearly | Quarterly toggle), from–to date
+// inputs and data status in every panel's toolbar. GeneratorPanel's Offers
+// view has its own.
 export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
   const {
     fromDate, toDate, customDates, showDateInputs, fromInputRef, toMax, rangeError,
-    handleFromChange, handleToChange, handlePeriodClick, handleCustomClick,
+    handleFromChange, handleToChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
   } = picker
 
   return (
     <>
       <PeriodToggle dateMode={dateMode} onSelect={handlePeriodClick} compact={compact} customDates={customDates} onCustom={handleCustomClick} />
+      {dateMode.kind === 'all' && !customDates && (
+        <AggregationToggle aggregation={dateMode.aggregation} onSelect={handleAggregationClick} compact={compact} />
+      )}
       {!compact && <div className="divider" />}
       {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <input
           ref={fromInputRef}
           type="date"
           value={fromDate}
-          min="2020-09-11"
+          min={FIRST_DAY}
           max={yesterdayNZ()}
           onChange={e => handleFromChange(e.target.value)}
           className="date-input"

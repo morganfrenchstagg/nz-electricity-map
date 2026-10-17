@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
 import { fetchDispatch, peekDispatch } from '../api'
-import { AGGREGATE_PERIODS, aggregateWindow } from './useAggregates'
+import { aggregateWindow } from './useAggregates'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import type { Period } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
@@ -17,7 +17,14 @@ export type DateMode =
   | { kind: 'range'; from: string; to: string }
   | { kind: 'last30' }
   | { kind: 'lastYear' }
-  | { kind: 'all' }
+  | { kind: '5y' }
+  | { kind: 'all'; aggregation: AllAggregation }
+
+// The All view's totals: one for each year (the default), or each calendar quarter
+export type AllAggregation = 'annual' | 'quarterly'
+
+// The views that chart aggregates (see isAggregateMode)
+export type AggregateMode = Extract<DateMode, { kind: 'last30' | 'lastYear' | '5y' | 'all' }>
 
 // Today and 3d are the only views kept up to date. Past days and aggregates are
 // left alone until one of them is picked again.
@@ -25,11 +32,11 @@ export function isLiveMode(mode: DateMode): mode is Extract<DateMode, { kind: 'r
   return mode.kind === 'recent' || mode.kind === 'today'
 }
 
-// The 30d, 1y and All views chart aggregates (useAggregates) in the node panels
-// and GridOverviewPanel; the map keeps showing live data underneath them, as it
-// was when the view was picked.
-export function isAggregateMode(mode: DateMode): mode is Extract<DateMode, { kind: 'last30' | 'lastYear' | 'all' }> {
-  return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === 'all'
+// The 30d, 1y, 5y and All views chart aggregates (useAggregates) in the node
+// panels and GridOverviewPanel; the map keeps showing live data underneath them,
+// as it was when the view was picked.
+export function isAggregateMode(mode: DateMode): mode is AggregateMode {
+  return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === '5y' || mode.kind === 'all'
 }
 
 // How much the 3d view's rolling window holds
@@ -37,7 +44,7 @@ const RECENT_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // The span of time a view's data covers, to show the units in service then. The
-// 30d, 1y and All views cover their charts' days through to now, as the map shows
+// 30d, 1y, 5y and All views cover their charts' days through to now, as the map shows
 // live data under them, so it has every generator they chart, retired ones too.
 // Their charts show every unit's history regardless (see GeneratorAdapter.getCodes).
 export function periodOf(mode: DateMode): Period {
@@ -48,7 +55,7 @@ export function periodOf(mode: DateMode): Period {
     case 'today': return { from: dayStart(todayNZ()), to: now }
     case 'date': return { from: dayStart(mode.date), to: dayStart(mode.date) + DAY_MS - 1 }
     case 'range': return { from: dayStart(mode.from), to: dayStart(mode.to) + DAY_MS - 1 }
-    default: return { from: dayStart(aggregateWindow(AGGREGATE_PERIODS[mode.kind]!).from), to: now }
+    default: return { from: dayStart(aggregateWindow(mode).from), to: now }
   }
 }
 
