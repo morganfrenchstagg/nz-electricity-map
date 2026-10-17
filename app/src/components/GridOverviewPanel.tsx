@@ -1,14 +1,14 @@
 import { useState, useMemo, lazy, Suspense } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
-import { isLiveMode, periodOf } from '../hooks/useDispatchData'
+import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { AGGREGATE_PERIODS, useAggregates } from '../hooks/useAggregates'
+import { aggregatePeriodOf, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
-import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, dataInterval, fillMonthColumns, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
+import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -45,11 +45,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
-  // The 30d, 1y and All views chart every node's MWh totals instead of the
+  // The 30d, 1y, 5y and All views chart every node's MWh totals instead of the
   // 5-minute dispatch data. Not fetched while the panel is hidden.
-  const aggregatePeriod = AGGREGATE_PERIODS[dateMode.kind] ?? null
+  const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
-  const aggregates = useAggregates(isAggregate && visible ? 'all' : null, aggregatePeriod)
+  const aggregates = useAggregates('all', isAggregateMode(dateMode) && visible ? dateMode : null)
   const data = isAggregate ? aggregates.aggregateData : recentData
   const dataLoading = isAggregate ? aggregates.loading : loading
   const dataError = isAggregate ? aggregates.error : error
@@ -128,9 +128,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
           : withGaps(points),
         marker: { enabled: false },
-        events: aggregatePeriod === 'monthly'
-          ? { afterColumnTranslate: fillMonthColumns } as Highcharts.SeriesEventsOptionsObject
-          : undefined,
+        events: columnFillEvents(aggregatePeriod),
         animation: false,
       }
     })

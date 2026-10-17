@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { daysBetween, MAX_RANGE_DAYS } from './useDispatchData'
-import type { DateMode } from './useDispatchData'
+import type { AllAggregation, DateMode } from './useDispatchData'
 import { yesterdayNZ } from './useAggregates'
 import type { Period } from '../components/ToggleGroup'
 
@@ -85,7 +85,14 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     setFromDate('')
     setToDate('')
     setCustomRequested(false)
-    onDateModeChange({ kind: period })
+    // All starts on its yearly totals, or stays on quarterly if it's clicked again
+    onDateModeChange(period === 'all'
+      ? { kind: 'all', aggregation: dateMode.kind === 'all' ? dateMode.aggregation : 'annual' }
+      : { kind: period })
+  }, [dateMode, onDateModeChange])
+
+  const handleAggregationClick = useCallback((aggregation: AllAggregation) => {
+    onDateModeChange({ kind: 'all', aggregation })
   }, [onDateModeChange])
 
   const handleCustomClick = useCallback(() => {
@@ -113,6 +120,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     handleFromChange,
     handleToChange,
     handlePeriodClick,
+    handleAggregationClick,
     handleCustomClick,
   }
 }

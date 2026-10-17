@@ -148,10 +148,10 @@ export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
 }
 
-// `path` is a month of daily totals ("2026/09") or a year of weekly or monthly
-// totals ("2026/weekly", "2026/monthly"). `nodes` are prefix-matched by the
-// API, so a substation siteId returns every bus and generator at that site.
-// Empty `nodes` returns every node.
+// `path` is a month of daily totals ("2026/09"), a year of weekly or monthly
+// totals ("2026/weekly", "2026/monthly"), or every year's totals ("annual").
+// `nodes` are prefix-matched by the API, so a substation siteId returns every
+// bus and generator at that site. Empty `nodes` returns every node.
 export function fetchAggregates(path: string, nodes: string): Promise<AggregateResponse> {
   const query = nodes ? `?nodes=${encodeURIComponent(nodes)}` : ''
   // A month or year with nothing aggregated yet (e.g. on the 1st) 404s

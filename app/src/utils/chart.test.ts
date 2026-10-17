@@ -170,6 +170,8 @@ describe('timeChartAccessibility', () => {
       .toBe('Generation, in MW every half hour.')
     expect(timeChartAccessibility('', 'Generation', 'weekly', energyUnit(10000)).accessibility?.description)
       .toBe('Generation, in GWh each week.')
+    expect(timeChartAccessibility('', 'Generation', 'quarterly', energyUnit(10000)).accessibility?.description)
+      .toBe('Generation, in GWh each quarter.')
   })
 
   it('reads a point out as its tooltip is headed, in the unit', () => {
@@ -177,5 +179,7 @@ describe('timeChartAccessibility', () => {
     expect(describe5Min?.(point(Date.UTC(2026, 9, 13, 14, 30), 1234.5, 'Hydro'))).toBe('13 Oct 02:30 PM, 1,235 MW. Hydro.')
     const describeDay = timeChartAccessibility('', '', 'daily', energyUnit(10000)).accessibility?.point?.descriptionFormatter
     expect(describeDay?.(point(Date.UTC(2026, 9, 13), 12.5, 'Wind'))).toBe('Tue 13 Oct, 12.50 GWh. Wind.')
+    const describeQuarter = timeChartAccessibility('', '', 'quarterly', energyUnit(10000)).accessibility?.point?.descriptionFormatter
+    expect(describeQuarter?.(point(Date.UTC(2025, 9, 1), 12.5, 'Wind'))).toBe('Oct – Dec 2025, 12.50 GWh. Wind.')
   })
 })
