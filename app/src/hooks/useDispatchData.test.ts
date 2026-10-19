@@ -47,7 +47,9 @@ describe('isAggregateMode', () => {
   it('is true for the views that chart MWh totals', () => {
     expect(isAggregateMode({ kind: 'last30' })).toBe(true)
     expect(isAggregateMode({ kind: 'lastYear' })).toBe(true)
-    expect(isAggregateMode({ kind: 'all' })).toBe(true)
+    expect(isAggregateMode({ kind: '5y' })).toBe(true)
+    expect(isAggregateMode({ kind: 'all', aggregation: 'annual' })).toBe(true)
+    expect(isAggregateMode({ kind: 'all', aggregation: 'quarterly' })).toBe(true)
   })
 
   it('is false for the views that chart dispatch data', () => {
@@ -69,7 +71,8 @@ describe('isLiveMode', () => {
     expect(isLiveMode({ kind: 'range', from: '2026-10-01', to: '2026-10-13' })).toBe(false)
     expect(isLiveMode({ kind: 'last30' })).toBe(false)
     expect(isLiveMode({ kind: 'lastYear' })).toBe(false)
-    expect(isLiveMode({ kind: 'all' })).toBe(false)
+    expect(isLiveMode({ kind: '5y' })).toBe(false)
+    expect(isLiveMode({ kind: 'all', aggregation: 'annual' })).toBe(false)
   })
 })
 
@@ -138,6 +141,8 @@ describe('periodOf', () => {
   it("covers the aggregate views' charts through to now, as the map shows live data under them", () => {
     expect(periodOf({ kind: 'last30' })).toEqual({ from: nzLocalMs('2026-09-13T00:00:00'), to: now() })
     expect(periodOf({ kind: 'lastYear' })).toEqual({ from: nzLocalMs('2025-10-13T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'all' })).toEqual({ from: nzLocalMs('2020-10-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: '5y' })).toEqual({ from: nzLocalMs('2021-10-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'all', aggregation: 'annual' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'all', aggregation: 'quarterly' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
   })
 })

@@ -1,7 +1,7 @@
 import type Highcharts from 'highcharts'
 import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
-import { DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, fillMonthColumns, midnightPlotLines, withGaps } from './chart'
+import { DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, columnFillEvents, midnightPlotLines, withGaps } from './chart'
 import type { ChartData } from './chart'
 import { nzLocalMs } from './time'
 
@@ -59,11 +59,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
         : withGaps(points),
       stack: isAggregate ? undefined : chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
       marker: { enabled: isAggregate && type === 'line', radius: 3 },
-      // Not in Highcharts' types, but any function under `events` is
-      // registered as a listener, and columns fire this after layout.
-      events: aggregatePeriod === 'monthly'
-        ? { afterColumnTranslate: fillMonthColumns } as Highcharts.SeriesEventsOptionsObject
-        : undefined,
+      events: columnFillEvents(aggregatePeriod),
       animation: false,
     }
   })

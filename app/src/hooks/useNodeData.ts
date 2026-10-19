@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { RecentData } from '../types'
+import { isAggregateMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
-import { AGGREGATE_PERIODS, foldMovedNodes, useAggregates } from './useAggregates'
+import { aggregatePeriodOf, foldMovedNodes, useAggregates } from './useAggregates'
 import { extractChartData } from '../utils/chart'
 
 const NO_MOVED_NODES: Record<string, string> = {}
@@ -22,12 +23,12 @@ interface Options {
 }
 
 // What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
-// or for the 30d, 1y and All views the node's own MWh totals, narrowed to the
+// or for the 30d, 1y, 5y and All views the node's own MWh totals, narrowed to the
 // node's codes.
 export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes }: Options) {
-  const aggregatePeriod = AGGREGATE_PERIODS[dateMode.kind] ?? null
+  const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
-  const aggregates = useAggregates(isAggregate ? queryNodes : null, aggregatePeriod)
+  const aggregates = useAggregates(queryNodes, isAggregateMode(dateMode) ? dateMode : null)
   const aggregateData = useMemo(
     () => aggregates.aggregateData && foldMovedNodes(aggregates.aggregateData, movedNodes),
     [aggregates.aggregateData, movedNodes],
