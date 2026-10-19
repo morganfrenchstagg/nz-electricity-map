@@ -8,11 +8,13 @@ import { nzLocalMs, todayNZ } from '../utils/time'
 export const DAILY_RANGE_DAYS = 30
 export const WEEKLY_RANGE_WEEKS = 52
 export const MONTHLY_RANGE_MONTHS = 60
-// Metered generation starts on 1 August 1997, so the first complete quarter is
-// October to December, and the first complete year 1998
-export const FIRST_DAY = '1997-08-01'
-const FIRST_COMPLETE_QUARTER = '1997-10-01'
-const FIRST_COMPLETE_YEAR = '1998-01-01'
+// Metered generation reaches back to 1 August 1997, but it's less complete
+// before 2009, so for now nothing earlier is shown: not in the date pickers,
+// links or aggregate views. 1 January 2009 also starts the first complete
+// quarter and year.
+export const FIRST_DAY = '2009-01-01'
+const FIRST_COMPLETE_QUARTER = FIRST_DAY
+const FIRST_COMPLETE_YEAR = FIRST_DAY
 const DAY_MS = 86400000
 
 export type AggregatePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual'

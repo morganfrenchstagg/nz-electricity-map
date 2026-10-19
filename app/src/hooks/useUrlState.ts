@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Generator, SelectedNode, Substation } from '../types'
 import type { DateMode } from './useDispatchData'
+import { FIRST_DAY } from './useAggregates'
 
 export type ViewMode = 'generation' | 'offers'
 
@@ -32,7 +33,9 @@ interface UrlState {
 
 function readUrl(): UrlState {
   const p = new URLSearchParams(window.location.search)
-  const from = p.get('from'), to = p.get('to'), date = p.get('date'), mode = p.get('mode')
+  // A day before the data starts is dropped, so the link opens its period instead
+  const day = (key: string) => { const d = p.get(key); return d && d >= FIRST_DAY ? d : null }
+  const from = day('from'), to = day('to'), date = day('date'), mode = p.get('mode')
   const period = PERIOD_MODES.find(m => m === mode) ?? 'today'
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)

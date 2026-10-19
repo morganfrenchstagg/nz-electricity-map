@@ -2,8 +2,12 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { daysBetween, MAX_RANGE_DAYS } from './useDispatchData'
 import type { AllAggregation, DateMode } from './useDispatchData'
-import { yesterdayNZ } from './useAggregates'
+import { FIRST_DAY, yesterdayNZ } from './useAggregates'
 import type { Period } from '../components/ToggleGroup'
+
+// e.g. "1 January 2009", read in UTC so it isn't the day before west of UTC
+const FIRST_DAY_LABEL = new Date(`${FIRST_DAY}T00:00:00Z`)
+  .toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' })
 
 // The from/to input values for a dateMode: a date or range fills them, a period clears them
 function inputDates(m: DateMode): [string, string] {
@@ -49,6 +53,8 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
   }, [fromDate])
 
   const rangeError = useMemo(() => {
+    // The picker's min stops this, but a date can still be typed in
+    if (fromDate && fromDate < FIRST_DAY) return `Data starts on ${FIRST_DAY_LABEL}`
     if (!fromDate || !toDate) return null
     if (toDate < fromDate) return 'End date must be after start date'
     const days = daysBetween(fromDate, toDate)
@@ -58,6 +64,8 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   const handleFromChange = useCallback((val: string) => {
     setFromDate(val)
+    // Before the data starts: rangeError says so, and the chart is left as it is
+    if (val && val < FIRST_DAY) return
     if (!val) {
       setToDate('')
       setCustomRequested(false)
@@ -73,6 +81,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   const handleToChange = useCallback((val: string) => {
     setToDate(val)
+    if (fromDate && fromDate < FIRST_DAY) return
     if (!val) {
       if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
     } else if (fromDate && val >= fromDate) {

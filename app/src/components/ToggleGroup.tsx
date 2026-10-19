@@ -55,7 +55,7 @@ const PERIODS: { kind: Period; label: string; menuLabel?: string; title?: string
   { kind: 'last30', label: '30d', menuLabel: '30 days', title: 'Last 30 days' },
   { kind: 'lastYear', label: '1y', menuLabel: '1 year', title: 'Last 52 weeks' },
   { kind: '5y', label: '5y', menuLabel: '5 years', title: 'Last 60 months' },
-  { kind: 'all', label: 'All', menuLabel: 'All time', title: 'Everything since data begins in 1997' },
+  { kind: 'all', label: 'All', menuLabel: 'All time', title: 'Everything since 2009' },
 ]
 
 interface PeriodToggleProps {
@@ -83,8 +83,8 @@ export function PeriodToggle({ dateMode, onSelect, compact = false, customDates,
 }
 
 const AGGREGATIONS: { kind: AllAggregation; label: string; title: string }[] = [
-  { kind: 'annual', label: 'Yearly', title: 'Every complete year since 1998' },
-  { kind: 'quarterly', label: 'Quarterly', title: 'Every complete calendar quarter since October 1997' },
+  { kind: 'annual', label: 'Yearly', title: 'Every complete year since 2009' },
+  { kind: 'quarterly', label: 'Quarterly', title: 'Every complete calendar quarter since 2009' },
 ]
 
 interface AggregationToggleProps {

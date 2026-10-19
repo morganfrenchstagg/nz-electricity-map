@@ -110,7 +110,7 @@ describe('aggregateWindow', () => {
   describe('All, yearly', () => {
     it('covers every complete NZ year since data begins, by their 1 Januarys, from the one file', () => {
       vi.setSystemTime('2026-10-13T01:00:00Z') // 2pm NZDT on the 13th
-      expect(aggregateWindow({ kind: 'all', aggregation: 'annual' })).toEqual({ from: '1998-01-01', to: '2025-01-01', paths: ['annual'] })
+      expect(aggregateWindow({ kind: 'all', aggregation: 'annual' })).toEqual({ from: '2009-01-01', to: '2025-01-01', paths: ['annual'] })
     })
 
     it("counts last year complete from NZ's 1 January, while it's still the year before in UTC", () => {
@@ -125,9 +125,9 @@ describe('aggregateWindow', () => {
     it('covers every complete NZ calendar quarter since data begins, by their first days, from the monthly files', () => {
       vi.setSystemTime('2026-10-13T01:00:00Z') // 2pm NZDT on the 13th
       const window = aggregateWindow({ kind: 'all', aggregation: 'quarterly' })
-      expect(window).toMatchObject({ from: '1997-10-01', to: '2026-07-01' })
-      expect(window.paths).toHaveLength(2026 - 1997 + 1)
-      expect(window.paths[0]).toBe('1997/monthly')
+      expect(window).toMatchObject({ from: '2009-01-01', to: '2026-07-01' })
+      expect(window.paths).toHaveLength(2026 - 2009 + 1)
+      expect(window.paths[0]).toBe('2009/monthly')
       expect(window.paths[window.paths.length - 1]).toBe('2026/monthly')
     })
 
