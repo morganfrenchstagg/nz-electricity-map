@@ -9,20 +9,25 @@ import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson }
 import { underConstruction } from '../data/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import { unitsByNode } from '../utils/generators'
-import { generatorPopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
+import { gridZoneTotals } from '../utils/gridZones'
+import { generatorPopupHtml, gridZonePopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
 import { TRANSMISSION_LINES_URL } from '../api'
 import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
+// Boundary lines traced from Transpower's Grid Zone NZ Map (July 2024 System Security Forecast)
+// and georeferenced against its substation markers, plus a label point inside each zone
+import GRID_ZONES_URL from '../data/gridZones.geojson?url'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
-// Hoverable layers in priority order: generators > under-construction > substations.
-// This prevents a nearby substation from stealing the popup when the cursor is over a generator.
-const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substations-layer']
+// Hoverable layers in priority order: generators > under-construction > substations > grid zone labels.
+// This prevents a nearby substation from stealing the popup when the cursor is over a generator,
+// and a zone's label, which is drawn over the stations, from hiding theirs.
+const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substations-layer', 'grid-zones-labels-layer']
 
 // Each hoverable source promotes its id property to the feature id, so this names the feature
 // under the cursor and the popup is only rebuilt when it changes
@@ -125,6 +130,29 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         paint: { 'raster-opacity': 1 },
       })
 
+      map.addSource('grid-zones', {
+        type: 'geojson',
+        data: GRID_ZONES_URL,
+        promoteId: 'zone', // set on the labels; the boundaries have no id, and aren't hovered
+      })
+      // A light casing keeps the dashed boundary visible over the satellite imagery
+      map.addLayer({
+        id: 'grid-zones-casing-layer',
+        type: 'line',
+        source: 'grid-zones',
+        filter: ['==', '$type', 'LineString'],
+        layout: { 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 4, 'line-opacity': 0.5 },
+      })
+      map.addLayer({
+        id: 'grid-zones-layer',
+        type: 'line',
+        source: 'grid-zones',
+        filter: ['==', '$type', 'LineString'],
+        layout: { 'line-join': 'round' },
+        paint: { 'line-color': '#374151', 'line-width': 1.5, 'line-dasharray': [3, 2] },
+      })
+
       map.addSource('transmission-lines', {
         type: 'geojson',
         data: TRANSMISSION_LINES_URL,
@@ -207,6 +235,29 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         },
       })
 
+      // Above the stations so the dots don't cover them. Spaced capitals set them apart from
+      // the basemap's town names, several of which the zones are named after. Left off zoomed
+      // out, where the map is already busy, until only a few zones fit on screen
+      map.addLayer({
+        id: 'grid-zones-labels-layer',
+        type: 'symbol',
+        source: 'grid-zones',
+        filter: ['==', '$type', 'Point'],
+        minzoom: 7,
+        layout: {
+          'text-field': ['format',
+            ['concat', 'GZ', ['to-string', ['get', 'zone']]], { 'font-scale': 0.85 },
+            '\n', {},
+            ['get', 'name'], {},
+          ],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 12,
+          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.1,
+        },
+        paint: { 'text-color': '#374151', 'text-halo-color': '#ffffff', 'text-halo-width': 1.5 },
+      })
+
       map.on('click', (e) => {
         // Generators take priority over substations when both overlap
         const genFeatures = map.queryRenderedFeatures(e.point, { layers: ['generators-layer'] })
@@ -238,6 +289,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
+        }
+        if (feature.layer.id === 'grid-zones-labels-layer') {
+          const totals = gridZoneTotals(p.zone, recentDataRef.current, substationsRef.current, unitsByNodeRef.current)
+          return gridZonePopupHtml(p.zone, String(p.name), totals)
         }
         const substation = substationsRef.current.find(s => s.siteId === p.siteId)
         return substation ? substationPopupHtml(substation, recentDataRef.current, unitsByNodeRef.current) : null
