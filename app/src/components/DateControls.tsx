@@ -1,7 +1,9 @@
+import { MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
 import type { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { AggregationToggle, PeriodToggle } from './ToggleGroup'
+import { DateRangePicker } from './DatePickers'
 
 interface Props {
   dateMode: DateMode
@@ -15,13 +17,13 @@ interface Props {
   empty: boolean
 }
 
-// The period toggle (and the All view's Yearly | Quarterly toggle), from–to date
-// inputs and data status in every panel's toolbar. GeneratorPanel's Offers
+// The period toggle (and the All view's Yearly | Quarterly toggle), date range
+// picker and data status in every panel's toolbar. GeneratorPanel's Offers
 // view has its own.
 export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
   const {
-    fromDate, toDate, customDates, showDateInputs, fromInputRef, toMax, rangeError,
-    handleFromChange, handleToChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
+    pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
+    handleRangeChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
   } = picker
 
   return (
@@ -32,24 +34,16 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
       )}
       {!compact && <div className="divider" />}
       {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <input
-          ref={fromInputRef}
-          type="date"
-          value={fromDate}
+        <DateRangePicker
+          value={pickerRange}
+          onChange={handleRangeChange}
           min={FIRST_DAY}
           max={yesterdayNZ()}
-          onChange={e => handleFromChange(e.target.value)}
-          className="date-input"
-        />
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0 }}>–</span>
-        <input
-          type="date"
-          value={toDate}
-          min={fromDate || undefined}
-          max={toMax}
-          disabled={!fromDate}
-          onChange={e => handleToChange(e.target.value)}
-          className="date-input"
+          maxDays={MAX_RANGE_DAYS}
+          isOpen={pickerOpen}
+          onOpenChange={setPickerOpen}
+          isInvalid={rangeError != null}
+          ariaLabel="Dates"
         />
         {rangeError && (
           <span className="status-text is-error" style={{ marginLeft: 4 }}>{rangeError}</span>

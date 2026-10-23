@@ -10,13 +10,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
     "highcharts": "^13.0.0",
     "highcharts-react-official": "^3.2.3",
     "maplibre-gl": "^4.7.1",
     "react": "^18.3.1",
+    "react-aria-components": "^1.22.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@react-aria/optimize-locales-plugin": "^2.1.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",

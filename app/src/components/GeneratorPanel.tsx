@@ -22,6 +22,7 @@ import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
 import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
+import { DatePicker } from './DatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
@@ -104,7 +105,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
   const {
-    fromDate, setFromDate, setCustomRequested, customDates, showDateInputs, fromInputRef,
+    fromDate, setFromDate, setCustomRequested, customDates, showDateInputs, pickerOpen, setPickerOpen,
     handleFromChange, handlePeriodClick, handleCustomClick,
   } = datePicker
 
@@ -392,14 +393,14 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             ]} />
             {!compactToolbar && <div className="divider" />}
             {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <input
-                ref={fromInputRef}
-                type="date"
+              <DatePicker
                 value={fromDate}
+                onChange={handleFromChange}
                 min="2020-09-11"
                 max={yesterdayNZ()}
-                onChange={e => handleFromChange(e.target.value)}
-                className="date-input"
+                isOpen={pickerOpen}
+                onOpenChange={setPickerOpen}
+                ariaLabel="Offers date"
               />
             </div>}
 
