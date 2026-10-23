@@ -30,8 +30,8 @@ jobs:
       - name: Build React app
         working-directory: app
         run: npm run build
-      # The build writes into frontend/ alongside the checked-in /old app and
-      # routing config; ship the whole publish root to the preview job.
+      # The build writes into frontend/ alongside the checked-in routing and
+      # caching config; ship the whole publish root to the preview job.
       - name: Upload publish root
         uses: actions/upload-artifact@v7
         with:

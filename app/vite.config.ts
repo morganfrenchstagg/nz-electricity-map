@@ -5,9 +5,9 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
   build: {
-    // frontend/ is the Cloudflare Pages publish root. The vanilla /old app and
-    // _redirects live here too, so emptyOutDir must stay false or the build
-    // would wipe them (including in CI).
+    // frontend/ is the Cloudflare Pages publish root. The checked-in
+    // _redirects and _headers live here too, so emptyOutDir must stay false or
+    // the build would wipe them (including in CI).
     outDir: '../frontend',
     emptyOutDir: false,
     rollupOptions: {
