@@ -35,6 +35,26 @@ export interface Substation {
   island: 'north' | 'south'
 }
 
+// A generation project in the pipeline (see data/underConstruction). It sits
+// on the map at its location, or else with the generator at its site.
+export interface UnderConstructionNode {
+  name: string
+  locationDescription?: string
+  site?: string
+  substation?: string
+  fuel: string
+  operator: string
+  status: string
+  costMillionDollars?: number
+  capacityMW?: number
+  capacityMWp?: number
+  capacityMWh?: number
+  yearlyGenerationGWh?: number
+  openBy?: string
+  link?: string
+  location?: { lat: number; long: number }
+}
+
 export interface RecentData {
   series: string[]
   data: (string | number)[][]

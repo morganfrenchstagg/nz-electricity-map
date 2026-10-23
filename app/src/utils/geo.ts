@@ -1,5 +1,4 @@
-import type { Generator, Substation, Unit } from '../types'
-import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
+import type { Generator, Substation, UnderConstructionNode, Unit } from '../types'
 import { inServiceDuring, isCharging, isCommissioning } from './generators'
 import type { Period } from './time'
 

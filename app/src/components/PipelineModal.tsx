@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
-import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
+import { underConstruction } from '../data/underConstruction'
+import type { UnderConstructionNode } from '../types'
 import { fuelColour, statusColour } from '../utils/colours'
 import { formatMonthYear } from '../utils/format'
 import FilterDropdown from './FilterDropdown'
@@ -12,14 +13,10 @@ const ALL_YEARS = [...new Set(
   underConstruction.map(n => n.openBy?.slice(0, 4)).filter((y): y is string => !!y)
 )].sort()
 
-type NodeWithExtras = typeof underConstruction[number] & { costMillionDollars?: number; link?: string }
-
 type SortCol = 'name' | 'fuel' | 'operator' | 'status' | 'capacity' | 'generation' | 'cost' | 'openBy'
 type SortDir = 'asc' | 'desc'
 
-const base = underConstruction as NodeWithExtras[]
-
-function sortRows(rows: NodeWithExtras[], col: SortCol, dir: SortDir): NodeWithExtras[] {
+function sortRows(rows: UnderConstructionNode[], col: SortCol, dir: SortDir): UnderConstructionNode[] {
   const sign = dir === 'asc' ? 1 : -1
   return [...rows].sort((a, b) => {
     let cmp = 0
@@ -63,7 +60,7 @@ export default function PipelineModal({ onClose }: Props) {
   }, [onClose])
 
   const filtered = useMemo(() => {
-    const rows = base.filter(n =>
+    const rows = underConstruction.filter(n =>
       (fuels.size === 0 || fuels.has(n.fuel)) &&
       (years.size === 0 || (n.openBy ? years.has(n.openBy.slice(0, 4)) : false)) &&
       (operators.size === 0 || operators.has(n.operator)) &&

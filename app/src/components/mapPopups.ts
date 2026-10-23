@@ -1,6 +1,6 @@
 import { ucUnitsForSite } from '../utils/geo'
 import type { UnderConstructionUnit } from '../utils/geo'
-import { underConstruction } from '../../../frontend/old/utilities/underConstruction'
+import { underConstruction } from '../data/underConstruction'
 import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'

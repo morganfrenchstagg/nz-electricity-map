@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generatorsToGeoJson, underConstructionToGeoJson } from './geo'
 import { nzLocalMs } from './time'
-import type { Generator, Unit } from '../types'
-import type { UnderConstructionNode } from '../../../frontend/old/utilities/underConstruction'
+import type { Generator, UnderConstructionNode, Unit } from '../types'
 
 // In service since EMI's register began, unless given other dates
 const unit = (node: string, capacity: number, extra: Partial<Unit> = {}): Unit =>

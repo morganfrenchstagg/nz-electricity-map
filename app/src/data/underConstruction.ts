@@ -1,4 +1,6 @@
-export const underConstruction = [
+import type { UnderConstructionNode } from '../types'
+
+export const underConstruction: UnderConstructionNode[] = [
     {
         "name": "Huntly",
         "locationDescription": "BESS Stage 2",

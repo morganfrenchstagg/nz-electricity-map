@@ -2,12 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend-static",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "frontend"],
-      "port": 8080
-    },
-    {
       "name": "app-dev",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "npm run dev --prefix app -- --port \"${PORT:-5199}\" --strictPort"],
