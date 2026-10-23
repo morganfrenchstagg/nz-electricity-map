@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useCallback, useMemo, useState } from 'react'
 import { daysBetween, MAX_RANGE_DAYS } from './useDispatchData'
 import type { AllAggregation, DateMode } from './useDispatchData'
 import { FIRST_DAY, yesterdayNZ } from './useAggregates'
@@ -9,24 +8,39 @@ import type { Period } from '../components/ToggleGroup'
 const FIRST_DAY_LABEL = new Date(`${FIRST_DAY}T00:00:00Z`)
   .toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' })
 
-// The from/to input values for a dateMode: a date or range fills them, a period clears them
+// The from/to dates for a dateMode: a date or range fills them, a period clears them
 function inputDates(m: DateMode): [string, string] {
   return m.kind === 'date' ? [m.date, ''] : m.kind === 'range' ? [m.from, m.to] : ['', '']
 }
 
-// The state behind DateControls' period toggle and from/to date inputs, in
+// Why a from date, or from–to range, can't be charted, if it can't. The
+// pickers' bounds stop most of these, but dates can still be typed in.
+export function dateRangeError(from: string, to: string): string | null {
+  if (!from) return null
+  if (from < FIRST_DAY) return `Data starts on ${FIRST_DAY_LABEL}`
+  if ((to || from) > yesterdayNZ()) return 'Dates must be before today'
+  if (!to) return null
+  if (to < from) return 'End date must be after start date'
+  const days = daysBetween(from, to)
+  if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
+  return null
+}
+
+// The state behind DateControls' period toggle and date range picker, in
 // every panel's toolbar. `compact` is the toolbar's collapsed layout (see
-// useCompactWhenOverflowing), which hides the date inputs until they're in use.
+// useCompactWhenOverflowing), which hides the picker until it's in use.
 export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: DateMode) => void, compact: boolean) {
-  // Date picker local state — initialized from dateMode prop (which may come from URL)
+  // Date picker local state — initialized from dateMode prop (which may come from URL).
+  // A single day leaves toDate empty.
   const [fromDate, setFromDate] = useState(() => inputDates(dateMode)[0])
   const [toDate, setToDate] = useState(() => inputDates(dateMode)[1])
+  const [pickerOpen, setPickerOpen] = useState(false)
   // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
   const [customRequested, setCustomRequested] = useState(false)
 
   // dateMode is shared, and GridOverviewPanel stays mounted while a node panel
   // is open, so follow dateMode when the other panel changes it. This panel's
-  // own handlers already leave the inputs matching the dateMode they set. Done
+  // own handlers already leave the picker matching the dateMode they set. Done
   // while rendering rather than in an effect, so GeneratorPanel's effect
   // showing the latest offers' date still runs after it.
   const dateModeKey = JSON.stringify(dateMode)
@@ -39,56 +53,40 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     setCustomRequested(false)
   }
   const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compact && customRequested)
-  // The compact toolbar only shows the date inputs while they're in use
+  // The compact toolbar only shows the picker while it's in use
   const showDateInputs = !compact || customDates
-  const fromInputRef = useRef<HTMLInputElement>(null)
 
-  const toMax = useMemo(() => {
-    const cap = yesterdayNZ()
-    if (!fromDate) return cap
-    const d = new Date(fromDate + 'T00:00:00Z')
-    d.setUTCDate(d.getUTCDate() + MAX_RANGE_DAYS - 1)
-    const end = d.toISOString().slice(0, 10)
-    return end < cap ? end : cap
-  }, [fromDate])
+  // The range picker's value, where a single day starts and ends on it
+  const pickerRange = useMemo(
+    () => fromDate ? { start: fromDate, end: toDate || fromDate } : null,
+    [fromDate, toDate],
+  )
 
-  const rangeError = useMemo(() => {
-    // The picker's min stops this, but a date can still be typed in
-    if (fromDate && fromDate < FIRST_DAY) return `Data starts on ${FIRST_DAY_LABEL}`
-    if (!fromDate || !toDate) return null
-    if (toDate < fromDate) return 'End date must be after start date'
-    const days = daysBetween(fromDate, toDate)
-    if (days > MAX_RANGE_DAYS) return `Range exceeds ${MAX_RANGE_DAYS} days (${days} selected)`
-    return null
-  }, [fromDate, toDate])
+  const rangeError = useMemo(() => dateRangeError(fromDate, toDate), [fromDate, toDate])
 
-  const handleFromChange = useCallback((val: string) => {
-    setFromDate(val)
-    // Before the data starts: rangeError says so, and the chart is left as it is
-    if (val && val < FIRST_DAY) return
-    if (!val) {
-      setToDate('')
-      setCustomRequested(false)
-      onDateModeChange({ kind: 'recent' })
-    } else if (toDate && toDate >= val) {
-      const days = daysBetween(val, toDate)
-      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: val, to: toDate })
-    } else {
-      setToDate('')
-      onDateModeChange({ kind: 'date', date: val })
-    }
+  // A range from the range picker. When it can't be charted, rangeError says
+  // why and the chart is left as it is.
+  const handleRangeChange = useCallback((range: { start: string; end: string } | null) => {
+    // Null while a date is part typed or cleared, and the chart stays as it is
+    // until it's whole again
+    const from = range?.start ?? ''
+    const to = range && range.end !== range.start ? range.end : ''
+    setFromDate(from)
+    setToDate(to)
+    if (!from || dateRangeError(from, to)) return
+    onDateModeChange(to ? { kind: 'range', from, to } : { kind: 'date', date: from })
+  }, [onDateModeChange])
+
+  // A date from GeneratorPanel's Offers date picker, which starts the range
+  // when there is one
+  const handleFromChange = useCallback((val: string | null) => {
+    setFromDate(val ?? '')
+    if (!val) return
+    const to = toDate && toDate > val ? toDate : ''
+    if (!to) setToDate('')
+    if (dateRangeError(val, to)) return
+    onDateModeChange(to ? { kind: 'range', from: val, to } : { kind: 'date', date: val })
   }, [toDate, onDateModeChange])
-
-  const handleToChange = useCallback((val: string) => {
-    setToDate(val)
-    if (fromDate && fromDate < FIRST_DAY) return
-    if (!val) {
-      if (fromDate) onDateModeChange({ kind: 'date', date: fromDate })
-    } else if (fromDate && val >= fromDate) {
-      const days = daysBetween(fromDate, val)
-      if (days <= MAX_RANGE_DAYS) onDateModeChange({ kind: 'range', from: fromDate, to: val })
-    }
-  }, [fromDate, onDateModeChange])
 
   const handlePeriodClick = useCallback((period: Period) => {
     setFromDate('')
@@ -105,29 +103,23 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
   }, [onDateModeChange])
 
   const handleCustomClick = useCallback(() => {
-    // Rendered now rather than on the next render, so the picker opens while
-    // the dropdown change still counts as a user gesture
-    flushSync(() => setCustomRequested(true))
-    try {
-      fromInputRef.current?.showPicker()
-    } catch {
-      fromInputRef.current?.focus()
-    }
+    setCustomRequested(true)
+    setPickerOpen(true)
   }, [])
 
   return {
     fromDate,
-    // For GeneratorPanel, which shows the latest offers' date in the from input
+    // For GeneratorPanel, which shows the latest offers' date in its date picker
     setFromDate,
-    toDate,
+    pickerRange,
+    pickerOpen,
+    setPickerOpen,
     setCustomRequested,
     customDates,
     showDateInputs,
-    fromInputRef,
-    toMax,
     rangeError,
+    handleRangeChange,
     handleFromChange,
-    handleToChange,
     handlePeriodClick,
     handleAggregationClick,
     handleCustomClick,

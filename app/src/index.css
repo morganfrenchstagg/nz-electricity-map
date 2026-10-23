@@ -352,8 +352,13 @@ body {
   background: var(--color-surface-muted);
 }
 
-.date-input {
-  padding: var(--space-2xs) var(--space-sm);
+/* DatePicker and DateRangePicker's typed dates and calendar button */
+.date-field {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 1px 1px 1px var(--space-sm);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -361,8 +366,196 @@ body {
   font-size: var(--font-size-xs);
 }
 
-.date-input:disabled {
+.date-field[data-focus-within] {
+  border-color: var(--color-accent);
+}
+
+.date-field[data-invalid] {
+  border-color: var(--color-danger);
+}
+
+.date-field-input {
+  display: flex;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-segment {
+  padding: 0 1px;
+  border-radius: 2px;
+  outline: none;
+}
+
+.date-segment[data-placeholder],
+.date-segment[data-type="literal"],
+.date-field-dash {
+  color: var(--color-text-muted);
+}
+
+.date-segment[data-focused] {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.date-field-dash {
+  padding: 0 var(--space-2xs);
+}
+
+.date-field-button {
+  display: flex;
+  margin-left: var(--space-2xs);
+  padding: 3px var(--space-xs);
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.date-field-button[data-hovered],
+.date-field-button[data-pressed] {
   background: var(--color-surface-hover);
+}
+
+.date-field-button[data-focus-visible] {
+  outline: 2px solid var(--color-accent);
+}
+
+.calendar-popover {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.calendar-dialog {
+  padding: var(--space-md);
+  outline: none;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+/* The year dropdown beside the month's */
+.calendar-header select + select {
+  margin-right: auto;
+}
+
+.calendar-nav {
+  padding: 0 var(--space-sm) var(--space-2xs);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.calendar-nav:first-child {
+  margin-right: auto;
+}
+
+.calendar-nav[data-hovered] {
+  background: var(--color-surface-hover);
+}
+
+.calendar-nav[data-disabled] {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.calendar-grid {
+  border-collapse: collapse;
+}
+
+.calendar-grid th {
+  padding-bottom: var(--space-xs);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+}
+
+.calendar-grid td {
+  padding: 1px 0;
+}
+
+.calendar-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Bigger targets for fingers */
+@media (pointer: coarse) {
+  .calendar-cell {
+    width: 40px;
+    height: 36px;
+  }
+}
+
+.calendar-cell[data-outside-month] {
+  display: none;
+}
+
+.calendar-cell[data-hovered] {
+  background: var(--color-surface-hover);
+}
+
+.calendar-cell[data-today] {
+  font-weight: 700;
+}
+
+.calendar-cell[data-disabled],
+.calendar-cell[data-unavailable] {
+  background: none;
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.calendar-cell[data-selected] {
+  background: var(--color-accent-strong);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+
+/* A range's days between its ends, joined into a band */
+.calendar--range .calendar-cell[data-selected] {
+  border-radius: 0;
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-strong);
+}
+
+.calendar--range .calendar-cell[data-selection-start],
+.calendar--range .calendar-cell[data-selection-end] {
+  background: var(--color-accent-strong);
+  color: var(--color-text-inverse);
+}
+
+.calendar--range .calendar-cell[data-selection-start] {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.calendar--range .calendar-cell[data-selection-end] {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.calendar-cell[data-focus-visible] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 /* The offers view's trading period arrows */
