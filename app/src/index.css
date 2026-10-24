@@ -254,10 +254,21 @@ body {
   border-right: 1px solid var(--color-border);
 }
 
-.toggle-group > button[aria-pressed="true"] {
+.toggle-group > button[aria-pressed="true"],
+.toggle-group > .calendar-button.is-active {
   background: var(--color-accent-strong);
   color: var(--color-text-inverse);
   font-weight: 600;
+}
+
+/* DateRangePicker's button, at the end of PeriodToggle */
+.calendar-button {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-group > .calendar-button[aria-expanded="true"]:not(.is-active) {
+  background: var(--color-surface-muted);
 }
 
 /* ToggleGroup's compact form */
@@ -352,7 +363,7 @@ body {
   background: var(--color-surface-muted);
 }
 
-/* DatePicker and DateRangePicker's typed dates and calendar button */
+/* DatePicker and DateRangePicker's typed dates, and DatePicker's calendar button */
 .date-field {
   display: flex;
   flex-shrink: 0;
@@ -418,6 +429,32 @@ body {
 
 .date-field-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+}
+
+/* DateRangePicker's From and To dates, over its calendar */
+.date-range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.date-range-fields > .status-text {
+  grid-column: 1 / -1;
+}
+
+.date-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Without DatePicker's calendar button inside, so even on both sides */
+.date-range-field .date-field {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-sm);
 }
 
 .calendar-popover {

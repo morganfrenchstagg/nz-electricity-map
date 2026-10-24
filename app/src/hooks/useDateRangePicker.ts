@@ -53,7 +53,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     setCustomRequested(false)
   }
   const customDates = dateMode.kind === 'date' || dateMode.kind === 'range' || (compact && customRequested)
-  // The compact toolbar only shows the picker while it's in use
+  // The compact toolbar only shows the picker's calendar button while it's in use
   const showDateInputs = !compact || customDates
 
   // The range picker's value, where a single day starts and ends on it
@@ -66,14 +66,12 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   // A range from the range picker. When it can't be charted, rangeError says
   // why and the chart is left as it is.
-  const handleRangeChange = useCallback((range: { start: string; end: string } | null) => {
-    // Null while a date is part typed or cleared, and the chart stays as it is
-    // until it's whole again
-    const from = range?.start ?? ''
-    const to = range && range.end !== range.start ? range.end : ''
+  const handleRangeChange = useCallback((range: { start: string; end: string }) => {
+    const from = range.start
+    const to = range.end !== range.start ? range.end : ''
     setFromDate(from)
     setToDate(to)
-    if (!from || dateRangeError(from, to)) return
+    if (dateRangeError(from, to)) return
     onDateModeChange(to ? { kind: 'range', from, to } : { kind: 'date', date: from })
   }, [onDateModeChange])
 
