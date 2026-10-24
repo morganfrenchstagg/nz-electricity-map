@@ -2,7 +2,7 @@ import Highcharts from 'highcharts'
 import type { RecentData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
 import type { DisplayUnit } from './format'
-import { nzLocalMs } from './time'
+import { nzLocalMs, todayNZ } from './time'
 
 export interface ChartRow {
   time: string
@@ -200,18 +200,33 @@ export const FIT_TO_CONTAINER: Highcharts.ChartOptions = {
   },
 }
 
+// How many months each of a monthly, quarterly or annual view's totals covers
+function monthsPer(period: AggregatePeriod | null): number {
+  return period === 'monthly' ? 1 : period === 'quarterly' ? 3 : period === 'annual' ? 12 : 0
+}
+
+// When the day, week, month, quarter or year a total starting at `ms` covers ends
+function periodEnd(ms: number, period: AggregatePeriod): number {
+  if (period === 'daily') return ms + DAY_MS
+  if (period === 'weekly') return ms + 7 * DAY_MS
+  const start = new Date(ms)
+  return Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthsPer(period), 1)
+}
+
 // Tooltip heading: a 5-minute timestamp, or the day, week, month, quarter or year a total covers.
+// The total for the one today falls in is still growing, so it's marked as only being so far.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
+  const soFar = period && periodEnd(ms, period) > nzLocalMs(`${todayNZ()}T00:00:00`) ? ' (so far)' : ''
   switch (period) {
-    case 'daily': return Highcharts.dateFormat('%a %e %b', ms)
-    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * 86400000)}`
-    case 'monthly': return Highcharts.dateFormat('%B %Y', ms)
+    case 'daily': return Highcharts.dateFormat('%a %e %b', ms) + soFar
+    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * DAY_MS)}${soFar}`
+    case 'monthly': return Highcharts.dateFormat('%B %Y', ms) + soFar
     case 'quarterly': {
       const start = new Date(ms)
       const lastMonth = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 2, 1)
-      return `${Highcharts.dateFormat('%b', ms)} – ${Highcharts.dateFormat('%b %Y', lastMonth)}`
+      return `${Highcharts.dateFormat('%b', ms)} – ${Highcharts.dateFormat('%b %Y', lastMonth)}${soFar}`
     }
-    case 'annual': return Highcharts.dateFormat('%Y', ms)
+    case 'annual': return Highcharts.dateFormat('%Y', ms) + soFar
     default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
   }
 }
@@ -276,7 +291,7 @@ function fillColumns(series: Highcharts.Series, months: number) {
 // (see fillColumns). Not in Highcharts' types, but any function under `events`
 // is registered as a listener, and columns fire this after layout.
 export function columnFillEvents(period: AggregatePeriod | null): Highcharts.SeriesEventsOptionsObject | undefined {
-  const months = period === 'monthly' ? 1 : period === 'quarterly' ? 3 : period === 'annual' ? 12 : 0
+  const months = monthsPer(period)
   if (!months) return undefined
   return { afterColumnTranslate(this: Highcharts.Series) { fillColumns(this, months) } } as Highcharts.SeriesEventsOptionsObject
 }

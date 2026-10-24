@@ -139,9 +139,9 @@ describe('periodOf', () => {
   })
 
   it("covers the aggregate views' charts through to now, as the map shows live data under them", () => {
-    expect(periodOf({ kind: 'last30' })).toEqual({ from: nzLocalMs('2026-09-13T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'lastYear' })).toEqual({ from: nzLocalMs('2025-10-13T00:00:00'), to: now() })
-    expect(periodOf({ kind: '5y' })).toEqual({ from: nzLocalMs('2021-10-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'last30' })).toEqual({ from: nzLocalMs('2026-09-14T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'lastYear' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
+    expect(periodOf({ kind: '5y' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
     expect(periodOf({ kind: 'all', aggregation: 'annual' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
     expect(periodOf({ kind: 'all', aggregation: 'quarterly' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
   })
