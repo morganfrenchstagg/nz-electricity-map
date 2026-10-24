@@ -134,6 +134,27 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     setTotalToggled(nothingSelected)
   }
 
+  // Clicking the only series showing selects them all again, as Select all does
+  const onlyOneShown = effectiveCodes.size + (totalShown ? 1 : 0) === 1
+  function selectAll() {
+    setActiveCodes(null)
+    setTotalToggled(true)
+  }
+  function toggleTotal() {
+    if (totalShown && onlyOneShown) selectAll()
+    else setTotalToggled(!totalShown)
+  }
+  function toggleUnit(code: string) {
+    if (effectiveCodes.has(code) && onlyOneShown) selectAll()
+    else toggleCode(code, totalShown)
+  }
+
+  // Shift-click shows one series alone: a code, or Total with no codes
+  function isolate(code: string | null) {
+    setActiveCodes(new Set(code ? [code] : []))
+    setTotalToggled(code === null)
+  }
+
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
@@ -204,7 +225,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       </button>,
     ] : []),
     ...(hasTotal ? [
-      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={() => setTotalToggled(!totalShown)}>
+      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={toggleTotal} onIsolate={() => isolate(null)}>
         {TOTAL}
       </SeriesButton>,
     ] : []),
@@ -213,7 +234,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   const unitButtons = !showUnitSelector ? [] : allCodes.map((code, i) => {
     const button = (
-      <SeriesButton key={code} colour={colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)}>
+      <SeriesButton key={code} colour={colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleUnit(code)} onIsolate={() => isolate(code)}>
         {labelFor(code)}
       </SeriesButton>
     )

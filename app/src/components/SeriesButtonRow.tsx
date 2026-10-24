@@ -7,16 +7,20 @@ interface SeriesButtonProps {
   colour: string
   active: boolean
   onClick: () => void
+  // Shift-click: shows this series alone
+  onIsolate?: () => void
   children: ReactNode
 }
 
 // A series toggle button: filled with the series colour when it's showing
-export function SeriesButton({ colour, active, onClick, children }: SeriesButtonProps) {
+export function SeriesButton({ colour, active, onClick, onIsolate, children }: SeriesButtonProps) {
   return (
     <button
       className="series-button"
       aria-pressed={active}
-      onClick={onClick}
+      // Stops shift-click extending the page's text selection
+      onMouseDown={e => { if (e.shiftKey && onIsolate) e.preventDefault() }}
+      onClick={e => e.shiftKey && onIsolate ? onIsolate() : onClick()}
       style={{ '--series-colour': colour } as React.CSSProperties}
     >
       {children}
