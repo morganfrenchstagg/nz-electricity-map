@@ -56,6 +56,9 @@ export function substationsToGeoJson(substations: Substation[]): GeoJSON.Feature
     },
   }))
 
+  // Tees first so every other substation draws on top of them, and wins clicks and hovers where they overlap
+  features.sort((a, b) => Number(b.properties!.type === 'TEE') - Number(a.properties!.type === 'TEE'))
+
   return { type: 'FeatureCollection', features }
 }
 
