@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { generatorsToGeoJson, underConstructionToGeoJson } from './geo'
+import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from './geo'
 import { nzLocalMs } from './time'
-import type { Generator, UnderConstructionNode, Unit } from '../types'
+import type { Generator, Substation, UnderConstructionNode, Unit } from '../types'
 
 // In service since EMI's register began, unless given other dates
 const unit = (node: string, capacity: number, extra: Partial<Unit> = {}): Unit =>
@@ -43,6 +43,16 @@ describe('generatorsToGeoJson', () => {
     const KWK = generator('KWK', [unit('MPE1101 KWK0', 77, { commissioned: undefined })])
     expect(sites(generatorsToGeoJson([KWK], day('2026-10-13'), new Set(['MPE1101 KWK0'])))).toEqual([['KWK', 0]])
     expect(sites(generatorsToGeoJson([KWK], day('2026-10-13'), new Set()))).toEqual([])
+  })
+})
+
+describe('substationsToGeoJson', () => {
+  const substation = (siteId: string, type: Substation['type']): Substation =>
+    ({ siteId, description: siteId, lat: -40, long: 175, type, gridZone: 1, island: 'north' })
+
+  it('puts the tees first so the other substations draw on top of them', () => {
+    const collection = substationsToGeoJson([substation('OTA', 'ACSTN'), substation('TEE1', 'TEE'), substation('HAY', 'ACSTN'), substation('TEE2', 'TEE')])
+    expect(collection.features.map((f) => f.properties!.siteId)).toEqual(['TEE1', 'TEE2', 'OTA', 'HAY'])
   })
 })
 
