@@ -1,6 +1,6 @@
-import { MAX_RANGE_DAYS } from '../hooks/useDispatchData'
+import { isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
+import { yesterdayNZ } from '../hooks/useAggregates'
 import type { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { AggregationToggle, PeriodToggle } from './ToggleGroup'
 import { DateRangePicker } from './DatePickers'
@@ -15,14 +15,16 @@ interface Props {
   error: string | null
   // Nothing to chart, so the chart area shows the error instead
   empty: boolean
+  // No All view (see PeriodToggle)
+  hideAll?: boolean
 }
 
-// The period toggle with its date range picker's calendar button (and the All
-// view's Yearly | Quarterly toggle) and data status in every panel's toolbar.
+// The period toggle with its date range picker's calendar button (and the 90d,
+// 1y, 5y and All views' totals toggle) and data status in every panel's toolbar.
 // GeneratorPanel's Offers view has its own.
-export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
+export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty, hideAll }: Props) {
   const {
-    pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
+    firstDay, pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
     handleRangeChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
   } = picker
 
@@ -30,7 +32,7 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
     <DateRangePicker
       value={pickerRange}
       onChange={handleRangeChange}
-      min={FIRST_DAY}
+      min={firstDay}
       max={yesterdayNZ()}
       maxDays={MAX_RANGE_DAYS}
       error={rangeError}
@@ -50,10 +52,11 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
         customDates={customDates}
         onCustom={handleCustomClick}
         calendar={rangePicker}
+        hideAll={hideAll}
       />
       {compact && showDateInputs && <div className="toggle-group">{rangePicker}</div>}
-      {dateMode.kind === 'all' && !customDates && (
-        <AggregationToggle aggregation={dateMode.aggregation} onSelect={handleAggregationClick} compact={compact} />
+      {isAggregateMode(dateMode) && !customDates && (
+        <AggregationToggle dateMode={dateMode} onSelect={handleAggregationClick} compact={compact} />
       )}
       {lastUpdated && !loading && (
         <>{!compact && <div className="divider" />}<span className="status-text" style={{ marginLeft: compact ? 0 : 4 }}>{lastUpdated}</span></>

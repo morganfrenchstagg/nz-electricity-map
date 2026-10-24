@@ -19,6 +19,12 @@ describe('dateRangeError', () => {
     expect(dateRangeError('2008-12-31', '2009-01-05')).toBe('Data starts on 1 January 2009')
   })
 
+  it("rules out days before a panel's own data starts", () => {
+    expect(dateRangeError('2020-09-11', '', '2020-09-11')).toBeNull()
+    expect(dateRangeError('2020-09-10', '', '2020-09-11')).toBe('Data starts on 11 September 2020')
+    expect(dateRangeError('2015-06-01', '2015-06-05', '2020-09-11')).toBe('Data starts on 11 September 2020')
+  })
+
   it('rules out today, which has its own view, and later', () => {
     expect(dateRangeError('2026-10-14', '')).toBe('Dates must be before today')
     expect(dateRangeError('2026-10-01', '2026-10-14')).toBe('Dates must be before today')

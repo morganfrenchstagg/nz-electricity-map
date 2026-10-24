@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { AllAggregation, DateMode } from '../hooks/useDispatchData'
+import type { AggregateMode, AllAggregation, DateMode, FiveYearAggregation } from '../hooks/useDispatchData'
 
 interface ToggleOption {
   key: string
@@ -51,12 +51,12 @@ export function ToggleGroup({ options, compact = false, ariaLabel, trail }: Togg
   )
 }
 
-export type Period = 'today' | 'recent' | 'last30' | 'lastYear' | '5y' | 'all'
+export type Period = 'today' | 'recent' | 'last90' | 'lastYear' | '5y' | 'all'
 
 const PERIODS: { kind: Period; label: string; menuLabel?: string; title?: string }[] = [
   { kind: 'today', label: 'Today' },
   { kind: 'recent', label: '3d', menuLabel: '3 days', title: 'Last 3 days' },
-  { kind: 'last30', label: '30d', menuLabel: '30 days', title: 'Last 30 days' },
+  { kind: 'last90', label: '90d', menuLabel: '90 days', title: 'Last 13 weeks' },
   { kind: 'lastYear', label: '1y', menuLabel: '1 year', title: 'Last 52 weeks' },
   { kind: '5y', label: '5y', menuLabel: '5 years', title: 'Last 60 months' },
   { kind: 'all', label: 'All', menuLabel: 'All time', title: 'Everything since 2009' },
@@ -72,11 +72,13 @@ interface PeriodToggleProps {
   onCustom: () => void
   // DateRangePicker's button, after All
   calendar: ReactNode
+  // Leaves out All, for nodes with no data from most of its years
+  hideAll?: boolean
 }
 
-// The Today | 3d | 30d | 1y | 5y | All toggle shared by the node panels and GridOverviewPanel.
-export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar }: PeriodToggleProps) {
-  const options: ToggleOption[] = PERIODS.map(p => ({
+// The Today | 3d | 90d | 1y | 5y | All toggle shared by the node panels and GridOverviewPanel.
+export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar, hideAll = false }: PeriodToggleProps) {
+  const options: ToggleOption[] = PERIODS.filter(p => !(hideAll && p.kind === 'all')).map(p => ({
     key: p.kind,
     label: p.label,
     menuLabel: p.menuLabel,
@@ -88,25 +90,60 @@ export function PeriodToggle({ dateMode, onSelect, compact = false, customDates,
   return <ToggleGroup compact={compact} ariaLabel="Period" options={options} trail={calendar} />
 }
 
-const AGGREGATIONS: { kind: AllAggregation; label: string; title: string }[] = [
-  { kind: 'annual', label: 'Yearly', title: 'Every complete year since 2009' },
-  { kind: 'quarterly', label: 'Quarterly', title: 'Every complete calendar quarter since 2009' },
-]
-
-interface AggregationToggleProps {
-  aggregation: AllAggregation
-  onSelect: (aggregation: AllAggregation) => void
-  compact?: boolean
+interface Aggregation<A extends string> {
+  kind: A
+  label: string
+  title: string
 }
 
-// The Yearly | Quarterly toggle beside PeriodToggle while All is picked
-export function AggregationToggle({ aggregation, onSelect, compact = false }: AggregationToggleProps) {
-  const options: ToggleOption[] = AGGREGATIONS.map(a => ({
+const WEEKLY: Aggregation<'weekly'> = { kind: 'weekly', label: 'Weekly', title: 'Every Monday-to-Sunday week' }
+
+// Each view's choice of totals, finest first. Each view starts on its default
+// (see periodMode).
+const DAILY_WEEKLY: Aggregation<'daily' | 'weekly'>[] = [
+  { kind: 'daily', label: 'Daily', title: 'Every day' },
+  WEEKLY,
+]
+
+const FIVE_YEAR_AGGREGATIONS: Aggregation<FiveYearAggregation>[] = [
+  WEEKLY,
+  { kind: 'monthly', label: 'Monthly', title: 'Every month' },
+]
+
+const ALL_AGGREGATIONS: Aggregation<AllAggregation>[] = [
+  { kind: 'monthly', label: 'Monthly', title: 'Every month since 2009' },
+  { kind: 'quarterly', label: 'Quarterly', title: 'Every complete calendar quarter since 2009' },
+  { kind: 'annual', label: 'Yearly', title: 'Every complete year since 2009' },
+]
+
+// A view's choice of totals as toggle options
+function aggregationOptions<A extends string>(aggregations: Aggregation<A>[], aggregation: A, onSelect: (aggregation: A) => void): ToggleOption[] {
+  return aggregations.map(a => ({
     key: a.kind,
     label: a.label,
     title: a.title,
     active: aggregation === a.kind,
     onClick: () => onSelect(a.kind),
   }))
-  return <ToggleGroup compact={compact} ariaLabel="Totals" options={options} />
+}
+
+function viewAggregationOptions(dateMode: AggregateMode, onSelect: (dateMode: AggregateMode) => void): ToggleOption[] {
+  switch (dateMode.kind) {
+    case 'last90': return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, aggregation => onSelect({ kind: 'last90', aggregation }))
+    case 'lastYear': return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, aggregation => onSelect({ kind: 'lastYear', aggregation }))
+    case '5y': return aggregationOptions(FIVE_YEAR_AGGREGATIONS, dateMode.aggregation, aggregation => onSelect({ kind: '5y', aggregation }))
+    case 'all': return aggregationOptions(ALL_AGGREGATIONS, dateMode.aggregation, aggregation => onSelect({ kind: 'all', aggregation }))
+  }
+}
+
+interface AggregationToggleProps {
+  dateMode: AggregateMode
+  onSelect: (dateMode: AggregateMode) => void
+  compact?: boolean
+}
+
+// The toggle beside PeriodToggle for the totals of the view picked: 90d's and
+// 1y's Daily | Weekly, 5y's Weekly | Monthly or All's Monthly | Quarterly | Yearly
+export function AggregationToggle({ dateMode, onSelect, compact = false }: AggregationToggleProps) {
+  return <ToggleGroup compact={compact} ariaLabel="Totals" options={viewAggregationOptions(dateMode, onSelect)} />
 }

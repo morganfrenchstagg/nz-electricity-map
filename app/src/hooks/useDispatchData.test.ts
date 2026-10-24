@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentData } from '../types'
-import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS, periodOf } from './useDispatchData'
+import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS, periodMode, periodOf } from './useDispatchData'
 import { nzLocalMs } from '../utils/time'
 
 describe('datesBetween', () => {
@@ -43,13 +43,49 @@ describe('daysBetween', () => {
   })
 })
 
+describe('periodMode', () => {
+  it('starts 90d on daily totals', () => {
+    expect(periodMode('last90')).toEqual({ kind: 'last90', aggregation: 'daily' })
+  })
+
+  it('starts 1y, 5y and All on their coarsest totals', () => {
+    expect(periodMode('lastYear')).toEqual({ kind: 'lastYear', aggregation: 'weekly' })
+    expect(periodMode('5y')).toEqual({ kind: '5y', aggregation: 'monthly' })
+    expect(periodMode('all')).toEqual({ kind: 'all', aggregation: 'annual' })
+  })
+
+  it('takes the totals given when they are one of the view\'s choices', () => {
+    expect(periodMode('last90', 'weekly')).toEqual({ kind: 'last90', aggregation: 'weekly' })
+    expect(periodMode('lastYear', 'daily')).toEqual({ kind: 'lastYear', aggregation: 'daily' })
+    expect(periodMode('5y', 'weekly')).toEqual({ kind: '5y', aggregation: 'weekly' })
+    expect(periodMode('all', 'monthly')).toEqual({ kind: 'all', aggregation: 'monthly' })
+    expect(periodMode('all', 'quarterly')).toEqual({ kind: 'all', aggregation: 'quarterly' })
+  })
+
+  it("falls back to the default for another view's totals", () => {
+    expect(periodMode('lastYear', 'quarterly')).toEqual({ kind: 'lastYear', aggregation: 'weekly' })
+    expect(periodMode('5y', 'daily')).toEqual({ kind: '5y', aggregation: 'monthly' })
+    expect(periodMode('last90', 'monthly')).toEqual({ kind: 'last90', aggregation: 'daily' })
+    expect(periodMode('all', 'weekly')).toEqual({ kind: 'all', aggregation: 'annual' })
+  })
+
+  it('leaves the other views without totals to choose', () => {
+    expect(periodMode('today', 'daily')).toEqual({ kind: 'today' })
+    expect(periodMode('recent')).toEqual({ kind: 'recent' })
+  })
+})
+
 describe('isAggregateMode', () => {
   it('is true for the views that chart MWh totals', () => {
-    expect(isAggregateMode({ kind: 'last30' })).toBe(true)
-    expect(isAggregateMode({ kind: 'lastYear' })).toBe(true)
-    expect(isAggregateMode({ kind: '5y' })).toBe(true)
+    expect(isAggregateMode({ kind: 'last90', aggregation: 'weekly' })).toBe(true)
+    expect(isAggregateMode({ kind: 'last90', aggregation: 'daily' })).toBe(true)
+    expect(isAggregateMode({ kind: 'lastYear', aggregation: 'weekly' })).toBe(true)
+    expect(isAggregateMode({ kind: 'lastYear', aggregation: 'daily' })).toBe(true)
+    expect(isAggregateMode({ kind: '5y', aggregation: 'monthly' })).toBe(true)
+    expect(isAggregateMode({ kind: '5y', aggregation: 'weekly' })).toBe(true)
     expect(isAggregateMode({ kind: 'all', aggregation: 'annual' })).toBe(true)
     expect(isAggregateMode({ kind: 'all', aggregation: 'quarterly' })).toBe(true)
+    expect(isAggregateMode({ kind: 'all', aggregation: 'monthly' })).toBe(true)
   })
 
   it('is false for the views that chart dispatch data', () => {
@@ -69,9 +105,9 @@ describe('isLiveMode', () => {
   it('is false for past days and aggregates', () => {
     expect(isLiveMode({ kind: 'date', date: '2026-10-13' })).toBe(false)
     expect(isLiveMode({ kind: 'range', from: '2026-10-01', to: '2026-10-13' })).toBe(false)
-    expect(isLiveMode({ kind: 'last30' })).toBe(false)
-    expect(isLiveMode({ kind: 'lastYear' })).toBe(false)
-    expect(isLiveMode({ kind: '5y' })).toBe(false)
+    expect(isLiveMode({ kind: 'last90', aggregation: 'weekly' })).toBe(false)
+    expect(isLiveMode({ kind: 'lastYear', aggregation: 'weekly' })).toBe(false)
+    expect(isLiveMode({ kind: '5y', aggregation: 'monthly' })).toBe(false)
     expect(isLiveMode({ kind: 'all', aggregation: 'annual' })).toBe(false)
   })
 })
@@ -139,10 +175,14 @@ describe('periodOf', () => {
   })
 
   it("covers the aggregate views' charts through to now, as the map shows live data under them", () => {
-    expect(periodOf({ kind: 'last30' })).toEqual({ from: nzLocalMs('2026-09-14T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'lastYear' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
-    expect(periodOf({ kind: '5y' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'last90', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2026-07-20T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'last90', aggregation: 'daily' })).toEqual({ from: nzLocalMs('2026-07-20T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'lastYear', aggregation: 'daily' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
+    expect(periodOf({ kind: '5y', aggregation: 'monthly' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: '5y', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
     expect(periodOf({ kind: 'all', aggregation: 'annual' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
     expect(periodOf({ kind: 'all', aggregation: 'quarterly' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'all', aggregation: 'monthly' })).toEqual({ from: nzLocalMs('2009-01-01T00:00:00'), to: now() })
   })
 })

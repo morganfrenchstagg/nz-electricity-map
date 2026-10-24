@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Generator, SelectedNode, Substation } from '../types'
+import { periodMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { FIRST_DAY } from './useAggregates'
 
@@ -7,8 +8,10 @@ export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
 //   ?node=          the open node panel: generator:HLY, generators:HLY,TCC or substation:OTA
-//   ?mode=          today | recent | last30 | lastYear | 5y | all, with
-//   ?aggregation=   quarterly for All's quarterly rather than yearly totals, or instead
+//   ?mode=          today | recent | last90 | lastYear | 5y | all, with
+//   ?aggregation=   a view's totals when they aren't its default: weekly for
+//                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
+//                   for All, or instead
 //   ?date=          a single day, or
 //   ?from=&to=      a custom range
 //   ?view=offers    the generator panel's Offers view, with
@@ -19,7 +22,7 @@ export type ViewMode = 'generation' | 'offers'
 // Any other params the link had (e.g. utm_source) are kept, after these.
 const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', 'expanded']
 
-const PERIOD_MODES = ['today', 'recent', 'last30', 'lastYear', '5y', 'all'] as const
+const PERIOD_MODES = ['today', 'recent', 'last90', 'lastYear', '5y', 'all'] as const
 
 interface UrlState {
   node: string | null
@@ -35,7 +38,9 @@ function readUrl(): UrlState {
   const p = new URLSearchParams(window.location.search)
   // A day before the data starts is dropped, so the link opens its period instead
   const day = (key: string) => { const d = p.get(key); return d && d >= FIRST_DAY ? d : null }
-  const from = day('from'), to = day('to'), date = day('date'), mode = p.get('mode')
+  const from = day('from'), to = day('to'), date = day('date')
+  // The 30d view was dropped for 90d, which its old links open instead
+  const mode = p.get('mode') === 'last30' ? 'last90' : p.get('mode')
   const period = PERIOD_MODES.find(m => m === mode) ?? 'today'
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)
@@ -44,8 +49,7 @@ function readUrl(): UrlState {
     node: p.get('node'),
     dateMode: from && to ? { kind: 'range', from, to }
       : date ? { kind: 'date', date }
-        : period === 'all' ? { kind: 'all', aggregation: p.get('aggregation') === 'quarterly' ? 'quarterly' : 'annual' }
-          : { kind: period },
+        : periodMode(period, p.get('aggregation')),
     viewMode,
     tradingPeriod: viewMode === 'offers' && !isNaN(tp) ? tp : 1,
     activeFuels: fuels ? new Set(fuels.split(',').filter(Boolean)) : null,
@@ -62,7 +66,10 @@ function writeUrl(state: UrlState) {
   else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
   else {
     p.set('mode', dateMode.kind)
-    if (dateMode.kind === 'all' && dateMode.aggregation === 'quarterly') p.set('aggregation', 'quarterly')
+    const defaultMode = periodMode(dateMode.kind)
+    if ('aggregation' in dateMode && 'aggregation' in defaultMode && dateMode.aggregation !== defaultMode.aggregation) {
+      p.set('aggregation', dateMode.aggregation)
+    }
   }
   if (state.viewMode === 'offers') { p.set('view', 'offers'); p.set('tp', String(state.tradingPeriod)) }
   if (state.activeFuels) p.set('fuels', [...state.activeFuels].join(','))
@@ -124,11 +131,14 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     if (mode === 'generation') setTradingPeriod(1)
   }, [])
 
-  // The Offers view belongs to the generator panel, so goes when it does
+  // The Offers view belongs to the generator panel, so goes when it does. And
+  // substations have no All view (see SubstationPanel), so opening one on All
+  // moves to 5y.
   const selectNode = useCallback((node: SelectedNode) => {
     setLinkedNode(null)
     setSelectedNode(node)
     if (node === null || node.kind === 'substation') setViewMode('generation')
+    if (node?.kind === 'substation') setDateMode(m => m.kind === 'all' ? periodMode('5y') : m)
   }, [setViewMode])
 
   useEffect(() => {

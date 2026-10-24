@@ -15,16 +15,40 @@ export type DateMode =
   | { kind: 'today' }
   | { kind: 'date'; date: string }
   | { kind: 'range'; from: string; to: string }
-  | { kind: 'last30' }
-  | { kind: 'lastYear' }
-  | { kind: '5y' }
+  | { kind: 'last90'; aggregation: NinetyDayAggregation }
+  | { kind: 'lastYear'; aggregation: YearAggregation }
+  | { kind: '5y'; aggregation: FiveYearAggregation }
   | { kind: 'all'; aggregation: AllAggregation }
 
-// The All view's totals: one for each year (the default), or each calendar quarter
-export type AllAggregation = 'annual' | 'quarterly'
+// The 90d view's totals: one for each day (the default), or each week
+export type NinetyDayAggregation = 'daily' | 'weekly'
 
-// The views that chart aggregates (see isAggregateMode)
-export type AggregateMode = Extract<DateMode, { kind: 'last30' | 'lastYear' | '5y' | 'all' }>
+// The 1y view's totals: one for each day, or each week (the default)
+export type YearAggregation = 'daily' | 'weekly'
+
+// The 5y view's totals: one for each week, or each month (the default)
+export type FiveYearAggregation = 'weekly' | 'monthly'
+
+// The All view's totals: one for each month, calendar quarter, or year (the default)
+export type AllAggregation = 'monthly' | 'quarterly' | 'annual'
+
+// A period's view. 90d, 1y, 5y and All are on the totals given, when they're
+// one of that view's choices, or else on its default ones: daily for 90d, and
+// the coarsest for the rest. Switching to another view gives it its default,
+// rather than carrying over totals picked for the last one.
+export function periodMode(kind: Exclude<DateMode['kind'], 'date' | 'range'>, aggregation?: string | null): DateMode {
+  switch (kind) {
+    case 'last90': return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'daily' }
+    case 'lastYear': return { kind, aggregation: aggregation === 'daily' ? 'daily' : 'weekly' }
+    case '5y': return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'monthly' }
+    case 'all': return { kind, aggregation: aggregation === 'monthly' || aggregation === 'quarterly' ? aggregation : 'annual' }
+    default: return { kind }
+  }
+}
+
+// The views that chart aggregates (see isAggregateMode), each with a choice of
+// totals (see AggregationToggle)
+export type AggregateMode = Extract<DateMode, { kind: 'last90' | 'lastYear' | '5y' | 'all' }>
 
 // Today and 3d are the only views kept up to date. Past days and aggregates are
 // left alone until one of them is picked again.
@@ -32,11 +56,11 @@ export function isLiveMode(mode: DateMode): mode is Extract<DateMode, { kind: 'r
   return mode.kind === 'recent' || mode.kind === 'today'
 }
 
-// The 30d, 1y, 5y and All views chart aggregates (useAggregates) in the node
+// The 90d, 1y, 5y and All views chart aggregates (useAggregates) in the node
 // panels and GridOverviewPanel; the map keeps showing live data underneath them,
 // as it was when the view was picked.
 export function isAggregateMode(mode: DateMode): mode is AggregateMode {
-  return mode.kind === 'last30' || mode.kind === 'lastYear' || mode.kind === '5y' || mode.kind === 'all'
+  return 'aggregation' in mode
 }
 
 // How much the 3d view's rolling window holds
@@ -44,7 +68,7 @@ const RECENT_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // The span of time a view's data covers, to show the units in service then. The
-// 30d, 1y, 5y and All views cover their charts' days through to now, as the map shows
+// 90d, 1y, 5y and All views cover their charts' days through to now, as the map shows
 // live data under them, so it has every generator they chart, retired ones too.
 // Their charts show every unit's history regardless (see GeneratorAdapter.getCodes).
 export function periodOf(mode: DateMode): Period {

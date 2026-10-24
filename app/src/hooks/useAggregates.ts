@@ -1,34 +1,33 @@
 import { useEffect, useState } from 'react'
 import type { RecentData } from '../types'
-import { mergeData } from './useDispatchData'
+import { isAggregateMode, mergeData } from './useDispatchData'
 import type { AggregateMode, DateMode } from './useDispatchData'
 import { fetchAggregates } from '../api'
 import { nzLocalMs, todayNZ } from '../utils/time'
 
-export const DAILY_RANGE_DAYS = 30
+export const NINETY_DAY_RANGE_WEEKS = 13
 export const WEEKLY_RANGE_WEEKS = 52
 export const MONTHLY_RANGE_MONTHS = 60
 // Metered generation reaches back to 1 August 1997, but it's less complete
 // before 2009, so for now nothing earlier is shown: not in the date pickers,
 // links or aggregate views. 1 January 2009 also starts the first complete
-// quarter and year.
+// month, quarter and year.
 export const FIRST_DAY = '2009-01-01'
+// Substations' bus loads only start on 11 September 2020 (the generators at
+// them go back further), so their date pickers stop there and they have no All
+// view (see SubstationPanel). If bus loads are backfilled to FIRST_DAY, drop
+// this and give substations All again.
+export const SUBSTATION_FIRST_DAY = '2020-09-11'
 const FIRST_COMPLETE_QUARTER = FIRST_DAY
 const FIRST_COMPLETE_YEAR = FIRST_DAY
 const DAY_MS = 86400000
 
 export type AggregatePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual'
 
-// The 30d, 1y, 5y and All views swap the 5-minute dispatch data for MWh totals,
-// each covering this period. Null for the views that chart dispatch data.
+// The 90d, 1y, 5y and All views swap the 5-minute dispatch data for MWh
+// totals, each covering this period. Null for the views that chart dispatch data.
 export function aggregatePeriodOf(mode: DateMode): AggregatePeriod | null {
-  switch (mode.kind) {
-    case 'last30': return 'daily'
-    case 'lastYear': return 'weekly'
-    case '5y': return 'monthly'
-    case 'all': return mode.aggregation
-    default: return null
-  }
+  return isAggregateMode(mode) ? mode.aggregation : null
 }
 
 // The midnight starting today in NZ, in the "local time as UTC" convention
@@ -50,18 +49,24 @@ export function yesterdayNZ(): string {
 // falls in. The aggregates API totals today as it goes, so that last total
 // only covers it so far.
 
-// The last `days` NZ days, ending today.
-function dayWindow(days: number): { from: string; to: string } {
-  return { from: isoDate(todayMs() - (days - 1) * DAY_MS), to: todayNZ() }
+// The Monday this NZ week started on
+function thisMonday(): number {
+  const today = todayMs()
+  return today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS
+}
+
+// The first Monday on or after a "YYYY-MM-DD" date
+function firstMondayFrom(date: string): string {
+  const ms = Date.parse(`${date}T00:00:00Z`)
+  return isoDate(ms + ((8 - new Date(ms).getUTCDay()) % 7) * DAY_MS)
 }
 
 // The last `weeks` Monday-to-Sunday NZ weeks, ending this week. Weekly rows
 // are keyed by the Monday each week starts on, so `from` and `to` are both
 // Mondays.
 function weekWindow(weeks: number): { from: string; to: string } {
-  const today = todayMs()
-  const thisMonday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS
-  return { from: isoDate(thisMonday - (weeks - 1) * 7 * DAY_MS), to: isoDate(thisMonday) }
+  const monday = thisMonday()
+  return { from: isoDate(monday - (weeks - 1) * 7 * DAY_MS), to: isoDate(monday) }
 }
 
 // The 1st of the NZ month `ago` months before this one
@@ -83,6 +88,12 @@ function monthWindow(months: number): { from: string; to: string } {
 function quarterStart(date: string): string {
   const month = Number(date.slice(5, 7))
   return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
+}
+
+// Every NZ month of data, ending with this one. Monthly rows are keyed by the
+// 1st of each month.
+function allMonthsWindow(): { from: string; to: string } {
+  return { from: FIRST_DAY, to: monthsAgo(0) }
 }
 
 // Every NZ calendar quarter of data, ending with this one. Quarterly rows are
@@ -125,26 +136,29 @@ function monthlyYearsBetween(from: string, to: string): string[] {
 // The dates an aggregate view's chart covers, and the aggregate files (see
 // fetchAggregates) holding them.
 export function aggregateWindow(mode: AggregateMode): { from: string; to: string; paths: string[] } {
-  if (mode.kind === 'last30') {
-    const { from, to } = dayWindow(DAILY_RANGE_DAYS)
-    return { from, to, paths: monthsBetween(from, to) }
-  }
-  if (mode.kind === 'lastYear') {
-    const { from, to } = weekWindow(WEEKLY_RANGE_WEEKS)
+  if (mode.kind === 'last90' || mode.kind === 'lastYear') {
+    const { from, to } = weekWindow(mode.kind === 'last90' ? NINETY_DAY_RANGE_WEEKS : WEEKLY_RANGE_WEEKS)
+    // Daily totals cover the same weeks, by day, to today
+    if (mode.aggregation === 'daily') return { from, to: todayNZ(), paths: monthsBetween(from, todayNZ()) }
     return { from, to, paths: weeklyYearsBetween(from, to) }
   }
   if (mode.kind === '5y') {
     const { from, to } = monthWindow(MONTHLY_RANGE_MONTHS)
+    if (mode.aggregation === 'weekly') {
+      // Weekly totals cover the same months, by the weeks starting in them
+      const weeks = { from: firstMondayFrom(from), to: isoDate(thisMonday()) }
+      return { ...weeks, paths: weeklyYearsBetween(weeks.from, weeks.to) }
+    }
     return { from, to, paths: monthlyYearsBetween(from, to) }
   }
   if (mode.aggregation === 'annual') {
     // Every year's totals are in the one file
     return { ...yearWindow(), paths: ['annual'] }
   }
-  // There's no quarterly API, so quarters are summed from each year's monthly
-  // totals (see sumQuarters). Years with no data yet 404, and are fetched as
-  // empty (see fetchAggregates).
-  const { from, to } = quarterWindow()
+  // Months come from each year's monthly totals, and so do quarters, as there's
+  // no quarterly API (see sumQuarters). Years with no data yet 404, and are
+  // fetched as empty (see fetchAggregates).
+  const { from, to } = mode.aggregation === 'monthly' ? allMonthsWindow() : quarterWindow()
   return { from, to, paths: monthlyYearsBetween(from, to) }
 }
 
@@ -186,9 +200,9 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
 }
 
 /**
- * Energy totals (MWh) for the given nodes over an aggregate view: daily over
- * the last 30 days, weekly over the last 52 weeks, monthly over the last 60
- * months, or annually or quarterly over everything since data begins, each
+ * Energy totals (MWh) for the given nodes over an aggregate view: daily or
+ * weekly over the last 13 or 52 weeks, monthly or weekly over the last 60
+ * months, or annually, quarterly or monthly over everything since data begins, each
  * ending with the one so far. Rows are shaped like dispatch data, timestamped at local
  * midnight at the start of each day/week/month/quarter/year, so they can go
  * through the same chart helpers. Pass 'all' for every node, or null to skip
@@ -202,7 +216,7 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
   // A new dateMode object for the same view (e.g. its button clicked again)
   // doesn't fetch it again
   const modeKey = mode && JSON.stringify(mode)
-  // Tagged with its view so a switch between e.g. 30d and 1y doesn't briefly
+  // Tagged with its view so a switch between e.g. 90d and 1y doesn't briefly
   // chart one view's rows formatted as the other while the new ones load.
   const [result, setResult] = useState<{ modeKey: string; data: RecentData } | null>(null)
   const [loading, setLoading] = useState(false)

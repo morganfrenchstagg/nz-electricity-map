@@ -23,7 +23,7 @@ interface Options {
 }
 
 // What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
-// or for the 30d, 1y, 5y and All views the node's own MWh totals, narrowed to the
+// or for the 90d, 1y, 5y and All views the node's own MWh totals, narrowed to the
 // node's codes.
 export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes }: Options) {
   const aggregatePeriod = aggregatePeriodOf(dateMode)
