@@ -700,7 +700,7 @@ body {
   background: var(--color-surface-subtle);
 }
 
-/* GeneratorPanel's and GridOverviewPanel's 30d, 1y, 5y and All column charts */
+/* GeneratorPanel's and GridOverviewPanel's 90d, 1y, 5y and All column charts */
 
 /* Gapless columns: without this, anti-aliasing leaves a faint light seam
    where neighbouring columns meet, even on whole-pixel edges. */

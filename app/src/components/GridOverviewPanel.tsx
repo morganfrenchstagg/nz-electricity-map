@@ -45,7 +45,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
-  // The 30d, 1y, 5y and All views chart every node's MWh totals instead of the
+  // The 90d, 1y, 5y and All views chart every node's MWh totals instead of the
   // 5-minute dispatch data. Not fetched while the panel is hidden.
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
