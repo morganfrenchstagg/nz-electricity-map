@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AllAggregation, DateMode } from '../hooks/useDispatchData'
 
 interface ToggleOption {
@@ -15,10 +16,12 @@ interface ToggleGroupProps {
   // Render as a dropdown, for toolbars too narrow for the buttons
   compact?: boolean
   ariaLabel?: string
+  // A last button of the caller's own, e.g. PeriodToggle's calendar. The dropdown leaves it out.
+  trail?: ReactNode
 }
 
 // Segmented button group, e.g. Generation / Offers.
-export function ToggleGroup({ options, compact = false, ariaLabel }: ToggleGroupProps) {
+export function ToggleGroup({ options, compact = false, ariaLabel, trail }: ToggleGroupProps) {
   // A single button stays a button: a one-option dropdown has nothing to choose from
   if (compact && options.length > 1) {
     const active = options.find(o => o.active)
@@ -43,6 +46,7 @@ export function ToggleGroup({ options, compact = false, ariaLabel }: ToggleGroup
           {o.label}
         </button>
       ))}
+      {trail}
     </div>
   )
 }
@@ -62,14 +66,16 @@ interface PeriodToggleProps {
   dateMode: DateMode
   onSelect: (period: Period) => void
   compact?: boolean
-  // A date or range is picked, or being picked, with the date inputs
+  // A date or range is picked, or being picked, with the date range picker
   customDates: boolean
-  // The compact toolbar hides the date inputs, so its dropdown has an option to show them
+  // The compact toolbar hides the calendar button, so its dropdown has an option to show it
   onCustom: () => void
+  // DateRangePicker's button, after All
+  calendar: ReactNode
 }
 
 // The Today | 3d | 30d | 1y | 5y | All toggle shared by the node panels and GridOverviewPanel.
-export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom }: PeriodToggleProps) {
+export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar }: PeriodToggleProps) {
   const options: ToggleOption[] = PERIODS.map(p => ({
     key: p.kind,
     label: p.label,
@@ -79,7 +85,7 @@ export function PeriodToggle({ dateMode, onSelect, compact = false, customDates,
     onClick: () => onSelect(p.kind),
   }))
   if (compact) options.push({ key: 'custom', label: 'Custom dates', active: customDates, onClick: onCustom })
-  return <ToggleGroup compact={compact} ariaLabel="Period" options={options} />
+  return <ToggleGroup compact={compact} ariaLabel="Period" options={options} trail={calendar} />
 }
 
 const AGGREGATIONS: { kind: AllAggregation; label: string; title: string }[] = [
