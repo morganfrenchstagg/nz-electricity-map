@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type Highcharts from 'highcharts'
-import { chartReach, dataInterval, extractChartData, timeChartAccessibility, totalMWh, withGaps } from './chart'
+import { chartReach, dataInterval, extractChartData, timeChartAccessibility, tooltipTime, totalMWh, withGaps } from './chart'
 import type { ChartRow } from './chart'
 import { MW_UNIT, energyUnit } from './format'
 
@@ -151,6 +151,31 @@ describe('totalMWh', () => {
     expect(totalMWh([row('14:00', { A: 60 }), row('14:05', { A: 60 })], [], false)).toBeNull()
     expect(totalMWh([row('14:00', { A: 60 })], ['A'], false)).toBeNull()
     expect(totalMWh([], ['A'], true)).toBeNull()
+  })
+})
+
+describe('tooltipTime', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  it("marks the total for the day, week, month, quarter or year today falls in as only being so far", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on Wednesday the 14th
+    expect(tooltipTime(Date.UTC(2026, 9, 13), 'daily')).toBe('Tue 13 Oct')
+    expect(tooltipTime(Date.UTC(2026, 9, 14), 'daily')).toBe('Wed 14 Oct (so far)')
+    expect(tooltipTime(Date.UTC(2026, 9, 5), 'weekly')).toBe(' 5 Oct – 11 Oct 2026')
+    expect(tooltipTime(Date.UTC(2026, 9, 12), 'weekly')).toBe('12 Oct – 18 Oct 2026 (so far)')
+    expect(tooltipTime(Date.UTC(2026, 8, 1), 'monthly')).toBe('September 2026')
+    expect(tooltipTime(Date.UTC(2026, 9, 1), 'monthly')).toBe('October 2026 (so far)')
+    expect(tooltipTime(Date.UTC(2026, 6, 1), 'quarterly')).toBe('Jul – Sep 2026')
+    expect(tooltipTime(Date.UTC(2026, 9, 1), 'quarterly')).toBe('Oct – Dec 2026 (so far)')
+    expect(tooltipTime(Date.UTC(2025, 0, 1), 'annual')).toBe('2025')
+    expect(tooltipTime(Date.UTC(2026, 0, 1), 'annual')).toBe('2026 (so far)')
+  })
+
+  it('never marks a 5-minute timestamp', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on the 14th
+    expect(tooltipTime(Date.UTC(2026, 9, 14, 0, 25), null)).toBe('14 Oct 12:25 AM')
   })
 })
 

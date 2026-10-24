@@ -46,18 +46,22 @@ export function yesterdayNZ(): string {
   return isoDate(todayMs() - DAY_MS)
 }
 
-// The last `days` complete NZ days, ending yesterday.
-function completeDayWindow(days: number): { from: string; to: string } {
-  return { from: isoDate(todayMs() - days * DAY_MS), to: yesterdayNZ() }
+// Each view's window runs to the day, week, month, quarter or year that today
+// falls in. The aggregates API totals today as it goes, so that last total
+// only covers it so far.
+
+// The last `days` NZ days, ending today.
+function dayWindow(days: number): { from: string; to: string } {
+  return { from: isoDate(todayMs() - (days - 1) * DAY_MS), to: todayNZ() }
 }
 
-// The last `weeks` complete Monday-to-Sunday NZ weeks, ending last Sunday.
-// Weekly rows are keyed by the Monday each week starts on, so `from` and `to`
-// are both Mondays.
-function completeWeekWindow(weeks: number): { from: string; to: string } {
+// The last `weeks` Monday-to-Sunday NZ weeks, ending this week. Weekly rows
+// are keyed by the Monday each week starts on, so `from` and `to` are both
+// Mondays.
+function weekWindow(weeks: number): { from: string; to: string } {
   const today = todayMs()
   const thisMonday = today - ((new Date(today).getUTCDay() + 6) % 7) * DAY_MS
-  return { from: isoDate(thisMonday - weeks * 7 * DAY_MS), to: isoDate(thisMonday - 7 * DAY_MS) }
+  return { from: isoDate(thisMonday - (weeks - 1) * 7 * DAY_MS), to: isoDate(thisMonday) }
 }
 
 // The 1st of the NZ month `ago` months before this one
@@ -68,10 +72,10 @@ function monthsAgo(ago: number): string {
   return isoDate(d.getTime())
 }
 
-// The last `months` complete NZ months, ending last month. Monthly rows are
-// keyed by the 1st of each month.
-function completeMonthWindow(months: number): { from: string; to: string } {
-  return { from: monthsAgo(months), to: monthsAgo(1) }
+// The last `months` NZ months, ending this month. Monthly rows are keyed by
+// the 1st of each month.
+function monthWindow(months: number): { from: string; to: string } {
+  return { from: monthsAgo(months - 1), to: monthsAgo(0) }
 }
 
 // The calendar quarter a "YYYY-MM-DD" date falls in, by its first day: 1
@@ -81,19 +85,16 @@ function quarterStart(date: string): string {
   return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
 }
 
-// Every complete NZ calendar quarter of data, ending with the one before this
-// quarter. Quarterly rows are keyed by each quarter's first day (see sumQuarters).
-function completeQuarterWindow(): { from: string; to: string } {
-  const thisQuarter = quarterStart(monthsAgo(0))
-  const lastQuarter = new Date(thisQuarter + 'T00:00:00Z')
-  lastQuarter.setUTCMonth(lastQuarter.getUTCMonth() - 3)
-  return { from: FIRST_COMPLETE_QUARTER, to: isoDate(lastQuarter.getTime()) }
+// Every NZ calendar quarter of data, ending with this one. Quarterly rows are
+// keyed by each quarter's first day (see sumQuarters).
+function quarterWindow(): { from: string; to: string } {
+  return { from: FIRST_COMPLETE_QUARTER, to: quarterStart(monthsAgo(0)) }
 }
 
-// Every complete NZ year of data, ending last year. Annual rows are keyed by
-// 1 January of each year.
-function completeYearWindow(): { from: string; to: string } {
-  return { from: FIRST_COMPLETE_YEAR, to: `${Number(todayNZ().slice(0, 4)) - 1}-01-01` }
+// Every NZ year of data, ending with this one. Annual rows are keyed by 1
+// January of each year.
+function yearWindow(): { from: string; to: string } {
+  return { from: FIRST_COMPLETE_YEAR, to: `${todayNZ().slice(0, 4)}-01-01` }
 }
 
 function monthsBetween(from: string, to: string): string[] {
@@ -125,25 +126,25 @@ function monthlyYearsBetween(from: string, to: string): string[] {
 // fetchAggregates) holding them.
 export function aggregateWindow(mode: AggregateMode): { from: string; to: string; paths: string[] } {
   if (mode.kind === 'last30') {
-    const { from, to } = completeDayWindow(DAILY_RANGE_DAYS)
+    const { from, to } = dayWindow(DAILY_RANGE_DAYS)
     return { from, to, paths: monthsBetween(from, to) }
   }
   if (mode.kind === 'lastYear') {
-    const { from, to } = completeWeekWindow(WEEKLY_RANGE_WEEKS)
+    const { from, to } = weekWindow(WEEKLY_RANGE_WEEKS)
     return { from, to, paths: weeklyYearsBetween(from, to) }
   }
   if (mode.kind === '5y') {
-    const { from, to } = completeMonthWindow(MONTHLY_RANGE_MONTHS)
+    const { from, to } = monthWindow(MONTHLY_RANGE_MONTHS)
     return { from, to, paths: monthlyYearsBetween(from, to) }
   }
   if (mode.aggregation === 'annual') {
     // Every year's totals are in the one file
-    return { ...completeYearWindow(), paths: ['annual'] }
+    return { ...yearWindow(), paths: ['annual'] }
   }
   // There's no quarterly API, so quarters are summed from each year's monthly
   // totals (see sumQuarters). Years with no data yet 404, and are fetched as
   // empty (see fetchAggregates).
-  const { from, to } = completeQuarterWindow()
+  const { from, to } = quarterWindow()
   return { from, to, paths: monthlyYearsBetween(from, to) }
 }
 
@@ -186,9 +187,9 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
 
 /**
  * Energy totals (MWh) for the given nodes over an aggregate view: daily over
- * the last 30 complete days, weekly over the last 52 complete weeks, monthly
- * over the last 60 complete months, or annually or quarterly over everything
- * since data begins. Rows are shaped like dispatch data, timestamped at local
+ * the last 30 days, weekly over the last 52 weeks, monthly over the last 60
+ * months, or annually or quarterly over everything since data begins, each
+ * ending with the one so far. Rows are shaped like dispatch data, timestamped at local
  * midnight at the start of each day/week/month/quarter/year, so they can go
  * through the same chart helpers. Pass 'all' for every node, or null to skip
  * fetching.
