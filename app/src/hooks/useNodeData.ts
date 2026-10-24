@@ -63,16 +63,19 @@ export function useCodeSelection(allCodes: string[], node: object) {
 
   useEffect(() => { setActiveCodes(null) }, [node])
 
-  // Shows or hides a code, though never the last one showing
-  function toggleCode(code: string) {
+  // Shows or hides a code. Hiding the only series showing shows every code
+  // again; `othersShown` says another series still is, e.g. a substation's Total.
+  function toggleCode(code: string, othersShown = false) {
     const next = new Set(effectiveCodes)
-    if (next.has(code)) {
-      if (next.size > 1) next.delete(code)
-    } else {
-      next.add(code)
-    }
-    setActiveCodes(next)
+    if (next.has(code)) next.delete(code)
+    else next.add(code)
+    setActiveCodes(next.size === 0 && !othersShown ? null : next)
   }
 
-  return { effectiveCodes, setActiveCodes, toggleCode }
+  // Shows a code alone, hiding every other
+  function isolateCode(code: string) {
+    setActiveCodes(new Set([code]))
+  }
+
+  return { effectiveCodes, setActiveCodes, toggleCode, isolateCode }
 }

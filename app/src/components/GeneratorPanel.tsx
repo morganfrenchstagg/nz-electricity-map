@@ -71,7 +71,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     dateMode, recentData, loading, error,
     queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes,
   })
-  const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
+  const { effectiveCodes, setActiveCodes, toggleCode, isolateCode } = useCodeSelection(allCodes, node)
   // The units counted towards capacity and outages. The data leaves out units that
   // didn't dispatch, so they aren't charted or picked out, but while every unit
   // charted is shown, they're counted too (the adapter keeps to those in service).
@@ -281,7 +281,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   // A button per unit, when there's more than one
   const unitButtons = allCodes.length < 2 ? [] : allCodes.map((code) => (
-    <SeriesButton key={code} colour={adapter.colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)}>
+    <SeriesButton key={code} colour={adapter.colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)} onIsolate={() => isolateCode(code)}>
       {adapter.labelFor(code)}
     </SeriesButton>
   ))

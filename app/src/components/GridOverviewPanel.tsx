@@ -90,9 +90,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
   function toggleFuel(fuel: string) {
     const next = new Set(effectiveFuels)
-    if (next.has(fuel)) { next.delete(fuel); if (next.size === 0) return }
+    if (next.has(fuel)) next.delete(fuel)
     else next.add(fuel)
-    onActiveFuelsChange(next.size === fuels.length ? null : next)
+    // Hiding the only fuel showing shows them all again
+    onActiveFuelsChange(next.size === 0 || next.size === fuels.length ? null : next)
+  }
+
+  // Shows a fuel alone, hiding every other
+  function isolateFuel(fuel: string) {
+    onActiveFuelsChange(fuels.length === 1 ? null : new Set([fuel]))
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -318,7 +324,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         <div className="section">
           <SeriesButtonRow
             items={fuels.map(fuel => (
-              <SeriesButton key={fuel} colour={fuelCodeColour(fuel)} active={effectiveFuels.has(fuel)} onClick={() => toggleFuel(fuel)}>
+              <SeriesButton key={fuel} colour={fuelCodeColour(fuel)} active={effectiveFuels.has(fuel)} onClick={() => toggleFuel(fuel)} onIsolate={() => isolateFuel(fuel)}>
                 {fuelCodeLabel(fuel)}
               </SeriesButton>
             ))}
