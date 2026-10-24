@@ -7,6 +7,7 @@ import { busLabel, isGeneratorCode } from '../utils/chart'
 import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import type { Period } from '../utils/time'
+import type { GridZoneTotals } from '../utils/gridZones'
 import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, Unit } from '../types'
 
@@ -249,6 +250,35 @@ export function substationPopupHtml(substation: Substation, data: RecentData | n
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px;display:flex;justify-content:space-between;align-items:center">
       <span style="color:var(--color-text-muted)">Net load</span>
       <span style="font-weight:600">${formatMW(netLoad)}</span>
+    </div>` : '<div style="color:var(--color-text-faint);margin-top:4px">No data</div>'}
+  </div>`
+}
+
+export function gridZonePopupHtml(zone: number, name: string, totals: GridZoneTotals | null): string {
+  const row = (label: string, value: string) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span style="color:var(--color-text-muted)">${label}</span>
+      <span style="font-weight:600;white-space:nowrap">${value}</span>
+    </div>`
+  const fuelRows = totals?.byFuel.map(f => `<div style="display:flex;align-items:center;gap:6px;margin-left:2px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${fuelColour(f.fuel)};flex-shrink:0"></span>
+      <span style="flex:1">${f.fuel}</span>
+      <span style="white-space:nowrap">${formatMW(f.mw)}</span>
+    </div>`).join('') ?? ''
+  // Positive when the zone generates more than it uses, so sends power to the rest of the grid
+  const net = totals ? totals.generationMW - totals.demandMW : 0
+  return `<div style="font-size:var(--font-size-sm);line-height:1.5;width:240px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px">
+      <span style="font-weight:600">${name}</span>
+      <span style="background:var(--color-surface-muted);color:var(--color-text);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">GZ${zone}</span>
+    </div>
+    ${totals ? `
+    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:6px">
+      ${row('Demand', formatMW(totals.demandMW))}
+      ${row('Generation', formatMW(totals.generationMW))}
+      ${fuelRows ? `<div style="margin-top:2px">${fuelRows}</div>` : ''}
+    </div>
+    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:var(--space-sm)">
+      ${row(net >= 0 ? 'Net export' : 'Net import', formatMW(Math.abs(net)))}
     </div>` : '<div style="color:var(--color-text-faint);margin-top:4px">No data</div>'}
   </div>`
 }
