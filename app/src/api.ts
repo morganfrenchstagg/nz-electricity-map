@@ -7,6 +7,9 @@ import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 // copy of how long each endpoint lasts.
 // VITE_API_BASE points the app at another API, e.g. a local `wrangler dev` (see README)
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
+// The distributed solar estimate comes from its own API (nz-solar-stats-api).
+// VITE_SOLAR_API_BASE points the app at another, e.g. a local `wrangler dev` (see README)
+const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://nz-solar-stats-api.morgan6725.workers.dev').replace(/\/$/, '')
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000
@@ -36,6 +39,16 @@ export interface OutageRecord {
 
 export type OutageData = Record<string, OutageRecord[]>
 
+// An estimate of each GXP's distributed solar output over an NZ day
+export interface SolarProduction {
+  date: string
+  // The day's 15-minute instants, in UTC
+  profileTimes: string[]
+  // Each GXP's installed distributed solar as at the last month end on or
+  // before `date`, and its estimated MW at each of profileTimes
+  gxps: { gxp: string; distributedMw: number; profileMw: number[] }[]
+}
+
 export interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
@@ -59,8 +72,8 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>()
 
-async function getJson<T>(path: string, notFound?: T): Promise<{ value: T; maxAgeMs: number }> {
-  const res = await fetch(`${API_BASE}/${path}`)
+async function getJson<T>(path: string, notFound?: T, base = API_BASE): Promise<{ value: T; maxAgeMs: number }> {
+  const res = await fetch(`${base}/${path}`)
   if (res.status === 404 && notFound !== undefined) return { value: notFound, maxAgeMs: 0 }
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const maxAge = /\bmax-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')
@@ -146,6 +159,31 @@ export function fetchOutages(): Promise<OutageData> {
 
 export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
+}
+
+// The solar API sends no max-age. Its weather is refreshed hourly at most, and
+// today's estimate already runs to midnight, so it's checked every 15 minutes.
+const SOLAR_FRESH_MS = 15 * MINUTE_MS
+
+function solarProductionPath(date: string): string {
+  return `solar-production/${date}`
+}
+
+// `date` is a "YYYY-MM-DD" date. Null for a day the API has no weather for
+// (see solarDatesOf).
+export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
+  const path = solarProductionPath(date)
+  return cachedJson(path, {
+    freshFor: () => SOLAR_FRESH_MS,
+    load: async () => {
+      const { value, maxAgeMs } = await getJson<{ result: SolarProduction } | null>(path, null, SOLAR_API_BASE)
+      return { value: value?.result ?? null, maxAgeMs }
+    },
+  })
+}
+
+export function peekSolarProduction(date: string): SolarProduction | null | undefined {
+  return lastJson(solarProductionPath(date))
 }
 
 // `path` is a month of daily totals ("2026/09"), a year of weekly or monthly

@@ -4,11 +4,13 @@ import Highcharts from 'highcharts'
 import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { aggregatePeriodOf, useAggregates } from '../hooks/useAggregates'
+import { useDistributedSolar } from '../hooks/useDistributedSolar'
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { hvdcInto } from '../utils/hvdc'
+import { distributedSolarAt, distributedSolarCapacities } from '../utils/distributedSolar'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
@@ -74,6 +76,18 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     [data, island],
   )
 
+  // The estimated output of solar that isn't dispatched, at each of the data's
+  // times on the island shown, charted as a fuel of its own. Null when the
+  // estimate covers none of them.
+  const solarDays = useDistributedSolar(dateMode, visible)
+  const distributedSolar = useMemo(() => {
+    if (!data || isAggregate || solarDays.length === 0) return null
+    const islandOf = new Map(substations.map(s => [s.siteId, s.island === 'north' ? 'NI' : 'SI']))
+    const includeGxp = (gxp: string) => island === 'all' || islandOf.get(gxp) === island
+    const mw = distributedSolarAt(solarDays, data.data.map(row => nzLocalMs(row[0] as string)), includeGxp)
+    return mw.some(v => v !== null) ? { mw, capacityByDate: distributedSolarCapacities(solarDays, includeGxp) } : null
+  }, [data, isAggregate, solarDays, substations, island])
+
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
     const period = periodOf(dateMode)
@@ -101,11 +115,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     if (hvdc?.some(t => t && t.mw > 0)) hvdcCodes.add(HVDC_IMPORT_CODE)
     if (hvdc?.some(t => t && t.mw < 0)) hvdcCodes.add(HVDC_EXPORT_CODE)
     const fuels = [
-      ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f) || hvdcCodes.has(f)),
+      ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f) || hvdcCodes.has(f) || (f === DISTRIBUTED_SOLAR_FUEL_CODE && distributedSolar)),
       ...[...fuelToIndices.keys()].filter(f => !(FUEL_CODE_ORDER as readonly string[]).includes(f)),
     ]
     return { fuels, fuelToIndices, fuelToUnits }
-  }, [data, generators, island, isAggregate, dateMode, hvdc])
+  }, [data, generators, island, isAggregate, dateMode, hvdc, distributedSolar])
 
   // Memoised so the chart options below don't rebuild on every render
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
@@ -129,13 +143,18 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     // Each shown fuel's total at each time. The HVDC's is what flowed in, or out
     // (as a negative), and null where em6 has nothing.
     const shownFuels = fuels.filter(f => effectiveFuels.has(f))
+    // Distributed solar is charted at 0 where there's no estimate, as nulls part
+    // way up a stack draw from 0 instead, but it's left out of the tooltip there
+    const solarMw = distributedSolar?.mw ?? []
+    const noSolarEstimateMs = new Set(data.data.filter((_, r) => solarMw[r] === null).map(row => nzLocalMs(row[0] as string)))
     const hvdcPart = (fuel: string, r: number) => {
       const mw = hvdc?.[r]?.mw
       return mw === undefined ? null : fuel === HVDC_IMPORT_CODE ? Math.max(mw, 0) : Math.min(mw, 0)
     }
-    const fuelTotals = data.data.map((row, r) => shownFuels.map(fuel => fuelToIndices.has(fuel)
-      ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((row[i] as number) || 0)), 0)
-      : hvdcPart(fuel, r),
+    const fuelTotals = data.data.map((row, r) => shownFuels.map(fuel =>
+      fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarMw[r] ?? 0
+        : fuelToIndices.has(fuel) ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((row[i] as number) || 0)), 0)
+        : hvdcPart(fuel, r),
     ))
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
     const unit = isAggregate ? energyUnit(chartReach(fuelTotals, true)) : MW_UNIT
@@ -175,13 +194,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     const dispatchIndices = [...fuelToIndices.entries()]
       .filter(([fuel]) => fuel !== CHARGING_FUEL_CODE)
       .flatMap(([, indices]) => indices)
+    // Distributed solar counts towards both, as it's charted with the rest
     const renewablePctByMs = new Map<number, number>()
-    for (const row of data.data) {
+    data.data.forEach((row, r) => {
       const ms = nzLocalMs(row[0] as string)
-      const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
-      const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), 0)
+      const distributedMW = solarMw[r] ?? 0
+      const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributedMW)
+      const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributedMW)
       renewablePctByMs.set(ms, totalMW > 0 ? (renewableMW / totalMW) * 100 : 0)
-    }
+    })
 
     // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference).
     // Aggregates have no pricing.
@@ -203,11 +224,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       unitsByName.set(fuelLabel(fuel, island), fuelToUnits.get(fuel) ?? [])
     }
     // A fuel's total installed capacity (MSGC) at a time: its units in service then.
-    // The HVDC's is its transfer limit the way it's flowing.
+    // The HVDC's is its transfer limit the way it's flowing. Distributed solar has
+    // no units, so it's the installed capacity that day's estimate is from.
     const hvdcByMs = new Map(hvdc ? data.data.map((row, r) => [nzLocalMs(row[0] as string), hvdc[r]]) : [])
     const capacityAt = (name: string, ms: number) => {
       if (name === fuelLabel(HVDC_IMPORT_CODE, island)) return hvdcByMs.get(ms)?.inLimit ?? 0
       if (name === fuelLabel(HVDC_EXPORT_CODE, island)) return hvdcByMs.get(ms)?.outLimit ?? 0
+      if (name === fuelLabel(DISTRIBUTED_SOLAR_FUEL_CODE, island)) return distributedSolar?.capacityByDate.get(new Date(ms).toISOString().slice(0, 10)) ?? 0
       return (unitsByName.get(name) ?? [])
         .filter(u => inServiceAt(u, ms))
         .reduce((sum, u) => sum + u.capacity, 0)
@@ -267,7 +290,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           const total = points.reduce((sum, p) => sum + Math.max(p.y ?? 0, 0), 0)
 
           const rows = points
-            .slice()
+            .filter(p => !(p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE) && noSolarEstimateMs.has(this.x as number)))
             .map(p => {
               const val = formatValue(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
@@ -298,7 +321,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc])
+  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc, distributedSolar])
 
   // The pipeline button wraps under the title when there isn't room beside it,
   // and on the narrowest panels the title is cut short to keep the picker's ▾ in view
