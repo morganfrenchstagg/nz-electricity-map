@@ -34,6 +34,25 @@ Highcharts.setOptions({
   },
 })
 
+// Below that threshold the accessibility module gives every point of a series
+// without markers a hidden one of its own, for keyboard navigation. A chart
+// updated in place to more points than that (Today switched to 3d) keeps them,
+// as Series.update forgets they were forced, and each one hovered stays drawn
+// from then on. Highcharts only clears them away in styled mode (#24164).
+Highcharts.addEvent(Highcharts.Series, 'afterRender', function (this: Highcharts.Series) {
+  // Markers still forced are enabled in the series' options again
+  if ((this.options as Highcharts.SeriesLineOptions).marker?.enabled !== false) return
+  const { markerGroup } = this as Highcharts.Series & { markerGroup?: Highcharts.SVGElement }
+  for (const point of this.points ?? []) {
+    // A column's graphic is the column, in the series' own group, not a marker
+    const graphic = point.graphic as (Highcharts.SVGElement & { parentGroup?: Highcharts.SVGElement }) | undefined
+    if (graphic && graphic.parentGroup === markerGroup && !point.options.marker) {
+      graphic.destroy()
+      point.graphic = undefined
+    }
+  }
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
