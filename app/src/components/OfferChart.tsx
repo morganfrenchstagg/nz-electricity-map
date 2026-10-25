@@ -2,13 +2,21 @@ import { useMemo } from 'react'
 import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { OffersData } from '../api'
-import type { GeneratorNode } from '../types'
+import type { GeneratorNode, RecentData } from '../types'
+import { tradingPeriodDispatch } from '../hooks/useOffers'
 import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
 import { CHART_CONTAINER_PROPS, FIT_TO_CONTAINER, chartAccessibility } from '../utils/chart'
 
+// The lines marking where the offers were dispatched, labelled with a white
+// outline so they read over the offers
+const DISPATCH_COLOUR = '#333333'
+const DISPATCH_LABEL_STYLE = { color: DISPATCH_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: '600', textOutline: '3px #ffffff', whiteSpace: 'nowrap' }
+
 interface Props {
   offersData: OffersData
+  // The dispatch the day of the offers, to mark where they were dispatched
+  dispatch: RecentData | null
   tradingPeriod: number
   node: GeneratorNode
   // The generator or generators, as the panel's header names them
@@ -28,6 +36,16 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+// log10(price + 0.01) + 2 maps $0→0, $0.01→0.30, $1→2.0, $100→4.0, $6000→5.78
+// The +0.01 offset and +2 shift give $0 vs $0.01 meaningful visual separation
+function priceY(price: number): number {
+  return Math.log10(price + 0.01) + 2
+}
+
+function formatPrice(price: number): string {
+  return `$${price.toFixed(2)}/MWh`
+}
+
 function trancheOf(point: Highcharts.Point): Tranche | undefined {
   return (point as unknown as { custom?: Tranche }).custom
 }
@@ -36,7 +54,7 @@ function trancheOf(point: Highcharts.Point): Tranche | undefined {
 // its screen reader description
 function trancheText(custom: Tranche): string {
   const trancheStr = custom.tranche != null ? ` (tranche ${custom.tranche})` : ''
-  return `${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>$${custom.price.toFixed(2)}/MWh</b>`
+  return `${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>${formatPrice(custom.price)}</b>`
 }
 
 function getUnitNodes(node: GeneratorNode): { node: string; fuel: string; label: string }[] {
@@ -46,7 +64,7 @@ function getUnitNodes(node: GeneratorNode): { node: string; fuel: string; label:
   return node.generators.flatMap(g => g.units.map(u => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })))
 }
 
-export default function OfferChart({ offersData, tradingPeriod, node, title }: Props) {
+export default function OfferChart({ offersData, dispatch, tradingPeriod, node, title }: Props) {
   const chartOptions = useMemo((): Highcharts.Options | null => {
     const periodData = offersData.data[String(tradingPeriod)]
     if (!periodData) return null
@@ -99,9 +117,7 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
       for (let i = 0; i < segs.length; i++) {
         const seg = segs[i]
         const custom: Tranche = { mw: seg.mw, label: unit.label, tranche: seg.tranche, price: seg.price }
-        // log10(price + 0.01) + 2 maps $0→0, $0.01→0.30, $1→2.0, $100→4.0, $6000→5.78
-        // The +0.01 offset and +2 shift give $0 vs $0.01 meaningful visual separation
-        const displayY = Math.log10(seg.price + 0.01) + 2
+        const displayY = priceY(seg.price)
         if (i > 0) { visualPoints.push(null); snapPoints.push(null) }
         visualPoints.push({ x: seg.start, y: displayY })
         visualPoints.push({ x: seg.end, y: displayY })
@@ -147,13 +163,23 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
     const minPrice = `$${allTranches[0].price.toFixed(2)}`
     const maxPrice = `$${allTranches[allTranches.length - 1].price.toFixed(2)}`
 
+    // Where the units offering were dispatched, if the dispatch has the period
+    const dispatched = dispatch && tradingPeriodDispatch(dispatch, [...segsByUnit.keys()], offersData.date, tradingPeriod)
+    const dispatchedPrice = dispatched?.price ?? null
+    // Past halfway across, the MW line's label goes on its left, and the price's
+    // label on the chart's left, clear of the MW line
+    const dispatchedRight = dispatched !== null && dispatched.mw > Math.max(cumMW, dispatched.mw) / 2
+
     return {
       chart: { ...FIT_TO_CONTAINER, type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
       title: { text: undefined },
       ...chartAccessibility(`${title} offers, trading period ${tradingPeriod}`, {
         // Rather than counting the drawn series, which screen readers don't get
         typeDescription: `Offers from ${plural(segsByUnit.size, 'unit')}.`,
-        description: 'Each unit\'s offer tranches from cheapest to dearest, by the MW offered and its price in $/MWh, on a log scale.',
+        description: 'Each unit\'s offer tranches from cheapest to dearest, by the MW offered and its price in $/MWh, on a log scale.'
+          + (dispatched
+            ? ` Averaged over the period, they were dispatched ${formatMW(dispatched.mw)}${dispatchedPrice !== null ? ` at ${formatPrice(dispatchedPrice)}` : ''}.`
+            : ''),
         // Rather than counting the nulls between its tranches as points
         series: { descriptionFormatter: (s) => `${s.name}, ${plural(s.points.filter(trancheOf).length, 'tranche')}.` },
       }),
@@ -163,6 +189,23 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
         title: { text: 'MW' },
         labels: { formatter: function () { return formatMW(this.value as number) } },
         min: 0,
+        // So the dispatch line shows even past the offers
+        softMax: dispatched?.mw,
+        plotLines: dispatched ? [{
+          value: dispatched.mw,
+          width: 2,
+          color: DISPATCH_COLOUR,
+          dashStyle: 'Dash',
+          zIndex: 5,
+          label: {
+            text: `Dispatched ${formatMW(dispatched.mw)}`,
+            rotation: 0,
+            align: dispatchedRight ? 'right' : 'left',
+            x: dispatchedRight ? -5 : 5,
+            y: 14,
+            style: DISPATCH_LABEL_STYLE,
+          },
+        }] : [],
         accessibility: {
           description: 'MW offered, cumulatively',
           rangeDescription: `Offers total ${formatMW(cumMW)}.`,
@@ -173,7 +216,7 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
         title: { text: '$/MWh' },
         min: 0,
         // Tick positions use the same transform: log10(price + 0.01) + 2
-        tickPositions: [0, 0.01, 0.1, 1, 10, 50, 100, 500, 1000, 3000, 6000, 10000].map(p => Math.log10(p + 0.01) + 2),
+        tickPositions: [0, 0.01, 0.1, 1, 10, 50, 100, 500, 1000, 3000, 6000, 10000].map(priceY),
         labels: {
           formatter: function () {
             // Inverse: price = 10^(value - 2) - 0.01
@@ -190,7 +233,21 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
           width: 1,
           color: '#999',
           zIndex: 3,
-        }],
+        }, ...(dispatchedPrice !== null ? [{
+          // A negative price is drawn at $0, the axis' foot
+          value: priceY(Math.max(0, dispatchedPrice)),
+          width: 2,
+          color: DISPATCH_COLOUR,
+          dashStyle: 'Dash' as const,
+          zIndex: 5,
+          label: {
+            text: formatPrice(dispatchedPrice),
+            align: dispatchedRight ? 'left' as const : 'right' as const,
+            x: dispatchedRight ? 4 : -4,
+            y: -6,
+            style: DISPATCH_LABEL_STYLE,
+          },
+        }] : [])],
         // The axis' values are the log-scaled prices, so describe the prices themselves
         accessibility: {
           description: 'Price in $/MWh',
@@ -218,7 +275,7 @@ export default function OfferChart({ offersData, tradingPeriod, node, title }: P
       },
       series,
     }
-  }, [offersData, tradingPeriod, node, title])
+  }, [offersData, dispatch, tradingPeriod, node, title])
 
   if (!chartOptions) {
     return (

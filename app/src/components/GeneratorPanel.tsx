@@ -18,7 +18,7 @@ import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
+import { offersIsoDate, useOffers, useOffersDispatch, tradingPeriodLabel } from '../hooks/useOffers'
 import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
@@ -87,17 +87,13 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         : dateMode.from)
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
+  const offersDispatch = useOffersDispatch(offersData?.date ?? null)
   // Fetch the chart code alongside the offers data rather than after it arrives
   useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
   // When the latest offers load, reflect their actual date in the date picker
   useEffect(() => {
-    if (offersData && offerDate === 'latest') {
-      const iso = offersData.date.length === 8
-        ? `${offersData.date.slice(0, 4)}-${offersData.date.slice(4, 6)}-${offersData.date.slice(6, 8)}`
-        : offersData.date
-      setFromDate(iso)
-    }
+    if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
   }, [offersData, offerDate])
   const maxTradingPeriod = offersData
     ? Math.max(...Object.keys(offersData.data).map(Number))
@@ -460,7 +456,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             <ChartMessage error>Failed to load offers</ChartMessage>
           ) : offersData ? (
             <Suspense fallback={<ChartMessage>Loading…</ChartMessage>}>
-              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
+              <OfferChart offersData={offersData} dispatch={offersDispatch} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
             </Suspense>
           ) : null
         ) : (
