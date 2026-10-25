@@ -26,9 +26,9 @@ const TOTAL = 'Total'
 const TOTAL_COLOUR = '#222222'
 const SOLAR = fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)
 const SOLAR_COLOUR = fuelCodeColour(DISTRIBUTED_SOLAR_FUEL_CODE)
-const TOTAL_WITH_SOLAR = 'Total + distributed solar (est.)'
+const DEMAND_WITH_SOLAR = 'Demand + distributed solar (est.)'
 // The series that aren't codes, which the tooltip lists apart from them
-const EXTRA_SERIES = [TOTAL, SOLAR, TOTAL_WITH_SOLAR]
+const EXTRA_SERIES = [TOTAL, SOLAR, DEMAND_WITH_SOLAR]
 
 // The data has a substation's load as negative generation
 const toLoad = (value: number) => -value
@@ -41,6 +41,12 @@ function busColour(code: string): string {
 // The substation's load at each time, over every code charted, shown or not
 function totalLoads({ rows, codes }: ChartData): number[] {
   return rows.map((row) => codes.reduce((sum, code) => sum + toLoad(row[code] as number), 0))
+}
+
+// The substation's demand at each time: its buses' load, without the
+// generators that Total nets off it
+function demandLoads({ rows, codes }: ChartData): number[] {
+  return totalLoads({ rows, codes: codes.filter((code) => !isGeneratorCode(code)) })
 }
 
 // The Total line, its loads divided by unitSize to chart them in the panel's unit
@@ -59,10 +65,10 @@ function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, uni
 }
 
 // The distributed solar estimated at the substation, charted as negative load
-// like its generators, and a dashed Total with it added back on: the load the
-// substation would put on the grid without it. Both are left off where there's
-// no estimate.
-function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[], loads: number[], shown: { solar: boolean; total: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
+// like its generators, and a dashed line adding it back onto the demand (see
+// demandLoads): the demand there would be without it. Both are left off where
+// there's no estimate.
+function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
   const points = (value: (mw: number, i: number) => number) =>
     rows.map((row, i): [number, number | null] => {
       const mw = solarMw[i]
@@ -80,13 +86,13 @@ function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[],
     },
     {
       type: 'line',
-      name: TOTAL_WITH_SOLAR,
-      visible: shown.total,
+      name: DEMAND_WITH_SOLAR,
+      visible: shown.demand,
       color: TOTAL_COLOUR,
       dashStyle: 'Dash',
       lineWidth: 2,
       zIndex: 5,
-      data: points((mw, i) => loads[i] + mw),
+      data: points((mw, i) => demand[i] + mw),
       marker: { enabled: false },
       animation: false,
     },
@@ -160,30 +166,31 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   // A lone code's Total would just repeat it
   const hasTotal = allCodes.length > 1
   // Until the user toggles it, Total shows only when the substation has
-  // generators, or distributed solar for the dashed Total to be read against
+  // generators, or distributed solar: with no generators, Total is the demand
+  // the dashed line adds the estimate to
   const [totalToggled, setTotalToggled] = useState<boolean | null>(null)
   const totalShown = hasTotal && (totalToggled ?? (hasGenerators || hasSolar))
   const [solarToggled, setSolarToggled] = useState<boolean | null>(null)
   const solarShown = hasSolar && (solarToggled ?? true)
-  const [solarTotalToggled, setSolarTotalToggled] = useState<boolean | null>(null)
-  const solarTotalShown = hasSolar && (solarTotalToggled ?? true)
+  const [solarDemandToggled, setSolarDemandToggled] = useState<boolean | null>(null)
+  const solarDemandShown = hasSolar && (solarDemandToggled ?? true)
   useEffect(() => {
     setTotalToggled(null)
     setSolarToggled(null)
-    setSolarTotalToggled(null)
+    setSolarDemandToggled(null)
   }, [node])
-  const extrasShown = [totalShown, solarShown, solarTotalShown].filter(Boolean).length
+  const extrasShown = [totalShown, solarShown, solarDemandShown].filter(Boolean).length
 
-  // Turns Total, distributed solar and the dashed Total all on or all off
+  // Turns Total, distributed solar and the dashed demand line all on or all off
   function setExtrasToggled(shown: boolean) {
     setTotalToggled(shown)
     setSolarToggled(shown)
-    setSolarTotalToggled(shown)
+    setSolarDemandToggled(shown)
   }
 
   // Deselects every generator, or selects them all again. If no buses are
   // selected either, hiding falls back to all buses so the chart isn't empty.
-  // Both Total lines include the generators, so they're switched with them.
+  // The Total line includes the generators, so it's switched with them.
   function toggleGenerators() {
     const buses = [...effectiveCodes].filter(c => !isGeneratorCode(c))
     if (!generatorsShown) {
@@ -194,7 +201,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       setActiveCodes(new Set(remaining))
     }
     setTotalToggled(!generatorsShown)
-    setSolarTotalToggled(!generatorsShown)
   }
 
   // As on the grid overview: Clear deselects every series, Total included, and
@@ -225,7 +231,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     setActiveCodes(new Set(EXTRA_SERIES.includes(series) ? [] : [series]))
     setTotalToggled(series === TOTAL)
     setSolarToggled(series === SOLAR)
-    setSolarTotalToggled(series === TOTAL_WITH_SOLAR)
+    setSolarDemandToggled(series === DEMAND_WITH_SOLAR)
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -234,7 +240,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     const prices = pricesByTime(isAggregate ? null : recentData, chartData.codes)
 
     // Aggregate totals are MWh, charted in GWh unless the lines stay low
-    const totals = hasTotal || solarMw ? totalLoads(chartData) : []
+    const totals = hasTotal ? totalLoads(chartData) : []
     const shownCodes = chartData.codes.filter((code) => effectiveCodes.has(code))
     const unit = isAggregate
       ? energyUnit(chartReach(chartData.rows.map((row, i) => [
@@ -253,7 +259,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       transformValue: (value) => toLoad(value) / unit.size,
       extraSeries: [
         ...(hasTotal ? [totalSeries(chartData, totals, totalShown, unit.size)] : []),
-        ...(solarMw ? distributedSolarSeries(chartData, solarMw, totals, { solar: solarShown, total: solarTotalShown }, unit.size) : []),
+        ...(solarMw ? distributedSolarSeries(chartData, solarMw, demandLoads(chartData), { solar: solarShown, demand: solarDemandShown }, unit.size) : []),
       ],
       yAxis: {
         title: { text: `Load (${unit.label})` },
@@ -277,7 +283,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           rows += tooltipTotalRow(points.reduce((sum, p) => sum + (p.y ?? 0), 0), formatValue)
         }
         // The estimate isn't part of the substation's load, so it's listed after the total
-        const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === TOTAL_WITH_SOLAR)
+        const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR)
         if (solarPoints.length > 0) {
           rows += `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
         }
@@ -286,13 +292,13 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       accessibility: timeChartAccessibility(
         `${substation.description} Substation load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
-          + (solarMw ? ', and distributed solar estimated from the weather, as negative load and added back onto the total' : ''),
+          + (solarMw ? ', and distributed solar estimated from the weather, as negative load and added back onto the buses\' load' : ''),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solarMw, solarShown, solarTotalShown, isAggregate, aggregatePeriod, substation, hasGenerators])
+  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solarMw, solarShown, solarDemandShown, isAggregate, aggregatePeriod, substation, hasGenerators])
 
   // Series buttons: the generators toggle and Total lead, then a button per bus and generator
   const showUnitSelector = allCodes.length > 1
@@ -316,8 +322,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // Lead the buttons that can go behind "+N more", as they're long
   const solarButtons = !hasSolar ? [] : [
-    <SeriesButton key="solar-total" colour={TOTAL_COLOUR} active={solarTotalShown} onClick={() => toggleExtra(solarTotalShown, setSolarTotalToggled)} onIsolate={() => isolate(TOTAL_WITH_SOLAR)}>
-      {TOTAL_WITH_SOLAR}
+    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
+      {DEMAND_WITH_SOLAR}
     </SeriesButton>,
     <SeriesButton key="solar" colour={SOLAR_COLOUR} active={solarShown} onClick={() => toggleExtra(solarShown, setSolarToggled)} onIsolate={() => isolate(SOLAR)}>
       {SOLAR}
