@@ -198,6 +198,8 @@ describe('createGeneratorAdapter', () => {
     expect(adapter.queryNodes).toEqual(['HWA1101 PTA0', 'HWA1101 PTA1', 'OHA0331 PTA0'])
     expect(adapter.getCodes(data)).toEqual(['OHA0331 PTA0'])
     expect(adapter.getCodes(data, true)).toEqual(['OHA0331 PTA0', 'HWA1101 PTA1'])
+    // Whose offers are under whichever node the unit had at the time
+    expect(adapter.unitCodes).toEqual(['HWA1101 PTA0', 'OHA0331 PTA0', 'HWA1101 PTA1'])
   })
 
   it('charts the units in service at any time in its period', () => {
@@ -361,6 +363,7 @@ describe('createMultiGeneratorAdapter', () => {
     const data = dataFor(['WDV1101 TAP0', 'ATI2201 ATI1', 'BAT0331 BAT1', 'ATI2201 ATI0', 'BAT0331 BAT0'])
     // A battery's charging sorts last, after every generating fuel
     expect(adapter.getCodes(data)).toEqual(['BAT0331 BAT0', 'ATI2201 ATI0', 'ATI2201 ATI1', 'WDV1101 TAP0', 'BAT0331 BAT1'])
+    expect(adapter.unitCodes).toEqual(['BAT0331 BAT0', 'ATI2201 ATI0', 'ATI2201 ATI1', 'WDV1101 TAP0', 'BAT0331 BAT1'])
   })
 
   it("collects every generator's moved units", () => {

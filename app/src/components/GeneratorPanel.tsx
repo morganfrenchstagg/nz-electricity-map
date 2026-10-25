@@ -71,7 +71,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     dateMode, recentData, loading, error,
     queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes,
   })
-  const { effectiveCodes, setActiveCodes, toggleCode, isolateCode } = useCodeSelection(allCodes, node)
+  const generationSelection = useCodeSelection(allCodes, node)
+  const { effectiveCodes } = generationSelection
   // The units counted towards capacity and outages. The data leaves out units that
   // didn't dispatch, so they aren't charted or picked out, but while every unit
   // charted is shown, they're counted too (the adapter keeps to those in service).
@@ -88,6 +89,16 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
   const offersDispatch = useOffersDispatch(offersData?.date ?? null)
+  // The units with offers that day, which the Offers view's unit buttons pick
+  // between. They're picked apart from the Generation view's.
+  const offerCodes = useMemo(() => {
+    if (!offersData) return []
+    const offered = new Set(Object.values(offersData.data).flatMap((period) => Object.keys(period)))
+    return adapter.unitCodes.filter((code) => offered.has(code))
+  }, [offersData, adapter])
+  const offerSelection = useCodeSelection(offerCodes, node)
+  const buttonCodes = viewMode === 'offers' ? offerCodes : allCodes
+  const buttonSelection = viewMode === 'offers' ? offerSelection : generationSelection
   // Fetch the chart code alongside the offers data rather than after it arrives
   useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
@@ -202,9 +213,9 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   }, [chartData, effectiveCodes, isAggregate])
 
   // Clear deselects every unit, and once none are selected becomes Select all
-  const nothingSelected = effectiveCodes.size === 0
+  const nothingSelected = buttonSelection.effectiveCodes.size === 0
   function clearOrSelectAll() {
-    setActiveCodes(nothingSelected ? null : new Set())
+    buttonSelection.setActiveCodes(nothingSelected ? null : new Set())
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -276,8 +287,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod])
 
   // A button per unit, when there's more than one
-  const unitButtons = allCodes.length < 2 ? [] : allCodes.map((code) => (
-    <SeriesButton key={code} colour={adapter.colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)} onIsolate={() => isolateCode(code)}>
+  const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
+    <SeriesButton key={code} colour={adapter.colourFor(code)} active={buttonSelection.effectiveCodes.has(code)} onClick={() => buttonSelection.toggleCode(code)} onIsolate={() => buttonSelection.isolateCode(code)}>
       {adapter.labelFor(code)}
     </SeriesButton>
   ))
@@ -456,7 +467,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             <ChartMessage error>Failed to load offers</ChartMessage>
           ) : offersData ? (
             <Suspense fallback={<ChartMessage>Loading…</ChartMessage>}>
-              <OfferChart offersData={offersData} dispatch={offersDispatch} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
+              <OfferChart offersData={offersData} dispatch={offersDispatch} shownCodes={offerSelection.effectiveCodes} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
             </Suspense>
           ) : null
         ) : (

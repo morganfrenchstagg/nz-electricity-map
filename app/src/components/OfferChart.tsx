@@ -17,6 +17,8 @@ interface Props {
   offersData: OffersData
   // The dispatch the day of the offers, to mark where they were dispatched
   dispatch: RecentData | null
+  // The units the unit buttons show
+  shownCodes: Set<string>
   tradingPeriod: number
   node: GeneratorNode
   // The generator or generators, as the panel's header names them
@@ -64,12 +66,12 @@ function getUnitNodes(node: GeneratorNode): { node: string; fuel: string; label:
   return node.generators.flatMap(g => g.units.map(u => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })))
 }
 
-export default function OfferChart({ offersData, dispatch, tradingPeriod, node, title }: Props) {
+export default function OfferChart({ offersData, dispatch, shownCodes, tradingPeriod, node, title }: Props) {
   const chartOptions = useMemo((): Highcharts.Options | null => {
     const periodData = offersData.data[String(tradingPeriod)]
     if (!periodData) return null
 
-    const unitNodes = getUnitNodes(node)
+    const unitNodes = getUnitNodes(node).filter(u => shownCodes.has(u.node))
     if (unitNodes.length === 0) return null
 
     // Collect all tranches across all units
@@ -275,12 +277,12 @@ export default function OfferChart({ offersData, dispatch, tradingPeriod, node, 
       },
       series,
     }
-  }, [offersData, dispatch, tradingPeriod, node, title])
+  }, [offersData, dispatch, shownCodes, tradingPeriod, node, title])
 
   if (!chartOptions) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>
-        No offers found for this trading period
+        {shownCodes.size === 0 ? 'No units selected' : 'No offers found for this trading period'}
       </div>
     )
   }
