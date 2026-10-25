@@ -18,7 +18,7 @@ import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { useOffers, tradingPeriodLabel } from '../hooks/useOffers'
+import { offersIsoDate, useOffers, useOffersDispatch, tradingPeriodLabel } from '../hooks/useOffers'
 import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
@@ -71,7 +71,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     dateMode, recentData, loading, error,
     queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes,
   })
-  const { effectiveCodes, setActiveCodes, toggleCode, isolateCode } = useCodeSelection(allCodes, node)
+  const generationSelection = useCodeSelection(allCodes, node)
+  const { effectiveCodes } = generationSelection
   // The units counted towards capacity and outages. The data leaves out units that
   // didn't dispatch, so they aren't charted or picked out, but while every unit
   // charted is shown, they're counted too (the adapter keeps to those in service).
@@ -87,21 +88,37 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         : dateMode.from)
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
+  const offersDispatch = useOffersDispatch(offersData?.date ?? null)
+  // The units with offers that day, which the Offers view's unit buttons pick
+  // between. They're picked apart from the Generation view's.
+  const offerCodes = useMemo(() => {
+    if (!offersData) return []
+    const offered = new Set(Object.values(offersData.data).flatMap((period) => Object.keys(period)))
+    return adapter.unitCodes.filter((code) => offered.has(code))
+  }, [offersData, adapter])
+  const offerSelection = useCodeSelection(offerCodes, node)
+  const buttonCodes = viewMode === 'offers' ? offerCodes : allCodes
+  const buttonSelection = viewMode === 'offers' ? offerSelection : generationSelection
   // Fetch the chart code alongside the offers data rather than after it arrives
   useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
   // When the latest offers load, reflect their actual date in the date picker
   useEffect(() => {
-    if (offersData && offerDate === 'latest') {
-      const iso = offersData.date.length === 8
-        ? `${offersData.date.slice(0, 4)}-${offersData.date.slice(4, 6)}-${offersData.date.slice(6, 8)}`
-        : offersData.date
-      setFromDate(iso)
-    }
+    if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
   }, [offersData, offerDate])
   const maxTradingPeriod = offersData
     ? Math.max(...Object.keys(offersData.data).map(Number))
     : 48
+  // The trading period dropdown's options, each with its half hour once the
+  // offers' date is known (Latest's isn't until they load)
+  const periodDate = offersData?.date ?? (offerDate !== 'latest' ? offerDate : null)
+  const tradingPeriodOptions = useMemo(
+    () => Array.from({ length: maxTradingPeriod }, (_, i) => {
+      const tp = i + 1
+      return { tp, label: periodDate ? `Period ${tp} · ${tradingPeriodLabel(tp, periodDate)}` : `Period ${tp}` }
+    }),
+    [maxTradingPeriod, periodDate],
+  )
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
   const {
@@ -206,9 +223,9 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   }, [chartData, effectiveCodes, isAggregate])
 
   // Clear deselects every unit, and once none are selected becomes Select all
-  const nothingSelected = effectiveCodes.size === 0
+  const nothingSelected = buttonSelection.effectiveCodes.size === 0
   function clearOrSelectAll() {
-    setActiveCodes(nothingSelected ? null : new Set())
+    buttonSelection.setActiveCodes(nothingSelected ? null : new Set())
   }
 
   const chartOptions = useMemo((): Highcharts.Options | null => {
@@ -280,8 +297,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod])
 
   // A button per unit, when there's more than one
-  const unitButtons = allCodes.length < 2 ? [] : allCodes.map((code) => (
-    <SeriesButton key={code} colour={adapter.colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleCode(code)} onIsolate={() => isolateCode(code)}>
+  const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
+    <SeriesButton key={code} colour={adapter.colourFor(code)} active={buttonSelection.effectiveCodes.has(code)} onClick={() => buttonSelection.toggleCode(code)} onIsolate={() => buttonSelection.isolateCode(code)}>
       {adapter.labelFor(code)}
     </SeriesButton>
   ))
@@ -411,17 +428,23 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 onClick={() => onTradingPeriodChange(Math.max(1, tradingPeriod - 1))}
                 disabled={tradingPeriod <= 1}
                 className="stepper-button"
+                aria-label="Previous trading period"
               >
                 ◀
               </button>
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 190, textAlign: 'center', display: 'inline-block' }}>
-                Period {tradingPeriod}
-                {offerDate && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
-              </span>
+              <select
+                value={tradingPeriod}
+                onChange={(e) => onTradingPeriodChange(Number(e.target.value))}
+                aria-label="Trading period"
+                className="toggle-select"
+              >
+                {tradingPeriodOptions.map(({ tp, label }) => <option key={tp} value={tp}>{label}</option>)}
+              </select>
               <button
                 onClick={() => onTradingPeriodChange(Math.min(maxTradingPeriod, tradingPeriod + 1))}
                 disabled={tradingPeriod >= maxTradingPeriod}
                 className="stepper-button"
+                aria-label="Next trading period"
               >
                 ▶
               </button>
@@ -460,7 +483,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             <ChartMessage error>Failed to load offers</ChartMessage>
           ) : offersData ? (
             <Suspense fallback={<ChartMessage>Loading…</ChartMessage>}>
-              <OfferChart offersData={offersData} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
+              <OfferChart offersData={offersData} dispatch={offersDispatch} shownCodes={offerSelection.effectiveCodes} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
             </Suspense>
           ) : null
         ) : (

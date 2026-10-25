@@ -87,6 +87,17 @@ function capacitySteps(units: Unit[], outages: OutageData, rows: ChartRow[]): [n
   return data
 }
 
+// Units' codes in chart order: by fuel, then name
+function chartOrder(units: Unit[]): string[] {
+  return units
+    .slice()
+    .sort((a, b) => {
+      const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
+      return fi !== 0 ? fi : a.name.localeCompare(b.name)
+    })
+    .map((u) => u.node)
+}
+
 // Until a view's period is given, the units in service now
 function nowPeriod(): Period {
   const now = nzNowMs()
@@ -107,6 +118,9 @@ export interface GeneratorAdapter {
   // live views, any still being commissioned that are dispatching); the aggregate
   // views pass includeRetired to chart every unit's history.
   getCodes(recent: RecentData, includeRetired?: boolean): string[]
+  // Every unit's code in chart order, retired and moved units' included, for
+  // the Offers view to pick out the units with offers
+  unitCodes: string[]
   labelFor(code: string): string
   colourFor(code: string): string
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
@@ -144,15 +158,10 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     subtitle: generator.operator + (generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''),
 
     getCodes(recent, includeRetired = false) {
-      return (includeRetired ? historyUnits : shownUnits)
-        .slice()
-        .sort((a, b) => {
-          const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
-          return fi !== 0 ? fi : a.name.localeCompare(b.name)
-        })
-        .map((u) => u.node)
-        .filter((c) => recent.series.includes(c))
+      return chartOrder(includeRetired ? historyUnits : shownUnits).filter((c) => recent.series.includes(c))
     },
+
+    unitCodes: chartOrder(generator.units),
 
     labelFor(code) {
       const unit = generator.units.find((u) => u.node === code)
@@ -306,14 +315,11 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
 
     getCodes(recent, includeRetired = false) {
       // Moved units are charted under their current node only
-      return (includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allShownUnits)
-        .filter(u => recent.series.includes(u.node))
-        .sort((a, b) => {
-          const fi = (FUEL_NAME_SORT_INDEX[a.fuel] ?? 99) - (FUEL_NAME_SORT_INDEX[b.fuel] ?? 99)
-          return fi !== 0 ? fi : a.name.localeCompare(b.name)
-        })
-        .map(u => u.node)
+      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allShownUnits)
+        .filter(c => recent.series.includes(c))
     },
+
+    unitCodes: chartOrder(allUnits),
 
     labelFor(code) {
       const unit = allUnits.find(u => u.node === code)

@@ -56,10 +56,14 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
 }
 
 // Which of a node's codes are charted: all of them until the user picks, and
-// again whenever the node changes.
+// again whenever the node changes. With fewer than two codes there are no
+// buttons to pick with, so a pick made before, e.g. on another day, is set aside.
 export function useCodeSelection(allCodes: string[], node: object) {
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
-  const effectiveCodes = useMemo(() => activeCodes ?? new Set(allCodes), [activeCodes, allCodes])
+  const effectiveCodes = useMemo(
+    () => (activeCodes && allCodes.length > 1 ? activeCodes : new Set(allCodes)),
+    [activeCodes, allCodes],
+  )
 
   useEffect(() => { setActiveCodes(null) }, [node])
 
