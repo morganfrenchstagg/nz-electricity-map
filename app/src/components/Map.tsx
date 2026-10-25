@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
-import { isLiveMode, periodOf } from '../hooks/useDispatchData'
+import { isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
 import { underConstruction } from '../data/underConstruction'
@@ -27,6 +27,9 @@ const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substatio
 // Each hoverable source promotes its id property to the feature id, so this names the feature
 // under the cursor and the popup is only rebuilt when it changes
 const hoverKey = (feature?: maplibregl.MapGeoJSONFeature) => feature && `${feature.layer.id}:${feature.id}`
+
+// The generation pipeline is what's being built now, so past days and ranges leave it off the map
+const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
 
 interface Props {
   onGeneratorClick: (generator: Generator) => void
@@ -54,6 +57,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
   const recentDataRef = useRef<RecentData | null>(null)
   // Rebuilds the open hover popup; set once the map has loaded
   const refreshHoverRef = useRef(() => {})
+  // Set once the load handler has added the map's sources and layers
+  const mapLoadedRef = useRef(false)
+  // Runs `update` once the sources are added. Not isStyleLoaded(), which is false again
+  // while a source reloads after setData, and 'load' doesn't fire again to run it then.
+  const whenLoaded = (map: maplibregl.Map, update: () => void) => mapLoadedRef.current ? update() : map.once('load', update)
   const leftPanelOpenRef = useRef(leftPanelOpen)
   useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
   const panelWidthRef = useRef(panelWidth)
@@ -206,6 +214,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
           'circle-stroke-color': '#3b82f6',
         },
       })
+      mapLoadedRef.current = true
 
       map.on('click', (e) => {
         // Generators take priority over substations when both overlap
@@ -234,7 +243,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current)) : null
+          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current), pipelineFor(dateModeRef.current)) : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
@@ -280,7 +289,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
       src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
     }
-    map.isStyleLoaded() ? update() : map.once('load', update)
+    whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
 
   useEffect(() => {
@@ -288,9 +297,9 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     if (!map || generators.length === 0) return
     const update = () => {
       const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
-      src?.setData(underConstructionToGeoJson(underConstruction, generators, periodOf(dateMode), dispatching))
+      src?.setData(underConstructionToGeoJson(pipelineFor(dateMode), generators, periodOf(dateMode), dispatching))
     }
-    map.isStyleLoaded() ? update() : map.once('load', update)
+    whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
 
   useEffect(() => {
@@ -300,7 +309,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
       const src = map.getSource('substations') as maplibregl.GeoJSONSource | undefined
       src?.setData(substationsToGeoJson(substations))
     }
-    map.isStyleLoaded() ? update() : map.once('load', update)
+    whenLoaded(map, update)
   }, [substations])
 
   useEffect(() => {
@@ -319,7 +328,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
             : [[selectedNode.substation.long, selectedNode.substation.lat]]
       src.setData({ type: 'FeatureCollection', features: points.map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
     }
-    map.isStyleLoaded() ? update() : map.once('load', update)
+    whenLoaded(map, update)
   }, [selectedNode])
 
   useEffect(() => {
@@ -350,7 +359,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
         map.setLayoutProperty('linz-aerial-layer', 'visibility', showAerial ? 'visible' : 'none')
       }
     }
-    map.isStyleLoaded() ? set() : map.once('load', set)
+    whenLoaded(map, set)
   }, [showAerial])
 
   // How much of the map's left side the panel covers

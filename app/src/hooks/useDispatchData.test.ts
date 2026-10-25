@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentData } from '../types'
-import { datesBetween, daysBetween, isAggregateMode, isLiveMode, mergeData, MAX_RANGE_DAYS, periodMode, periodOf } from './useDispatchData'
+import { datesBetween, daysBetween, isAggregateMode, isLiveMode, isPastMode, mergeData, MAX_RANGE_DAYS, periodMode, periodOf } from './useDispatchData'
 import { nzLocalMs } from '../utils/time'
 
 describe('datesBetween', () => {
@@ -109,6 +109,22 @@ describe('isLiveMode', () => {
     expect(isLiveMode({ kind: 'lastYear', aggregation: 'weekly' })).toBe(false)
     expect(isLiveMode({ kind: '5y', aggregation: 'monthly' })).toBe(false)
     expect(isLiveMode({ kind: 'all', aggregation: 'annual' })).toBe(false)
+  })
+})
+
+describe('isPastMode', () => {
+  it('is true for a picked day or range', () => {
+    expect(isPastMode({ kind: 'date', date: '2006-10-13' })).toBe(true)
+    expect(isPastMode({ kind: 'range', from: '2026-10-01', to: '2026-10-13' })).toBe(true)
+  })
+
+  it('is false for the views reaching up to now', () => {
+    expect(isPastMode({ kind: 'recent' })).toBe(false)
+    expect(isPastMode({ kind: 'today' })).toBe(false)
+    expect(isPastMode({ kind: 'last90', aggregation: 'daily' })).toBe(false)
+    expect(isPastMode({ kind: 'lastYear', aggregation: 'weekly' })).toBe(false)
+    expect(isPastMode({ kind: '5y', aggregation: 'monthly' })).toBe(false)
+    expect(isPastMode({ kind: 'all', aggregation: 'annual' })).toBe(false)
   })
 })
 

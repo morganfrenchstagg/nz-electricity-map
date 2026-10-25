@@ -63,6 +63,12 @@ export function isAggregateMode(mode: DateMode): mode is AggregateMode {
   return 'aggregation' in mode
 }
 
+// A day or range picked from the date picker, which stops at yesterday. Every
+// other view reaches up to now.
+export function isPastMode(mode: DateMode): mode is Extract<DateMode, { kind: 'date' | 'range' }> {
+  return mode.kind === 'date' || mode.kind === 'range'
+}
+
 // How much the 3d view's rolling window holds
 const RECENT_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000

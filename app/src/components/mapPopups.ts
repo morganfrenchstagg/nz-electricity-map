@@ -1,6 +1,5 @@
 import { ucUnitsForSite } from '../utils/geo'
 import type { UnderConstructionUnit } from '../utils/geo'
-import { underConstruction } from '../data/underConstruction'
 import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
@@ -8,7 +7,7 @@ import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissi
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
-import type { Generator, Substation, RecentData, Unit } from '../types'
+import type { Generator, Substation, RecentData, UnderConstructionNode, Unit } from '../types'
 
 // HTML for the map's hover popups, which MapLibre takes as a string rather than React
 
@@ -58,8 +57,9 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
 // The `live` views (Today and 3d) also list units still being commissioned once they're
 // dispatching, shown as though in full outage so they don't count towards capacity.
 // Units retired by its end are listed without capacity, except those that moved node
-// (as Pātea's did), which are only listed at the node they moved to.
-export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean): string {
+// (as Pātea's did), which are only listed at the node they moved to. Any of the
+// `pipeline` being built at its site are listed under them.
+export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean, pipeline: UnderConstructionNode[]): string {
   const lastRow = data?.data[data.data.length - 1]
   const atMs = period.to
   const genOf = (u: Unit): number | null => {
@@ -138,7 +138,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   const fuels = fuelInHeading
     ? fuelFamilies(activeUnits.map(u => u.fuel)).map(f => `<span style="display:flex;align-items:center;gap:3px"><span style="margin-right:3px">|</span>${dotHtml(f.colour)}${f.label}</span>`).join('')
     : ''
-  const ucUnits = generator.site ? ucUnitsForSite(underConstruction, generator.site) : []
+  const ucUnits = generator.site ? ucUnitsForSite(pipeline, generator.site) : []
   const ucSection = ucUnits.length > 0 ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:${totalRow ? '2px' : 'var(--space-md)'}">
       <div class="eyebrow" style="margin-bottom:4px">Under Construction</div>

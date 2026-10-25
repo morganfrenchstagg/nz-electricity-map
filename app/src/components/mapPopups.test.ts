@@ -42,7 +42,7 @@ const latest = (node: string, mw: number): RecentData => ({ series: [node], data
 
 describe('generatorPopupHtml', () => {
   it("lists a unit still being commissioned once it's dispatching in the live views, as though in full outage", () => {
-    const html = generatorPopupHtml(RUK, DATA, null, NOW, true)
+    const html = generatorPopupHtml(RUK, DATA, null, NOW, true, [])
     // Its capacity is struck out for none, as an outage would leave it
     expect(text(html)).toContain('Solar (commissioning) 60 MW / 130 MW 0 MW (0%)')
     expect(html).toContain('<s style="color:var(--color-text-faint)">130 MW</s>')
@@ -51,20 +51,20 @@ describe('generatorPopupHtml', () => {
   })
 
   it('leaves it out of past days, and out of the live views until it dispatches', () => {
-    expect(text(generatorPopupHtml(RUK, DATA, null, NOW, false))).not.toContain('Solar')
+    expect(text(generatorPopupHtml(RUK, DATA, null, NOW, false, []))).not.toContain('Solar')
     const batteryOnly = { ...DATA, series: ['BRB0331 RUK0'], data: [['2026-10-13T14:30:00', 40]] }
-    expect(text(generatorPopupHtml(RUK, batteryOnly, null, NOW, true))).not.toContain('Solar')
+    expect(text(generatorPopupHtml(RUK, batteryOnly, null, NOW, true, []))).not.toContain('Solar')
   })
 
   it('lists a unit retired by the end of the period without capacity', () => {
-    const html = text(generatorPopupHtml(SFD, latest('SFD2201 SFD21', 50), null, ALL, false))
+    const html = text(generatorPopupHtml(SFD, latest('SFD2201 SFD21', 50), null, ALL, false, []))
     expect(html).toContain('Taranaki Combined Cycle (retired) —')
     expect(html).not.toContain('377 MW')
     expect(html).toContain('Total 50 MW / 100 MW (50%)')
   })
 
   it('lists a unit that moved node at its new node only', () => {
-    const html = text(generatorPopupHtml(PTA, latest('OHG1101 PTA1', 8), null, LAST_YEAR, false))
+    const html = text(generatorPopupHtml(PTA, latest('OHG1101 PTA1', 8), null, LAST_YEAR, false, []))
     expect(html.match(/Unit 1/g)).toHaveLength(1)
     expect(html).toContain('Unit 1 8 MW / 10 MW (80%)')
     expect(html).not.toContain('retired')
