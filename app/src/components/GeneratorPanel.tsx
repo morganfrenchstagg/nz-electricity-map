@@ -109,6 +109,16 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const maxTradingPeriod = offersData
     ? Math.max(...Object.keys(offersData.data).map(Number))
     : 48
+  // The trading period dropdown's options, each with its half hour once the
+  // offers' date is known (Latest's isn't until they load)
+  const periodDate = offersData?.date ?? (offerDate !== 'latest' ? offerDate : null)
+  const tradingPeriodOptions = useMemo(
+    () => Array.from({ length: maxTradingPeriod }, (_, i) => {
+      const tp = i + 1
+      return { tp, label: periodDate ? `Period ${tp} · ${tradingPeriodLabel(tp, periodDate)}` : `Period ${tp}` }
+    }),
+    [maxTradingPeriod, periodDate],
+  )
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
   const {
@@ -418,17 +428,23 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 onClick={() => onTradingPeriodChange(Math.max(1, tradingPeriod - 1))}
                 disabled={tradingPeriod <= 1}
                 className="stepper-button"
+                aria-label="Previous trading period"
               >
                 ◀
               </button>
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', fontWeight: 500, whiteSpace: 'nowrap', minWidth: 190, textAlign: 'center', display: 'inline-block' }}>
-                Period {tradingPeriod}
-                {offerDate && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 5 }}>{tradingPeriodLabel(tradingPeriod, offersData?.date ?? offerDate)}</span>}
-              </span>
+              <select
+                value={tradingPeriod}
+                onChange={(e) => onTradingPeriodChange(Number(e.target.value))}
+                aria-label="Trading period"
+                className="toggle-select"
+              >
+                {tradingPeriodOptions.map(({ tp, label }) => <option key={tp} value={tp}>{label}</option>)}
+              </select>
               <button
                 onClick={() => onTradingPeriodChange(Math.min(maxTradingPeriod, tradingPeriod + 1))}
                 disabled={tradingPeriod >= maxTradingPeriod}
                 className="stepper-button"
+                aria-label="Next trading period"
               >
                 ▶
               </button>
