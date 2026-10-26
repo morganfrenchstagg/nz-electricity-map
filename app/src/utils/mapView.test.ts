@@ -3,7 +3,9 @@ import { viewBesideNz } from './mapView'
 import type { InitialView } from './mapView'
 
 // Cape Reinga, East Cape, West Cape and South Cape (Stewart Island)
-const NZ_EXTREMES: [number, number][] = [[172.68, -34.43], [178.55, -37.69], [166.43, -45.86], [167.55, -47.29]]
+const EAST_CAPE: [number, number] = [178.55, -37.69]
+const WEST_CAPE: [number, number] = [166.43, -45.86]
+const NZ_EXTREMES: [number, number][] = [[172.68, -34.43], EAST_CAPE, WEST_CAPE, [167.55, -47.29]]
 
 const mercatorY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI)
 
@@ -25,6 +27,9 @@ function expectNzInView(width: number, height: number) {
     expect(y).toBeGreaterThan(0)
     expect(y).toBeLessThan(height)
   }
+  // Fiordland touches the panel's edge, and East Cape the right of the window
+  expect(onScreen(WEST_CAPE, view, width, height).x - view.panelWidth).toBeLessThan(4)
+  expect(width - onScreen(EAST_CAPE, view, width, height).x).toBeLessThan(4)
   return view
 }
 
@@ -33,20 +38,20 @@ describe('viewBesideNz', () => {
     // A 13" laptop, where the default 60% panel would cut off the top and bottom of NZ at zoom 5
     const laptop = expectNzInView(1440, 820)
     expect(laptop.zoom).toBeLessThan(5)
-    expect(laptop.panelWidth).toBe(841)
+    expect(laptop.panelWidth).toBe(906)
     // A larger screen zooms in and still gives the rest to the panel
     const monitor = expectNzInView(2560, 1300)
     expect(monitor.zoom).toBeGreaterThan(5.5)
-    expect(monitor.panelWidth).toBe(1622)
+    expect(monitor.panelWidth).toBe(1687)
   })
 
   it('zooms out to fit NZ beside the narrowest panel on a tall, narrow viewport', () => {
-    const view = expectNzInView(1080, 1800)
-    expect(view.panelWidth).toBe(480)
+    expect(expectNzInView(1080, 1800).panelWidth).toBe(480)
+    expect(expectNzInView(910, 800).panelWidth).toBe(480)
   })
 
   it('has no view for a viewport too small for both', () => {
-    expect(viewBesideNz(900, 800)).toBeNull()
+    expect(viewBesideNz(860, 800)).toBeNull()
     expect(viewBesideNz(1440, 500)).toBeNull()
     expect(viewBesideNz(300, 40)).toBeNull()
   })

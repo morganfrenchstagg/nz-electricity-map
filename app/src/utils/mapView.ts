@@ -1,6 +1,7 @@
 // Mainland NZ and Stewart Island as [west, south, east, north], leaving off the Chathams
 const NZ_BOUNDS = [166.4, -47.3, 178.6, -34.3] as const
-// Room left between NZ and the edges of the map, clear of the map's controls
+// Room left above and below NZ, clear of the map's controls. Its sides can touch the panel
+// and the right of the window, which only Fiordland and East Cape reach.
 const MARGIN_PX = 32
 // The narrowest the panel starts, and the furthest out the map zooms to fit NZ beside it.
 // A viewport without room for both keeps the default layout.
@@ -32,13 +33,13 @@ export function viewBesideNz(viewportWidth: number, viewportHeight: number): Ini
 
   const zoom = Math.min(
     Math.log2((viewportHeight - 2 * MARGIN_PX) / nzHeight),
-    Math.log2((viewportWidth - MIN_PANEL_PX - 2 * MARGIN_PX) / nzWidth),
+    Math.log2((viewportWidth - MIN_PANEL_PX) / nzWidth),
   )
   // NaN too, when there's no room at all
   if (!(zoom >= MIN_ZOOM)) return null
 
   return {
-    panelWidth: Math.floor(viewportWidth - nzWidth * 2 ** zoom - 2 * MARGIN_PX),
+    panelWidth: Math.round(viewportWidth - nzWidth * 2 ** zoom),
     center: [(west + east) / 2, latitude((southY + northY) / 2)],
     zoom,
   }
