@@ -34,24 +34,24 @@ function expectNzInView(width: number, height: number) {
 }
 
 describe('viewBesideNz', () => {
-  it('leaves the map just wide enough for all of NZ at the zoom where it takes up 80% of the height', () => {
+  it('leaves the map just wide enough for all of NZ at the zoom where it takes up 65% of the height', () => {
     // A 13" laptop, where the default 60% panel would cut off the top and bottom of NZ at zoom 5
     const laptop = expectNzInView(1440, 820)
     expect(laptop.zoom).toBeLessThan(5)
-    expect(laptop.panelWidth).toBe(976)
+    expect(laptop.panelWidth).toBe(1063)
     // A larger screen zooms in and still gives the rest to the panel
     const monitor = expectNzInView(2560, 1300)
-    expect(monitor.zoom).toBeGreaterThan(5.25)
-    expect(monitor.panelWidth).toBe(1825)
+    expect(monitor.zoom).toBeGreaterThan(5)
+    expect(monitor.panelWidth).toBe(1963)
   })
 
   it('zooms out to fit NZ beside the narrowest panel on a tall, narrow viewport', () => {
     expect(expectNzInView(1080, 1800).panelWidth).toBe(480)
-    expect(expectNzInView(910, 800).panelWidth).toBe(480)
+    expect(expectNzInView(770, 800).panelWidth).toBe(480)
   })
 
   it('has no view for a viewport too small for both', () => {
-    expect(viewBesideNz(800, 800)).toBeNull()
+    expect(viewBesideNz(750, 800)).toBeNull()
     expect(viewBesideNz(1440, 500)).toBeNull()
     expect(viewBesideNz(300, 40)).toBeNull()
   })

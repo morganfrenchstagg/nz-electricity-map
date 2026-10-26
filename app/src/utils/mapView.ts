@@ -2,11 +2,11 @@
 const NZ_BOUNDS = [166.4, -47.3, 178.6, -34.3] as const
 // How much of the window's height NZ takes up. Its sides touch the panel and the right of
 // the window, which only Fiordland and East Cape reach.
-const HEIGHT_SHARE = 0.8
+const HEIGHT_SHARE = 0.65
 // The narrowest the panel starts, and the furthest out the map zooms to fit NZ beside it.
 // A viewport without room for both keeps the default layout.
 const MIN_PANEL_PX = 480
-const MIN_ZOOM = 4.25
+const MIN_ZOOM = 4
 // MapLibre's world is one 512px tile at zoom 0
 const TILE_PX = 512
 
