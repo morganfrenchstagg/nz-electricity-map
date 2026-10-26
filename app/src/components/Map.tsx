@@ -13,6 +13,7 @@ import { generatorPopupHtml, substationPopupHtml, underConstructionPopupHtml } f
 import { TRANSMISSION_LINES_URL } from '../api'
 import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
+import type { InitialView } from '../utils/mapView'
 import type { Generator, Substation, SelectedNode, RecentData } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -38,6 +39,8 @@ interface Props {
   selectedNode: SelectedNode
   leftPanelOpen: boolean
   panelWidth: number
+  // Where the map opens beside the panel, in place of INITIAL_CENTER and INITIAL_ZOOM
+  initialView?: Pick<InitialView, 'center' | 'zoom'> | null
   recentData: RecentData | null
   // The generators in service during it are on the map, and Today and 3d keep
   // outages up to date (see useOutages)
@@ -45,7 +48,7 @@ interface Props {
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, recentData, dateMode, isMobile = false }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onClear, selectedNode, leftPanelOpen, panelWidth, initialView, recentData, dateMode, isMobile = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
@@ -105,8 +108,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onClear, sele
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: STYLE_URL,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      center: initialView?.center ?? INITIAL_CENTER,
+      zoom: initialView?.zoom ?? INITIAL_ZOOM,
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION_HTML },
     })
     // Compact attribution starts open until the map is first dragged; start on just its ⓘ button

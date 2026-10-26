@@ -9,6 +9,7 @@ import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
+import { viewBesideNz } from './utils/mapView'
 
 export default function App() {
   const { generators, substations } = useDefinitions()
@@ -29,7 +30,11 @@ export default function App() {
     selectNode(null)
   }, [selectNode])
 
-  const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(Math.round(window.innerWidth * 0.6))
+  // On desktop the panel starts as wide as it can with all of NZ in view on the map beside it.
+  // On mobile, where the panel covers the map, or a viewport too small for both, it starts
+  // at 60% and the map at its default view.
+  const [initialView] = useState(() => isMobile ? null : viewBesideNz(window.innerWidth, window.innerHeight))
+  const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6))
 
   // Keep the document/tab title in sync with whichever panel is open
   useEffect(() => {
@@ -83,7 +88,7 @@ export default function App() {
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
       {selectedNode && (selectedNode.kind === 'substation'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
         : <GeneratorPanel
