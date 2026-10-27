@@ -297,9 +297,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           // too, so the island's exports read as the part of its generation sent away.
           const total = points.reduce((sum, p) => sum + Math.max(p.y ?? 0, 0), 0)
 
-          // A fuel's row: its generation, capacity and share of the total. The
-          // Solar heading has no colour, but keeps its dot's space to line up.
-          const row = (label: string, colour: string | null, y: number, cap: number, indent = false) => {
+          // A fuel's row: its generation, capacity and share of the total
+          const row = (label: string, colour: string, y: number, cap: number, indent = false) => {
             const val = formatValue(y)
             const formatted = y === 0 ? val : `<b>${val}</b>`
             const ratioOfTotal = total > 0 ? y / total : 0
@@ -307,7 +306,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
             // No capacity comparison for aggregate totals
             const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
             const labelStyle = indent ? ' style="padding-left:var(--space-lg)"' : ''
-            return `<tr><td${labelStyle}><span style="color:${colour ?? 'transparent'}">●</span> ${label}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
+            return `<tr><td${labelStyle}><span style="color:${colour}">●</span> ${label}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
           }
 
           const shownPoints = points.filter(p => !(p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE) && noSolarEstimateMs.has(x)))
@@ -321,7 +320,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
               if (p !== solarPoints[0]) return ''
               const solarY = solarPoints.reduce((sum, s) => sum + (s.y ?? 0), 0)
               const solarCap = solarPoints.reduce((sum, s) => sum + capacityAt(s.series.name, x), 0)
-              return row(fuelCodeLabel('SOL'), null, solarY, solarCap)
+              // The heading takes Solar's own colour, the same as Grid-scale's
+              return row(fuelCodeLabel('SOL'), fuelCodeColour('SOL'), solarY, solarCap)
                 + solarPoints.map(s => row(SOLAR_PARTS[s.series.name], String(s.color), s.y ?? 0, capacityAt(s.series.name, x), true)).join('')
             })
             .join('')
