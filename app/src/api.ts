@@ -49,6 +49,15 @@ export interface SolarProduction {
   gxps: { gxp: string; distributedMw: number; profileMw: number[] }[]
 }
 
+// The estimate added up into energy at each GXP, over each period of a file
+export interface SolarEnergy {
+  // GXPs, the most energy first, which can differ from one file to the next
+  series: string[]
+  // Each period's first and last NZ dates, how many of its days have been
+  // estimated so far, and the MWh at each of series in them
+  data: { from: string; to: string; days: number; totalMwh: number; mwh: number[] }[]
+}
+
 export interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
@@ -183,6 +192,29 @@ export function fetchSolarProduction(date: string): Promise<SolarProduction | nu
 
 export function peekSolarProduction(date: string): SolarProduction | null | undefined {
   return lastJson(solarProductionPath(date))
+}
+
+// The solar API's file for the same periods as an aggregates path (see
+// fetchAggregates): "2026/09" is daily/2026-09, "2026/weekly" weekly/2026, and
+// "annual" annual
+function solarEnergyPath(path: string): string {
+  const [year, period] = path.split('/')
+  if (!period) return `solar-energy/${year}`
+  if (/^\d{2}$/.test(period)) return `solar-energy/daily/${year}-${period}`
+  return `solar-energy/${period}/${year}`
+}
+
+// `path` is an aggregates path (see fetchAggregates). Null for one the API has
+// nothing for yet, e.g. a year before its backfill reaches.
+export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
+  const solarPath = solarEnergyPath(path)
+  return cachedJson(solarPath, {
+    freshFor: () => SOLAR_FRESH_MS,
+    load: async () => {
+      const { value, maxAgeMs } = await getJson<{ result: SolarEnergy } | null>(solarPath, null, SOLAR_API_BASE)
+      return { value: value?.result ?? null, maxAgeMs }
+    },
+  })
 }
 
 // `path` is a month of daily totals ("2026/09"), a year of weekly or monthly

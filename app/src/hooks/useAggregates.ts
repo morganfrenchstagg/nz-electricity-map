@@ -85,7 +85,7 @@ function monthWindow(months: number): { from: string; to: string } {
 
 // The calendar quarter a "YYYY-MM-DD" date falls in, by its first day: 1
 // January, April, July or October
-function quarterStart(date: string): string {
+export function quarterStart(date: string): string {
   const month = Number(date.slice(5, 7))
   return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
 }

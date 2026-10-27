@@ -1,8 +1,9 @@
-import type { SolarProduction } from '../api'
+import type { SolarEnergy, SolarProduction } from '../api'
 import { nzWallClockMs } from './time'
 
 // The estimate has a point every 15 minutes
 const PROFILE_STEP_MS = 15 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
 
 // The index of the last of `points` at or before `ms`, or -1 if there's none
 function lastAtOrBefore(points: [number, number][], ms: number): number {
@@ -55,4 +56,43 @@ export function distributedSolarCapacities(days: SolarProduction[], includeGxp: 
     day.date,
     day.gxps.filter((g) => includeGxp(g.gxp)).reduce((sum, g) => sum + g.distributedMw, 0),
   ]))
+}
+
+// How many days run from one "YYYY-MM-DD" date to another, counting both
+function daysThrough(from: string, to: string): number {
+  return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1
+}
+
+// A period's distributed solar energy estimated at the GXPs kept, in MWh, and
+// how many of its days that's from, of the `ofDays` there could be
+export interface SolarPeriod {
+  mwh: number
+  days: number
+  ofDays: number
+}
+
+// Each period of `files`, keyed by its first day, at the GXPs `includeGxp`
+// keeps. A period can be short of days, as the backfill only covers part of
+// the oldest, and days can still be waiting on weather. `ofDays` counts its
+// days up to `yesterday`, as the API has none for today. A period with no days
+// estimated is left out.
+export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: string) => boolean, yesterday: string): Map<string, SolarPeriod> {
+  const energy = new Map<string, SolarPeriod>()
+  for (const { series, data } of files) {
+    const kept = series.flatMap((gxp, i) => (includeGxp(gxp) ? [i] : []))
+    for (const { from, to, days, mwh } of data) {
+      if (days === 0) continue
+      energy.set(from, {
+        mwh: kept.reduce((sum, i) => sum + mwh[i], 0),
+        days,
+        ofDays: daysThrough(from, to < yesterday ? to : yesterday),
+      })
+    }
+  }
+  return energy
+}
+
+// The tooltip's note on a period the estimate is short of days for, or null
+export function shortOfDaysNote(period: SolarPeriod | undefined): string | null {
+  return period && period.days < period.ofDays ? `Distributed solar estimated for ${period.days} of ${period.ofDays} days` : null
 }

@@ -3,14 +3,14 @@ import HighchartsReact from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { aggregatePeriodOf, useAggregates } from '../hooks/useAggregates'
-import { useDistributedSolar } from '../hooks/useDistributedSolar'
+import { aggregatePeriodOf, useAggregates, yesterdayNZ } from '../hooks/useAggregates'
+import { useDistributedSolar, useDistributedSolarEnergy } from '../hooks/useDistributedSolar'
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { hvdcInto } from '../utils/hvdc'
-import { distributedSolarAt, distributedSolarCapacities } from '../utils/distributedSolar'
+import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, shortOfDaysNote } from '../utils/distributedSolar'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
@@ -95,17 +95,26 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     [data, island],
   )
 
-  // The estimated output of solar that isn't dispatched, at each of the data's
-  // times on the island shown, charted as a fuel of its own. Null when the
-  // estimate covers none of them.
+  // The estimated output of solar that isn't dispatched on the island shown,
+  // charted as a fuel of its own: its MW at each of the data's times, or on
+  // the aggregate views its MWh in each period (and the periods, which can be
+  // short of days), null where there's no estimate. Null when the estimate
+  // covers none of them.
   const solarDays = useDistributedSolar(dateMode, visible)
+  const solarEnergy = useDistributedSolarEnergy(dateMode, visible)
   const distributedSolar = useMemo(() => {
-    if (!data || isAggregate || solarDays.length === 0) return null
+    if (!data || (isAggregate ? solarEnergy : solarDays).length === 0) return null
     const islandOf = new Map(substations.map(s => [s.siteId, s.island === 'north' ? 'NI' : 'SI']))
     const includeGxp = (gxp: string) => island === 'all' || islandOf.get(gxp) === island
-    const mw = distributedSolarAt(solarDays, data.data.map(row => nzLocalMs(row[0] as string)), includeGxp)
-    return mw.some(v => v !== null) ? { mw, capacityByDate: distributedSolarCapacities(solarDays, includeGxp) } : null
-  }, [data, isAggregate, solarDays, substations, island])
+    if (isAggregate) {
+      const energy = distributedSolarEnergy(solarEnergy, includeGxp, yesterdayNZ())
+      const periods = data.data.map(row => energy.get((row[0] as string).slice(0, 10)))
+      const values = periods.map(period => period?.mwh ?? null)
+      return values.some(v => v !== null) ? { values, periods, capacityByDate: new Map<string, number>() } : null
+    }
+    const values = distributedSolarAt(solarDays, data.data.map(row => nzLocalMs(row[0] as string)), includeGxp)
+    return values.some(v => v !== null) ? { values, periods: [], capacityByDate: distributedSolarCapacities(solarDays, includeGxp) } : null
+  }, [data, isAggregate, solarDays, solarEnergy, substations, island])
 
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
@@ -164,14 +173,15 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     const shownFuels = fuels.filter(f => effectiveFuels.has(f))
     // Distributed solar is charted at 0 where there's no estimate, as nulls part
     // way up a stack draw from 0 instead, but it's left out of the tooltip there
-    const solarMw = distributedSolar?.mw ?? []
-    const noSolarEstimateMs = new Set(data.data.filter((_, r) => solarMw[r] === null).map(row => nzLocalMs(row[0] as string)))
+    const solarValues = distributedSolar?.values ?? []
+    const noSolarEstimateMs = new Set(data.data.filter((_, r) => solarValues[r] === null).map(row => nzLocalMs(row[0] as string)))
+    const solarNoteByMs = new Map(data.data.map((row, r) => [nzLocalMs(row[0] as string), shortOfDaysNote(distributedSolar?.periods[r])]))
     const hvdcPart = (fuel: string, r: number) => {
       const mw = hvdc?.[r]?.mw
       return mw === undefined ? null : fuel === HVDC_IMPORT_CODE ? Math.max(mw, 0) : Math.min(mw, 0)
     }
     const fuelTotals = data.data.map((row, r) => shownFuels.map(fuel =>
-      fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarMw[r] ?? 0
+      fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarValues[r] ?? 0
         : fuelToIndices.has(fuel) ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((row[i] as number) || 0)), 0)
         : hvdcPart(fuel, r),
     ))
@@ -217,9 +227,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     const renewablePctByMs = new Map<number, number>()
     data.data.forEach((row, r) => {
       const ms = nzLocalMs(row[0] as string)
-      const distributedMW = solarMw[r] ?? 0
-      const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributedMW)
-      const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributedMW)
+      const distributed = solarValues[r] ?? 0
+      const totalMW = dispatchIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributed)
+      const renewableMW = renewableIndices.reduce((s, i) => s + ((row[i] as number) || 0), distributed)
       renewablePctByMs.set(ms, totalMW > 0 ? (renewableMW / totalMW) * 100 : 0)
     })
 
@@ -361,9 +371,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           const renewableRow = renewablePct != null
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
+          const solarNote = shownPoints.some(p => p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)) && solarNoteByMs.get(x)
+          const solarNoteRow = solarNote ? `<br/><span style="color:var(--color-text-muted)">${solarNote}</span>` : ''
           const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'
           // Kept to one line a row, as the longer labels would otherwise wrap the table on a narrow panel
-          return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
+          return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${solarNoteRow}${priceRow}`
         },
       },
       series,

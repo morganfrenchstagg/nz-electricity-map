@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { solarDatesOf } from './useDistributedSolar'
+import { solarDatesOf, solarEnergyQuarters } from './useDistributedSolar'
 
 describe('solarDatesOf', () => {
   beforeEach(() => {
@@ -27,5 +27,33 @@ describe('solarDatesOf', () => {
 
   it('is nothing for the aggregate views', () => {
     expect(solarDatesOf({ kind: 'last90', aggregation: 'daily' })).toEqual([])
+  })
+})
+
+describe('solarEnergyQuarters', () => {
+  it('sums each quarter’s months, GXP by GXP, across years’ files', () => {
+    const lastYear = {
+      series: ['ISL', 'BLN'],
+      data: [
+        { from: '2025-11-01', to: '2025-11-30', days: 30, totalMwh: 3, mwh: [2, 1] },
+        { from: '2025-12-01', to: '2025-12-31', days: 31, totalMwh: 5, mwh: [3, 2] },
+      ],
+    }
+    const thisYear = {
+      series: ['BLN', 'ISL'],
+      data: [
+        { from: '2026-01-01', to: '2026-01-31', days: 31, totalMwh: 7, mwh: [3, 4] },
+        { from: '2026-02-01', to: '2026-02-28', days: 28, totalMwh: 11, mwh: [5, 6] },
+        { from: '2026-04-01', to: '2026-04-30', days: 30, totalMwh: 13, mwh: [6, 7] },
+      ],
+    }
+    expect(solarEnergyQuarters([lastYear, thisYear])).toEqual({
+      series: ['ISL', 'BLN'],
+      data: [
+        { from: '2025-10-01', to: '2025-12-31', days: 61, totalMwh: 8, mwh: [5, 3] },
+        { from: '2026-01-01', to: '2026-02-28', days: 59, totalMwh: 18, mwh: [10, 8] },
+        { from: '2026-04-01', to: '2026-04-30', days: 30, totalMwh: 13, mwh: [7, 6] },
+      ],
+    })
   })
 })

@@ -83,3 +83,18 @@ describe('fetchDispatch("recent")', () => {
     expect(requested.map(url => url.search)).toEqual(['', '?since=2026-10-14T22%3A00%3A00', ''])
   })
 })
+
+describe('fetchSolarEnergy', () => {
+  it('fetches the solar API’s file for the same periods as an aggregates path', async () => {
+    const paths = ['2026/09', '2026/weekly', '2026/monthly', 'annual']
+    for (const _ of paths) responses.push({ result: { series: [], data: [] } } as unknown as RecentData)
+
+    for (const path of paths) await api.fetchSolarEnergy(path)
+    expect(requested.map((url) => `${url.origin}${url.pathname}`)).toEqual([
+      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/daily/2026-09',
+      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/weekly/2026',
+      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/monthly/2026',
+      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/annual',
+    ])
+  })
+})

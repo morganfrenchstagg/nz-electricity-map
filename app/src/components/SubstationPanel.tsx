@@ -3,13 +3,13 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { useDistributedSolar } from '../hooks/useDistributedSolar'
+import { useDistributedSolar, useDistributedSolarEnergy } from '../hooks/useDistributedSolar'
 import { SUBSTATION_SOLAR } from '../featureFlags'
 import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { DISTRIBUTED_SOLAR_FUEL_CODE, fuelCodeColour, fuelCodeLabel, fuelColour, voltageColour } from '../utils/colours'
-import { distributedSolarAt } from '../utils/distributedSolar'
+import { distributedSolarAt, distributedSolarEnergy, shortOfDaysNote } from '../utils/distributedSolar'
 import { energyUnit, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { unitLabel } from '../utils/generators'
@@ -17,7 +17,7 @@ import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { SUBSTATION_FIRST_DAY } from '../hooks/useAggregates'
+import { SUBSTATION_FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
@@ -69,11 +69,11 @@ function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, uni
 // its generators, which are negative load), and a dashed line adding it back
 // onto the demand (see demandLoads): the demand there would be without it. Both are left off where
 // there's no estimate.
-function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
-  const points = (value: (mw: number, i: number) => number) =>
+function distributedSolarSeries({ rows }: ChartData, solar: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
+  const points = (value: (estimate: number, i: number) => number) =>
     rows.map((row, i): [number, number | null] => {
-      const mw = solarMw[i]
-      return [nzLocalMs(row.time), mw === null ? null : value(mw, i) / unitSize]
+      const estimate = solar[i]
+      return [nzLocalMs(row.time), estimate === null ? null : value(estimate, i) / unitSize]
     })
   return [
     {
@@ -81,7 +81,7 @@ function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[],
       name: SOLAR,
       visible: shown.solar,
       color: SOLAR_COLOUR,
-      data: points((mw) => mw),
+      data: points((estimate) => estimate),
       marker: { enabled: false },
       animation: false,
     },
@@ -93,7 +93,7 @@ function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[],
       dashStyle: 'Dash',
       lineWidth: 2,
       zIndex: 5,
-      data: points((mw, i) => demand[i] + mw),
+      data: points((estimate, i) => demand[i] + estimate),
       marker: { enabled: false },
       animation: false,
     },
@@ -153,17 +153,29 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const hasGenerators = allCodes.some(isGeneratorCode)
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
 
-  // The distributed solar estimated at the substation at each of the chart's
-  // times, null where there's no estimate. Null when it has none in the view,
-  // or the flag is off. The panel is only rendered while it's showing, so
-  // that's all it waits on
+  // The distributed solar estimated at the substation: its MW at each of the
+  // chart's times, or on the aggregate views its MWh in each period (and the
+  // periods, which can be short of days), null where there's no estimate. Null
+  // when it has none in the view, or the flag is off. The panel is only
+  // rendered while it's showing, so that's all it waits on
   const solarDays = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
-  const solarMw = useMemo(() => {
-    if (!chartData || isAggregate || !solarDays.some((day) => day.gxps.some((g) => g.gxp === substation.siteId))) return null
-    const mw = distributedSolarAt(solarDays, chartData.rows.map((row) => nzLocalMs(row.time)), (gxp) => gxp === substation.siteId)
-    return mw.some((v) => v !== null) ? mw : null
-  }, [chartData, isAggregate, solarDays, substation])
-  const hasSolar = solarMw !== null
+  const solarEnergy = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
+  const solarEstimate = useMemo(() => {
+    const atSubstation = (gxp: string) => gxp === substation.siteId
+    if (!chartData) return null
+    if (isAggregate) {
+      if (!solarEnergy.some((file) => file.series.some(atSubstation))) return null
+      const energy = distributedSolarEnergy(solarEnergy, atSubstation, yesterdayNZ())
+      const periods = chartData.rows.map((row) => energy.get(row.time.slice(0, 10)))
+      const values = periods.map((period) => period?.mwh ?? null)
+      return values.some((v) => v !== null) ? { values, periods } : null
+    }
+    if (!solarDays.some((day) => day.gxps.some((g) => atSubstation(g.gxp)))) return null
+    const values = distributedSolarAt(solarDays, chartData.rows.map((row) => nzLocalMs(row.time)), atSubstation)
+    return values.some((v) => v !== null) ? { values, periods: [] } : null
+  }, [chartData, isAggregate, solarDays, solarEnergy, substation])
+  const solar = solarEstimate?.values ?? null
+  const hasSolar = solar !== null
 
   // A lone code's Total would just repeat it
   const hasTotal = allCodes.length > 1
@@ -243,11 +255,14 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
     // Aggregate totals are MWh, charted in GWh unless the lines stay low
     const totals = hasTotal ? totalLoads(chartData) : []
+    const demand = demandLoads(chartData)
     const shownCodes = chartData.codes.filter((code) => effectiveCodes.has(code))
     const unit = isAggregate
       ? energyUnit(chartReach(chartData.rows.map((row, i) => [
           ...shownCodes.map((code) => row[code] as number),
           ...(totalShown ? [totals[i]] : []),
+          ...(solarShown ? [solar[i] ?? 0] : []),
+          ...(solarDemandShown ? [demand[i] + (solar[i] ?? 0)] : []),
         ]), false))
       : MW_UNIT
 
@@ -261,7 +276,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       transformValue: (value) => toLoad(value) / unit.size,
       extraSeries: [
         ...(hasTotal ? [totalSeries(chartData, totals, totalShown, unit.size)] : []),
-        ...(solarMw ? distributedSolarSeries(chartData, solarMw, demandLoads(chartData), { solar: solarShown, demand: solarDemandShown }, unit.size) : []),
+        ...(solar ? distributedSolarSeries(chartData, solar, demand, { solar: solarShown, demand: solarDemandShown }, unit.size) : []),
       ],
       yAxis: {
         title: { text: `Load (${unit.label})` },
@@ -288,19 +303,21 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR)
         if (solarPoints.length > 0) {
           rows += `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
+          const note = shortOfDaysNote(solarEstimate?.periods[solarPoints[0].index])
+          if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${substation.description} Substation load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
-          + (solarMw ? ', and distributed solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
+          + (solar ? ', and distributed solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solarMw, solarShown, solarDemandShown, isAggregate, aggregatePeriod, substation, hasGenerators])
+  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solar, solarEstimate, solarShown, solarDemandShown, isAggregate, aggregatePeriod, substation, hasGenerators])
 
   // Series buttons: the generators toggle and Total lead, then a button per bus and generator
   const showUnitSelector = allCodes.length > 1
