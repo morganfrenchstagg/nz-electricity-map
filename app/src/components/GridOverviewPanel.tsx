@@ -36,12 +36,21 @@ function fuelLabel(fuel: string, island: Island): string {
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
-// How the tooltip names each solar series when it lists them under one Solar
-// heading, keyed by the series' names
-const SOLAR_PARTS: Record<string, string> = {
-  [fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)]: 'Embedded (estimate)',
-  [fuelCodeLabel('SOL')]: 'Grid-scale',
-}
+// Fuels the tooltip lists under one heading, which totals them, when two or
+// more of them are in it: the heading, its dot's fuel, and what each fuel's
+// series (keyed by its name) is called under it, in order
+const TOOLTIP_GROUPS: { label: string; colourFuel: string; parts: [string, string][] }[] = [
+  {
+    label: 'Solar',
+    colourFuel: 'SOL',
+    parts: [[fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE), 'Embedded (estimate)'], [fuelCodeLabel('SOL'), 'Grid-scale']],
+  },
+  {
+    label: 'Battery',
+    colourFuel: 'BESS',
+    parts: [[fuelCodeLabel('BESS'), 'Discharging'], [fuelCodeLabel(CHARGING_FUEL_CODE), 'Charging']],
+  },
+]
 
 interface Props extends PanelProps {
   dateMode: DateMode
@@ -310,19 +319,29 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           }
 
           const shownPoints = points.filter(p => !(p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE) && noSolarEstimateMs.has(x)))
-          // With the estimate there, both solars are listed under one Solar
-          // heading, which totals them, in place of the first of them
-          const solarPoints = shownPoints.filter(p => p.series.name in SOLAR_PARTS)
-          const groupSolar = solarPoints.some(p => p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE))
+          // Each group's points, in its parts' order, where two or more are in the tooltip (see TOOLTIP_GROUPS)
+          const groups = TOOLTIP_GROUPS
+            .map(group => ({
+              group,
+              points: group.parts.flatMap(([name, label]) => {
+                const p = shownPoints.find(p => p.series.name === name)
+                return p ? [{ p, label }] : []
+              }),
+            }))
+            .filter(({ points }) => points.length > 1)
+          const groupOf = (p: Highcharts.Point) => groups.find(({ points }) => points.some(part => part.p === p))
+          // A group's heading and parts take the place of the first of its points in the series' order
           const rows = shownPoints
             .map(p => {
-              if (!groupSolar || !solarPoints.includes(p)) return row(p.series.name, String(p.color), p.y ?? 0, capacityAt(p.series.name, x))
-              if (p !== solarPoints[0]) return ''
-              const solarY = solarPoints.reduce((sum, s) => sum + (s.y ?? 0), 0)
-              const solarCap = solarPoints.reduce((sum, s) => sum + capacityAt(s.series.name, x), 0)
-              // The heading takes Solar's own colour, the same as Grid-scale's
-              return row(fuelCodeLabel('SOL'), fuelCodeColour('SOL'), solarY, solarCap)
-                + solarPoints.map(s => row(SOLAR_PARTS[s.series.name], String(s.color), s.y ?? 0, capacityAt(s.series.name, x), true)).join('')
+              const grouped = groupOf(p)
+              if (!grouped) return row(p.series.name, String(p.color), p.y ?? 0, capacityAt(p.series.name, x))
+              if (shownPoints.find(s => groupOf(s) === grouped) !== p) return ''
+              const { group, points: parts } = grouped
+              const groupY = parts.reduce((sum, { p }) => sum + (p.y ?? 0), 0)
+              // A battery's charging units have negative capacities, which would cancel out its discharging units'
+              const groupCap = parts.reduce((sum, { p }) => sum + Math.max(0, capacityAt(p.series.name, x)), 0)
+              return row(group.label, fuelCodeColour(group.colourFuel), groupY, groupCap)
+                + parts.map(({ p, label }) => row(label, String(p.color), p.y ?? 0, capacityAt(p.series.name, x), true)).join('')
             })
             .join('')
 
