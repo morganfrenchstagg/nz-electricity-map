@@ -36,6 +36,13 @@ function fuelLabel(fuel: string, island: Island): string {
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
+// How the tooltip names each solar series when it lists them under one Solar
+// heading, keyed by the series' names
+const SOLAR_PARTS: Record<string, string> = {
+  [fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)]: 'Embedded + Rooftop (estimate)',
+  [fuelCodeLabel('SOL')]: 'Grid-scale',
+}
+
 interface Props extends PanelProps {
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
@@ -281,7 +288,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         useHTML: true,
         formatter: function () {
           const points = this.points ?? []
-          const time = tooltipTime(this.x as number, aggregatePeriod)
+          const x = this.x as number
+          const time = tooltipTime(x, aggregatePeriod)
           const formatValue = unit.format
           // The total is what's stacked above zero: the generation, and in an
           // island's views whatever the HVDC brings in. What's below it, a
@@ -289,17 +297,32 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           // too, so the island's exports read as the part of its generation sent away.
           const total = points.reduce((sum, p) => sum + Math.max(p.y ?? 0, 0), 0)
 
-          const rows = points
-            .filter(p => !(p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE) && noSolarEstimateMs.has(this.x as number)))
+          // A fuel's row: its generation, capacity and share of the total. The
+          // Solar heading has no colour, but keeps its dot's space to line up.
+          const row = (label: string, colour: string | null, y: number, cap: number, indent = false) => {
+            const val = formatValue(y)
+            const formatted = y === 0 ? val : `<b>${val}</b>`
+            const ratioOfTotal = total > 0 ? y / total : 0
+            const percentageStr = ratioOfTotal !== 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : total > 0 ? '0%' : '–'
+            // No capacity comparison for aggregate totals
+            const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
+            const labelStyle = indent ? ' style="padding-left:var(--space-lg)"' : ''
+            return `<tr><td${labelStyle}><span style="color:${colour ?? 'transparent'}">●</span> ${label}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
+          }
+
+          const shownPoints = points.filter(p => !(p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE) && noSolarEstimateMs.has(x)))
+          // With the estimate there, both solars are listed under one Solar
+          // heading, which totals them, in place of the first of them
+          const solarPoints = shownPoints.filter(p => p.series.name in SOLAR_PARTS)
+          const groupSolar = solarPoints.some(p => p.series.name === fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE))
+          const rows = shownPoints
             .map(p => {
-              const val = formatValue(p.y ?? 0)
-              const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              const ratioOfTotal = total > 0 ? (p.y ?? 0) / total : 0
-              const percentageStr = ratioOfTotal !== 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : total > 0 ? '0%' : '–'
-              // No capacity comparison for aggregate totals
-              const cap = capacityAt(p.series.name, this.x as number)
-              const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
+              if (!groupSolar || !solarPoints.includes(p)) return row(p.series.name, String(p.color), p.y ?? 0, capacityAt(p.series.name, x))
+              if (p !== solarPoints[0]) return ''
+              const solarY = solarPoints.reduce((sum, s) => sum + (s.y ?? 0), 0)
+              const solarCap = solarPoints.reduce((sum, s) => sum + capacityAt(s.series.name, x), 0)
+              return row(fuelCodeLabel('SOL'), null, solarY, solarCap)
+                + solarPoints.map(s => row(SOLAR_PARTS[s.series.name], String(s.color), s.y ?? 0, capacityAt(s.series.name, x), true)).join('')
             })
             .join('')
 
@@ -316,7 +339,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
           const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'
-          return `<table><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
+          // Kept to one line a row, as Embedded + Rooftop (estimate) would otherwise wrap the table on a narrow panel
+          return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
         },
       },
       series,
