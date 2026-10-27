@@ -39,7 +39,7 @@ const PipelineModal = lazy(() => import('./PipelineModal'))
 // How the tooltip names each solar series when it lists them under one Solar
 // heading, keyed by the series' names
 const SOLAR_PARTS: Record<string, string> = {
-  [fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)]: 'Embedded + Rooftop (estimate)',
+  [fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)]: 'Embedded (estimate)',
   [fuelCodeLabel('SOL')]: 'Grid-scale',
 }
 
@@ -339,7 +339,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
             ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>`
             : ''
           const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'
-          // Kept to one line a row, as Embedded + Rooftop (estimate) would otherwise wrap the table on a narrow panel
+          // Kept to one line a row, as the longer labels would otherwise wrap the table on a narrow panel
           return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
         },
       },
