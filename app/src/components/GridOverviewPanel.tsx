@@ -36,18 +36,21 @@ function fuelLabel(fuel: string, island: Island): string {
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
-// Fuels the tooltip lists under one heading, which totals them, when two or
-// more of them are in it: the heading, its dot's fuel, and what each fuel's
-// series (keyed by its name) is called under it, in order
-const TOOLTIP_GROUPS: { label: string; colourFuel: string; parts: [string, string][] }[] = [
+// Fuels the tooltip lists under one heading when two or more of them are in
+// it: the heading, its dot's fuel, whether it totals them, and what each
+// fuel's series (keyed by its name) is called under it, in order. A battery's
+// charging and discharging aren't totalled, as they're power going opposite ways.
+const TOOLTIP_GROUPS: { label: string; colourFuel: string; totals: boolean; parts: [string, string][] }[] = [
   {
     label: 'Solar',
     colourFuel: 'SOL',
+    totals: true,
     parts: [[fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE), 'Embedded (estimate)'], [fuelCodeLabel('SOL'), 'Grid-scale']],
   },
   {
     label: 'Battery',
     colourFuel: 'BESS',
+    totals: false,
     parts: [[fuelCodeLabel('BESS'), 'Discharging'], [fuelCodeLabel(CHARGING_FUEL_CODE), 'Charging']],
   },
 ]
@@ -330,18 +333,19 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
             }))
             .filter(({ points }) => points.length > 1)
           const groupOf = (p: Highcharts.Point) => groups.find(({ points }) => points.some(part => part.p === p))
-          // A group's heading and parts take the place of the first of its points in the series' order
+          // A group's heading and parts take the place of the last of its points
+          // in the series' order. That puts Battery at the bottom, where charging is.
           const rows = shownPoints
             .map(p => {
               const grouped = groupOf(p)
               if (!grouped) return row(p.series.name, String(p.color), p.y ?? 0, capacityAt(p.series.name, x))
-              if (shownPoints.find(s => groupOf(s) === grouped) !== p) return ''
+              if (shownPoints.filter(s => groupOf(s) === grouped).pop() !== p) return ''
               const { group, points: parts } = grouped
-              const groupY = parts.reduce((sum, { p }) => sum + (p.y ?? 0), 0)
-              // A battery's charging units have negative capacities, which would cancel out its discharging units'
-              const groupCap = parts.reduce((sum, { p }) => sum + Math.max(0, capacityAt(p.series.name, x)), 0)
-              return row(group.label, fuelCodeColour(group.colourFuel), groupY, groupCap)
-                + parts.map(({ p, label }) => row(label, String(p.color), p.y ?? 0, capacityAt(p.series.name, x), true)).join('')
+              const colour = fuelCodeColour(group.colourFuel)
+              const heading = group.totals
+                ? row(group.label, colour, parts.reduce((sum, { p }) => sum + (p.y ?? 0), 0), parts.reduce((sum, { p }) => sum + capacityAt(p.series.name, x), 0))
+                : `<tr><td><span style="color:${colour}">●</span> ${group.label}:</td></tr>`
+              return heading + parts.map(({ p, label }) => row(label, String(p.color), p.y ?? 0, capacityAt(p.series.name, x), true)).join('')
             })
             .join('')
 
