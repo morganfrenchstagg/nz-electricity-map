@@ -28,6 +28,8 @@ VITE_SOLAR_API_BASE=http://localhost:8787 npm run dev
 
 Its weather only reaches back about three months, so it shows on the Today and 3d views and on picked days in the last 92, but not on earlier days or the aggregate views.
 
+The substation panel's estimate, and its dashed line of the substation's demand with the estimate added back, are behind a feature flag for now. Add `substationSolar=true` to the URL's query to show them (see `app/src/featureFlags.ts`).
+
 ## Data
 
 The map shows data from [EMI](https://www.emi.ea.govt.nz) provided by the Electricity Authority (New Zealand) and from [Transpower New Zealand](https://www.transpower.co.nz), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It's aggregated and reshaped for the map, and neither licensor endorses this site. The app credits them in the panels' About this site modal and behind the map's ⓘ button (see `app/src/attribution.ts`).

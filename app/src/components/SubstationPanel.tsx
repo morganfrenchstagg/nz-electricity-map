@@ -4,6 +4,7 @@ import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
 import { useDistributedSolar } from '../hooks/useDistributedSolar'
+import { SUBSTATION_SOLAR } from '../featureFlags'
 import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
@@ -153,9 +154,10 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
 
   // The distributed solar estimated at the substation at each of the chart's
-  // times, null where there's no estimate. Null when it has none in the view.
-  // The panel is only rendered while it's showing, so it's always fetched
-  const solarDays = useDistributedSolar(dateMode, true)
+  // times, null where there's no estimate. Null when it has none in the view,
+  // or the flag is off. The panel is only rendered while it's showing, so
+  // that's all it waits on
+  const solarDays = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
   const solarMw = useMemo(() => {
     if (!chartData || isAggregate || !solarDays.some((day) => day.gxps.some((g) => g.gxp === substation.siteId))) return null
     const mw = distributedSolarAt(solarDays, chartData.rows.map((row) => nzLocalMs(row.time)), (gxp) => gxp === substation.siteId)
