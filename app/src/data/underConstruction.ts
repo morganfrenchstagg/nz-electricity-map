@@ -24,24 +24,8 @@ export const underConstruction: UnderConstructionNode[] = [
         "costMillionDollars": 712,
         "capacityMW": 101.4,
         "yearlyGenerationGWh": 830,
-        "openBy": "2027-09-31",
+        "openBy": "2027-01-31",
         "link": "https://api.nzx.com/public/announcement/441782/attachment/431773/441782-431773.pdf"
-    },
-    {
-        "name": "Kaiwaikawe",
-        "site": "KWK",
-        "fuel": "Wind",
-        "operator": "Mercury",
-        "status": "Commissioning",
-        "costMillionDollars": 287,
-        "capacityMW": 77,
-        "yearlyGenerationGWh": 221,
-        "openBy": "2026-07-31",
-        "link": "https://www.mercury.co.nz/about-us/renewable-energy/wind-generation/kaiwaikawe-wind-farm",
-        "location": {
-            "lat": -35.89090838067845,
-            "long": 173.74157691101598
-        },
     },
     {
         "name": "Ruakākā",
@@ -53,7 +37,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "capacityMW": 130,
         "yearlyGenerationGWh": 216,
         "costMillionDollars": 227,
-        "openBy": "2026-10-31",
+        "openBy": "2026-12-31",
         "link": "https://meridianenergy.co.nz/public/Investors/Reports-and-presentations/Investor-presentations/2024/ruakaka-solar-announcement-March-2025.pdf",
         "location": {
             "lat": -35.847508029631044,
@@ -68,7 +52,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "fuel": "Solar",
         "operator": "Nova Energy / Meridian Energy",
         "status": "Under Construction",
-        "openBy": "2027-03-31",
+        "openBy": "2027-02-28",
         "capacityMW": 200,
         "yearlyGenerationGWh": 325,
         "costMillionDollars": 300,
@@ -109,7 +93,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "link": "https://www.yinsonrenewables.co.nz/project-sites-mt-cass/"
     },
     {
-        "name": "Cambridge",
+        "name": "Matangi",
         "fuel": "Solar",
         "operator": "NewPower Energy",
         "status": "Under Construction",
@@ -119,7 +103,7 @@ export const underConstruction: UnderConstructionNode[] = [
             "lat": -37.80261591853313,
             "long": 175.43521168285304
         },
-        "openBy": "2027-03-30",
+        "openBy": "2027-01-30",
     },
     {
         "name": "Kapuni",
@@ -142,7 +126,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "status": "Under Construction",
         "capacityMW": 18,
         "capacityMWp": 20,
-        "openBy": "2026-12-30",
+        "openBy": "2026-11-30",
         "location": {
             "lat": -35.76401439273073,
             "long": 174.20655895653712
