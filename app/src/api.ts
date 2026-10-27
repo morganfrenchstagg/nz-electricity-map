@@ -161,16 +161,15 @@ export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
 }
 
-// The solar API sends no max-age. Its weather is refreshed hourly at most, and
-// today's estimate already runs to midnight, so it's checked every 15 minutes.
+// The solar API sends no max-age. Today's estimate already runs to midnight,
+// and only changes as the API updates it, so it's checked every 15 minutes.
 const SOLAR_FRESH_MS = 15 * MINUTE_MS
 
 function solarProductionPath(date: string): string {
   return `solar-production/${date}`
 }
 
-// `date` is a "YYYY-MM-DD" date. Null for a day the API has no weather for
-// (see solarDatesOf).
+// `date` is a "YYYY-MM-DD" date. Null for a day the API has no estimate for.
 export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
   const path = solarProductionPath(date)
   return cachedJson(path, {

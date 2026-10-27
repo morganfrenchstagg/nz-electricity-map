@@ -3,28 +3,21 @@ import { fetchSolarProduction, peekSolarProduction } from '../api'
 import type { SolarProduction } from '../api'
 import { datesBetween, isAggregateMode, isLiveMode, periodOf } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
-import { nzLocalMs, todayNZ } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
 
 // Cheap: only reaches the network once the cached estimate expires (see api.ts)
 const POLL_MS = 15 * 1000
-const DAY_MS = 24 * 60 * 60 * 1000
-// The API's weather (Open-Meteo's) only reaches back about three months. It
-// 404s an earlier day, but only after spending its Open-Meteo calls finding out.
-export const SOLAR_PAST_DAYS = 92
 
 function isoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
 // The dates of the distributed solar estimate a view charts, oldest first:
-// each day it covers, back as far as the API has weather. The aggregate views'
-// MWh totals have nothing to put it with.
+// each day it covers. The aggregate views' MWh totals have nothing to put it with.
 export function solarDatesOf(mode: DateMode): string[] {
   if (isAggregateMode(mode)) return []
   const { from, to } = periodOf(mode)
-  const earliest = isoDate(nzLocalMs(`${todayNZ()}T00:00:00`) - SOLAR_PAST_DAYS * DAY_MS)
-  return datesBetween(isoDate(from), isoDate(to)).filter((date) => date >= earliest)
+  return datesBetween(isoDate(from), isoDate(to))
 }
 
 // The distributed solar estimate for each day a view charts (see solarDatesOf)

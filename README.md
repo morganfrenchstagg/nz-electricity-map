@@ -26,7 +26,7 @@ The generation chart adds an estimate of distributed (rooftop and other undispat
 VITE_SOLAR_API_BASE=http://localhost:8787 npm run dev
 ```
 
-Its weather only reaches back about three months, so it shows on the Today and 3d views and on picked days in the last 92, but not on earlier days or the aggregate views.
+It shows on the Today and 3d views and on picked days, wherever the API has an estimate, but not on the aggregate views.
 
 The substation panel's estimate, and its dashed line of the substation's demand with the estimate added back, are behind a feature flag for now. Add `substationSolar=true` to the URL's query to show them (see `app/src/featureFlags.ts`).
 

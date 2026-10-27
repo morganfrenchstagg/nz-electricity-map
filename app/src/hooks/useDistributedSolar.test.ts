@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SOLAR_PAST_DAYS, solarDatesOf } from './useDistributedSolar'
+import { solarDatesOf } from './useDistributedSolar'
 
 describe('solarDatesOf', () => {
   beforeEach(() => {
@@ -21,10 +21,8 @@ describe('solarDatesOf', () => {
     expect(solarDatesOf({ kind: 'range', from: '2026-09-29', to: '2026-10-02' })).toEqual(['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'])
   })
 
-  it(`stops ${SOLAR_PAST_DAYS} days back, where the API's weather does`, () => {
-    // 92 days before the 26th
-    expect(solarDatesOf({ kind: 'range', from: '2026-07-24', to: '2026-07-27' })).toEqual(['2026-07-26', '2026-07-27'])
-    expect(solarDatesOf({ kind: 'date', date: '2025-10-26' })).toEqual([])
+  it('reaches back as far as a view does, leaving the API to 404 a day it has no estimate for', () => {
+    expect(solarDatesOf({ kind: 'date', date: '2025-10-26' })).toEqual(['2025-10-26'])
   })
 
   it('is nothing for the aggregate views', () => {
