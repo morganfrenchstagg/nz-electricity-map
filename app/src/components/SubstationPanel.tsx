@@ -64,9 +64,9 @@ function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, uni
   }
 }
 
-// The distributed solar estimated at the substation, charted as negative load
-// like its generators, and a dashed line adding it back onto the demand (see
-// demandLoads): the demand there would be without it. Both are left off where
+// The distributed solar estimated at the substation, charted above 0 (unlike
+// its generators, which are negative load), and a dashed line adding it back
+// onto the demand (see demandLoads): the demand there would be without it. Both are left off where
 // there's no estimate.
 function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
   const points = (value: (mw: number, i: number) => number) =>
@@ -80,7 +80,7 @@ function distributedSolarSeries({ rows }: ChartData, solarMw: (number | null)[],
       name: SOLAR,
       visible: shown.solar,
       color: SOLAR_COLOUR,
-      data: points((mw) => toLoad(mw)),
+      data: points((mw) => mw),
       marker: { enabled: false },
       animation: false,
     },
@@ -292,7 +292,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       accessibility: timeChartAccessibility(
         `${substation.description} Substation load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
-          + (solarMw ? ', and distributed solar estimated from the weather, as negative load and added back onto the buses\' load' : ''),
+          + (solarMw ? ', and distributed solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),
