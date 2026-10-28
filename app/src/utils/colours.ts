@@ -17,8 +17,8 @@ const FUELS = [
   { code: 'BIO', label: 'Biomass', colour: '#6a3d9a', fuelNames: ['Biomass'], renewable: true },
   { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'], renewable: true },
   { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'], renewable: false },
-  { code: 'HVDC-IN', label: 'HVDC (importing)', colour: '#6366f1', fuelNames: [], renewable: false },
-  { code: 'HVDC-OUT', label: 'HVDC (exporting)', colour: '#6366f1', fuelNames: [], renewable: false },
+  { code: 'HVDC-IN', label: 'Imported', colour: '#6366f1', fuelNames: [], renewable: false },
+  { code: 'HVDC-OUT', label: 'Exported', colour: '#6366f1', fuelNames: [], renewable: false },
 ] as const
 
 // A battery's charging is listed as a unit of its own. It draws power rather
@@ -27,7 +27,7 @@ export const CHARGING_FUEL_CODE = 'BESS-C'
 
 // Not a fuel, but charted as one in GridOverviewPanel's island views: the HVDC
 // bringing power into the island like a generator, or taking it out below zero,
-// like a battery charging
+// like a battery charging. The panel names them for the island at the other end.
 export const HVDC_IMPORT_CODE = 'HVDC-IN'
 export const HVDC_EXPORT_CODE = 'HVDC-OUT'
 

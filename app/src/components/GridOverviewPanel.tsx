@@ -21,6 +21,16 @@ import DateControls from './DateControls'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
 
+type Island = 'all' | 'NI' | 'SI'
+
+// A fuel's name in the chart. The HVDC's is the island at its other end.
+function fuelLabel(fuel: string, island: Island): string {
+  const otherIsland = island === 'SI' ? 'North Island' : 'South Island'
+  if (fuel === HVDC_IMPORT_CODE) return `Imported from ${otherIsland}`
+  if (fuel === HVDC_EXPORT_CODE) return `Exported to ${otherIsland}`
+  return fuelCodeLabel(fuel)
+}
+
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
@@ -42,7 +52,7 @@ interface Props extends PanelProps {
 export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, activeFuels, onActiveFuelsChange, pipelineOpen, onPipelineOpenChange, ...panel }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
-  const [island, setIsland] = useState<'all' | 'NI' | 'SI'>('all')
+  const [island, setIsland] = useState<Island>('all')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
@@ -141,7 +151,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       const colour = fuelCodeColour(fuel)
       return {
         type: isAggregate ? 'column' : 'area',
-        name: fuelCodeLabel(fuel),
+        name: fuelLabel(fuel, island),
         color: colour,
         // Covers 1px rounding gaps between columns (see nodeChartOptions)
         borderColor: colour,
@@ -186,18 +196,18 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       })
     }
 
-    // Each fuel's units, keyed by the series name shown in the tooltip (fuelCodeLabel)
+    // Each fuel's units, keyed by the series name shown in the tooltip (fuelLabel)
     // so the shared formatter can look them up per point
     const unitsByName = new Map<string, Unit[]>()
     for (const fuel of fuels) {
-      unitsByName.set(fuelCodeLabel(fuel), fuelToUnits.get(fuel) ?? [])
+      unitsByName.set(fuelLabel(fuel, island), fuelToUnits.get(fuel) ?? [])
     }
     // A fuel's total installed capacity (MSGC) at a time: its units in service then.
     // The HVDC's is its transfer limit the way it's flowing.
     const hvdcByMs = new Map(hvdc ? data.data.map((row, r) => [nzLocalMs(row[0] as string), hvdc[r]]) : [])
     const capacityAt = (name: string, ms: number) => {
-      if (name === fuelCodeLabel(HVDC_IMPORT_CODE)) return hvdcByMs.get(ms)?.inLimit ?? 0
-      if (name === fuelCodeLabel(HVDC_EXPORT_CODE)) return hvdcByMs.get(ms)?.outLimit ?? 0
+      if (name === fuelLabel(HVDC_IMPORT_CODE, island)) return hvdcByMs.get(ms)?.inLimit ?? 0
+      if (name === fuelLabel(HVDC_EXPORT_CODE, island)) return hvdcByMs.get(ms)?.outLimit ?? 0
       return (unitsByName.get(name) ?? [])
         .filter(u => inServiceAt(u, ms))
         .reduce((sum, u) => sum + u.capacity, 0)
@@ -350,7 +360,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           <SeriesButtonRow
             items={fuels.map(fuel => (
               <SeriesButton key={fuel} colour={fuelCodeColour(fuel)} active={effectiveFuels.has(fuel)} onClick={() => toggleFuel(fuel)} onIsolate={() => isolateFuel(fuel)}>
-                {fuelCodeLabel(fuel)}
+                {fuelLabel(fuel, island)}
               </SeriesButton>
             ))}
             trail={[
