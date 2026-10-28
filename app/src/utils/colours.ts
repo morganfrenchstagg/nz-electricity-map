@@ -17,11 +17,20 @@ const FUELS = [
   { code: 'BIO', label: 'Biomass', colour: '#6a3d9a', fuelNames: ['Biomass'], renewable: true },
   { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'], renewable: true },
   { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'], renewable: false },
+  { code: 'HVDC-IN', label: 'Imported', colour: '#8c8c8c', fuelNames: [], renewable: false },
+  { code: 'HVDC-OUT', label: 'Exported', colour: '#8c8c8c', fuelNames: [], renewable: false },
 ] as const
 
 // A battery's charging is listed as a unit of its own. It draws power rather
 // than generating it, so it's left out of capacity and generation totals.
 export const CHARGING_FUEL_CODE = 'BESS-C'
+
+// Not a fuel, but charted as one in GridOverviewPanel's island views: the HVDC
+// bringing power into the island like a generator, or taking it out below zero,
+// like a battery charging. The panel names them for the island at the other end.
+// They're grey, as what flows is a mix of the other island's fuels, not one of its own.
+export const HVDC_IMPORT_CODE = 'HVDC-IN'
+export const HVDC_EXPORT_CODE = 'HVDC-OUT'
 
 // A battery's charging and discharging units are listed as one fuel, Battery
 export function fuelFamily(fuel: string): string {
@@ -46,7 +55,7 @@ export const RENEWABLE_FUEL_CODES: ReadonlySet<string> =
   new Set(FUELS.filter(f => f.renewable).map(f => f.code))
 
 // Canonical display order for fuel codes (used in GridOverviewPanel, and by fuel name via FUEL_NAME_SORT_INDEX)
-export const FUEL_CODE_ORDER = ['BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'BIO', 'GEO', 'BESS-C'] as const
+export const FUEL_CODE_ORDER = ['HVDC-IN', 'BESS', 'DIE', 'HYD', 'SOL', 'WIN', 'GAS', 'CLG', 'BIO', 'GEO', 'BESS-C', 'HVDC-OUT'] as const
 
 // Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
 export const FUEL_NAME_SORT_INDEX: Record<string, number> =

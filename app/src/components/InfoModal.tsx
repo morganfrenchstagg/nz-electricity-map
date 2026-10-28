@@ -64,6 +64,7 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
                 dispatch API, nodal prices and volumes, and bids and offers data.
               </li>
               <li>Outages: Transpower's <Link href="https://customerportal.transpower.co.nz/pocp/outages">Planned Outage Coordination Process (POCP)</Link>.</li>
+              <li>HVDC flows and transfer limits: <Link href="https://www.em6.co.nz">em6</Link>.</li>
               <li>Transmission lines: Transpower's <Link href="https://data-transpower.opendata.arcgis.com/">open data</Link>.</li>
               <li>
                 Base map: <Link href="https://openfreemap.org">OpenFreeMap</Link>, © <Link href="https://www.openmaptiles.org/">OpenMapTiles</Link>, data
