@@ -272,7 +272,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
               // No capacity comparison for aggregate totals
               const cap = capacityAt(p.series.name, this.x as number)
               const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
-              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}:</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
+              return `<tr><td><span style="color:${String(p.color)}">●</span> ${p.series.name}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
             })
             .join('')
 
