@@ -7,7 +7,8 @@ import { aggregatePeriodOf, useAggregates } from '../hooks/useAggregates'
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, RENEWABLE_FUEL_CODES } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
+import { hvdcInto } from '../utils/hvdc'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
@@ -56,6 +57,13 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
+  // The HVDC's transfer into the island shown, at each of the data's rows. Only
+  // dispatch/recent has it, so not for past days or the aggregate views.
+  const hvdc = useMemo(
+    () => (island === 'all' || !data?.hvdc ? null : hvdcInto(island, data.hvdc, data.data.map(row => row[0] as string))),
+    [data, island],
+  )
+
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
     const period = periodOf(dateMode)
@@ -78,12 +86,16 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
       }
     }
+    // Each way the HVDC flowed at some point
+    const hvdcCodes = new Set<string>()
+    if (hvdc?.some(t => t && t.mw > 0)) hvdcCodes.add(HVDC_IMPORT_CODE)
+    if (hvdc?.some(t => t && t.mw < 0)) hvdcCodes.add(HVDC_EXPORT_CODE)
     const fuels = [
-      ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f)),
+      ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f) || hvdcCodes.has(f)),
       ...[...fuelToIndices.keys()].filter(f => !(FUEL_CODE_ORDER as readonly string[]).includes(f)),
     ]
     return { fuels, fuelToIndices, fuelToUnits }
-  }, [data, generators, island, isAggregate, dateMode])
+  }, [data, generators, island, isAggregate, dateMode, hvdc])
 
   // Memoised so the chart options below don't rebuild on every render
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
@@ -104,21 +116,28 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!data || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
 
-    // Each shown fuel's total at each time
+    // Each shown fuel's total at each time. The HVDC's is what flowed in, or out
+    // (as a negative), and null where em6 has nothing.
     const shownFuels = fuels.filter(f => effectiveFuels.has(f))
-    const fuelTotals = data.data.map(row => shownFuels.map(fuel =>
-      (fuelToIndices.get(fuel)!).reduce((sum, i) => sum + (((row[i] as number) || 0)), 0),
+    const hvdcPart = (fuel: string, r: number) => {
+      const mw = hvdc?.[r]?.mw
+      return mw === undefined ? null : fuel === HVDC_IMPORT_CODE ? Math.max(mw, 0) : Math.min(mw, 0)
+    }
+    const fuelTotals = data.data.map((row, r) => shownFuels.map(fuel => fuelToIndices.has(fuel)
+      ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((row[i] as number) || 0)), 0)
+      : hvdcPart(fuel, r),
     ))
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
     const unit = isAggregate ? energyUnit(chartReach(fuelTotals, true)) : MW_UNIT
 
     // Aggregate totals: stacked areas become stacked columns, which already stack
-    // negative values (battery charging) separately.
+    // negative values (battery charging) separately. Stacked areas don't, so
+    // those below zero get a stack of their own.
     const series: Highcharts.SeriesOptionsType[] = shownFuels.map((fuel, f) => {
-      const points: [number, number][] = data.data.map((row, r) => [
-        nzLocalMs(row[0] as string),
-        fuelTotals[r][f] / unit.size,
-      ])
+      const points: [number, number | null][] = data.data.map((row, r) => {
+        const total = fuelTotals[r][f]
+        return [nzLocalMs(row[0] as string), total === null ? null : total / unit.size]
+      })
       const colour = fuelCodeColour(fuel)
       return {
         type: isAggregate ? 'column' : 'area',
@@ -127,7 +146,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         // Covers 1px rounding gaps between columns (see nodeChartOptions)
         borderColor: colour,
         stacking: 'normal',
-        stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE) ? "positive" : "negative",
+        stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE || fuel === HVDC_EXPORT_CODE) ? "positive" : "negative",
         fillOpacity: 0.8,
         lineWidth: 1,
         data: isAggregate
@@ -173,10 +192,16 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     for (const fuel of fuels) {
       unitsByName.set(fuelCodeLabel(fuel), fuelToUnits.get(fuel) ?? [])
     }
-    // A fuel's total installed capacity (MSGC) at a time: its units in service then
-    const capacityAt = (name: string, ms: number) => (unitsByName.get(name) ?? [])
-      .filter(u => inServiceAt(u, ms))
-      .reduce((sum, u) => sum + u.capacity, 0)
+    // A fuel's total installed capacity (MSGC) at a time: its units in service then.
+    // The HVDC's is its transfer limit the way it's flowing.
+    const hvdcByMs = new Map(hvdc ? data.data.map((row, r) => [nzLocalMs(row[0] as string), hvdc[r]]) : [])
+    const capacityAt = (name: string, ms: number) => {
+      if (name === fuelCodeLabel(HVDC_IMPORT_CODE)) return hvdcByMs.get(ms)?.inLimit ?? 0
+      if (name === fuelCodeLabel(HVDC_EXPORT_CODE)) return hvdcByMs.get(ms)?.outLimit ?? 0
+      return (unitsByName.get(name) ?? [])
+        .filter(u => inServiceAt(u, ms))
+        .reduce((sum, u) => sum + u.capacity, 0)
+    }
 
     return {
       chart: {
@@ -259,7 +284,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island])
+  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc])
 
   // The pipeline button wraps under the title when there isn't room beside it,
   // and on the narrowest panels the title is cut short to keep the picker's ▾ in view

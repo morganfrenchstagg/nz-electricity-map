@@ -138,13 +138,13 @@ export function totalMWh(rows: ChartRow[], codes: string[], aggregate: boolean):
 // How far a chart's values reach from zero, given a row of the series' values
 // at each time. Stacked, that's the largest total at any one time, with
 // positive and negative values stacking apart as Highcharts stacks them.
-// Otherwise it's the largest single value.
-export function chartReach(rows: number[][], stacked: boolean): number {
+// Otherwise it's the largest single value. A null, where a series has no value, reaches nowhere.
+export function chartReach(rows: (number | null)[][], stacked: boolean): number {
   let reach = 0
   for (const row of rows) {
     let up = 0
     let down = 0
-    for (const value of row) {
+    for (const value of row.map(v => v ?? 0)) {
       if (!stacked) reach = Math.max(reach, Math.abs(value || 0))
       else if (value > 0) up += value
       else if (value < 0) down -= value

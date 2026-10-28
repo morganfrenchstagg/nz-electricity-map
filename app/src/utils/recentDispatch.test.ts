@@ -80,6 +80,33 @@ describe('appendRecent', () => {
     ])
   })
 
+  describe('the HVDC', () => {
+    const hvdcSeries = ['northFlow', 'southFlow', 'northLimit', 'southLimit']
+    const hvdc = { series: hvdcSeries, data: [['2026-10-14T21:30:00', 600, 0, 1200, -650]] }
+    const newerHvdc = { series: hvdcSeries, data: [...hvdc.data, ['2026-10-14T22:00:00', 550, 0, 1200, -650]] }
+    const heldWithHvdc = { ...held, hvdc }
+
+    it('replaces the HVDC held with the last day sent alongside new intervals', () => {
+      const added = { series, data: [['2026-10-14T22:05:00', 52, -22]], pricing: [['2026-10-14T22:05:00', 118, 124]], hvdc: newerHvdc }
+      expect(appendRecent(heldWithHvdc, added)?.hvdc).toBe(newerHvdc)
+    })
+
+    it('takes a newer HVDC sent without new intervals, as em6 publishes after the dispatch', () => {
+      const appended = appendRecent(heldWithHvdc, { series, data: [], pricing: [], hvdc: newerHvdc })
+      expect(appended).toEqual({ ...held, hvdc: newerHvdc })
+    })
+
+    it('gives back the held data itself when neither has anything new', () => {
+      expect(appendRecent(heldWithHvdc, { series, data: [], pricing: [], hvdc: { ...hvdc } })).toBe(heldWithHvdc)
+    })
+
+    it('keeps the HVDC held when the API sends none', () => {
+      const added = { series, data: [['2026-10-14T22:05:00', 52, -22]], pricing: [['2026-10-14T22:05:00', 118, 124]] }
+      expect(appendRecent(heldWithHvdc, added)?.hvdc).toBe(hvdc)
+      expect(appendRecent(held, added)).not.toHaveProperty('hvdc')
+    })
+  })
+
   it.each([
     ['a node is added', [...series, 'ARI1101 ARI0']],
     ['the nodes are reordered', [...series].reverse()],
