@@ -49,6 +49,24 @@ export function distributedSolarAt(days: SolarProduction[], times: number[], inc
   })
 }
 
+// `values` (distributedSolarAt's MW at each of `times`) with the forecast left
+// out, as at a single GXP it's too rough to show: everything after the newest
+// satellite reading, and before that, any forecast of sun. A day's readings
+// stop around sunset, and its night is forecast as none, which is kept so the
+// line runs on through it into the next day's readings.
+export function observedSolar(days: SolarProduction[], times: number[], values: (number | null)[]): (number | null)[] {
+  const observedUntil = new Map(days.map((day) => [
+    day.date,
+    day.observedUntil ? nzWallClockMs(Date.parse(day.observedUntil)) : -Infinity,
+  ]))
+  const newest = Math.max(...observedUntil.values())
+  return values.map((mw, i) => {
+    const ms = times[i]
+    const forecast = ms > (observedUntil.get(new Date(ms).toISOString().slice(0, 10)) ?? -Infinity)
+    return forecast && (ms > newest || mw !== 0) ? null : mw
+  })
+}
+
 // The distributed solar installed at the GXPs `includeGxp` keeps, keyed by
 // each of `days`' dates. It steps at month ends, which a range can span.
 export function distributedSolarCapacities(days: SolarProduction[], includeGxp: (gxp: string) => boolean): Map<string, number> {

@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { SolarEnergy, SolarProduction } from '../api'
-import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, shortOfDaysNote } from './distributedSolar'
+import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, observedSolar, shortOfDaysNote } from './distributedSolar'
 import { nzLocalMs } from './time'
 
 const everyGxp = () => true
 
-// A day's estimate at two GXPs, from its first 15-minute instant (in UTC) on
-function day(date: string, firstTime: string, isl: number[], bln: number[], capacity = { isl: 50, bln: 40 }): SolarProduction {
+// A day's estimate at two GXPs, from its first 15-minute instant (in UTC) on,
+// observed throughout unless `observedUntil` is given
+function day(date: string, firstTime: string, isl: number[], bln: number[], capacity = { isl: 50, bln: 40 }, observedUntil?: string | null): SolarProduction {
   const start = Date.parse(firstTime)
+  const profileTimes = isl.map((_, i) => new Date(start + i * 15 * 60 * 1000).toISOString())
   return {
     date,
-    profileTimes: isl.map((_, i) => new Date(start + i * 15 * 60 * 1000).toISOString()),
+    profileTimes,
+    observedUntil: observedUntil === undefined ? profileTimes[profileTimes.length - 1] : observedUntil,
     gxps: [
       { gxp: 'ISL', distributedMw: capacity.isl, profileMw: isl },
       { gxp: 'BLN', distributedMw: capacity.bln, profileMw: bln },
@@ -51,6 +54,47 @@ describe('distributedSolarAt', () => {
     const before = day('2026-10-24', '2026-10-24T10:30:00.000Z', [0, 2], [0, 2])
     const today = day('2026-10-26', '2026-10-25T11:00:00.000Z', [6, 8], [6, 8])
     expect(distributedSolarAt([before, today], [nzLocalMs('2026-10-24T23:50:00'), nzLocalMs('2026-10-25T12:00:00')], everyGxp)).toEqual([4, null])
+  })
+})
+
+describe('observedSolar', () => {
+  // The estimate charted at each of `times` (in NZ), with the forecast left out
+  function charted(days: SolarProduction[], times: string[]) {
+    const ms = times.map((time) => nzLocalMs(time))
+    return observedSolar(days, ms, distributedSolarAt(days, ms, everyGxp))
+  }
+
+  it('stops where the newest day turns to the forecast', () => {
+    // Observed until 12:15pm NZDT
+    const today = day('2026-10-26', '2026-10-25T23:00:00.000Z', [10, 13, 16, 16], [90, 117, 144, 144], undefined, '2026-10-25T23:15:00.000Z')
+    expect(charted([today], ['2026-10-26T12:00:00', '2026-10-26T12:15:00', '2026-10-26T12:20:00', '2026-10-26T12:30:00'])).toEqual([100, 130, null, null])
+  })
+
+  it('has nothing for a day with no readings', () => {
+    const today = day('2026-10-26', '2026-10-25T23:00:00.000Z', [10, 13], [90, 117], undefined, null)
+    expect(charted([today], ['2026-10-26T12:00:00', '2026-10-26T12:15:00'])).toEqual([null, null])
+  })
+
+  it('runs on through a night forecast as none, into the next day’s readings', () => {
+    // 11:15pm to 11:45pm on the 25th, observed until 11:15pm, then midnight to
+    // 12:15am on the 26th, observed throughout
+    const yesterday = day('2026-10-25', '2026-10-25T10:15:00.000Z', [0, 0, 0], [0, 0, 0], undefined, '2026-10-25T10:15:00.000Z')
+    const today = day('2026-10-26', '2026-10-25T11:00:00.000Z', [0, 0], [0, 0])
+    expect(charted([yesterday, today], ['2026-10-25T23:15:00', '2026-10-25T23:30:00', '2026-10-26T00:00:00'])).toEqual([0, 0, 0])
+  })
+
+  it('leaves out a forecast of sun before the newest reading', () => {
+    // Observed until 12:15pm on the 25th, then all of the 26th
+    const yesterday = day('2026-10-25', '2026-10-24T23:00:00.000Z', [10, 13, 16], [90, 117, 144], undefined, '2026-10-24T23:15:00.000Z')
+    const today = day('2026-10-26', '2026-10-25T23:00:00.000Z', [10], [90])
+    expect(charted([yesterday, today], ['2026-10-25T12:15:00', '2026-10-25T12:30:00', '2026-10-26T12:00:00'])).toEqual([130, null, 100])
+  })
+
+  it('leaves out a night forecast as none after the newest reading', () => {
+    // Observed until 11:15pm on the 25th, with no readings yet on the 26th
+    const yesterday = day('2026-10-25', '2026-10-25T10:15:00.000Z', [0, 0, 0], [0, 0, 0], undefined, '2026-10-25T10:15:00.000Z')
+    const today = day('2026-10-26', '2026-10-25T11:00:00.000Z', [0], [0], undefined, null)
+    expect(charted([yesterday, today], ['2026-10-25T23:15:00', '2026-10-25T23:30:00', '2026-10-26T00:00:00'])).toEqual([0, null, null])
   })
 })
 

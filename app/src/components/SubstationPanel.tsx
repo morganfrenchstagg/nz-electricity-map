@@ -9,7 +9,7 @@ import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, t
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { DISTRIBUTED_SOLAR_FUEL_CODE, fuelCodeColour, fuelCodeLabel, fuelColour, voltageColour } from '../utils/colours'
-import { distributedSolarAt, distributedSolarEnergy, shortOfDaysNote } from '../utils/distributedSolar'
+import { distributedSolarAt, distributedSolarEnergy, observedSolar, shortOfDaysNote } from '../utils/distributedSolar'
 import { energyUnit, MW_UNIT } from '../utils/format'
 import { nzLocalMs } from '../utils/time'
 import { unitLabel } from '../utils/generators'
@@ -154,8 +154,9 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
 
   // The distributed solar estimated at the substation: its MW at each of the
-  // chart's times, or on the aggregate views its MWh in each period (and the
-  // periods, which can be short of days), null where there's no estimate. Null
+  // chart's times, up to where it turns to the forecast (see observedSolar), or
+  // on the aggregate views its MWh in each period (and the periods, which can
+  // be short of days), null where there's no estimate. Null
   // when it has none in the view, or the flag is off. The panel is only
   // rendered while it's showing, so that's all it waits on
   const solarDays = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
@@ -171,7 +172,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       return values.some((v) => v !== null) ? { values, periods } : null
     }
     if (!solarDays.some((day) => day.gxps.some((g) => atSubstation(g.gxp)))) return null
-    const values = distributedSolarAt(solarDays, chartData.rows.map((row) => nzLocalMs(row.time)), atSubstation)
+    const times = chartData.rows.map((row) => nzLocalMs(row.time))
+    const values = observedSolar(solarDays, times, distributedSolarAt(solarDays, times, atSubstation))
     return values.some((v) => v !== null) ? { values, periods: [] } : null
   }, [chartData, isAggregate, solarDays, solarEnergy, substation])
   const solar = solarEstimate?.values ?? null

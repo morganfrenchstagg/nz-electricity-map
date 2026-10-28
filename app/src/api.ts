@@ -44,6 +44,9 @@ export interface SolarProduction {
   date: string
   // The day's 15-minute instants, in UTC
   profileTimes: string[]
+  // Up to this instant (in UTC) the estimate is from satellite readings, and
+  // after it from the forecast. Null for a day with no readings yet.
+  observedUntil: string | null
   // Each GXP's installed distributed solar as at the last month end on or
   // before `date`, and its estimated MW at each of profileTimes
   gxps: { gxp: string; distributedMw: number; profileMw: number[] }[]
