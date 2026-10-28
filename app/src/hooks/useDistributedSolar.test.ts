@@ -25,13 +25,14 @@ describe('solarDatesOf', () => {
     expect(solarDatesOf({ kind: 'date', date: '2025-10-26' })).toEqual(['2025-10-26'])
   })
 
-  it('is nothing for the aggregate views', () => {
-    expect(solarDatesOf({ kind: 'last90', aggregation: 'daily' })).toEqual([])
+  it('is today for the aggregate views, for their period so far', () => {
+    expect(solarDatesOf({ kind: 'last90', aggregation: 'daily' })).toEqual(['2026-10-26'])
+    expect(solarDatesOf({ kind: 'all', aggregation: 'annual' })).toEqual(['2026-10-26'])
   })
 })
 
 describe('solarEnergyQuarters', () => {
-  it('sums each quarter’s months, GXP by GXP, across years’ files', () => {
+  it('sums each quarter’s months, GXP by GXP, across years’ files, running to the quarter’s last day', () => {
     const lastYear = {
       series: ['ISL', 'BLN'],
       data: [
@@ -51,8 +52,8 @@ describe('solarEnergyQuarters', () => {
       series: ['ISL', 'BLN'],
       data: [
         { from: '2025-10-01', to: '2025-12-31', days: 61, totalMwh: 8, mwh: [5, 3] },
-        { from: '2026-01-01', to: '2026-02-28', days: 59, totalMwh: 18, mwh: [10, 8] },
-        { from: '2026-04-01', to: '2026-04-30', days: 30, totalMwh: 13, mwh: [7, 6] },
+        { from: '2026-01-01', to: '2026-03-31', days: 59, totalMwh: 18, mwh: [10, 8] },
+        { from: '2026-04-01', to: '2026-06-30', days: 30, totalMwh: 13, mwh: [7, 6] },
       ],
     })
   })

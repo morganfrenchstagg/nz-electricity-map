@@ -1,8 +1,11 @@
+import Highcharts from 'highcharts'
 import type { SolarEnergy, SolarProduction } from '../api'
-import { nzWallClockMs } from './time'
+import { nzLocalMs, nzWallClockMs } from './time'
 
 // The estimate has a point every 15 minutes
 const PROFILE_STEP_MS = 15 * 60 * 1000
+const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
+const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // The index of the last of `points` at or before `ms`, or -1 if there's none
@@ -81,36 +84,76 @@ function daysThrough(from: string, to: string): number {
   return Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1
 }
 
+// Today's distributed solar energy so far, in MWh, and with the forecast left
+// out, the last time it covers
+export interface SolarSoFar {
+  mwh: number
+  until?: number
+}
+
+// Today's distributed solar energy so far at the GXPs `includeGxp` keeps, for
+// the aggregate views' period so far, as the API's totals stop at yesterday.
+// Its MW at each 5-minute dispatch time from midnight up to `now` (in the
+// "local time as UTC" convention) is summed as the dispatch totals are.
+// `observedOnly` leaves out the forecast (see observedSolar). Null when there's
+// no estimate for today at those GXPs.
+export function solarSoFar(days: SolarProduction[], today: string, now: number, includeGxp: (gxp: string) => boolean, observedOnly = false): SolarSoFar | null {
+  const estimate = days.filter((day) => day.date === today && day.gxps.some((g) => includeGxp(g.gxp)))
+  const times: number[] = []
+  for (let ms = nzLocalMs(`${today}T00:00:00`); ms <= now; ms += DISPATCH_INTERVAL_MS) times.push(ms)
+  const at = distributedSolarAt(estimate, times, includeGxp)
+  const values = observedOnly ? observedSolar(estimate, times, at) : at
+  const covered = times.filter((_, i) => values[i] !== null)
+  if (covered.length === 0) return null
+  const mwh = values.reduce<number>((sum, mw) => sum + (mw ?? 0), 0) * DISPATCH_INTERVAL_MS / HOUR_MS
+  return observedOnly ? { mwh, until: covered[covered.length - 1] } : { mwh }
+}
+
 // A period's distributed solar energy estimated at the GXPs kept, in MWh, and
-// how many of its days that's from, of the `ofDays` there could be
+// how many of its days that's from, of the `ofDays` there could be. On the
+// period so far, `until` is the last time today's share covers, when the
+// forecast is left out.
 export interface SolarPeriod {
   mwh: number
   days: number
   ofDays: number
+  until?: number
 }
 
 // Each period of `files`, keyed by its first day, at the GXPs `includeGxp`
-// keeps. A period can be short of days, as the backfill only covers part of
-// the oldest, and days can still be waiting on weather. `ofDays` counts its
-// days up to `yesterday`, as the API has none for today. A period with no days
-// estimated is left out.
-export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: string) => boolean, yesterday: string): Map<string, SolarPeriod> {
+// keeps, with `soFar` (see solarSoFar) added to the one `today` falls in. A
+// period starting today has no total yet, so it's keyed by today. A period can
+// be short of days, as the backfill only covers part of the oldest, and days
+// can still be waiting on weather. `ofDays` counts its days up to today. A
+// period with no days estimated is left out.
+export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: string) => boolean, today: string, soFar: SolarSoFar | null): Map<string, SolarPeriod> {
   const energy = new Map<string, SolarPeriod>()
+  let current: SolarPeriod | undefined
   for (const { series, data } of files) {
     const kept = series.flatMap((gxp, i) => (includeGxp(gxp) ? [i] : []))
     for (const { from, to, days, mwh } of data) {
-      if (days === 0) continue
-      energy.set(from, {
-        mwh: kept.reduce((sum, i) => sum + mwh[i], 0),
-        days,
-        ofDays: daysThrough(from, to < yesterday ? to : yesterday),
-      })
+      const period = { mwh: kept.reduce((sum, i) => sum + mwh[i], 0), days, ofDays: daysThrough(from, to < today ? to : today) }
+      if (from <= today && today <= to) current = period
+      energy.set(from, period)
     }
   }
+  if (soFar) {
+    if (!current) energy.set(today, current = { mwh: 0, days: 0, ofDays: 1 })
+    current.mwh += soFar.mwh
+    current.days += 1
+    if (soFar.until !== undefined) current.until = soFar.until
+  }
+  for (const [from, period] of energy) if (period.days === 0) energy.delete(from)
   return energy
 }
 
-// The tooltip's note on a period the estimate is short of days for, or null
-export function shortOfDaysNote(period: SolarPeriod | undefined): string | null {
-  return period && period.days < period.ofDays ? `Distributed solar estimated for ${period.days} of ${period.ofDays} days` : null
+// The tooltip's note on a period: one the estimate is short of days for, or
+// whose share of today stops short of now. Null when there's nothing to note.
+export function solarPeriodNote(period: SolarPeriod | undefined): string | null {
+  if (!period) return null
+  const notes = [
+    ...(period.days < period.ofDays ? [`Distributed solar estimated for ${period.days} of ${period.ofDays} days`] : []),
+    ...(period.until !== undefined ? [`Today's distributed solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings`] : []),
+  ]
+  return notes.length > 0 ? notes.join('<br/>') : null
 }

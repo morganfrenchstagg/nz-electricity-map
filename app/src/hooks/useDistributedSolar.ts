@@ -5,6 +5,7 @@ import { datesBetween, isAggregateMode, isLiveMode, periodOf } from './useDispat
 import type { DateMode } from './useDispatchData'
 import { aggregateWindow, quarterStart } from './useAggregates'
 import { pollWhileVisible } from '../utils/poll'
+import { todayNZ } from '../utils/time'
 
 // Cheap: only reaches the network once the cached estimate expires (see api.ts)
 const POLL_MS = 15 * 1000
@@ -14,9 +15,11 @@ function isoDate(ms: number): string {
 }
 
 // The dates of the distributed solar estimate a view charts, oldest first:
-// each day it covers. The aggregate views' MWh totals have nothing to put it with.
+// each day it covers. The aggregate views chart the API's energy totals (see
+// useDistributedSolarEnergy), which stop at yesterday, so they take today's
+// estimate for their period so far.
 export function solarDatesOf(mode: DateMode): string[] {
-  if (isAggregateMode(mode)) return []
+  if (isAggregateMode(mode)) return [todayNZ()]
   const { from, to } = periodOf(mode)
   return datesBetween(isoDate(from), isoDate(to))
 }
@@ -61,21 +64,28 @@ export function useDistributedSolar(mode: DateMode, enabled: boolean): SolarProd
 
 const NO_ENERGY: SolarEnergy[] = []
 
+// The last day of the calendar quarter starting on a "YYYY-MM-DD" date
+function quarterEnd(start: string): string {
+  const end = new Date(`${start}T00:00:00Z`)
+  end.setUTCMonth(end.getUTCMonth() + 3, 0)
+  return isoDate(end.getTime())
+}
+
 // Monthly totals summed into a total for each calendar quarter, keyed by its
-// first day, as the API has no quarterly totals (like sumQuarters). `files`
-// are in order, and so are their months.
+// first day and running to its last (even before its last months have any
+// days), as the API has no quarterly totals (like sumQuarters). `files` are in
+// order, and so are their months.
 export function solarEnergyQuarters(files: SolarEnergy[]): SolarEnergy {
   const series = [...new Set(files.flatMap((file) => file.series))]
   const column = new Map(series.map((gxp, i) => [gxp, i]))
   const data: SolarEnergy['data'] = []
   for (const file of files) {
-    for (const { from, to, days, totalMwh, mwh } of file.data) {
+    for (const { from, days, totalMwh, mwh } of file.data) {
       let quarter = data[data.length - 1]
       if (quarter?.from !== quarterStart(from)) {
-        quarter = { from: quarterStart(from), to, days: 0, totalMwh: 0, mwh: series.map(() => 0) }
+        quarter = { from: quarterStart(from), to: quarterEnd(quarterStart(from)), days: 0, totalMwh: 0, mwh: series.map(() => 0) }
         data.push(quarter)
       }
-      quarter.to = to
       quarter.days += days
       quarter.totalMwh += totalMwh
       file.series.forEach((gxp, i) => { quarter.mwh[column.get(gxp)!] += mwh[i] })

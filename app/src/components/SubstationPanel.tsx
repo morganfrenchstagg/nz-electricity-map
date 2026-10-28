@@ -9,15 +9,15 @@ import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, t
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { DISTRIBUTED_SOLAR_FUEL_CODE, fuelCodeColour, fuelCodeLabel, fuelColour, voltageColour } from '../utils/colours'
-import { distributedSolarAt, distributedSolarEnergy, observedSolar, shortOfDaysNote } from '../utils/distributedSolar'
+import { distributedSolarAt, distributedSolarEnergy, observedSolar, solarPeriodNote, solarSoFar } from '../utils/distributedSolar'
 import { energyUnit, MW_UNIT } from '../utils/format'
-import { nzLocalMs } from '../utils/time'
+import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import { unitLabel } from '../utils/generators'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { SUBSTATION_FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
+import { SUBSTATION_FIRST_DAY } from '../hooks/useAggregates'
 import Panel, { PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
@@ -156,7 +156,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   // The distributed solar estimated at the substation: its MW at each of the
   // chart's times, up to where it turns to the forecast (see observedSolar), or
   // on the aggregate views its MWh in each period (and the periods, which can
-  // be short of days), null where there's no estimate. Null
+  // be short of days), with today's so far up to the same point added to the
+  // period so far, null where there's no estimate. Null
   // when it has none in the view, or the flag is off. The panel is only
   // rendered while it's showing, so that's all it waits on
   const solarDays = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
@@ -166,7 +167,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     if (!chartData) return null
     if (isAggregate) {
       if (!solarEnergy.some((file) => file.series.some(atSubstation))) return null
-      const energy = distributedSolarEnergy(solarEnergy, atSubstation, yesterdayNZ())
+      const today = todayNZ()
+      const energy = distributedSolarEnergy(solarEnergy, atSubstation, today, solarSoFar(solarDays, today, nzNowMs(), atSubstation, true))
       const periods = chartData.rows.map((row) => energy.get(row.time.slice(0, 10)))
       const values = periods.map((period) => period?.mwh ?? null)
       return values.some((v) => v !== null) ? { values, periods } : null
@@ -305,7 +307,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR)
         if (solarPoints.length > 0) {
           rows += `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
-          const note = shortOfDaysNote(solarEstimate?.periods[solarPoints[0].index])
+          const note = solarPeriodNote(solarEstimate?.periods[solarPoints[0].index])
           if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
