@@ -355,7 +355,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
               const colour = fuelCodeColour(group.colourFuel)
               const heading = group.totals
                 ? row(group.label, colour, parts.reduce((sum, { p }) => sum + (p.y ?? 0), 0), parts.reduce((sum, { p }) => sum + capacityAt(p.series.name, x), 0))
-                : `<tr><td><span style="color:${colour}">●</span> ${group.label}:</td></tr>`
+                : `<tr><td><span style="color:${colour}">●</span> ${group.label}</td></tr>`
               return heading + parts.map(({ p, label }) => row(label, String(p.color), p.y ?? 0, capacityAt(p.series.name, x), true)).join('')
             })
             .join('')
