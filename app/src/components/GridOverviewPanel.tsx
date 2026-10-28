@@ -260,15 +260,19 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           const points = this.points ?? []
           const time = tooltipTime(this.x as number, aggregatePeriod)
           const formatValue = unit.format
-          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+          // The total is what's stacked above zero: the generation, and in an
+          // island's views whatever the HVDC brings in. What's below it, a
+          // battery charging or the HVDC taking power out, is a share of that
+          // too, so the island's exports read as the part of its generation sent away.
+          const total = points.reduce((sum, p) => sum + Math.max(p.y ?? 0, 0), 0)
 
           const rows = points
             .slice()
             .map(p => {
               const val = formatValue(p.y ?? 0)
               const formatted = (p.y ?? 0) === 0 ? val : `<b>${val}</b>`
-              const ratioOfTotal = (p.y ?? 0) / total;
-              const percentageStr = ratioOfTotal > 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : '0%';
+              const ratioOfTotal = total > 0 ? (p.y ?? 0) / total : 0
+              const percentageStr = ratioOfTotal !== 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : total > 0 ? '0%' : '–'
               // No capacity comparison for aggregate totals
               const cap = capacityAt(p.series.name, this.x as number)
               const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
