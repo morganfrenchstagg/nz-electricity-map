@@ -9,7 +9,7 @@ import type { ChartSettings } from '../utils/chartSettings'
 export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
-//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC or substation:OTA
+//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC, substation:OTA or hvdc
 //   ?mode=          today | recent | last90 | lastYear | 5y | all, with
 //   ?aggregation=   a view's totals when they aren't its default: weekly for
 //                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
@@ -97,10 +97,12 @@ function writeUrl(state: UrlState) {
 function nodeParam(node: NonNullable<SelectedNode>): string {
   if (node.kind === 'generator') return `generator:${node.generator.site}`
   if (node.kind === 'generators') return `generators:${node.generators.map(g => g.site).join(',')}`
+  if (node.kind === 'hvdc') return 'hvdc'
   return `substation:${node.substation.siteId}`
 }
 
 function resolveNode(param: string, generators: Generator[], substations: Substation[]): SelectedNode {
+  if (param === 'hvdc') return { kind: 'hvdc' }
   if (param.startsWith('generator:')) {
     const gen = generators.find(g => g.site === param.slice('generator:'.length))
     return gen ? { kind: 'generator', generator: gen } : null
@@ -146,7 +148,7 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   const selectNode = useCallback((node: SelectedNode) => {
     setLinkedNode(null)
     setSelectedNode(node)
-    if (node === null || node.kind === 'substation') setViewMode('generation')
+    if (node === null || node.kind === 'substation' || node.kind === 'hvdc') setViewMode('generation')
     if (node?.kind === 'substation') setDateMode(m => m.kind === 'all' ? periodMode('5y') : m)
   }, [setViewMode])
 

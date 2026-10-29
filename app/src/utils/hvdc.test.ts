@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HvdcData } from '../types'
-import { hvdcInto } from './hvdc'
+import { HVDC_CABLE_ANGLE, hvdcDirection, hvdcInto, latestHvdcNorth } from './hvdc'
 
 const series = ['northFlow', 'southFlow', 'northLimit', 'southLimit']
 
@@ -69,5 +69,40 @@ describe('hvdcInto', () => {
   it('has nothing without the HVDC', () => {
     expect(hvdcInto('NI', undefined, ['2026-10-28T20:00:00'])).toEqual([null])
     expect(hvdcInto('NI', { series: [], data: [] }, ['2026-10-28T20:00:00'])).toEqual([null])
+  })
+})
+
+describe('latestHvdcNorth', () => {
+  const recent = (times: string[]) => ({ series: [], data: times.map(t => [t]), pricing: [], hvdc })
+
+  it("is the HVDC's transfer north at the newest interval", () => {
+    expect(latestHvdcNorth(recent(['2026-10-28T20:00:00', '2026-10-28T20:15:00']))).toEqual({ mw: 450, inLimit: 1200, outLimit: 650 })
+  })
+
+  it('has nothing without intervals, or without the HVDC, as on past days', () => {
+    expect(latestHvdcNorth(null)).toBeNull()
+    expect(latestHvdcNorth(recent([]))).toBeNull()
+    expect(latestHvdcNorth({ ...recent(['2026-10-28T20:15:00']), hvdc: undefined })).toBeNull()
+  })
+})
+
+describe('hvdcDirection', () => {
+  const limits = { inLimit: 1200, outLimit: 650 }
+
+  it('is north for a flow into the North Island, and south out of it', () => {
+    expect(hvdcDirection({ mw: 600, ...limits })).toBe('north')
+    expect(hvdcDirection({ mw: -300, ...limits })).toBe('south')
+  })
+
+  it('has none without a MW flowing, or without a transfer', () => {
+    expect(hvdcDirection({ mw: 0.4, ...limits })).toBeNull()
+    expect(hvdcDirection({ mw: -0.4, ...limits })).toBeNull()
+    expect(hvdcDirection(null)).toBeNull()
+  })
+})
+
+describe('HVDC_CABLE_ANGLE', () => {
+  it('has the cables running a little north of east, from Fighting Bay to Oteranga Bay', () => {
+    expect(HVDC_CABLE_ANGLE).toBeCloseTo(2.85, 1)
   })
 })

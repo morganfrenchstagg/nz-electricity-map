@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generatorPopupHtml } from './mapPopups'
+import { generatorPopupHtml, hvdcPopupHtml } from './mapPopups'
 import { nzLocalMs } from '../utils/time'
 import type { Generator, RecentData, Unit } from '../types'
 
@@ -68,5 +68,40 @@ describe('generatorPopupHtml', () => {
     expect(html.match(/Unit 1/g)).toHaveLength(1)
     expect(html).toContain('Unit 1 8 MW / 10 MW (80%)')
     expect(html).not.toContain('retired')
+  })
+})
+
+describe('hvdcPopupHtml', () => {
+  // The bar's halves, south then north, by how far each is filled, and how far striped
+  const fills = (html: string) => [...html.matchAll(/<div style="width:([\d.]+)%;background:#8c8c8c/g)].map(m => Number(m[1]))
+  const stripes = (html: string) => [...html.matchAll(/<div style="width:([\d.]+)%;background:repeating/g)].map(m => Number(m[1]))
+
+  it('measures a flow north against the north limit, on the right of the bar', () => {
+    const html = hvdcPopupHtml({ mw: 600.4, inLimit: 1200, outLimit: 850 })
+    expect(text(html)).toContain(' 600 MW / 1,200 MW (50%)')
+    expect(fills(html)).toEqual([0, 50])
+    expect(html).not.toContain('<s ')
+  })
+
+  it('measures a flow south against the south limit, on the left of the bar', () => {
+    const html = hvdcPopupHtml({ mw: -425, inLimit: 1200, outLimit: 850 })
+    expect(text(html)).toContain(' 425 MW / 850 MW (50%)')
+    expect(fills(html)).toEqual([50, 0])
+  })
+
+  it("strikes out a way's capacity for a lower limit, as for an outage, and stripes the rest of its half", () => {
+    const html = hvdcPopupHtml({ mw: -325, inLimit: 1000, outLimit: 650 })
+    expect(text(html)).toContain(' 325 MW / 850 MW 650 MW (50%)')
+    expect(html).toContain('<s style="color:var(--color-text-faint)">850 MW</s> <span style="color:var(--color-danger)">650 MW</span>')
+    // Each half is scaled to its capacity, to fit the cut to it in beside the flow
+    expect(fills(html).map(Math.round)).toEqual([38, 0])
+    expect(stripes(html).map(Math.round)).toEqual([24, 17])
+  })
+
+  it('leaves the bar empty either side of zero with no transfer', () => {
+    const html = hvdcPopupHtml({ mw: 0.3, inLimit: 1200, outLimit: 850 })
+    expect(text(html)).toContain(' 0 MW')
+    expect(text(html)).not.toContain('%')
+    expect(fills(html)).toEqual([0, 0])
   })
 })

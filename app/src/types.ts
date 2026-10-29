@@ -77,4 +77,7 @@ export type GeneratorNode =
 
 export type SubstationNode = { kind: 'substation'; substation: Substation }
 
-export type SelectedNode = GeneratorNode | SubstationNode | null
+// The HVDC link between the islands, picked from the map (see HvdcPanel)
+export type HvdcNode = { kind: 'hvdc' }
+
+export type SelectedNode = GeneratorNode | SubstationNode | HvdcNode | null
