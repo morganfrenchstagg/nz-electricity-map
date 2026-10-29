@@ -9,7 +9,7 @@ import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
 // The distributed solar estimate comes from its own API (nz-solar-stats-api).
 // VITE_SOLAR_API_BASE points the app at another, e.g. a local `wrangler dev` (see README)
-const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://nz-solar-stats-api.morgan6725.workers.dev').replace(/\/$/, '')
+const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-solar.electricitymap.frenchsta.gg').replace(/\/$/, '')
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000

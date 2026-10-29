@@ -91,10 +91,10 @@ describe('fetchSolarEnergy', () => {
 
     for (const path of paths) await api.fetchSolarEnergy(path)
     expect(requested.map((url) => `${url.origin}${url.pathname}`)).toEqual([
-      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/daily/2026-09',
-      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/weekly/2026',
-      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/monthly/2026',
-      'https://nz-solar-stats-api.morgan6725.workers.dev/solar-energy/annual',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/daily/2026-09',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/weekly/2026',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/monthly/2026',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/annual',
     ])
   })
 })
