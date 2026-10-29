@@ -155,9 +155,9 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // The distributed solar estimated at the substation: its MW at each of the
   // chart's times, up to where it turns to the forecast (see observedSolar), or
-  // on the aggregate views its MWh in each period (and the periods, which can
-  // be short of days), with today's so far up to the same point added to the
-  // period so far, null where there's no estimate. Null
+  // on the aggregate views its MWh in each period (and the periods, for the
+  // tooltip's note on the period so far), with today's so far up to the same
+  // point added to the period so far, null where there's no estimate. Null
   // when it has none in the view, or the flag is off. The panel is only
   // rendered while it's showing, so that's all it waits on. The data is
   // charted with it, rather than it following a moment later, unless it's slow

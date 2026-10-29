@@ -155,33 +155,26 @@ describe('distributedSolarEnergy', () => {
     ],
   }
 
-  it('adds today so far to the period it falls in, counting the days each could have up to today', () => {
-    const energy = distributedSolarEnergy([months], everyGxp, '2026-10-27', { mwh: 50 })
-    expect(energy).toEqual(new Map([
-      ['2026-04-01', { mwh: 600, days: 23, ofDays: 30 }],
-      ['2026-05-01', { mwh: 700, days: 31, ofDays: 31 }],
-      ['2026-10-01', { mwh: 1150, days: 27, ofDays: 27 }],
+  it('adds today so far to the period it falls in, charting a period short of days from those it has', () => {
+    expect(distributedSolarEnergy([months], everyGxp, '2026-10-27', { mwh: 50 })).toEqual(new Map([
+      ['2026-04-01', { mwh: 600, days: 23 }],
+      ['2026-05-01', { mwh: 700, days: 31 }],
+      ['2026-10-01', { mwh: 1150, days: 27 }],
     ]))
-    expect([...energy.values()].map(solarPeriodNote)).toEqual(['Distributed solar estimated for 23 of 30 days', null, null])
   })
 
-  it('counts today as missing from the period so far without its estimate', () => {
-    const energy = distributedSolarEnergy([months], everyGxp, '2026-10-27', null)
-    expect(energy.get('2026-10-01')).toEqual({ mwh: 1100, days: 26, ofDays: 27 })
-    expect(solarPeriodNote(energy.get('2026-10-01'))).toBe('Distributed solar estimated for 26 of 27 days')
+  it('leaves the period so far as it is without today’s estimate', () => {
+    expect(distributedSolarEnergy([months], everyGxp, '2026-10-27', null).get('2026-10-01')).toEqual({ mwh: 1100, days: 26 })
   })
 
   it('keys a period starting today by today', () => {
-    expect(distributedSolarEnergy([week], everyGxp, '2026-10-21', { mwh: 12 }).get('2026-10-21')).toEqual({ mwh: 12, days: 1, ofDays: 1 })
+    expect(distributedSolarEnergy([week], everyGxp, '2026-10-21', { mwh: 12 }).get('2026-10-21')).toEqual({ mwh: 12, days: 1 })
   })
 
-  it('notes where today’s share stops, when the forecast is left out', () => {
+  it('notes where today’s share stops, when the forecast is left out, and nothing otherwise', () => {
     const energy = distributedSolarEnergy([months], everyGxp, '2026-10-27', { mwh: 50, until: nzLocalMs('2026-10-27T12:00:00') })
     expect(solarPeriodNote(energy.get('2026-10-01'))).toBe('Today\'s distributed solar estimated up to 12:00 PM, from satellite readings')
-    // And under the note on days, for a year the backfill only covers part of
-    const year: SolarEnergy = { series: ['ISL'], data: [{ from: '2026-01-01', to: '2026-12-31', days: 202, totalMwh: 9000, mwh: [9000] }] }
-    expect(solarPeriodNote(distributedSolarEnergy([year], everyGxp, '2026-10-27', { mwh: 50, until: nzLocalMs('2026-10-27T12:00:00') }).get('2026-01-01')))
-      .toBe('Distributed solar estimated for 203 of 300 days<br/>Today\'s distributed solar estimated up to 12:00 PM, from satellite readings')
+    expect(solarPeriodNote(energy.get('2026-04-01'))).toBeNull()
   })
 
   it('leaves out a period with no days estimated yet', () => {
