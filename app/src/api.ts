@@ -173,10 +173,10 @@ export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
 }
 
-// The solar API sends no max-age. Today's estimate already runs to midnight,
-// and only changes as the API updates it, so it's checked every 15 minutes.
-const SOLAR_FRESH_MS = 15 * MINUTE_MS
-
+// The solar API's max-age runs to its next update: a minute or so for today
+// and yesterday, which it estimates every 10 minutes, and hours for days and
+// periods it's done with. A 404 is no-store, so a day it hasn't estimated yet
+// is asked for again.
 function solarProductionPath(date: string): string {
   return `solar-production/${date}`
 }
@@ -185,7 +185,6 @@ function solarProductionPath(date: string): string {
 export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
   const path = solarProductionPath(date)
   return cachedJson(path, {
-    freshFor: () => SOLAR_FRESH_MS,
     load: async () => {
       const { value, maxAgeMs } = await getJson<{ result: SolarProduction } | null>(path, null, SOLAR_API_BASE)
       return { value: value?.result ?? null, maxAgeMs }
@@ -212,7 +211,6 @@ function solarEnergyPath(path: string): string {
 export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
   const solarPath = solarEnergyPath(path)
   return cachedJson(solarPath, {
-    freshFor: () => SOLAR_FRESH_MS,
     load: async () => {
       const { value, maxAgeMs } = await getJson<{ result: SolarEnergy } | null>(solarPath, null, SOLAR_API_BASE)
       return { value: value?.result ?? null, maxAgeMs }

@@ -98,3 +98,30 @@ describe('fetchSolarEnergy', () => {
     ])
   })
 })
+
+describe('fetchSolarProduction', () => {
+  const estimate = { date: '2026-10-14', profileTimes: [], observedUntil: null, gxps: [] }
+
+  it('keeps an estimate for the max-age the solar API sends', async () => {
+    responses.push({ result: estimate } as unknown as RecentData)
+    await api.fetchSolarProduction('2026-10-14')
+    vi.advanceTimersByTime(29 * 1000)
+    expect(await api.fetchSolarProduction('2026-10-14')).toEqual(estimate)
+    expect(requested).toHaveLength(1)
+
+    responses.push({ result: estimate } as unknown as RecentData)
+    vi.advanceTimersByTime(2 * 1000)
+    await api.fetchSolarProduction('2026-10-14')
+    expect(requested).toHaveLength(2)
+  })
+
+  it('asks again for a day it had no estimate for, as the 404 isn’t to be kept', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      requested.push(new URL(url))
+      return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    }))
+    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
+    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
+    expect(requested).toHaveLength(2)
+  })
+})
