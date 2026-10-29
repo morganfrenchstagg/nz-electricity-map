@@ -1,5 +1,28 @@
-import type { HvdcData } from '../types'
+import type { HvdcData, RecentData } from '../types'
 import { nzLocalMs } from './time'
+
+// Where the HVDC's cables come ashore either side of Cook Strait: Fighting Bay,
+// and Oteranga Bay, at the ends of the overhead line in the transmission lines.
+// They're drawn straight across between the two.
+export const HVDC_CABLE: [number, number][] = [[174.2021, -41.3097], [174.6300, -41.2937]]
+
+// How far the cables run anticlockwise of due east, from Fighting Bay to Oteranga
+// Bay, in degrees. On the ground, which the map's projection keeps it at.
+export const HVDC_CABLE_ANGLE = (Math.atan2(
+  HVDC_CABLE[1][1] - HVDC_CABLE[0][1],
+  (HVDC_CABLE[1][0] - HVDC_CABLE[0][0]) * Math.cos((HVDC_CABLE[0][1] * Math.PI) / 180),
+) * 180) / Math.PI
+
+// The middle of the cables, where the map shows which way the HVDC's flowing
+export const HVDC_CABLE_MIDDLE: [number, number] = [
+  (HVDC_CABLE[0][0] + HVDC_CABLE[1][0]) / 2,
+  (HVDC_CABLE[0][1] + HVDC_CABLE[1][1]) / 2,
+]
+
+// The most the HVDC can carry each way (MW), as Transpower's capacity upgrade, approved
+// by the Commerce Commission in 2024, takes it to. em6's limits are often less, e.g.
+// for the reserves to cover losing it, and the map shows them as it does an outage.
+export const HVDC_CAPACITY_MW = { north: 1200, south: 850 }
 
 // em6 publishes the HVDC's flows an hour or so behind the dispatch, so its last
 // half hour is held for the intervals since, rather than leaving the newest
@@ -15,10 +38,12 @@ export interface HvdcTransfer {
   outLimit: number
 }
 
-interface HvdcPoint {
+// One of em6's half hours, at its NZ time in ms (see nzLocalMs)
+export interface HvdcPoint {
   ms: number
   // MW flowing north, negative where it flows south
   north: number
+  // As em6 gives them, the south limit negative
   northLimit: number | null
   southLimit: number | null
 }
@@ -26,7 +51,7 @@ interface HvdcPoint {
 // em6's half hours that have a flow. Its south flow is taken as MW flowing south
 // whatever its sign, as em6 gives the south limit as negative. A series missing
 // from `series` reads as null.
-function hvdcPoints(hvdc: HvdcData): HvdcPoint[] {
+export function hvdcPoints(hvdc: HvdcData): HvdcPoint[] {
   const col = (name: string) => hvdc.series.indexOf(name) + 1
   const [northFlow, southFlow, northLimit, southLimit] = ['northFlow', 'southFlow', 'northLimit', 'southLimit'].map(col)
   const num = (value: string | number | null | undefined) => (typeof value === 'number' ? value : null)
@@ -63,4 +88,18 @@ export function hvdcInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times:
       ? { mw: north, inLimit: northLimit, outLimit: southLimit }
       : { mw: -north || 0, inLimit: southLimit, outLimit: northLimit } // 0, not -0
   })
+}
+
+// The HVDC's transfer north (into the North Island) at the newest of `data`'s
+// intervals, which is what the map shows. Null where em6 has none for it.
+export function latestHvdcNorth(data: RecentData | null): HvdcTransfer | null {
+  const newest = data?.data[data.data.length - 1]?.[0]
+  return newest === undefined ? null : hvdcInto('NI', data?.hvdc, [newest as string])[0]
+}
+
+// Which way the HVDC is flowing, to the MW as its popup shows it. Null with
+// nothing to the MW, or no transfer.
+export function hvdcDirection(transfer: HvdcTransfer | null): 'north' | 'south' | null {
+  if (!transfer || Math.round(Math.abs(transfer.mw)) === 0) return null
+  return transfer.mw > 0 ? 'north' : 'south'
 }

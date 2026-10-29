@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Map from './components/Map'
 import GeneratorPanel from './components/GeneratorPanel'
 import SubstationPanel from './components/SubstationPanel'
+import HvdcPanel from './components/HvdcPanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { Generator, Substation } from './types'
 import { useDispatchData } from './hooks/useDispatchData'
@@ -47,6 +48,8 @@ export default function App() {
       suffix = selectedNode.generators.length <= 2
         ? selectedNode.generators.map(g => g.name).join(', ')
         : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`
+    } else if (selectedNode.kind === 'hvdc') {
+      suffix = 'HVDC Inter-Island Link'
     } else {
       suffix = `${selectedNode.substation.description} Substation`
     }
@@ -65,6 +68,11 @@ export default function App() {
 
   const handleSubstationClick = useCallback((substation: Substation) => {
     selectNode({ kind: 'substation', substation }),
+    setGridPanelVisible(false)
+  }, [selectNode])
+
+  const handleHvdcClick = useCallback(() => {
+    selectNode({ kind: 'hvdc' })
     setGridPanelVisible(false)
   }, [selectNode])
 
@@ -88,17 +96,19 @@ export default function App() {
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
+      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
       {selectedNode && (selectedNode.kind === 'substation'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
-        : <GeneratorPanel
-          node={selectedNode}
-          {...nodePanelProps}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          tradingPeriod={tradingPeriod}
-          onTradingPeriodChange={setTradingPeriod}
-        />)}
+        : selectedNode.kind === 'hvdc'
+          ? <HvdcPanel node={selectedNode} {...nodePanelProps} />
+          : <GeneratorPanel
+            node={selectedNode}
+            {...nodePanelProps}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            tradingPeriod={tradingPeriod}
+            onTradingPeriodChange={setTradingPeriod}
+          />)}
       <GridOverviewPanel
         dateMode={dateMode}
         onDateModeChange={setDateMode}
