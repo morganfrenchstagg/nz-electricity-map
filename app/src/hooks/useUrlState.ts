@@ -19,7 +19,8 @@ export type ViewMode = 'generation' | 'offers'
 //   ?fuels=         the grid overview's fuels, when not all of them
 //   ?expanded=true  the panel is expanded
 //   /pipeline       the pipeline modal is open
-// Any other params the link had (e.g. utm_source) are kept, after these.
+// Any other params the link had (e.g. utm_source, or a flag in featureFlags.ts)
+// are kept, after these.
 const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', 'expanded']
 
 const PERIOD_MODES = ['today', 'recent', 'last90', 'lastYear', '5y', 'all'] as const

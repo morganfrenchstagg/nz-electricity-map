@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { CC_BY_URL, EMI, LINZ, TRANSPOWER } from '../attribution'
+import { CC_BY_URL, EMI, LINZ, OPEN_METEO, TRANSPOWER } from '../attribution'
 
 const FRONTEND_SOURCE_URL = 'https://github.com/morganfrenchstagg/nz-electricity-map'
 const BACKEND_SOURCE_URL = 'https://github.com/morganfrenchstagg/nz-electricity-stats-api'
@@ -63,6 +63,10 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
                 Generation, prices and offers: the Electricity Authority's <Link href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</Link> real-time
                 dispatch API, nodal prices and volumes, and bids and offers data.
               </li>
+              <li>
+                Embedded solar: estimated for this site from the solar installed at each substation, in EMI's installed
+                distributed generation data, and <Link href={OPEN_METEO.url}>Open-Meteo</Link>'s weather forecasts.
+              </li>
               <li>Outages: Transpower's <Link href="https://customerportal.transpower.co.nz/pocp/outages">Planned Outage Coordination Process (POCP)</Link>.</li>
               <li>HVDC flows and transfer limits: <Link href="https://www.em6.co.nz">em6</Link>.</li>
               <li>Transmission lines: Transpower's <Link href="https://data-transpower.opendata.arcgis.com/">open data</Link>.</li>
@@ -79,6 +83,7 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
             <ul>
               <li>Electricity market data: © <Link href={EMI.url}>{EMI.name}</Link>, licensed under {ccBy}.</li>
               <li>Transmission lines: © <Link href={TRANSPOWER.url}>{TRANSPOWER.name}</Link>, licensed under {ccBy}.</li>
+              <li>Weather data: <Link href={OPEN_METEO.url}>{OPEN_METEO.name}</Link>, licensed under {ccBy}.</li>
               <li>
                 Aerial imagery: © <Link href={LINZ.url}>{LINZ.name}</Link>, licensed
                 under {ccBy}.

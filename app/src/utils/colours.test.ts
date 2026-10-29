@@ -15,7 +15,7 @@ describe('biomass', () => {
 })
 
 describe('RENEWABLE_FUEL_CODES', () => {
-  it('counts biomass and battery discharge, not thermal fuels or charging', () => {
-    expect([...RENEWABLE_FUEL_CODES].sort()).toEqual(['BESS', 'BIO', 'GEO', 'HYD', 'SOL', 'WIN'])
+  it('counts biomass, distributed solar and battery discharge, not thermal fuels or charging', () => {
+    expect([...RENEWABLE_FUEL_CODES].sort()).toEqual(['BESS', 'BIO', 'GEO', 'HYD', 'SOL', 'SOL-D', 'WIN'])
   })
 })

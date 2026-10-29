@@ -83,3 +83,45 @@ describe('fetchDispatch("recent")', () => {
     expect(requested.map(url => url.search)).toEqual(['', '?since=2026-10-14T22%3A00%3A00', ''])
   })
 })
+
+describe('fetchSolarEnergy', () => {
+  it('fetches the solar API’s file for the same periods as an aggregates path', async () => {
+    const paths = ['2026/09', '2026/weekly', '2026/monthly', 'annual']
+    for (const _ of paths) responses.push({ result: { series: [], data: [] } } as unknown as RecentData)
+
+    for (const path of paths) await api.fetchSolarEnergy(path)
+    expect(requested.map((url) => `${url.origin}${url.pathname}`)).toEqual([
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/daily/2026-09',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/weekly/2026',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/monthly/2026',
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy/annual',
+    ])
+  })
+})
+
+describe('fetchSolarProduction', () => {
+  const estimate = { date: '2026-10-14', profileTimes: [], observedUntil: null, gxps: [] }
+
+  it('keeps an estimate for the max-age the solar API sends', async () => {
+    responses.push({ result: estimate } as unknown as RecentData)
+    await api.fetchSolarProduction('2026-10-14')
+    vi.advanceTimersByTime(29 * 1000)
+    expect(await api.fetchSolarProduction('2026-10-14')).toEqual(estimate)
+    expect(requested).toHaveLength(1)
+
+    responses.push({ result: estimate } as unknown as RecentData)
+    vi.advanceTimersByTime(2 * 1000)
+    await api.fetchSolarProduction('2026-10-14')
+    expect(requested).toHaveLength(2)
+  })
+
+  it('asks again for a day it had no estimate for, as the 404 isn’t to be kept', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      requested.push(new URL(url))
+      return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    }))
+    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
+    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
+    expect(requested).toHaveLength(2)
+  })
+})

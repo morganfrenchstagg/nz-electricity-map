@@ -7,6 +7,9 @@ import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 // copy of how long each endpoint lasts.
 // VITE_API_BASE points the app at another API, e.g. a local `wrangler dev` (see README)
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
+// The distributed solar estimate comes from its own API (nz-solar-stats-api).
+// VITE_SOLAR_API_BASE points the app at another, e.g. a local `wrangler dev` (see README)
+const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-solar.electricitymap.frenchsta.gg').replace(/\/$/, '')
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000
@@ -36,6 +39,28 @@ export interface OutageRecord {
 
 export type OutageData = Record<string, OutageRecord[]>
 
+// An estimate of each GXP's distributed solar output over an NZ day
+export interface SolarProduction {
+  date: string
+  // The day's 15-minute instants, in UTC
+  profileTimes: string[]
+  // Up to this instant (in UTC) the estimate is from satellite readings, and
+  // after it from the forecast. Null for a day with no readings yet.
+  observedUntil: string | null
+  // Each GXP's installed distributed solar as at the last month end on or
+  // before `date`, and its estimated MW at each of profileTimes
+  gxps: { gxp: string; distributedMw: number; profileMw: number[] }[]
+}
+
+// The estimate added up into energy at each GXP, over each period of a file
+export interface SolarEnergy {
+  // GXPs, the most energy first, which can differ from one file to the next
+  series: string[]
+  // Each period's first and last NZ dates, how many of its days have been
+  // estimated so far, and the MWh at each of series in them
+  data: { from: string; to: string; days: number; totalMwh: number; mwh: number[] }[]
+}
+
 export interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
@@ -59,8 +84,8 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>()
 
-async function getJson<T>(path: string, notFound?: T): Promise<{ value: T; maxAgeMs: number }> {
-  const res = await fetch(`${API_BASE}/${path}`)
+async function getJson<T>(path: string, notFound?: T, base = API_BASE): Promise<{ value: T; maxAgeMs: number }> {
+  const res = await fetch(`${base}/${path}`)
   if (res.status === 404 && notFound !== undefined) return { value: notFound, maxAgeMs: 0 }
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const maxAge = /\bmax-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')
@@ -146,6 +171,51 @@ export function fetchOutages(): Promise<OutageData> {
 
 export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
+}
+
+// The solar API's max-age runs to its next update: a minute or so for today
+// and yesterday, which it estimates every 10 minutes, and hours for days and
+// periods it's done with. A 404 is no-store, so a day it hasn't estimated yet
+// is asked for again.
+function solarProductionPath(date: string): string {
+  return `solar-production/${date}`
+}
+
+// `date` is a "YYYY-MM-DD" date. Null for a day the API has no estimate for.
+export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
+  const path = solarProductionPath(date)
+  return cachedJson(path, {
+    load: async () => {
+      const { value, maxAgeMs } = await getJson<{ result: SolarProduction } | null>(path, null, SOLAR_API_BASE)
+      return { value: value?.result ?? null, maxAgeMs }
+    },
+  })
+}
+
+export function peekSolarProduction(date: string): SolarProduction | null | undefined {
+  return lastJson(solarProductionPath(date))
+}
+
+// The solar API's file for the same periods as an aggregates path (see
+// fetchAggregates): "2026/09" is daily/2026-09, "2026/weekly" weekly/2026, and
+// "annual" annual
+function solarEnergyPath(path: string): string {
+  const [year, period] = path.split('/')
+  if (!period) return `solar-energy/${year}`
+  if (/^\d{2}$/.test(period)) return `solar-energy/daily/${year}-${period}`
+  return `solar-energy/${period}/${year}`
+}
+
+// `path` is an aggregates path (see fetchAggregates). Null for one the API has
+// nothing for yet, e.g. a year before its backfill reaches.
+export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
+  const solarPath = solarEnergyPath(path)
+  return cachedJson(solarPath, {
+    load: async () => {
+      const { value, maxAgeMs } = await getJson<{ result: SolarEnergy } | null>(solarPath, null, SOLAR_API_BASE)
+      return { value: value?.result ?? null, maxAgeMs }
+    },
+  })
 }
 
 // `path` is a month of daily totals ("2026/09"), a year of weekly or monthly
