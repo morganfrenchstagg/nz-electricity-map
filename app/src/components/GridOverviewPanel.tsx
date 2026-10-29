@@ -4,7 +4,7 @@ import Highcharts from 'highcharts'
 import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { aggregatePeriodOf, useAggregates } from '../hooks/useAggregates'
-import { useDistributedSolar, useDistributedSolarEnergy } from '../hooks/useDistributedSolar'
+import { chartKind, useDistributedSolar, useDistributedSolarEnergy, useShownWithSolar } from '../hooks/useDistributedSolar'
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
@@ -82,9 +82,20 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
   const aggregates = useAggregates('all', isAggregateMode(dateMode) && visible ? dateMode : null)
-  const data = isAggregate ? aggregates.aggregateData : recentData
   const dataLoading = isAggregate ? aggregates.loading : loading
   const dataError = isAggregate ? aggregates.error : error
+
+  // The data is charted with its distributed solar estimate, rather than the
+  // estimate following it a moment later, unless it's slow (see useShownWithSolar)
+  const solar = useDistributedSolar(dateMode, visible)
+  const solarEnergy = useDistributedSolarEnergy(dateMode, visible)
+  const { shown, waiting: waitingForSolar } = useShownWithSolar(
+    { data: isAggregate ? aggregates.aggregateData : recentData, solarDays: solar.days, solarEnergy: solarEnergy.files },
+    JSON.stringify(dateMode), chartKind(dateMode), visible, !dataLoading, solar.loaded && solarEnergy.loaded,
+  )
+  const data = shown?.data ?? null
+  const solarDays = shown?.solarDays
+  const solarEnergyFiles = shown?.solarEnergy
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
@@ -100,22 +111,20 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   // the aggregate views its MWh in each period (and the periods, which can be
   // short of days), with today's estimate so far added to the period so far,
   // null where there's no estimate. Null when the estimate covers none of them.
-  const solarDays = useDistributedSolar(dateMode, visible)
-  const solarEnergy = useDistributedSolarEnergy(dateMode, visible)
   const distributedSolar = useMemo(() => {
-    if (!data || (isAggregate ? solarEnergy : solarDays).length === 0) return null
+    if (!data || !solarDays || !solarEnergyFiles || (isAggregate ? solarEnergyFiles : solarDays).length === 0) return null
     const islandOf = new Map(substations.map(s => [s.siteId, s.island === 'north' ? 'NI' : 'SI']))
     const includeGxp = (gxp: string) => island === 'all' || islandOf.get(gxp) === island
     if (isAggregate) {
       const today = todayNZ()
-      const energy = distributedSolarEnergy(solarEnergy, includeGxp, today, solarSoFar(solarDays, today, nzNowMs(), includeGxp))
+      const energy = distributedSolarEnergy(solarEnergyFiles, includeGxp, today, solarSoFar(solarDays, today, nzNowMs(), includeGxp))
       const periods = data.data.map(row => energy.get((row[0] as string).slice(0, 10)))
       const values = periods.map(period => period?.mwh ?? null)
       return values.some(v => v !== null) ? { values, periods, capacityByDate: new Map<string, number>() } : null
     }
     const values = distributedSolarAt(solarDays, data.data.map(row => nzLocalMs(row[0] as string)), includeGxp)
     return values.some(v => v !== null) ? { values, periods: [], capacityByDate: distributedSolarCapacities(solarDays, includeGxp) } : null
-  }, [data, isAggregate, solarDays, solarEnergy, substations, island])
+  }, [data, isAggregate, solarDays, solarEnergyFiles, substations, island])
 
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0) return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
@@ -435,7 +444,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           picker={datePicker}
           compact={compactToolbar}
           lastUpdated={lastUpdated}
-          loading={dataLoading}
+          loading={dataLoading || waitingForSolar}
           error={dataError}
           empty={!data}
         />
@@ -463,7 +472,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
       {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
-        {dataLoading && !data && (
+        {(dataLoading || waitingForSolar) && !data && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, color: 'var(--color-text-muted)' }}>
             Loading…
           </div>

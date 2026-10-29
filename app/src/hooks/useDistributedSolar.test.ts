@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { solarDatesOf, solarEnergyQuarters } from './useDistributedSolar'
+import { chartKind, shownWithSolar, solarDatesOf, solarEnergyQuarters } from './useDistributedSolar'
 
 describe('solarDatesOf', () => {
   beforeEach(() => {
@@ -56,5 +56,42 @@ describe('solarEnergyQuarters', () => {
         { from: '2026-04-01', to: '2026-06-30', days: 30, totalMwh: 13, mwh: [7, 6] },
       ],
     })
+  })
+})
+
+describe('chartKind', () => {
+  it('is the same for every 5-minute view, but each aggregate view’s own', () => {
+    expect(chartKind({ kind: 'today' })).toBe(chartKind({ kind: 'date', date: '2026-10-01' }))
+    expect(chartKind({ kind: 'last90', aggregation: 'daily' })).not.toBe(chartKind({ kind: 'today' }))
+    expect(chartKind({ kind: 'last90', aggregation: 'daily' })).not.toBe(chartKind({ kind: 'last90', aggregation: 'weekly' }))
+  })
+
+  it('keeps one node’s apart from another’s', () => {
+    expect(chartKind({ kind: 'today' }, 'BLN')).not.toBe(chartKind({ kind: 'today' }, 'ISL'))
+  })
+})
+
+describe('shownWithSolar', () => {
+  // A view's data, and its estimate if it's loaded
+  type View = { data: string; solar: string | null }
+  const today: View = { data: 'today', solar: 'estimate' }
+
+  it('charts the value once it isn’t waiting on its estimate, and holds it for its kind of chart', () => {
+    expect(shownWithSolar(today, 'dispatch', true, false, null)).toEqual({ shown: today, held: { kind: 'dispatch', value: today } })
+  })
+
+  it('charts what’s held for the same kind of chart while it waits', () => {
+    const held = { kind: 'dispatch', value: today }
+    expect(shownWithSolar<View>({ data: '3d', solar: null }, 'dispatch', true, true, held)).toEqual({ shown: today, held })
+  })
+
+  it('charts nothing while it waits, rather than another kind of chart', () => {
+    const held = { kind: 'dispatch', value: today }
+    expect(shownWithSolar<View>({ data: '90d', solar: null }, '90d', true, true, held)).toEqual({ shown: null, held })
+  })
+
+  it('doesn’t hold a value charted without its estimate for when it’s turned on', () => {
+    const { held } = shownWithSolar<View>({ data: 'today', solar: null }, 'dispatch', false, false, null)
+    expect(shownWithSolar<View>({ data: 'today', solar: null }, 'dispatch', true, true, held).shown).toBeNull()
   })
 })

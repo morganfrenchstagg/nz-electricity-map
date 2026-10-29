@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchSolarEnergy, fetchSolarProduction, peekSolarProduction } from '../api'
 import type { SolarEnergy, SolarProduction } from '../api'
 import { datesBetween, isAggregateMode, isLiveMode, periodOf } from './useDispatchData'
@@ -9,6 +9,9 @@ import { todayNZ } from '../utils/time'
 
 // Cheap: only reaches the network once the cached estimate expires (see api.ts)
 const POLL_MS = 15 * 1000
+
+// How long a view's data waits for its estimate before it's charted without it
+export const SOLAR_WAIT_MS = 2000
 
 function isoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
@@ -24,42 +27,57 @@ export function solarDatesOf(mode: DateMode): string[] {
   return datesBetween(isoDate(from), isoDate(to))
 }
 
+const NO_DAYS: SolarProduction[] = []
+
+// Most polls hand back the same cached days, which would re-chart for nothing
+function sameDays(a: SolarProduction[], b: SolarProduction[]): boolean {
+  return a.length === b.length && a.every((day, i) => day === b[i])
+}
+
 // The distributed solar estimate for each day a view charts (see solarDatesOf)
-// that the API has it for. Empty while it loads. Not fetched while `enabled` is false.
-export function useDistributedSolar(mode: DateMode, enabled: boolean): SolarProduction[] {
-  const [days, setDays] = useState<SolarProduction[]>([])
+// that the API has it for, and whether it's loaded for this view: until it
+// has, the days are the last view's, or empty. Not fetched while `enabled` is
+// false, when there's nothing to load.
+export function useDistributedSolar(mode: DateMode, enabled: boolean): { days: SolarProduction[]; loaded: boolean } {
+  // Tagged with its view, so a view can tell its own days from the last one's
+  const key = enabled ? JSON.stringify(mode) : null
+  const [fetched, setFetched] = useState<{ key: string; days: SolarProduction[] } | null>(null)
+
+  // A view whose days are all cached has them straight away, rather than a
+  // render later, once the effect below has fetched them again
+  const cached = useMemo(() => {
+    if (!key) return null
+    const days = solarDatesOf(mode).map(peekSolarProduction)
+    return days.every((day) => day !== undefined) ? days.filter((day): day is SolarProduction => day !== null) : null
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!key) return
     let cancelled = false
-    const live = isLiveMode(mode)
-
-    // Most polls hand back the same cached days, which would re-chart for nothing
-    function show(next: (SolarProduction | null)[]) {
-      const found = next.filter((day): day is SolarProduction => day !== null)
-      setDays((prev) => (prev.length === found.length && found.every((d, i) => d === prev[i]) ? prev : found))
-    }
 
     async function load() {
-      // Worked out on each load, so the live views move on to the next day at midnight
-      const dates = enabled ? solarDatesOf(mode) : []
-      const cached = dates.map(peekSolarProduction)
-      if (cached.every((d) => d !== undefined)) show(cached as (SolarProduction | null)[])
+      // Worked out on each load, so the live views move on to the next day at midnight.
       // The estimate is an extra, so a day that fails is left out (and retried
       // on the live views' next poll) rather than holding up the rest
-      const fetched = await Promise.all(dates.map((date) => fetchSolarProduction(date).catch(() => null)))
-      if (!cancelled) show(fetched)
+      const next = await Promise.all(solarDatesOf(mode).map((date) => fetchSolarProduction(date).catch(() => null)))
+      if (cancelled || !key) return
+      const days = next.filter((day): day is SolarProduction => day !== null)
+      setFetched((prev) => (prev?.key === key && sameDays(prev.days, days) ? prev : { key, days }))
     }
 
     load()
-    const stopPolling = live && enabled ? pollWhileVisible(load, POLL_MS) : undefined
+    const stopPolling = isLiveMode(mode) ? pollWhileVisible(load, POLL_MS) : undefined
 
     return () => {
       cancelled = true
       stopPolling?.()
     }
-  }, [mode, enabled])
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return days
+  if (!key) return { days: NO_DAYS, loaded: true }
+  if (fetched?.key === key) return { days: cached && sameDays(cached, fetched.days) ? cached : fetched.days, loaded: true }
+  if (cached) return { days: cached, loaded: true }
+  return { days: fetched?.days ?? NO_DAYS, loaded: false }
 }
 
 const NO_ENERGY: SolarEnergy[] = []
@@ -96,9 +114,9 @@ export function solarEnergyQuarters(files: SolarEnergy[]): SolarEnergy {
 
 // The distributed solar estimate's energy totals for an aggregate view, from
 // the files covering the same periods as its dispatch totals (see
-// aggregateWindow). Empty while they load, on the other views, and while
-// `enabled` is false.
-export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean): SolarEnergy[] {
+// aggregateWindow), and whether they've loaded. Empty while they load, on the
+// other views, and while `enabled` is false, when there's nothing to load.
+export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean): { files: SolarEnergy[]; loaded: boolean } {
   // Tagged with its view, as useAggregates' totals are, so a switch between
   // views doesn't chart one's totals against the other's periods
   const modeKey = isAggregateMode(mode) && enabled ? JSON.stringify(mode) : null
@@ -116,5 +134,60 @@ export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean): Sol
     return () => { cancelled = true }
   }, [modeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return result && result.modeKey === modeKey ? result.files : NO_ENERGY
+  if (!modeKey) return { files: NO_ENERGY, loaded: true }
+  return result && result.modeKey === modeKey ? { files: result.files, loaded: true } : { files: NO_ENERGY, loaded: false }
+}
+
+// What a view's chart is like, for which charts can stand in for each other:
+// every 5-minute view is charted alike, but each aggregate view's periods are
+// its own. `prefix` keeps one panel's node apart from another's.
+export function chartKind(mode: DateMode, prefix = ''): string {
+  return `${prefix} ${isAggregateMode(mode) ? JSON.stringify(mode) : 'dispatch'}`
+}
+
+// A view's data and estimate held by useShownWithSolar, with its chartKind, or
+// a null kind if it was charted without its estimate
+export interface HeldWithSolar<T> {
+  kind: string | null
+  value: T
+}
+
+// What useShownWithSolar charts on a render: `value`, unless it's still
+// waiting on its estimate, when it's what's held for the same kind of chart
+// (or null), and what to hold from then on
+export function shownWithSolar<T>(value: T, kind: string, enabled: boolean, waiting: boolean, held: HeldWithSolar<T> | null): { shown: T | null; held: HeldWithSolar<T> | null } {
+  if (waiting) return { shown: held?.kind === kind ? held.value : null, held }
+  // A view charted without its estimate (with `enabled` false) isn't held for when it's turned on
+  return { shown: value, held: { kind: enabled ? kind : null, value } }
+}
+
+// `value`, a view's data and its distributed solar estimate, as it's charted:
+// once the data has loaded, it waits up to SOLAR_WAIT_MS for the estimate, so
+// the estimate isn't charted a moment after the rest. Meanwhile the last value
+// charted of the same kind (see chartKind) is held, e.g. the Today view's
+// while the 3d view's estimate loads, or null if there's none. After that the
+// data is charted without the estimate, which is added when it comes. `view`
+// tells one view's wait from the next. Nothing is waited on while `enabled` is false.
+export function useShownWithSolar<T>(value: T, view: string, kind: string, enabled: boolean, dataLoaded: boolean, solarLoaded: boolean): { shown: T | null; waiting: boolean } {
+  const wait = enabled && dataLoaded && !solarLoaded ? view : null
+  const [timedOut, setTimedOut] = useState(false)
+  // Each wait gets its own SOLAR_WAIT_MS, without a render of the last one's timeout
+  const [lastWait, setLastWait] = useState(wait)
+  const waitChanged = wait !== lastWait
+  if (waitChanged) {
+    setLastWait(wait)
+    setTimedOut(false)
+  }
+
+  useEffect(() => {
+    if (wait === null) return
+    const timer = setTimeout(() => setTimedOut(true), SOLAR_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [wait])
+
+  const waiting = wait !== null && (waitChanged || !timedOut)
+  const held = useRef<HeldWithSolar<T> | null>(null)
+  const next = shownWithSolar(value, kind, enabled, waiting, held.current)
+  held.current = next.held
+  return { shown: next.shown, waiting }
 }

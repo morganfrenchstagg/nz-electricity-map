@@ -3,7 +3,7 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { useDistributedSolar, useDistributedSolarEnergy } from '../hooks/useDistributedSolar'
+import { chartKind, useDistributedSolar, useDistributedSolarEnergy, useShownWithSolar } from '../hooks/useDistributedSolar'
 import { SUBSTATION_SOLAR } from '../featureFlags'
 import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
 import type { ChartData } from '../utils/chart'
@@ -132,7 +132,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     ]
   }, [substation, unitFor])
 
-  const { aggregatePeriod, isAggregate, allCodes, chartData, loading: dataLoading, error: dataError } = useNodeData({
+  const { aggregatePeriod, isAggregate, allCodes, chartData: loadedChartData, loading: dataLoading, error: dataError } = useNodeData({
     dateMode, recentData, loading, error, queryNodes: [substation.siteId], getCodes,
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
@@ -159,12 +159,21 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   // be short of days), with today's so far up to the same point added to the
   // period so far, null where there's no estimate. Null
   // when it has none in the view, or the flag is off. The panel is only
-  // rendered while it's showing, so that's all it waits on
-  const solarDays = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
-  const solarEnergy = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
+  // rendered while it's showing, so that's all it waits on. The data is
+  // charted with it, rather than it following a moment later, unless it's slow
+  // (see useShownWithSolar).
+  const solarProduction = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
+  const solarTotals = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
+  const { shown, waiting: waitingForSolar } = useShownWithSolar(
+    { chartData: loadedChartData, solarDays: solarProduction.days, solarEnergy: solarTotals.files },
+    `${substation.siteId} ${JSON.stringify(dateMode)}`, chartKind(dateMode, substation.siteId), SUBSTATION_SOLAR, !dataLoading, solarProduction.loaded && solarTotals.loaded,
+  )
+  const chartData = shown?.chartData ?? null
+  const solarDays = shown?.solarDays
+  const solarEnergy = shown?.solarEnergy
   const solarEstimate = useMemo(() => {
     const atSubstation = (gxp: string) => gxp === substation.siteId
-    if (!chartData) return null
+    if (!chartData || !solarDays || !solarEnergy) return null
     if (isAggregate) {
       if (!solarEnergy.some((file) => file.series.some(atSubstation))) return null
       const today = todayNZ()
@@ -383,7 +392,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           picker={datePicker}
           compact={compactToolbar}
           lastUpdated={lastUpdated}
-          loading={dataLoading}
+          loading={dataLoading || waitingForSolar}
           error={dataError}
           empty={allCodes.length === 0}
           // Substation data only starts in September 2020 (see
@@ -410,9 +419,9 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         <NodeChart
           chartKey={`${substation.siteId}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}
           options={chartOptions}
-          loading={dataLoading}
+          loading={dataLoading || waitingForSolar}
           error={dataError}
-          empty={allCodes.length === 0}
+          empty={!chartData}
         />
       </div>
     </Panel>
