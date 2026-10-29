@@ -11,7 +11,7 @@ const FUELS = [
   { code: 'WIN', label: 'Wind', colour: 'rgb(65, 117, 5)', fuelNames: ['Wind'], renewable: true },
   { code: 'GEO', label: 'Geothermal', colour: '#ff0000', fuelNames: ['Geothermal'], renewable: true },
   { code: 'SOL', label: 'Solar', colour: 'rgb(254, 213, 0)', fuelNames: ['Solar'], renewable: true },
-  { code: 'SOL-D', label: 'Distributed solar (est.)', colour: 'rgb(218, 165, 32)', fuelNames: [], renewable: true },
+  { code: 'SOL-D', label: 'Embedded Solar (est.)', colour: 'rgb(218, 165, 32)', fuelNames: [], renewable: true },
   { code: 'GAS', label: 'Gas', colour: 'rgb(253, 180, 98)', fuelNames: ['Gas'], renewable: false },
   { code: 'CLG', label: 'Coal / Gas', colour: 'rgb(139, 87, 42)', fuelNames: ['Coal/Gas'], renewable: false },
   { code: 'DIE', label: 'Diesel', colour: 'rgb(135, 72, 0)', fuelNames: ['Diesel'], renewable: false },

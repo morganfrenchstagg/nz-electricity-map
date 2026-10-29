@@ -173,7 +173,7 @@ describe('distributedSolarEnergy', () => {
 
   it('notes where today’s share stops, when the forecast is left out, and nothing otherwise', () => {
     const energy = distributedSolarEnergy([months], everyGxp, '2026-10-27', { mwh: 50, until: nzLocalMs('2026-10-27T12:00:00') })
-    expect(solarPeriodNote(energy.get('2026-10-01'))).toBe('Today\'s distributed solar estimated up to 12:00 PM, from satellite readings')
+    expect(solarPeriodNote(energy.get('2026-10-01'))).toBe('Today\'s embedded solar estimated up to 12:00 PM, from satellite readings')
     expect(solarPeriodNote(energy.get('2026-04-01'))).toBeNull()
   })
 

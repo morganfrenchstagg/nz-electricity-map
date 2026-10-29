@@ -64,7 +64,7 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
                 dispatch API, nodal prices and volumes, and bids and offers data.
               </li>
               <li>
-                Distributed solar: estimated for this site from the solar installed at each substation, in EMI's installed
+                Embedded solar: estimated for this site from the solar installed at each substation, in EMI's installed
                 distributed generation data, and <Link href={OPEN_METEO.url}>Open-Meteo</Link>'s weather forecasts.
               </li>
               <li>Outages: Transpower's <Link href="https://customerportal.transpower.co.nz/pocp/outages">Planned Outage Coordination Process (POCP)</Link>.</li>

@@ -27,7 +27,7 @@ const TOTAL = 'Total'
 const TOTAL_COLOUR = '#222222'
 const SOLAR = fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)
 const SOLAR_COLOUR = fuelCodeColour(DISTRIBUTED_SOLAR_FUEL_CODE)
-const DEMAND_WITH_SOLAR = 'Demand + distributed solar (est.)'
+const DEMAND_WITH_SOLAR = `Demand + ${SOLAR}`
 // The series that aren't codes, which the tooltip lists apart from them
 const EXTRA_SERIES = [TOTAL, SOLAR, DEMAND_WITH_SOLAR]
 
@@ -324,7 +324,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       accessibility: timeChartAccessibility(
         `${substation.description} Substation load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
-          + (solar ? ', and distributed solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
+          + (solar ? ', and embedded solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),

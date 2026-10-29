@@ -142,5 +142,5 @@ export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: s
 // The tooltip's note on the period so far, when its share of today stops short
 // of now (see solarSoFar), or null
 export function solarPeriodNote(period: SolarPeriod | undefined): string | null {
-  return period?.until !== undefined ? `Today's distributed solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings` : null
+  return period?.until !== undefined ? `Today's embedded solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings` : null
 }
