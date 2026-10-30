@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components'
+import { Button, Checkbox, Dialog, DialogTrigger, Popover } from 'react-aria-components'
 import { CHART_SETTINGS } from '../utils/chartSettings'
 import type { ChartSettingKey, ChartSettings } from '../utils/chartSettings'
 import { ToggleGroup } from './ToggleGroup'
@@ -22,7 +22,21 @@ export default function ChartSettingsMenu({ settings, onChange, offered }: Props
       <Popover placement="bottom end" offset={4} className="popover">
         <Dialog aria-label="Chart settings" className="chart-settings">
           {offered.map(key => {
-            const { label, options } = CHART_SETTINGS[key]
+            const setting = CHART_SETTINGS[key]
+            const { label, options } = setting
+            if ('checkbox' in setting) {
+              return (
+                <Checkbox
+                  key={key}
+                  className="checkbox"
+                  isSelected={settings[key] === options[1].value}
+                  onChange={ticked => onChange({ ...settings, [key]: options[ticked ? 1 : 0].value })}
+                >
+                  <span className="checkbox-box" aria-hidden="true">✓</span>
+                  {label}
+                </Checkbox>
+              )
+            }
             return (
               <div key={key} className="chart-setting">
                 <span className="eyebrow">{label}</span>
