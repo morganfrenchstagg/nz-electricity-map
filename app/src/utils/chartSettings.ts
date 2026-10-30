@@ -10,11 +10,14 @@ interface ChartSettingOption {
 }
 
 interface ChartSettingDefinition {
-  // The setting's heading in the menu
+  // The setting's heading in the menu, or its checkbox's label
   label: string
   param: string
   // The first is the default
   options: readonly ChartSettingOption[]
+  // A setting of two options shown as a checkbox, ticked for the second,
+  // rather than as a toggle of both
+  checkbox?: true
 }
 
 export const CHART_SETTINGS = {
@@ -27,6 +30,17 @@ export const CHART_SETTINGS = {
       { value: 'stacked', label: 'Stacked' },
       { value: 'line', label: 'Line' },
       { value: 'proportion', label: 'Proportion' },
+    ],
+  },
+  // Embedded solar charted as a series of its own beside grid-scale solar, or
+  // the two as one Solar series
+  solar: {
+    label: 'Combine distributed and grid-scale solar',
+    param: 'solar',
+    checkbox: true,
+    options: [
+      { value: 'separate', label: 'Separate' },
+      { value: 'combined', label: 'Combined' },
     ],
   },
 } as const satisfies Record<string, ChartSettingDefinition>

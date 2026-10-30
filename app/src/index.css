@@ -305,7 +305,42 @@ body {
   cursor: pointer;
 }
 
-/* ChartSettingsMenu's popover, a headed ToggleGroup for each setting */
+/* A react-aria Checkbox: its box, then its label. The box matches NodePickerModal's. */
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.checkbox-box {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: transparent;
+  font-size: var(--font-size-xs);
+  line-height: 1;
+}
+
+.checkbox[data-selected] .checkbox-box {
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.checkbox[data-focus-visible] .checkbox-box {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* ChartSettingsMenu's popover, a headed ToggleGroup or a checkbox for each setting */
 .chart-settings {
   display: flex;
   flex-direction: column;
