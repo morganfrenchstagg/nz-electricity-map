@@ -20,6 +20,7 @@ export default function App() {
     viewMode, setViewMode,
     tradingPeriod, setTradingPeriod,
     activeFuels, setActiveFuels,
+    chartSettings, setChartSettings,
     expanded, setExpanded,
     pipelineOpen, setPipelineOpen,
   } = useUrlState(generators, substations)
@@ -115,6 +116,8 @@ export default function App() {
         isMobile={isMobile}
         activeFuels={activeFuels}
         onActiveFuelsChange={setActiveFuels}
+        chartSettings={chartSettings}
+        onChartSettingsChange={setChartSettings}
         pipelineOpen={pipelineOpen}
         onPipelineOpenChange={setPipelineOpen}
       />

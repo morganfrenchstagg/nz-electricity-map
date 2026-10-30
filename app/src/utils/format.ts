@@ -75,6 +75,8 @@ export interface DisplayUnit {
 export const MW_UNIT: DisplayUnit = { label: 'MW', size: 1, format: formatMW }
 const MWH_UNIT: DisplayUnit = { label: 'MWh', size: 1, format: formatMWh }
 const GWH_UNIT: DisplayUnit = { label: 'GWh', size: 1000, format: formatGWh }
+// Shares of a total, charted as percentages rather than divided down from MW or MWh
+export const PERCENT_UNIT: DisplayUnit = { label: '%', size: 1, format: (value) => `${value.toFixed(1)}%` }
 
 // Under 5 GWh, GWh would leave a chart's axis or a total on a few small,
 // fiddly numbers

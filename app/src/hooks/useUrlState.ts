@@ -3,6 +3,8 @@ import type { Generator, SelectedNode, Substation } from '../types'
 import { periodMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { FIRST_DAY } from './useAggregates'
+import { CHART_SETTING_PARAMS, readChartSettings, writeChartSettings } from '../utils/chartSettings'
+import type { ChartSettings } from '../utils/chartSettings'
 
 export type ViewMode = 'generation' | 'offers'
 
@@ -17,11 +19,13 @@ export type ViewMode = 'generation' | 'offers'
 //   ?view=offers    the generator panel's Offers view, with
 //   ?tp=            its trading period
 //   ?fuels=         the grid overview's fuels, when not all of them
+//   ?chart=line     the charts' lines in place of stacks, and any other chart
+//                   setting that isn't its default under its own param (see chartSettings)
 //   ?expanded=true  the panel is expanded
 //   /pipeline       the pipeline modal is open
 // Any other params the link had (e.g. utm_source, or a flag in featureFlags.ts)
 // are kept, after these.
-const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', 'expanded']
+const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', ...CHART_SETTING_PARAMS, 'expanded']
 
 const PERIOD_MODES = ['today', 'recent', 'last90', 'lastYear', '5y', 'all'] as const
 
@@ -31,6 +35,7 @@ interface UrlState {
   viewMode: ViewMode
   tradingPeriod: number
   activeFuels: Set<string> | null
+  chartSettings: ChartSettings
   expanded: boolean
   pipelineOpen: boolean
 }
@@ -54,6 +59,7 @@ function readUrl(): UrlState {
     viewMode,
     tradingPeriod: viewMode === 'offers' && !isNaN(tp) ? tp : 1,
     activeFuels: fuels ? new Set(fuels.split(',').filter(Boolean)) : null,
+    chartSettings: readChartSettings(p),
     expanded: p.get('expanded') === 'true',
     pipelineOpen: window.location.pathname === '/pipeline',
   }
@@ -74,6 +80,7 @@ function writeUrl(state: UrlState) {
   }
   if (state.viewMode === 'offers') { p.set('view', 'offers'); p.set('tp', String(state.tradingPeriod)) }
   if (state.activeFuels) p.set('fuels', [...state.activeFuels].join(','))
+  writeChartSettings(state.chartSettings, p)
   if (state.expanded) p.set('expanded', 'true')
   for (const [key, value] of new URLSearchParams(window.location.search)) {
     if (!PARAMS.includes(key)) p.append(key, value)
@@ -123,6 +130,7 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   const [viewMode, setViewModeState] = useState(initial.viewMode)
   const [tradingPeriod, setTradingPeriod] = useState(initial.tradingPeriod)
   const [activeFuels, setActiveFuels] = useState(initial.activeFuels)
+  const [chartSettings, setChartSettings] = useState(initial.chartSettings)
   const [expanded, setExpanded] = useState(initial.expanded)
   const [pipelineOpen, setPipelineOpen] = useState(initial.pipelineOpen)
 
@@ -156,8 +164,8 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
 
   const node = linkedNode ?? (selectedNode && nodeParam(selectedNode))
   useEffect(() => {
-    writeUrl({ node, dateMode, viewMode, tradingPeriod, activeFuels, expanded, pipelineOpen })
-  }, [node, dateMode, viewMode, tradingPeriod, activeFuels, expanded, pipelineOpen])
+    writeUrl({ node, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen })
+  }, [node, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
 
   return {
     selectedNode, selectNode,
@@ -165,6 +173,7 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     viewMode, setViewMode,
     tradingPeriod, setTradingPeriod,
     activeFuels, setActiveFuels,
+    chartSettings, setChartSettings,
     expanded, setExpanded,
     pipelineOpen, setPipelineOpen,
   }
