@@ -370,6 +370,69 @@ body {
   font-weight: 500;
 }
 
+/* The chevrons on the HVDC's cables (see Map), lit one after another the way the
+   HVDC's flowing, each nudged that way as it lights. Only the grey fades, over
+   each one's halo, so an unlit chevron still stands out from the cables, paler.
+   Hovers and clicks go through them to the cables. */
+.hvdc-flow {
+  pointer-events: none;
+}
+
+.hvdc-flow.is-hidden {
+  visibility: hidden;
+}
+
+/* A block, so the marker is just as tall as the chevrons, without room below for
+   text, and centres them on the cables */
+.hvdc-flow svg {
+  display: block;
+}
+
+.hvdc-flow g {
+  animation: hvdc-flow-nudge 1.8s ease-in-out var(--delay, 0s) infinite;
+}
+
+.hvdc-flow path:last-child {
+  opacity: 0.3;
+  animation: hvdc-flow-light 1.8s ease-in-out var(--delay, 0s) infinite;
+}
+
+.hvdc-flow g:nth-child(2) {
+  --delay: 0.3s;
+}
+
+.hvdc-flow g:nth-child(3) {
+  --delay: 0.6s;
+}
+
+@keyframes hvdc-flow-nudge {
+  0%, 60%, 100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(1.5px);
+  }
+}
+
+@keyframes hvdc-flow-light {
+  0%, 60%, 100% {
+    opacity: 0.3;
+  }
+
+  25% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hvdc-flow g,
+  .hvdc-flow path:last-child {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* A chart series toggle, filled with --series-colour while it's showing */
 /* Narrow sides, so a row fits as many as it can before "+N more" */
 .series-button {
