@@ -12,7 +12,8 @@ import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FU
 import { hvdcInto } from '../utils/hvdc'
 import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, solarSoFar } from '../utils/distributedSolar'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
-import { energyUnit, formatMW, MW_UNIT } from '../utils/format'
+import { energyUnit, formatMW, MW_UNIT, PERCENT_UNIT } from '../utils/format'
+import type { ChartSettings } from '../utils/chartSettings'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
@@ -20,6 +21,7 @@ import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import DateControls from './DateControls'
+import ChartSettingsMenu from './ChartSettingsMenu'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
 
@@ -66,11 +68,13 @@ interface Props extends PanelProps {
   // The fuels charted, or null for all of them
   activeFuels: Set<string> | null
   onActiveFuelsChange: (fuels: Set<string> | null) => void
+  chartSettings: ChartSettings
+  onChartSettingsChange: (settings: ChartSettings) => void
   pipelineOpen: boolean
   onPipelineOpenChange: (open: boolean) => void
 }
 
-export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, activeFuels, onActiveFuelsChange, pipelineOpen, onPipelineOpenChange, ...panel }: Props) {
+export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSelect, visible, recentData, loading, error, activeFuels, onActiveFuelsChange, chartSettings, onChartSettingsChange, pipelineOpen, onPipelineOpenChange, ...panel }: Props) {
   const { generators, substations } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const [island, setIsland] = useState<Island>('all')
@@ -174,14 +178,21 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     onActiveFuelsChange(fuels.length === 1 ? null : new Set([fuel]))
   }
 
+  // Stacked, the fuels are charted as their totals or, as proportions, as their
+  // shares of the total generation (the tooltip's), which add up to 100%
+  const { chartType } = chartSettings
+  const stacked = chartType !== 'line'
+  const proportion = chartType === 'proportion'
+
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!data || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
 
     // Each shown fuel's total at each time. The HVDC's is what flowed in, or out
     // (as a negative), and null where em6 has nothing.
     const shownFuels = fuels.filter(f => effectiveFuels.has(f))
-    // Distributed solar is charted at 0 where there's no estimate, as nulls part
-    // way up a stack draw from 0 instead, but it's left out of the tooltip there
+    // Stacked, distributed solar is charted at 0 where there's no estimate, as
+    // nulls part way up a stack draw from 0 instead, but it's left out of the
+    // tooltip there. Its line just breaks.
     const solarValues = distributedSolar?.values ?? []
     const noSolarEstimateMs = new Set(data.data.filter((_, r) => solarValues[r] === null).map(row => nzLocalMs(row[0] as string)))
     const hvdcPart = (fuel: string, r: number) => {
@@ -189,40 +200,49 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       return mw === undefined ? null : fuel === HVDC_IMPORT_CODE ? Math.max(mw, 0) : Math.min(mw, 0)
     }
     const fuelTotals = data.data.map((row, r) => shownFuels.map(fuel =>
-      fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarValues[r] ?? 0
+      fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarValues[r] ?? (stacked ? 0 : null)
         : fuelToIndices.has(fuel) ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((row[i] as number) || 0)), 0)
         : hvdcPart(fuel, r),
     ))
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
-    const unit = isAggregate ? energyUnit(chartReach(fuelTotals, true)) : MW_UNIT
+    const unit = isAggregate ? energyUnit(chartReach(fuelTotals, stacked)) : MW_UNIT
+    // The total generation at each time, as the tooltip gives it: what's stacked above zero
+    const generationTotals = fuelTotals.map(totals => totals.reduce((sum: number, total) => sum + Math.max(total ?? 0, 0), 0))
+    const shareOf = (total: number, r: number) => (generationTotals[r] > 0 ? (total / generationTotals[r]) * 100 : 0)
 
     // Aggregate totals: stacked areas become stacked columns, which already stack
     // negative values (battery charging) separately. Stacked areas don't, so
-    // those below zero get a stack of their own.
+    // those below zero get a stack of their own. As lines, every fuel is charted
+    // from zero, whichever the view.
+    const columns = stacked && isAggregate
     const series: Highcharts.SeriesOptionsType[] = shownFuels.map((fuel, f) => {
       const points: [number, number | null][] = data.data.map((row, r) => {
         const total = fuelTotals[r][f]
-        return [nzLocalMs(row[0] as string), total === null ? null : total / unit.size]
+        return [nzLocalMs(row[0] as string), total === null ? null : proportion ? shareOf(total, r) : total / unit.size]
       })
       const colour = fuelCodeColour(fuel)
       return {
-        type: isAggregate ? 'column' : 'area',
+        type: !stacked ? 'line' : columns ? 'column' : 'area',
         name: fuelLabel(fuel, island),
         color: colour,
         // Covers 1px rounding gaps between columns (see nodeChartOptions)
         borderColor: colour,
-        stacking: 'normal',
-        stack: isAggregate ? undefined : (fuel === CHARGING_FUEL_CODE || fuel === HVDC_EXPORT_CODE) ? "positive" : "negative",
+        stacking: stacked ? 'normal' : undefined,
+        stack: stacked && !isAggregate ? (fuel === CHARGING_FUEL_CODE || fuel === HVDC_EXPORT_CODE) ? "positive" : "negative" : undefined,
         fillOpacity: 0.8,
-        lineWidth: 1,
-        data: isAggregate
-          ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
+        lineWidth: stacked ? 1 : 2,
+        // withGaps would read every step between aggregate totals as a gap
+        data: columns ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
+          : isAggregate ? points
           : withGaps(points),
         marker: { enabled: false },
-        events: columnFillEvents(aggregatePeriod),
+        events: columns ? columnFillEvents(aggregatePeriod) : undefined,
         animation: false,
       }
     })
+
+    // Each time's row of fuelTotals, for the proportion chart's tooltip
+    const fuelTotalsByMs = new Map(data.data.map((row, r) => [nzLocalMs(row[0] as string), fuelTotals[r]]))
 
     // Build per-timestamp renewable percentage
     const renewableIndices = [...fuelToIndices.entries()]
@@ -277,14 +297,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       chart: {
         ...FIT_TO_CONTAINER,
         type: 'area', height: null, animation: false, backgroundColor: '#ffffff',
-        className: isAggregate ? 'aggregate-columns' : undefined, // see index.css
+        className: columns ? 'aggregate-columns' : undefined, // see index.css
       },
       title: { text: undefined },
       ...timeChartAccessibility(
         `${island === 'all' ? 'New Zealand' : island === 'NI' ? 'North Island' : 'South Island'} generation by fuel`,
-        'Generation from each fuel, stacked',
+        proportion ? "Each fuel's share of the total generation, stacked" : stacked ? 'Generation from each fuel, stacked' : 'Generation from each fuel',
         aggregatePeriod,
-        unit,
+        proportion ? PERCENT_UNIT : unit,
         dataInterval(data.data.map(row => row[0] as string)),
       ),
       credits: { enabled: false },
@@ -295,8 +315,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         plotLines: isAggregate ? [] : midnightPlotLines(data.data.map(row => row[0] as string)),
       },
       yAxis: {
-        title: { text: unit.label },
+        title: { text: (proportion ? PERCENT_UNIT : unit).label },
         softMin: 0,
+        // The shares' floating point sums can come out a hair over 100
+        max: proportion ? 100 : undefined,
         gridLineDashStyle: 'Dash',
       },
       plotOptions: {
@@ -321,11 +343,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           const x = this.x as number
           const time = tooltipTime(x, aggregatePeriod)
           const formatValue = unit.format
+          // A point's generation. The proportion chart's points are shares of
+          // the total, so it's looked up from the fuel's total instead.
+          const valueOf = (p: Highcharts.Point) => proportion ? (fuelTotalsByMs.get(x)?.[p.series.index] ?? 0) / unit.size : p.y ?? 0
           // The total is what's stacked above zero: the generation, and in an
           // island's views whatever the HVDC brings in. What's below it, a
           // battery charging or the HVDC taking power out, is a share of that
           // too, so the island's exports read as the part of its generation sent away.
-          const total = points.reduce((sum, p) => sum + Math.max(p.y ?? 0, 0), 0)
+          const total = points.reduce((sum, p) => sum + Math.max(valueOf(p), 0), 0)
 
           // A fuel's row: its generation, capacity and share of the total
           const row = (label: string, colour: string, y: number, cap: number, indent = false) => {
@@ -356,14 +381,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           const rows = shownPoints
             .map(p => {
               const grouped = groupOf(p)
-              if (!grouped) return row(p.series.name, String(p.color), p.y ?? 0, capacityAt(p.series.name, x))
+              if (!grouped) return row(p.series.name, String(p.color), valueOf(p), capacityAt(p.series.name, x))
               if (shownPoints.filter(s => groupOf(s) === grouped).pop() !== p) return ''
               const { group, points: parts } = grouped
               const colour = fuelCodeColour(group.colourFuel)
               const heading = group.totals
-                ? row(group.label, colour, parts.reduce((sum, { p }) => sum + (p.y ?? 0), 0), parts.reduce((sum, { p }) => sum + capacityAt(p.series.name, x), 0))
+                ? row(group.label, colour, parts.reduce((sum, { p }) => sum + valueOf(p), 0), parts.reduce((sum, { p }) => sum + capacityAt(p.series.name, x), 0))
                 : `<tr><td><span style="color:${colour}">●</span> ${group.label}</td></tr>`
-              return heading + parts.map(({ p, label }) => row(label, String(p.color), p.y ?? 0, capacityAt(p.series.name, x), true)).join('')
+              return heading + parts.map(({ p, label }) => row(label, String(p.color), valueOf(p), capacityAt(p.series.name, x), true)).join('')
             })
             .join('')
 
@@ -386,7 +411,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc, distributedSolar])
+  }, [data, generators, fuels, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
 
   // The pipeline button wraps under the title when there isn't room beside it,
   // and on the narrowest panels the title is cut short to keep the picker's ▾ in view
@@ -444,6 +469,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           error={dataError}
           empty={!data}
         />
+        {/* At the toolbar's end, under the header's Close */}
+        <div style={{ display: 'flex', marginLeft: 'auto' }}>
+          <ChartSettingsMenu settings={chartSettings} onChange={onChartSettingsChange} offered={['chartType']} />
+        </div>
       </PanelToolbar>
 
       {/* Fuel pills */}
@@ -479,7 +508,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           </div>
         )}
         {chartOptions && (
-          <HighchartsReact key={`${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
+          <HighchartsReact key={`${String(panel.expanded)}-${aggregatePeriod ?? 'live'}-${chartType}`} highcharts={Highcharts} options={chartOptions} containerProps={CHART_CONTAINER_PROPS} />
         )}
       </div>
     </Panel>

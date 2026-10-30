@@ -231,6 +231,28 @@ body {
   cursor: default;
 }
 
+/* A toolbar button with just an icon, e.g. ChartSettingsMenu's gear. As tall as a ToggleGroup. */
+.icon-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 3px var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.icon-button[data-hovered],
+.icon-button[aria-expanded="true"] {
+  background: var(--color-surface-muted);
+}
+
+.icon-button[data-focus-visible] {
+  outline: 2px solid var(--color-accent);
+}
+
 /* Segmented buttons (ToggleGroup) */
 .toggle-group {
   display: flex;
@@ -281,6 +303,22 @@ body {
   color: var(--color-text);
   font-size: var(--font-size-sm);
   cursor: pointer;
+}
+
+/* ChartSettingsMenu's popover, a headed ToggleGroup for each setting */
+.chart-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xs) var(--space-lg);
+  outline: none;
+}
+
+.chart-setting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
 }
 
 /* A headed block of InfoModal's text */
