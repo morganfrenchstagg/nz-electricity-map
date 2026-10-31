@@ -18,7 +18,7 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { SUBSTATION_FIRST_DAY } from '../hooks/useAggregates'
-import Panel, { PanelToolbar } from './Panel'
+import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
@@ -111,6 +111,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The title shrinks, and the toolbar collapses to dropdowns, when too narrow
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
+  // A narrow panel's header menu has Clear, rather than the title
+  const headerMenu = hasHeaderMenu(panel)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   const unitFor = useCallback((code: string): Unit | null => {
@@ -381,11 +383,11 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   })
 
   const header = (
-    <NodeTitle node={node} title={`${substation.description} Substation`} compact={compactHeader} onNodeChange={onNodeChange} onClear={onClear} />
+    <NodeTitle node={node} title={`${substation.description} Substation`} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} />
   )
 
   return (
-    <Panel {...panel} header={header} headerRef={headerRef}>
+    <Panel {...panel} header={header} headerRef={headerRef} actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}>
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <DateControls
           dateMode={dateMode}

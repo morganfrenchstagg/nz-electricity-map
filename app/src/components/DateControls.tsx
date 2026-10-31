@@ -58,8 +58,9 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
       {isAggregateMode(dateMode) && !customDates && (
         <AggregationToggle dateMode={dateMode} onSelect={handleAggregationClick} compact={compact} />
       )}
-      {lastUpdated && !loading && (
-        <>{!compact && <div className="divider" />}<span className="status-text" style={{ marginLeft: compact ? 0 : 4 }}>{lastUpdated}</span></>
+      {/* Left out of the compact toolbar, where it would take a line of its own */}
+      {lastUpdated && !loading && !compact && (
+        <><div className="divider" /><span className="status-text" style={{ marginLeft: 4 }}>{lastUpdated}</span></>
       )}
       {loading && <span className="status-text">Loading…</span>}
       {error && !empty && <span className="status-text is-error">Failed to load data</span>}

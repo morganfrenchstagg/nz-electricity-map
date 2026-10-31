@@ -723,8 +723,15 @@ body {
   cursor: pointer;
 }
 
-.menu-item:hover {
+.menu-item:hover,
+.menu-item[data-focused] {
   background: var(--color-surface-hover);
+}
+
+/* A react-aria Menu of menu-items, e.g. Panel's header menu, which marks the focused item itself */
+.menu,
+.menu .menu-item {
+  outline: none;
 }
 
 .menu-item.is-selected {
