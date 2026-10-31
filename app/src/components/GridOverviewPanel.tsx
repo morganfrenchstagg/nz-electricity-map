@@ -441,31 +441,21 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     }
   }, [data, generators, fuels, seriesFuels, combineSolar, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
 
-  // The pipeline button wraps under the title when there isn't room beside it,
-  // and on the narrowest panels the title is cut short to keep the picker's ▾ in view
+  // On the narrowest panels the title is cut short to keep the picker's ▾ in view
   const header = (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 8px', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>NZ Grid Generation</span>
-        <button
-          onClick={() => setPickerOpen(true)}
-          style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
-        >
-          ▾
-        </button>
-      </div>
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>NZ Grid Generation</span>
       <button
-        onClick={() => onPipelineOpenChange(true)}
-        className="button-secondary"
-        style={{ padding: 'var(--space-xs) var(--space-md)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}
+        onClick={() => setPickerOpen(true)}
+        style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
       >
-        Generation Pipeline ↗
+        ▾
       </button>
     </div>
   )
 
   return (
-    <Panel {...panel} visible={visible} header={header}>
+    <Panel {...panel} visible={visible} header={header} actions={[{ label: 'Generation Pipeline ↗', onClick: () => onPipelineOpenChange(true) }]}>
       <Suspense fallback={null}>
         {pickerOpen && (
           <NodePickerModal

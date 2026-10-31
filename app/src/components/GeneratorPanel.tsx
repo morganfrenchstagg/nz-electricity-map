@@ -20,7 +20,7 @@ import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { offersIsoDate, useOffers, useOffersDispatch, tradingPeriodLabel } from '../hooks/useOffers'
 import type { ViewMode } from '../hooks/useUrlState'
-import Panel, { PanelToolbar } from './Panel'
+import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { DatePicker } from './DatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
@@ -57,6 +57,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
+  // A narrow panel's header menu has Clear, rather than the title
+  const headerMenu = hasHeaderMenu(panel)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
   // The period is read as the adapter's made, so live views' capacity keeps up with the outages polled
@@ -305,16 +307,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   const header = (
     <>
-      <NodeTitle node={node} title={adapter.title} compact={compactHeader} onNodeChange={onNodeChange} onClear={onClear}>
-        <span>{adapter.subtitle}</span>
-        {adapter.subtitleFuels.map((f) => (
-          <span key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <span style={{ marginRight: 3 }}>|</span>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.colour, flexShrink: 0 }} />
-            <span>{f.label}</span>
-          </span>
-        ))}
-      </NodeTitle>
+      <NodeTitle node={node} title={adapter.title} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle={adapter.subtitle} fuels={adapter.subtitleFuels} />
       {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
       {!compactHeader && isAggregate && totalGenerationMWh !== null && (
         <div style={{ alignSelf: 'center', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -394,7 +387,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   )
 
   return (
-    <Panel {...panel} header={header} headerRef={headerRef}>
+    <Panel {...panel} header={header} headerRef={headerRef} actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}>
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <ToggleGroup compact={compactToolbar} ariaLabel="View" options={[
           { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => handleViewModeChange('generation') },
