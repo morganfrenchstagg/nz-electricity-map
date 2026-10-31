@@ -9,17 +9,20 @@ export const NINETY_DAY_RANGE_WEEKS = 13
 export const WEEKLY_RANGE_WEEKS = 52
 export const MONTHLY_RANGE_MONTHS = 60
 // Metered generation reaches back to 1 August 1997, but it's less complete
-// before 2009, so for now nothing earlier is shown: not in the date pickers,
-// links or aggregate views. 1 January 2009 also starts the first complete
-// month, quarter and year.
+// before 2009, so for now the date pickers and links stop there. The All view
+// charts every total the aggregates API has, from AGGREGATES_FIRST_DAY.
 export const FIRST_DAY = '2009-01-01'
+// The first day the aggregates API has totals for. It starts a month, so All's
+// months start here, but its quarter and year would only be partly covered,
+// so All's quarters and years start with the first complete ones.
+const AGGREGATES_FIRST_DAY = '1997-08-01'
+const FIRST_COMPLETE_QUARTER = '1997-10-01'
+const FIRST_COMPLETE_YEAR = '1998-01-01'
 // Substations' bus loads only start on 11 September 2020 (the generators at
 // them go back further), so their date pickers stop there and they have no All
 // view (see SubstationPanel). If bus loads are backfilled to FIRST_DAY, drop
 // this and give substations All again.
 export const SUBSTATION_FIRST_DAY = '2020-09-11'
-const FIRST_COMPLETE_QUARTER = FIRST_DAY
-const FIRST_COMPLETE_YEAR = FIRST_DAY
 const DAY_MS = 86400000
 
 export type AggregatePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual'
@@ -93,17 +96,17 @@ export function quarterStart(date: string): string {
 // Every NZ month of data, ending with this one. Monthly rows are keyed by the
 // 1st of each month.
 function allMonthsWindow(): { from: string; to: string } {
-  return { from: FIRST_DAY, to: monthsAgo(0) }
+  return { from: AGGREGATES_FIRST_DAY, to: monthsAgo(0) }
 }
 
-// Every NZ calendar quarter of data, ending with this one. Quarterly rows are
-// keyed by each quarter's first day (see sumQuarters).
+// Every complete NZ calendar quarter of data, ending with this one. Quarterly
+// rows are keyed by each quarter's first day (see sumQuarters).
 function quarterWindow(): { from: string; to: string } {
   return { from: FIRST_COMPLETE_QUARTER, to: quarterStart(monthsAgo(0)) }
 }
 
-// Every NZ year of data, ending with this one. Annual rows are keyed by 1
-// January of each year.
+// Every complete NZ year of data, ending with this one. Annual rows are keyed
+// by 1 January of each year.
 function yearWindow(): { from: string; to: string } {
   return { from: FIRST_COMPLETE_YEAR, to: `${todayNZ().slice(0, 4)}-01-01` }
 }

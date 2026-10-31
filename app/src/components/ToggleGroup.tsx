@@ -59,7 +59,7 @@ const PERIODS: { kind: Period; label: string; menuLabel?: string; title?: string
   { kind: 'last90', label: '90d', menuLabel: '90 days', title: 'Last 13 weeks' },
   { kind: 'lastYear', label: '1y', menuLabel: '1 year', title: 'Last 52 weeks' },
   { kind: '5y', label: '5y', menuLabel: '5 years', title: 'Last 60 months' },
-  { kind: 'all', label: 'All', menuLabel: 'All time', title: 'Everything since 2009' },
+  { kind: 'all', label: 'All', menuLabel: 'All time', title: 'Everything since data begins in August 1997' },
 ]
 
 interface PeriodToggleProps {
@@ -111,9 +111,9 @@ const FIVE_YEAR_AGGREGATIONS: Aggregation<FiveYearAggregation>[] = [
 ]
 
 const ALL_AGGREGATIONS: Aggregation<AllAggregation>[] = [
-  { kind: 'monthly', label: 'Monthly', title: 'Every month since 2009' },
-  { kind: 'quarterly', label: 'Quarterly', title: 'Every complete calendar quarter since 2009' },
-  { kind: 'annual', label: 'Yearly', title: 'Every complete year since 2009' },
+  { kind: 'monthly', label: 'Monthly', title: 'Every month since August 1997' },
+  { kind: 'quarterly', label: 'Quarterly', title: 'Every calendar quarter since October 1997' },
+  { kind: 'annual', label: 'Yearly', title: 'Every year since 1998' },
 ]
 
 // A view's choice of totals as toggle options
