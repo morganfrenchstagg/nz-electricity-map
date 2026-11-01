@@ -1,10 +1,12 @@
 import { ucUnitsForSite } from '../utils/geo'
 import type { UnderConstructionUnit } from '../utils/geo'
-import { fuelColour, fuelFamilies, statusColour, voltageColour } from '../utils/colours'
+import { fuelCodeColour, fuelColour, fuelFamilies, statusColour, voltageColour, HVDC_IMPORT_CODE } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
 import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
+import { hvdcDirection, HVDC_CAPACITY_MW } from '../utils/hvdc'
+import type { HvdcTransfer } from '../utils/hvdc'
 import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, UnderConstructionNode, Unit } from '../types'
@@ -40,17 +42,28 @@ function dotHtml(colour: string): string {
   return `<span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>`
 }
 
-// A unit's 3px bar: its generation from the start, and any outage at the far end.
+// A 3px bar filled `fillPct` of the way in `colour`, with `stripesPct` of outage
+// stripes at the far end. `reversed` runs it right to left, for the left half of
+// a bar out from zero in the middle (see ZERO_TICK).
+function barHtml(fillPct: number, colour: string, reversed = false, stripesPct = 0): string {
+  return `<div style="flex:1;display:flex;${reversed ? 'flex-direction:row-reverse;' : ''}justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;overflow:hidden">
+    <div style="width:${fillPct}%;background:${colour};border-radius:2px"></div>
+    ${stripesPct > 0 ? `<div style="width:${stripesPct}%;background:${OUTAGE_STRIPES}"></div>` : ''}
+  </div>`
+}
+
+// Marks zero between the two halves of a bar out from the middle
+const ZERO_TICK = '<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>'
+
+// A unit's bar: its generation from the start, and any outage at the far end.
 // An outage leaves what's left of installed capacity (see unitCapacityAt), so the
 // bar is then scaled to installed capacity to fit the outage in beside generation.
-// `reversed` runs it right to left, for a battery's charging half.
+// `reversed` is for a battery's charging half.
 function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): string {
   const scale = Math.abs(u.outageMW > 0 ? installedCapacityOf(u) : u.available)
   const fillPct = genMW !== null && scale !== 0 ? Math.min(100, (Math.abs(genMW) / scale) * 100) : 0
-  return `<div style="flex:1;display:flex;${reversed ? 'flex-direction:row-reverse;' : ''}justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;overflow:hidden">
-    <div style="width:${fillPct}%;background:${fuelColour(u.fuel)};border-radius:2px"></div>
-    ${u.outageMW > 0 ? `<div style="width:${Math.min(100 - fillPct, (u.outageMW / scale) * 100)}%;background:${OUTAGE_STRIPES}"></div>` : ''}
-  </div>`
+  const stripesPct = u.outageMW > 0 ? Math.min(100 - fillPct, (u.outageMW / scale) * 100) : 0
+  return barHtml(fillPct, fuelColour(u.fuel), reversed, stripesPct)
 }
 
 // `period` is what the map shows (see periodOf): its units, and their outages at its end.
@@ -113,7 +126,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
         <span style="color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};white-space:nowrap;font-weight:${isGenerating ? '600' : '400'}">${genStr}${capStr ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${genMW !== null ? ` (${pct}%)` : ''}</span>` : ''}</span>
       </div>
       <div style="display:flex;align-items:center;margin-top:3px;margin-left:${fuelInHeading ? 0 : 14}px">
-        ${charging ? `${unitBarHtml(charging, chargeMW, true)}<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>` : ''}
+        ${charging ? `${unitBarHtml(charging, chargeMW, true)}${ZERO_TICK}` : ''}
         ${unitBarHtml(u, dischargeMW)}
       </div>
     </div>`
@@ -167,6 +180,55 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
     <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">${unitRows}</div>
     ${totalRow}
     ${ucSection}
+  </div>`
+}
+
+// The HVDC's flow, shown as generatorPopupHtml shows a battery: one bar out from
+// zero in the middle, flowing south to the left and north to the right, as the
+// North Island is to the right of Cook Strait. `transfer` is into the North Island
+// (see latestHvdcNorth), and each way is measured against its limit then. A limit
+// under that way's capacity (HVDC_CAPACITY_MW) is shown as a generator's outage is:
+// the capacity struck out for the limit, and the rest of that half striped.
+export function hvdcPopupHtml(transfer: HvdcTransfer): string {
+  const { inLimit: northLimit, outLimit: southLimit } = transfer
+  // em6's half hours are interpolated between (see hvdcInto), so it's to the MW
+  const flowMW = Math.round(Math.abs(transfer.mw))
+  const direction = hvdcDirection(transfer)
+  const ways = {
+    north: { limit: northLimit, capacity: Math.max(HVDC_CAPACITY_MW.north, northLimit) },
+    south: { limit: southLimit, capacity: Math.max(HVDC_CAPACITY_MW.south, southLimit) },
+  }
+  const colour = fuelCodeColour(HVDC_IMPORT_CODE)
+  // As unitBarHtml's, scaled to the capacity to fit the cut to it in beside the flow
+  const halfHtml = (way: 'north' | 'south') => {
+    const { limit, capacity } = ways[way]
+    const fillPct = way === direction ? Math.min(100, (flowMW / capacity) * 100) : 0
+    return barHtml(fillPct, colour, way === 'south', Math.min(100 - fillPct, ((capacity - limit) / capacity) * 100))
+  }
+  const way = direction && ways[direction]
+  const capStr = !way ? ''
+    : way.limit < way.capacity ? `<s style="color:var(--color-text-faint)">${formatMW(way.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(way.limit)}</span>`
+      : formatMW(way.limit)
+  const pctStr = way && way.limit > 0 ? ` (${Math.round(Math.min(100, (flowMW / way.limit) * 100))}%)` : ''
+  const limitStr = way ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${pctStr}</span>` : ''
+  const isFlowing = direction !== null
+  const textColour = isFlowing ? 'var(--color-text-strong)' : 'var(--color-text-faint)'
+  return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
+    <div style="margin-bottom:6px">
+      <div style="font-weight:600">HVDC Inter-Island Link</div>
+      <div style="color:var(--color-text-muted)">Benmore to Haywards</div>
+    </div>
+    <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">
+      <div style="display:flex;justify-content:flex-end">
+        <span style="color:${textColour};white-space:nowrap;font-weight:${isFlowing ? '600' : '400'}">${formatMW(flowMW)}${limitStr}</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-top:3px">
+        ${halfHtml('south')}${ZERO_TICK}${halfHtml('north')}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:1px;font-size:var(--font-size-2xs);color:var(--color-text-muted)">
+        <span>South</span><span>North</span>
+      </div>
+    </div>
   </div>`
 }
 
