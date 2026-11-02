@@ -1,5 +1,5 @@
 import type { Generator, HvdcData, RecentData, Substation } from './types'
-import { nzLocalMs, nzNowMs } from './utils/time'
+import { nzLocalMs, nzNowMs, todayNZ } from './utils/time'
 import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 
 // Every API request belongs here. Freshness follows each response's max-age, so
@@ -13,6 +13,9 @@ const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-sola
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000
+const DAY_MS = 24 * 60 * MINUTE_MS
+// How long the solar API allows its production job to store a run (see solarHasDay)
+const SOLAR_RUN_MS = 2 * MINUTE_MS
 
 export interface DefinitionsResponse {
   generators: Generator[]
@@ -175,19 +178,85 @@ export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
 }
 
+// How far the solar API's estimates reach: every day from estimatedFrom to
+// estimatedTo has been estimated and added into its energy totals. Null before
+// any have.
+interface SolarCoverage {
+  estimatedFrom: string | null
+  estimatedTo: string | null
+}
+
+// The solar API 404s for a day or period it has no estimate for, so each is
+// checked against its coverage rather than asked for. Its max-age runs to the
+// API's next aggregate run, which moves estimatedTo on.
+function fetchSolarCoverage(): Promise<SolarCoverage> {
+  return cachedJson('solar-energy', {
+    load: async () => {
+      const { value, maxAgeMs } = await getJson<{ result: SolarCoverage }>('solar-energy', undefined, SOLAR_API_BASE)
+      return { value: value.result, maxAgeMs }
+    },
+  })
+}
+
+// Whether the solar API has an estimate for a "YYYY-MM-DD" NZ date. Its
+// production job stores today's every 10 minutes from midnight, so it's there
+// once the day's first run has had the time the API allows it, and none for
+// days to come. Past days are there back to the first it's estimated. If its
+// coverage can't be had, a past day is asked for anyway.
+async function solarHasDay(date: string): Promise<boolean> {
+  const today = todayNZ()
+  if (date >= today) return date === today && nzNowMs() >= nzLocalMs(`${today}T00:00:00`) + SOLAR_RUN_MS
+  const coverage = await fetchSolarCoverage().catch(() => null)
+  return !coverage || (coverage.estimatedFrom !== null && date >= coverage.estimatedFrom)
+}
+
+// Whether the solar API has energy totals for any of the days in an aggregates
+// path's file (see aggregatePathDays). If its coverage can't be had, it's asked for anyway.
+async function solarHasTotals(path: string): Promise<boolean> {
+  const coverage = await fetchSolarCoverage().catch(() => null)
+  if (!coverage) return true
+  const { estimatedFrom, estimatedTo } = coverage
+  if (estimatedFrom === null || estimatedTo === null) return false
+  const [from, until] = aggregatePathDays(path)
+  return from <= estimatedTo && until > estimatedFrom
+}
+
+function isoDate(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
+// The Monday an ISO week-numbering year starts on: that of its week with 4 January in it
+function isoYearStart(year: number): string {
+  const jan4 = Date.UTC(year, 0, 4)
+  return isoDate(jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY_MS)
+}
+
+// The NZ dates an aggregates path's file covers, from its first to the day
+// after its last: a month's ("2026/09"), an ISO week-numbering year's weeks
+// ("2026/weekly"), a year's months ("2026/monthly"), or every year ("annual")
+function aggregatePathDays(path: string): [string, string] {
+  const [year, period] = path.split('/')
+  if (!period) return ['0000-01-01', '9999-12-31']
+  if (period === 'weekly') return [isoYearStart(Number(year)), isoYearStart(Number(year) + 1)]
+  if (period === 'monthly') return [`${year}-01-01`, `${Number(year) + 1}-01-01`]
+  return [`${year}-${period}-01`, isoDate(Date.UTC(Number(year), Number(period), 1))]
+}
+
 // The solar API's max-age runs to its next update: a minute or so for today
 // and yesterday, which it estimates every 10 minutes, and hours for days and
-// periods it's done with. A 404 is no-store, so a day it hasn't estimated yet
-// is asked for again.
+// periods it's done with
 function solarProductionPath(date: string): string {
   return `solar-production/${date}`
 }
 
-// `date` is a "YYYY-MM-DD" date. Null for a day the API has no estimate for.
+// `date` is a "YYYY-MM-DD" date. Null for a day the API has no estimate for,
+// which isn't asked for if its coverage says so. That's checked again on the
+// next call, against the coverage held until it expires.
 export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
   const path = solarProductionPath(date)
   return cachedJson(path, {
     load: async () => {
+      if (!(await solarHasDay(date))) return { value: null, maxAgeMs: 0 }
       const { value, maxAgeMs } = await getJson<{ result: SolarProduction } | null>(path, null, SOLAR_API_BASE)
       return { value: value?.result ?? null, maxAgeMs }
     },
@@ -209,11 +278,13 @@ function solarEnergyPath(path: string): string {
 }
 
 // `path` is an aggregates path (see fetchAggregates). Null for one the API has
-// nothing for yet, e.g. a year before its backfill reaches.
+// nothing for yet, e.g. a year before its backfill reaches, which isn't asked
+// for if its coverage says so (as with fetchSolarProduction).
 export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
   const solarPath = solarEnergyPath(path)
   return cachedJson(solarPath, {
     load: async () => {
+      if (!(await solarHasTotals(path))) return { value: null, maxAgeMs: 0 }
       const { value, maxAgeMs } = await getJson<{ result: SolarEnergy } | null>(solarPath, null, SOLAR_API_BASE)
       return { value: value?.result ?? null, maxAgeMs }
     },

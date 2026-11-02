@@ -84,18 +84,74 @@ describe('fetchDispatch("recent")', () => {
   })
 })
 
-describe('fetchSolarEnergy', () => {
-  it('fetches the solar API’s file for the same periods as an aggregates path', async () => {
-    const paths = ['2026/09', '2026/weekly', '2026/monthly', 'annual']
-    for (const _ of paths) responses.push({ result: { series: [], data: [] } } as unknown as RecentData)
+// Serves the solar API's files by path, as their results, and 404s any other
+function stubSolarApi(files: Record<string, unknown>) {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    requested.push(new URL(url))
+    const path = new URL(url).pathname.slice(1)
+    return path in files
+      ? Response.json({ result: files[path] }, { headers: { 'Cache-Control': 'max-age=30' } })
+      : new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  }))
+}
 
-    for (const path of paths) await api.fetchSolarEnergy(path)
+const solarPaths = () => requested.map((url) => url.pathname)
+
+// Estimated up to yesterday, as at 10:10pm on 14 October
+const coverage = { estimatedFrom: '2015-07-03', estimatedTo: '2026-10-13' }
+
+describe('fetchSolarEnergy', () => {
+  const energy = { series: [], data: [] }
+
+  it('fetches the solar API’s file for the same periods as an aggregates path', async () => {
+    stubSolarApi({ 'solar-energy': coverage, 'solar-energy/daily/2026-09': energy, 'solar-energy/weekly/2026': energy, 'solar-energy/monthly/2026': energy, 'solar-energy/annual': energy })
+
+    for (const path of ['2026/09', '2026/weekly', '2026/monthly', 'annual']) expect(await api.fetchSolarEnergy(path)).toEqual(energy)
     expect(requested.map((url) => `${url.origin}${url.pathname}`)).toEqual([
+      'https://api-solar.electricitymap.frenchsta.gg/solar-energy',
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy/daily/2026-09',
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy/weekly/2026',
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy/monthly/2026',
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy/annual',
     ])
+  })
+
+  it('doesn’t ask for a file without any of the days the API has estimated', async () => {
+    stubSolarApi({ 'solar-energy': coverage })
+
+    for (const path of ['2014/monthly', '2015/06', '2026/11', '2027/weekly', '2027/monthly']) expect(await api.fetchSolarEnergy(path)).toBeNull()
+    for (const path of ['2015/monthly', '2015/07', '2026/10', '2015/weekly']) await api.fetchSolarEnergy(path)
+    expect(solarPaths()).toEqual([
+      '/solar-energy',
+      '/solar-energy/monthly/2015',
+      '/solar-energy/daily/2015-07',
+      '/solar-energy/daily/2026-10',
+      '/solar-energy/weekly/2015',
+    ])
+  })
+
+  it('asks for an ISO year’s weeks from the Monday it starts on', async () => {
+    // 2026's first week starts on Monday 29 December 2025
+    stubSolarApi({ 'solar-energy': { ...coverage, estimatedTo: '2025-12-28' } })
+    await api.fetchSolarEnergy('2026/weekly')
+    expect(solarPaths()).toEqual(['/solar-energy'])
+
+    vi.advanceTimersByTime(31 * 1000)
+    stubSolarApi({ 'solar-energy': { ...coverage, estimatedTo: '2025-12-29' } })
+    await api.fetchSolarEnergy('2026/weekly')
+    expect(solarPaths()).toEqual(['/solar-energy', '/solar-energy', '/solar-energy/weekly/2026'])
+  })
+
+  it('doesn’t ask for anything before the API has estimated a day', async () => {
+    stubSolarApi({ 'solar-energy': { estimatedFrom: null, estimatedTo: null } })
+    expect(await api.fetchSolarEnergy('annual')).toBeNull()
+    expect(solarPaths()).toEqual(['/solar-energy'])
+  })
+
+  it('asks anyway when it can’t tell what the API has', async () => {
+    stubSolarApi({})
+    expect(await api.fetchSolarEnergy('2014/monthly')).toBeNull()
+    expect(solarPaths()).toEqual(['/solar-energy', '/solar-energy/monthly/2014'])
   })
 })
 
@@ -115,13 +171,35 @@ describe('fetchSolarProduction', () => {
     expect(requested).toHaveLength(2)
   })
 
+  it('asks for a past day the API has estimated back to', async () => {
+    stubSolarApi({ 'solar-energy': coverage, 'solar-production/2015-07-03': estimate })
+    expect(await api.fetchSolarProduction('2015-07-03')).toEqual(estimate)
+    expect(solarPaths()).toEqual(['/solar-energy', '/solar-production/2015-07-03'])
+  })
+
   it('asks again for a day it had no estimate for, as the 404 isn’t to be kept', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      requested.push(new URL(url))
-      return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
-    }))
-    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
-    expect(await api.fetchSolarProduction('2026-10-22')).toBeNull()
-    expect(requested).toHaveLength(2)
+    stubSolarApi({ 'solar-energy': coverage })
+    expect(await api.fetchSolarProduction('2026-10-10')).toBeNull()
+    expect(await api.fetchSolarProduction('2026-10-10')).toBeNull()
+    expect(solarPaths()).toEqual(['/solar-energy', '/solar-production/2026-10-10', '/solar-production/2026-10-10'])
+  })
+
+  it('doesn’t ask for a day before the first estimated, or days to come, and keeps them as having none', async () => {
+    stubSolarApi({ 'solar-energy': coverage })
+    expect(await api.fetchSolarProduction('2015-07-02')).toBeNull()
+    expect(await api.fetchSolarProduction('2026-10-15')).toBeNull()
+    expect(solarPaths()).toEqual(['/solar-energy'])
+    expect(api.peekSolarProduction('2015-07-02')).toBeNull()
+  })
+
+  it('doesn’t ask for today until the production job’s first run of the day has had its 2 minutes', async () => {
+    vi.setSystemTime('2026-10-14T11:01:00Z') // 12:01am NZDT on the 15th
+    stubSolarApi({ 'solar-production/2026-10-15': estimate })
+    expect(await api.fetchSolarProduction('2026-10-15')).toBeNull()
+    expect(requested).toHaveLength(0)
+
+    vi.setSystemTime('2026-10-14T11:02:00Z')
+    expect(await api.fetchSolarProduction('2026-10-15')).toEqual(estimate)
+    expect(solarPaths()).toEqual(['/solar-production/2026-10-15'])
   })
 })
