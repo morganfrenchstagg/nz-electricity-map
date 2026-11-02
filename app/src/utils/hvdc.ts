@@ -26,7 +26,8 @@ export const HVDC_CAPACITY_MW = { north: 1200, south: 850 }
 
 // em6 publishes the HVDC's flows an hour or so behind the dispatch, so its last
 // half hour is held for the intervals since, rather than leaving the newest
-// without it. Not for longer than this, in case em6 stops publishing.
+// without it. Not for longer than this, in case em6 stops publishing. Nor is the
+// flow interpolated across a longer gap, e.g. days neither EMI nor em6 has.
 const HOLD_MS = 2 * 60 * 60 * 1000
 
 // The HVDC's transfer into an island at a time
@@ -38,17 +39,18 @@ export interface HvdcTransfer {
   outLimit: number
 }
 
-// One of em6's half hours, at its NZ time in ms (see nzLocalMs)
+// One of the HVDC's half hours, at its NZ time in ms (see nzLocalMs)
 export interface HvdcPoint {
   ms: number
   // MW flowing north, negative where it flows south
   north: number
-  // As em6 gives them, the south limit negative
+  // As em6 gives them, the south limit negative. Null where em6 has none, e.g.
+  // before October 2026.
   northLimit: number | null
   southLimit: number | null
 }
 
-// em6's half hours that have a flow. Its south flow is taken as MW flowing south
+// The half hours that have a flow. The south flow is taken as MW flowing south
 // whatever its sign, as em6 gives the south limit as negative. A series missing
 // from `series` reads as null.
 export function hvdcPoints(hvdc: HvdcData): HvdcPoint[] {
@@ -69,9 +71,9 @@ export function hvdcPoints(hvdc: HvdcData): HvdcPoint[] {
 }
 
 // The HVDC's transfer into `island` at each of `times` (dispatch timestamps, in
-// order). em6 only has each half hour, so the flow is interpolated between them,
-// and the limits are the half hour before's. Null before em6's first half hour,
-// or too long after its last (see HOLD_MS).
+// order). Its flows are by the half hour, so the flow is interpolated between
+// them, and the limits are the half hour before's. Null before the first half
+// hour, or too long after one with none after it (see HOLD_MS).
 export function hvdcInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times: string[]): (HvdcTransfer | null)[] {
   const points = hvdc ? hvdcPoints(hvdc) : []
   let j = 0
@@ -79,8 +81,10 @@ export function hvdcInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times:
     const ms = nzLocalMs(time)
     while (j + 1 < points.length && points[j + 1].ms <= ms) j++
     const a = points[j]
-    const b = points[j + 1]
-    if (!a || ms < a.ms || (!b && ms - a.ms > HOLD_MS)) return null
+    if (!a || ms < a.ms) return null
+    const next = points[j + 1]
+    const b = next && next.ms - a.ms <= HOLD_MS ? next : undefined
+    if (!b && ms - a.ms > HOLD_MS) return null
     const north = b ? a.north + ((b.north - a.north) * (ms - a.ms)) / (b.ms - a.ms) : a.north
     const northLimit = a.northLimit ?? 0
     const southLimit = Math.abs(a.southLimit ?? 0)
@@ -90,8 +94,50 @@ export function hvdcInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times:
   })
 }
 
+// The MWh the HVDC sent each way in one of an aggregate view's periods, at the
+// period's start in ms (see nzLocalMs)
+export interface HvdcEnergy {
+  ms: number
+  north: number
+  south: number
+}
+
+// An aggregate view's periods (see HvdcData). A series missing from `series` reads as 0.
+export function hvdcEnergies(hvdc: HvdcData): HvdcEnergy[] {
+  const col = (name: string) => hvdc.series.indexOf(name) + 1
+  const [north, south] = [col('northFlow'), col('southFlow')]
+  const num = (value: string | number | null | undefined) => (typeof value === 'number' ? value : 0)
+  return hvdc.data.map((row) => ({ ms: nzLocalMs(row[0] as string), north: num(row[north]), south: Math.abs(num(row[south])) }))
+}
+
+// The MWh the HVDC brought into `island`, and took out of it, in each of an
+// aggregate view's periods, by their rows' timestamps. Over a period it can have
+// flowed both ways. Null for a period without a total.
+export function hvdcEnergyInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times: string[]): ({ in: number; out: number } | null)[] {
+  const byMs = new Map((hvdc ? hvdcEnergies(hvdc) : []).map((energy) => [energy.ms, energy]))
+  return times.map((time) => {
+    const energy = byMs.get(nzLocalMs(time))
+    if (!energy) return null
+    return island === 'NI' ? { in: energy.north, out: energy.south } : { in: energy.south, out: energy.north }
+  })
+}
+
+// Several days' HVDC as one, e.g. a range's, in time order. Each day's series
+// are lined up by name, with null where a day lacks one (one with no HVDC has none).
+export function mergeHvdc(days: (HvdcData | undefined)[]): HvdcData | undefined {
+  const present = days.filter((day): day is HvdcData => day !== undefined && day.data.length > 0)
+  if (present.length <= 1) return present[0]
+  const series = [...new Set(present.flatMap((day) => day.series))]
+  const data = present.flatMap((day) => {
+    const columns = series.map((name) => day.series.indexOf(name) + 1)
+    return day.data.map((row) => [row[0], ...columns.map((c) => (c > 0 ? row[c] ?? null : null))])
+  })
+  // Timestamps are all NZ times in the same format, so they sort as strings
+  return { series, data: data.sort((a, b) => (a[0] as string).localeCompare(b[0] as string)) }
+}
+
 // The HVDC's transfer north (into the North Island) at the newest of `data`'s
-// intervals, which is what the map shows. Null where em6 has none for it.
+// intervals, which is what the map shows. Null where there's none for it.
 export function latestHvdcNorth(data: RecentData | null): HvdcTransfer | null {
   const newest = data?.data[data.data.length - 1]?.[0]
   return newest === undefined ? null : hvdcInto('NI', data?.hvdc, [newest as string])[0]

@@ -164,6 +164,13 @@ describe('mergeData', () => {
     expect(merged.pricing.map(row => row[0])).toEqual(['2026-10-12T23:55:00', '2026-10-13T00:00:00'])
   })
 
+  it("joins the days' HVDC", () => {
+    const hvdc = (time: string) => ({ series: ['northFlow', 'southFlow'], data: [[time, 400, 0]] })
+    const merged = mergeData([{ ...day1, hvdc: hvdc('2026-10-12T23:30:00') }, { ...day2, hvdc: hvdc('2026-10-13T00:00:00') }])
+    expect(merged.hvdc?.data.map(row => row[0])).toEqual(['2026-10-12T23:30:00', '2026-10-13T00:00:00'])
+    expect(mergeData([day1, day2]).hvdc).toBeUndefined()
+  })
+
   it('merges days without pricing, such as aggregates', () => {
     const merged = mergeData([{ ...day1, pricing: [] }, { ...day2, pricing: [] }])
     expect(merged.data).toHaveLength(2)

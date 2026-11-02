@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HvdcData } from '../types'
-import { HVDC_CABLE_ANGLE, hvdcDirection, hvdcInto, latestHvdcNorth } from './hvdc'
+import { HVDC_CABLE_ANGLE, hvdcDirection, hvdcEnergyInto, hvdcInto, latestHvdcNorth, mergeHvdc } from './hvdc'
 
 const series = ['northFlow', 'southFlow', 'northLimit', 'southLimit']
 
@@ -50,6 +50,23 @@ describe('hvdcInto', () => {
     expect(hvdcInto('SI', hvdc, times).map(t => t?.mw)).toEqual([300, 300, undefined])
   })
 
+  it("holds rather than interpolates across a gap of more than 2 hours, e.g. days there's no HVDC for", () => {
+    const gappy = {
+      series,
+      data: [
+        ['2026-09-30T23:30:00', 600, 0, null, null],
+        ['2026-10-30T14:00:00', 400, 0, 1200, -650],
+      ],
+    }
+    const times = ['2026-09-30T23:55:00', '2026-10-01T01:30:00', '2026-10-01T01:35:00', '2026-10-30T13:55:00', '2026-10-30T14:00:00']
+    expect(hvdcInto('NI', gappy, times).map(t => t?.mw)).toEqual([600, 600, undefined, undefined, 400])
+  })
+
+  it('has no limits where em6 has none, as before October 2026', () => {
+    const metered = { series, data: [['2025-06-15T00:00:00', 0, 250, null, null]] }
+    expect(hvdcInto('SI', metered, ['2025-06-15T00:00:00'])).toEqual([{ mw: 250, inLimit: 0, outLimit: 0 }])
+  })
+
   it('skips half hours em6 has no flows for', () => {
     const gappy = {
       series,
@@ -69,6 +86,55 @@ describe('hvdcInto', () => {
   it('has nothing without the HVDC', () => {
     expect(hvdcInto('NI', undefined, ['2026-10-28T20:00:00'])).toEqual([null])
     expect(hvdcInto('NI', { series: [], data: [] }, ['2026-10-28T20:00:00'])).toEqual([null])
+  })
+})
+
+describe('hvdcEnergyInto', () => {
+  // An aggregate view's periods, with the MWh sent each way
+  const totals: HvdcData = {
+    series: ['northFlow', 'southFlow'],
+    data: [
+      ['2025-01-01T00:00:00', 266864, 7750],
+      ['2025-02-01T00:00:00', 79686, 48194],
+    ],
+  }
+
+  it("brings what was sent north into the North Island, and takes what was sent south out of it, as it's flowed both ways", () => {
+    expect(hvdcEnergyInto('NI', totals, ['2025-01-01T00:00:00', '2025-02-01T00:00:00'])).toEqual([
+      { in: 266864, out: 7750 },
+      { in: 79686, out: 48194 },
+    ])
+  })
+
+  it('brings what was sent south into the South Island, and takes what was sent north out of it', () => {
+    expect(hvdcEnergyInto('SI', totals, ['2025-01-01T00:00:00'])).toEqual([{ in: 7750, out: 266864 }])
+  })
+
+  it('has nothing for a period without a total, or without the HVDC', () => {
+    expect(hvdcEnergyInto('NI', totals, ['2025-03-01T00:00:00'])).toEqual([null])
+    expect(hvdcEnergyInto('NI', undefined, ['2025-01-01T00:00:00'])).toEqual([null])
+  })
+})
+
+describe('mergeHvdc', () => {
+  const day1: HvdcData = { series, data: [['2026-10-30T23:30:00', 385, 0, 1200, -650]] }
+  const day2: HvdcData = { series, data: [['2026-10-31T00:00:00', 400, 0, 1200, -650]] }
+
+  it("joins the days' half hours, in time order", () => {
+    expect(mergeHvdc([day2, day1])).toEqual({ series, data: [...day1.data, ...day2.data] })
+  })
+
+  it("lines up each day's series by name, with null where a day lacks one", () => {
+    const metered = { series: ['northFlow', 'southFlow'], data: [['2025-06-15T00:00:00', 0, 250]] }
+    expect(mergeHvdc([metered, day1])).toEqual({
+      series: ['northFlow', 'southFlow', 'northLimit', 'southLimit'],
+      data: [['2025-06-15T00:00:00', 0, 250, null, null], ['2026-10-30T23:30:00', 385, 0, 1200, -650]],
+    })
+  })
+
+  it('leaves out days without any, giving a single day as it is', () => {
+    expect(mergeHvdc([day1, undefined, { series: [], data: [] }])).toBe(day1)
+    expect(mergeHvdc([undefined, { series: [], data: [] }])).toBeUndefined()
   })
 })
 

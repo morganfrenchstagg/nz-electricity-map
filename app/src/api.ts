@@ -1,4 +1,4 @@
-import type { Generator, RecentData, Substation } from './types'
+import type { Generator, HvdcData, RecentData, Substation } from './types'
 import { nzLocalMs, nzNowMs } from './utils/time'
 import { appendRecent, newestTimestamp } from './utils/recentDispatch'
 
@@ -64,6 +64,8 @@ export interface SolarEnergy {
 export interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
+  // The MWh the HVDC sent north and south in each period, whatever `nodes` asks for
+  hvdc?: HvdcData
 }
 
 // Loaded by maplibre as a GeoJSON source rather than fetched here

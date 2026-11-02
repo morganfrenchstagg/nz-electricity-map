@@ -208,7 +208,8 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
  * months, or annually, quarterly or monthly over everything since data begins, each
  * ending with the one so far. Rows are shaped like dispatch data, timestamped at local
  * midnight at the start of each day/week/month/quarter/year, so they can go
- * through the same chart helpers. Pass 'all' for every node, or null to skip
+ * through the same chart helpers. The HVDC's totals each way come with them as
+ * `hvdc`, timestamped the same. Pass 'all' for every node, or null to skip
  * fetching.
  */
 export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMode | null): {
@@ -233,19 +234,23 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
     setError(null)
 
     const { from, to, paths } = aggregateWindow(mode)
+    // A file's rows over the window, by quarter where they're summed from months,
+    // each timestamped at local midnight
+    const windowRows = (rows: (string | number)[][]) => (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
+      .filter(row => (row[0] as string) >= from && (row[0] as string) <= to)
+      .map(([date, ...values]) => [`${date}T00:00:00`, ...values])
     Promise.all(paths.map(p => fetchAggregates(p, nodesKey)))
       .then(responses => {
         if (cancelled) return
         const merged = mergeData(responses.map(r => ({ ...r, pricing: [] })))
-        const rows = aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(merged.data) : merged.data
         setResult({
           modeKey,
           data: {
             series: merged.series,
-            data: rows
-              .filter(row => (row[0] as string) >= from && (row[0] as string) <= to)
-              .map(([date, ...values]) => [`${date}T00:00:00`, ...values]),
+            data: windowRows(merged.data),
             pricing: [],
+            // The HVDC's totals are all numbers
+            ...(merged.hvdc && { hvdc: { series: merged.hvdc.series, data: windowRows(merged.hvdc.data as (string | number)[][]) } }),
           },
         })
         setLoading(false)

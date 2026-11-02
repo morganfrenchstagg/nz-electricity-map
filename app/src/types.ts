@@ -59,12 +59,18 @@ export interface RecentData {
   series: string[]
   data: (string | number)[][]
   pricing: (string | number | null)[][] // null where a node has no price
-  hvdc?: HvdcData // only from dispatch/recent
+  hvdc?: HvdcData
 }
 
-// em6's HVDC flows and transfer limits (MW) over the last day, a row for each
-// half hour: its NZ time, then northFlow, southFlow, northLimit and southLimit
-// (as named in `series`), or null where em6 has none. The south limit is negative.
+// The HVDC's flows and transfer limits (MW), a row for each half hour: its NZ
+// time, then northFlow, southFlow, northLimit and southLimit (as named in
+// `series`), or null where there's none. dispatch/recent has em6's last day, and
+// a past day's dispatch/:date has EMI's metered flows once EMI has published
+// them, with em6's limits, which are only kept from October 2026. em6 gives the
+// south limit as negative.
+//
+// On the aggregate views, a row for each period, timestamped as the dispatch
+// rows are, with the MWh sent northFlow and southFlow (see useAggregates).
 export interface HvdcData {
   series: string[]
   data: (string | number | null)[][]

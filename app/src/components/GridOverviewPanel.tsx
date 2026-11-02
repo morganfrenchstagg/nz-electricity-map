@@ -9,7 +9,7 @@ import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
-import { hvdcInto } from '../utils/hvdc'
+import { hvdcEnergyInto, hvdcInto } from '../utils/hvdc'
 import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, solarSoFar } from '../utils/distributedSolar'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
 import { energyUnit, formatMW, MW_UNIT, PERCENT_UNIT } from '../utils/format'
@@ -109,12 +109,17 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
-  // The HVDC's transfer into the island shown, at each of the data's rows. Only
-  // dispatch/recent has it, so not for past days or the aggregate views.
-  const hvdc = useMemo(
-    () => (island === 'all' || !data?.hvdc ? null : hvdcInto(island, data.hvdc, data.data.map(row => row[0] as string))),
-    [data, island],
-  )
+  // What the HVDC brought into the island shown, and took out of it, at each of
+  // the data's rows, with its limits each way: MW at each time, or on the
+  // aggregate views MWh over each period, in which it can have flowed both ways.
+  // The 3d view only has em6's last day of it (see HvdcData).
+  const hvdc = useMemo(() => {
+    if (island === 'all' || !data?.hvdc) return null
+    const times = data.data.map(row => row[0] as string)
+    return isAggregate
+      ? hvdcEnergyInto(island, data.hvdc, times).map(energy => energy && { ...energy, inLimit: 0, outLimit: 0 })
+      : hvdcInto(island, data.hvdc, times).map(t => t && { in: Math.max(t.mw, 0), out: Math.max(-t.mw, 0), inLimit: t.inLimit, outLimit: t.outLimit })
+  }, [data, island, isAggregate])
 
   // The estimated output of solar that isn't dispatched on the island shown,
   // charted as a fuel of its own: its MW at each of the data's times, or on
@@ -159,8 +164,8 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     }
     // Each way the HVDC flowed at some point
     const hvdcCodes = new Set<string>()
-    if (hvdc?.some(t => t && t.mw > 0)) hvdcCodes.add(HVDC_IMPORT_CODE)
-    if (hvdc?.some(t => t && t.mw < 0)) hvdcCodes.add(HVDC_EXPORT_CODE)
+    if (hvdc?.some(t => t && t.in > 0)) hvdcCodes.add(HVDC_IMPORT_CODE)
+    if (hvdc?.some(t => t && t.out > 0)) hvdcCodes.add(HVDC_EXPORT_CODE)
     const fuels = [
       ...FUEL_CODE_ORDER.filter(f => fuelToIndices.has(f) || hvdcCodes.has(f) || (f === DISTRIBUTED_SOLAR_FUEL_CODE && distributedSolar)),
       ...[...fuelToIndices.keys()].filter(f => !(FUEL_CODE_ORDER as readonly string[]).includes(f)),
@@ -213,11 +218,11 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     const solarValues = distributedSolar?.values ?? []
     const noSolarEstimateMs = new Set(data.data.filter((_, r) => solarValues[r] === null).map(row => nzLocalMs(row[0] as string)))
     const hvdcPart = (fuel: string, r: number) => {
-      const mw = hvdc?.[r]?.mw
-      return mw === undefined ? null : fuel === HVDC_IMPORT_CODE ? Math.max(mw, 0) : Math.min(mw, 0)
+      const transfer = hvdc?.[r]
+      return !transfer ? null : fuel === HVDC_IMPORT_CODE ? transfer.in : -transfer.out || 0 // 0, not -0
     }
     // A fuel's total at a row of the data. The HVDC's is what flowed in, or out
-    // (as a negative), and null where em6 has nothing.
+    // (as a negative), and null where there's none.
     const fuelTotal = (fuel: string, r: number): number | null =>
       fuel === DISTRIBUTED_SOLAR_FUEL_CODE ? solarValues[r] ?? (stacked ? 0 : null)
         : fuelToIndices.has(fuel) ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + (((data.data[r][i] as number) || 0)), 0)
