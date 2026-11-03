@@ -26,7 +26,9 @@ The generation chart adds an estimate of embedded (rooftop and other undispatche
 VITE_SOLAR_API_BASE=http://localhost:8787 npm run dev
 ```
 
-The aggregate views (90d, 1y, 5y and All) take its daily, weekly, monthly and annual totals from `/solar-energy`, with quarters summed from months. The API is still backfilling them, so a period it has only some days for is charted from those. Its totals stop at yesterday, so the period so far adds today's `/solar-production` estimate, summed over each 5-minute interval up to now, as the dispatch totals are.
+The aggregate views (90d, 1y, 5y and All) take its daily, weekly, monthly and annual totals from `/solar-energy`, with quarters summed from months. The API is still backfilling them, so a period it has only some days for is charted from those.
+
+The API 404s for a day or period it has no estimate for, so the app first checks how far its estimates reach (`/solar-energy`) and only asks for the past days and totals within that, e.g. none from before July 2015. Today's estimate is asked for without checking, from 2 minutes past midnight, once the API's first run of the day has stored it (see `solarHasDay` in `app/src/api.ts`). Its totals stop at yesterday, so the period so far adds today's `/solar-production` estimate, summed over each 5-minute interval up to now, as the dispatch totals are.
 
 A view's data waits up to 2 seconds for its estimate (`SOLAR_WAIT_MS` in `app/src/hooks/useDistributedSolar.ts`), so the estimate is charted with the rest rather than a moment after it, e.g. when the dispatch data comes from the browser's cache. Meanwhile the last chart stays up. A slower estimate is added when it comes.
 

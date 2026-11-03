@@ -68,7 +68,10 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
                 distributed generation data, and <Link href={OPEN_METEO.url}>Open-Meteo</Link>'s weather forecasts.
               </li>
               <li>Outages: Transpower's <Link href="https://customerportal.transpower.co.nz/pocp/outages">Planned Outage Coordination Process (POCP)</Link>.</li>
-              <li>HVDC flows and transfer limits: <Link href="https://www.em6.co.nz">em6</Link>.</li>
+              <li>
+                HVDC flows: EMI's <Link href="https://www.emi.ea.govt.nz/Wholesale/Datasets/Metered_data/HVDC_Flows">metered HVDC flows</Link>,
+                and <Link href="https://www.em6.co.nz">em6</Link> for the days since EMI's latest month. Transfer limits: em6.
+              </li>
               <li>Transmission lines: Transpower's <Link href="https://data-transpower.opendata.arcgis.com/">open data</Link>.</li>
               <li>
                 Base map: <Link href="https://openfreemap.org">OpenFreeMap</Link>, © <Link href="https://www.openmaptiles.org/">OpenMapTiles</Link>, data

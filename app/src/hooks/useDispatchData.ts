@@ -5,6 +5,7 @@ import { aggregateWindow } from './useAggregates'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import type { Period } from '../utils/time'
 import { pollWhileVisible } from '../utils/poll'
+import { mergeHvdc } from '../utils/hvdc'
 
 // Cheap: only reaches the network once the cached dispatch/recent expires (see api.ts)
 const POLL_MS = 15 * 1000
@@ -136,7 +137,8 @@ export function mergeData(days: RecentData[]): RecentData {
   const byTs = (a: (string | number | null)[], b: (string | number | null)[]) =>
     String(a[0]) < String(b[0]) ? -1 : 1
 
-  return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs) }
+  const hvdc = mergeHvdc(days.map(day => day.hvdc))
+  return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs), ...(hvdc && { hvdc }) }
 }
 
 export function useDispatchData(mode: DateMode): {
@@ -162,10 +164,12 @@ export function useDispatchData(mode: DateMode): {
       let merged = mergeData(days)
       if (mode.kind === 'today') {
         const today = todayNZ()
+        const isToday = (row: (string | number | null)[]) => (row[0] as string).slice(0, 10) === today
         merged = {
           ...merged,
-          data: merged.data.filter(row => (row[0] as string).slice(0, 10) === today),
-          pricing: (merged.pricing ?? []).filter(row => (row[0] as string).slice(0, 10) === today),
+          data: merged.data.filter(isToday),
+          pricing: (merged.pricing ?? []).filter(isToday),
+          ...(merged.hvdc && { hvdc: { ...merged.hvdc, data: merged.hvdc.data.filter(isToday) } }),
         }
       }
       setRecentData(merged)
