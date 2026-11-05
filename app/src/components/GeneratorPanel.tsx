@@ -11,8 +11,9 @@ import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
 import { chartReach, dataInterval, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
-import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT } from '../utils/format'
-import { nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT, PERCENT_UNIT } from '../utils/format'
+import type { ChartSettings } from '../utils/chartSettings'
+import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -22,6 +23,7 @@ import { offersIsoDate, useOffers, useOffersDispatch, tradingPeriodLabel } from 
 import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
+import ChartSettingsMenu from './ChartSettingsMenu'
 import { DatePicker } from './DatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
@@ -48,11 +50,14 @@ interface Props extends NodePanelProps {
   // The trading period the Offers view shows
   tradingPeriod: number
   onTradingPeriodChange: (period: number) => void
+  // How the Generation view's chart shows the units, shared with GridOverviewPanel's
+  chartSettings: ChartSettings
+  onChartSettingsChange: (settings: ChartSettings) => void
 }
 
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
-export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, ...panel }: Props) {
+export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, chartSettings, onChartSettingsChange, ...panel }: Props) {
   const outages = useOutages(isLiveMode(dateMode))
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
@@ -230,10 +235,18 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     buttonSelection.setActiveCodes(nothingSelected ? null : new Set())
   }
 
+  // As proportions, the units are charted as their shares of the shown units'
+  // generation, stacked up to 100%. Unlike GridOverviewPanel's fuels, a battery
+  // charging has no share rather than a negative one, as at one site it can
+  // outweigh everything generated there. Their capacity, in MW, has no place
+  // on that chart.
+  const { chartType } = chartSettings
+  const proportion = chartType === 'proportion'
+
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!chartData) return null
 
-    const capSeries = isAggregate ? null : adapter.capacitySeries(chartData.rows, capacityCodes)
+    const capSeries = isAggregate || proportion ? null : adapter.capacitySeries(chartData.rows, capacityCodes)
 
     // Step-left lookup: capacity at a given timestamp from the step-line data
     const capPoints = capSeries
@@ -251,52 +264,67 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
     const prices = pricesByTime(isAggregate ? null : recentData, chartData.codes)
 
-    // Aggregate totals are MWh, charted in GWh unless the columns stay small
-    const stacked = chartData.codes.length > 1
+    // Aggregate totals are MWh, charted in GWh unless the columns stay small.
+    // As lines, every unit is charted from zero.
+    const stacked = chartType !== 'line' && chartData.codes.length > 1
     const shownCodes = chartData.codes.filter(code => effectiveCodes.has(code))
     const unit = isAggregate
       ? energyUnit(chartReach(chartData.rows.map(row => shownCodes.map(code => row[code] as number)), stacked))
       : MW_UNIT
 
+    const shares = proportion ? chartData.rows.map((row) => {
+      const generation = (code: string) => Math.max((row[code] as number) || 0, 0)
+      const total = shownCodes.reduce((sum, code) => sum + generation(code), 0)
+      return { ...row, ...Object.fromEntries(chartData.codes.map(code => [code, total > 0 ? (generation(code) / total) * 100 : 0])) }
+    }) : null
+    // Each time's row, for the tooltip's generation where the points are shares
+    const rowByMs = new Map(chartData.rows.map((row) => [nzLocalMs(row.time), row]))
+
     return nodeChartOptions({
-      chartData,
+      chartData: shares ? { ...chartData, rows: shares } : chartData,
       aggregatePeriod,
       effectiveCodes,
-      type: 'area',
+      type: chartType === 'line' ? 'line' : 'area',
       stacking: stacked ? 'normal' : undefined,
       labelFor: adapter.labelFor,
       colourFor: adapter.colourFor,
-      transformValue: (value) => value / unit.size,
+      transformValue: proportion ? undefined : (value) => value / unit.size,
       extraSeries: capSeries ? [capSeries] : [],
       legend: adapter.showLegend,
-      yAxis: isAggregate
-        ? { title: { text: unit.label }, softMin: 0, gridLineDashStyle: 'Dash' }
-        : adapter.yAxisOptions(capacityCodes, chartData.rows),
+      yAxis: proportion
+        // The shares' floating point sums can come out a hair over 100
+        ? { title: { text: PERCENT_UNIT.label }, softMin: 0, max: 100, gridLineDashStyle: 'Dash' }
+        : isAggregate
+          ? { title: { text: unit.label }, softMin: 0, gridLineDashStyle: 'Dash' }
+          : adapter.yAxisOptions(capacityCodes, chartData.rows),
       tooltipFormatter: function () {
         const points = this.points ?? []
         const formatValue = unit.format
-        const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1 }
-        // No capacity comparison for aggregate totals
-        const cap = isAggregate ? null : capacityAt(this.x as number)
+        const row = rowByMs.get(this.x as number)
+        const valueFor = proportion ? (p: Highcharts.Point) => ((row?.[chartData.codes[p.series.index]] as number) || 0) / unit.size : undefined
+        const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1, valueFor }
+        // No capacity comparison for aggregate totals, or shares
+        const cap = isAggregate || proportion ? null : capacityAt(this.x as number)
 
         let rows = points.map((p) => tooltipRow(p, context,
-          points.length === 1 && cap !== null ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)` : '',
+          proportion ? ` (${PERCENT_UNIT.format(p.y ?? 0)})`
+            : points.length === 1 && cap !== null ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)` : '',
         )).join('')
         if (points.length > 1) {
-          const total = points.reduce((sum, p) => sum + (p.y ?? 0), 0)
+          const total = points.reduce((sum, p) => sum + (valueFor ? valueFor(p) : p.y ?? 0), 0)
           rows += tooltipTotalRow(total, formatValue, cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round(total / cap * 100) : 0}%)` : '')
         }
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${adapter.title} generation`,
-        stacked ? 'Generation from each unit, stacked' : 'Generation',
+        proportion ? "Each unit's share of the generation, stacked" : stacked ? 'Generation from each unit, stacked' : 'Generation',
         aggregatePeriod,
-        unit,
+        proportion ? PERCENT_UNIT : unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod])
+  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod, chartType, proportion])
 
   // A button per unit, when there's more than one
   const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
@@ -456,6 +484,12 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             empty={allCodes.length === 0}
           />
         )}
+        {/* At the toolbar's end, under the header's Close. The Offers chart doesn't follow the settings. */}
+        {viewMode === 'generation' && (
+          <div style={{ display: 'flex', marginLeft: 'auto' }}>
+            <ChartSettingsMenu settings={chartSettings} onChange={onChartSettingsChange} offered={['chartType']} />
+          </div>
+        )}
       </PanelToolbar>
 
       {unitButtons.length > 0 && (
@@ -481,7 +515,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           ) : null
         ) : (
           <NodeChart
-            chartKey={`${nodeKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}
+            chartKey={`${nodeKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}-${chartType}`}
             options={chartOptions}
             loading={dataLoading}
             error={dataError}

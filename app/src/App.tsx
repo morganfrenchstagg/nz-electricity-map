@@ -109,6 +109,8 @@ export default function App() {
             onViewModeChange={setViewMode}
             tradingPeriod={tradingPeriod}
             onTradingPeriodChange={setTradingPeriod}
+            chartSettings={chartSettings}
+            onChartSettingsChange={setChartSettings}
           />)}
       <GridOverviewPanel
         dateMode={dateMode}
