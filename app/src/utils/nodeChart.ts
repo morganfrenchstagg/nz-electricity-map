@@ -127,13 +127,17 @@ interface TooltipRowContext {
   formatValue: (value: number) => string
   // Name each row's series, when the tooltip lists more than one
   showName: boolean
+  // A point's value, where it isn't the y it's charted at (e.g. a unit's
+  // generation, charted as its share)
+  valueFor?: (point: Highcharts.Point) => number
 }
 
 // A point's row in a node chart's tooltip: its colour, its series' name, its
 // value (and `after` it, e.g. a generator's capacity) and its node's price
-export function tooltipRow(point: Highcharts.Point, { codes, prices, formatValue, showName }: TooltipRowContext, after = ''): string {
-  const val = formatValue(point.y ?? 0)
-  const formatted = (point.y ?? 0) === 0 ? val : `<b>${val}</b>`
+export function tooltipRow(point: Highcharts.Point, { codes, prices, formatValue, showName, valueFor }: TooltipRowContext, after = ''): string {
+  const value = valueFor ? valueFor(point) : point.y ?? 0
+  const val = formatValue(value)
+  const formatted = value === 0 ? val : `<b>${val}</b>`
   const code = codes[point.series.index]
   const price = code !== undefined && prices ? prices[code] : undefined
   const priceStr = price != null ? `$${price.toFixed(2)}/MWh` : ''
