@@ -142,14 +142,11 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     if (mode === 'generation') setTradingPeriod(1)
   }, [])
 
-  // The Offers view belongs to the generator panel, so goes when it does. And
-  // substations have no All view (see SubstationPanel), so opening one on All
-  // moves to 5y.
+  // The Offers view belongs to the generator panel, so goes when it does
   const selectNode = useCallback((node: SelectedNode) => {
     setLinkedNode(null)
     setSelectedNode(node)
     if (node === null || node.kind === 'substation' || node.kind === 'hvdc') setViewMode('generation')
-    if (node?.kind === 'substation') setDateMode(m => m.kind === 'all' ? periodMode('5y') : m)
   }, [setViewMode])
 
   useEffect(() => {
