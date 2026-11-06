@@ -1,6 +1,6 @@
 import { isAggregateMode, MAX_RANGE_DAYS } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
-import { yesterdayNZ } from '../hooks/useAggregates'
+import { FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
 import type { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { AggregationToggle, PeriodToggle } from './ToggleGroup'
 import { DateRangePicker } from './DatePickers'
@@ -15,16 +15,14 @@ interface Props {
   error: string | null
   // Nothing to chart, so the chart area shows the error instead
   empty: boolean
-  // No All view (see PeriodToggle)
-  hideAll?: boolean
 }
 
 // The period toggle with its date range picker's calendar button (and the 90d,
 // 1y, 5y and All views' totals toggle) and data status in every panel's toolbar.
 // GeneratorPanel's Offers view has its own.
-export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty, hideAll }: Props) {
+export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
   const {
-    firstDay, pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
+    pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
     handleRangeChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
   } = picker
 
@@ -32,7 +30,7 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
     <DateRangePicker
       value={pickerRange}
       onChange={handleRangeChange}
-      min={firstDay}
+      min={FIRST_DAY}
       max={yesterdayNZ()}
       maxDays={MAX_RANGE_DAYS}
       error={rangeError}
@@ -52,7 +50,6 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
         customDates={customDates}
         onCustom={handleCustomClick}
         calendar={rangePicker}
-        hideAll={hideAll}
       />
       {compact && showDateInputs && <div className="toggle-group">{rangePicker}</div>}
       {isAggregateMode(dateMode) && !customDates && (

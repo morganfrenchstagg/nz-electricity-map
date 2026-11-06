@@ -18,11 +18,6 @@ export const FIRST_DAY = '2009-01-01'
 const AGGREGATES_FIRST_DAY = '1997-08-01'
 const FIRST_COMPLETE_QUARTER = '1997-10-01'
 const FIRST_COMPLETE_YEAR = '1998-01-01'
-// Substations' bus loads only start on 11 September 2020 (the generators at
-// them go back further), so their date pickers stop there and they have no All
-// view (see SubstationPanel). If bus loads are backfilled to FIRST_DAY, drop
-// this and give substations All again.
-export const SUBSTATION_FIRST_DAY = '2020-09-11'
 const DAY_MS = 86400000
 
 export type AggregatePeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual'

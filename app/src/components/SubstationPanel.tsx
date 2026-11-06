@@ -17,7 +17,6 @@ import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { SUBSTATION_FIRST_DAY } from '../hooks/useAggregates'
 import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
@@ -150,7 +149,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     return unit ? fuelColour(unit.fuel) : busColour(code)
   }, [unitFor])
 
-  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar, SUBSTATION_FIRST_DAY)
+  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
   const hasGenerators = allCodes.some(isGeneratorCode)
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
@@ -397,12 +396,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           loading={dataLoading || waitingForSolar}
           error={dataError}
           empty={allCodes.length === 0}
-          // Substation data only starts in September 2020 (see
-          // SUBSTATION_FIRST_DAY), so All would be empty for most of its years.
-          // Opening a substation on All moves it to 5y instead (see
-          // useUrlState's selectNode). If substation data is backfilled to
-          // 2009, add All back here and drop that move.
-          hideAll
         />
       </PanelToolbar>
 

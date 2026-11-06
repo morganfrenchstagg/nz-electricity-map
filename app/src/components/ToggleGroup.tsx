@@ -72,13 +72,11 @@ interface PeriodToggleProps {
   onCustom: () => void
   // DateRangePicker's button, after All
   calendar: ReactNode
-  // Leaves out All, for nodes with no data from most of its years
-  hideAll?: boolean
 }
 
 // The Today | 3d | 90d | 1y | 5y | All toggle shared by the node panels and GridOverviewPanel.
-export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar, hideAll = false }: PeriodToggleProps) {
-  const options: ToggleOption[] = PERIODS.filter(p => !(hideAll && p.kind === 'all')).map(p => ({
+export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar }: PeriodToggleProps) {
+  const options: ToggleOption[] = PERIODS.map(p => ({
     key: p.kind,
     label: p.label,
     menuLabel: p.menuLabel,
