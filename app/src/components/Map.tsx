@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import { isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
@@ -17,6 +18,10 @@ import type { OutageData } from '../api'
 import type { InitialView } from '../utils/mapView'
 import type { Generator, GeneratorNode, Substation, SubstationNode, SelectedNode, RecentData } from '../types'
 import { substationsOf } from '../utils/substations'
+
+// maplibre's worker is a separate file. Vite bundles it (?worker&url) and maplibre is
+// told where it ended up, as it can't find it beside its own module once bundled.
+maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
