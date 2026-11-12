@@ -389,6 +389,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     mapRef.current = map
     return () => map.remove()
+    // The map is built once; initialView is only where it starts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

@@ -64,12 +64,12 @@ export default function App() {
   const { recentData, loading, error } = useDispatchData(dateMode)
 
   const handleGeneratorClick = useCallback((generator: Generator) => {
-    selectNode({ kind: 'generator', generator }),
+    selectNode({ kind: 'generator', generator })
     setGridPanelVisible(false)
   }, [selectNode])
 
   const handleSubstationClick = useCallback((substation: Substation) => {
-    selectNode({ kind: 'substation', substation }),
+    selectNode({ kind: 'substation', substation })
     setGridPanelVisible(false)
   }, [selectNode])
 

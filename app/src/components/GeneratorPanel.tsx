@@ -109,10 +109,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // Fetch the chart code alongside the offers data rather than after it arrives
   useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
-  // When the latest offers load, reflect their actual date in the date picker
-  useEffect(() => {
-    if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
-  }, [offersData, offerDate])
   const maxTradingPeriod = offersData
     ? Math.max(...Object.keys(offersData.data).map(Number))
     : 48
@@ -133,13 +129,18 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     handleFromChange, handlePeriodClick, handleCustomClick,
   } = datePicker
 
+  // When the latest offers load, reflect their actual date in the date picker
+  useEffect(() => {
+    if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
+  }, [offersData, offerDate, setFromDate])
+
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     onViewModeChange(mode)
     // A custom date asked for but not yet picked doesn't carry over to the other view
     setCustomRequested(false)
     // Nor does the latest offers' date, which Offers shows in the date input
     if (mode === 'generation' && offerDate === 'latest') setFromDate('')
-  }, [offerDate, onViewModeChange])
+  }, [offerDate, onViewModeChange, setCustomRequested, setFromDate])
 
   const nodeKey = node.kind === 'generator' ? node.generator.site : node.generators.map(g => g.site).join(',')
 
