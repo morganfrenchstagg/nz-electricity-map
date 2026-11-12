@@ -81,7 +81,10 @@ export type GeneratorNode =
   | { kind: 'generator'; generator: Generator }
   | { kind: 'generators'; generators: Generator[] }
 
-export type SubstationNode = { kind: 'substation'; substation: Substation }
+// A substation, or several picked together (see NodePickerModal)
+export type SubstationNode =
+  | { kind: 'substation'; substation: Substation }
+  | { kind: 'substations'; substations: Substation[] }
 
 // The HVDC link between the islands, picked from the map (see HvdcPanel)
 export type HvdcNode = { kind: 'hvdc' }

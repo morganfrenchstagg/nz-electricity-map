@@ -15,7 +15,8 @@ import { TRANSMISSION_LINES_URL } from '../api'
 import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
 import type { InitialView } from '../utils/mapView'
-import type { Generator, Substation, SelectedNode, RecentData } from '../types'
+import type { Generator, GeneratorNode, Substation, SubstationNode, SelectedNode, RecentData } from '../types'
+import { substationsOf } from '../utils/substations'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
@@ -65,6 +66,13 @@ const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill=
 
 // The generation pipeline is what's being built now, so past days and ranges leave it off the map
 const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
+
+// Where each of the selected generators or substations is, as [lng, lat]
+function selectionPoints(node: GeneratorNode | SubstationNode): [number, number][] {
+  if (node.kind === 'generator') return [[node.generator.location.long, node.generator.location.lat]]
+  if (node.kind === 'generators') return node.generators.map(g => [g.location.long, g.location.lat])
+  return substationsOf(node).map(s => [s.long, s.lat])
+}
 
 interface Props {
   onGeneratorClick: (generator: Generator) => void
@@ -439,11 +447,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      const points: [number, number][] =
-        selectedNode.kind === 'generator' ? [[selectedNode.generator.location.long, selectedNode.generator.location.lat]]
-          : selectedNode.kind === 'generators' ? selectedNode.generators.map(g => [g.location.long, g.location.lat])
-            : [[selectedNode.substation.long, selectedNode.substation.lat]]
-      src.setData({ type: 'FeatureCollection', features: points.map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
+      src.setData({ type: 'FeatureCollection', features: selectionPoints(selectedNode).map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
     }
     whenLoaded(map, update)
   }, [selectedNode])
@@ -457,13 +461,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     // The HVDC runs the length of the South Island, so the map stays where it was clicked
     if (selectedNode && selectedNode.kind !== 'hvdc') {
-      const [lng, lat] = selectedNode.kind === 'generator'
-        ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
-        : selectedNode.kind === 'generators'
-          ? [selectedNode.generators[0].location.long, selectedNode.generators[0].location.lat]
-          : [selectedNode.substation.long, selectedNode.substation.lat]
-
-      map.easeTo({ center: [lng, lat], padding: panelPadding, duration: isMobile ? 0 : 400 })
+      // A selection of several is centred on the first
+      map.easeTo({ center: selectionPoints(selectedNode)[0], padding: panelPadding, duration: isMobile ? 0 : 400 })
     } else {
       map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }
