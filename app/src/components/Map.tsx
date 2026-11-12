@@ -317,6 +317,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
           'circle-stroke-color': SELECTED_COLOUR,
         },
       })
+
+      // Place names (towns, cities, regions, the country) above everything added here, so
+      // the generators and substations don't hide them. Other basemap labels, like roads
+      // and points of interest, stay beneath.
+      for (const layer of map.getStyle().layers) {
+        if (layer.type === 'symbol' && layer['source-layer'] === 'place') map.moveLayer(layer.id)
+      }
       mapLoadedRef.current = true
 
       map.on('click', (e) => {
