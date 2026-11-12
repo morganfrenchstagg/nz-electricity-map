@@ -9,9 +9,13 @@ import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson }
 import { underConstruction } from '../data/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import { unitsByNode } from '../utils/generators'
-import { HVDC_CABLE, HVDC_CABLE_ANGLE, HVDC_CABLE_MIDDLE, hvdcDirection, latestHvdcNorth } from '../utils/hvdc'
-import { generatorPopupHtml, hvdcPopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
-import { TRANSMISSION_LINES_URL } from '../api'
+import { HVDC_CABLE, HVDC_CABLE_ANGLE, HVDC_CABLE_MIDDLE, HVDC_DESIGN_KV, hvdcDirection, latestHvdcNorth } from '../utils/hvdc'
+import { buildGridNetwork } from '../utils/gridNetwork'
+import type { GridNetwork } from '../utils/gridNetwork'
+import { estimateLineFlows, flowArrowsToGeoJson, lineSectionsToGeoJson } from '../utils/lineFlows'
+import type { LineFlows } from '../utils/lineFlows'
+import { generatorPopupHtml, linesPopupHtml, substationPopupHtml, underConstructionPopupHtml } from './mapPopups'
+import { fetchTransmissionLines } from '../api'
 import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
 import type { InitialView } from '../utils/mapView'
@@ -25,25 +29,30 @@ const INITIAL_ZOOM = 5
 
 // The HVDC's hover areas, wider than its lines: its overhead line, and its cables across Cook Strait
 const HVDC_HOVER_LAYERS = ['hvdc-line-hover-layer', 'hvdc-cables-hover-layer']
+// The lines' hover area while their flows are shown
+const LINE_FLOW_HOVER_LAYER = 'line-flows-hover-layer'
+// Where the HVDC and the lines run close enough together to be hovered at once,
+// they share the popup
+const LINE_HOVER_LAYERS = [...HVDC_HOVER_LAYERS, LINE_FLOW_HOVER_LAYER]
 // How wide they are (px): for a mouse, and on mobile for a finger
-const HVDC_HOVER_WIDTH = { mouse: 10, touch: 20 }
+const LINE_HOVER_WIDTH = { mouse: 10, touch: 20 }
 
-// Hoverable layers in priority order: generators > under-construction > substations > HVDC.
+// Hoverable layers in priority order: generators > under-construction > substations > HVDC > lines.
 // This prevents a nearby substation from stealing the popup when the cursor is over a generator,
-// and the HVDC from stealing it from the stations along it.
-const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substations-layer', ...HVDC_HOVER_LAYERS]
+// and the lines from stealing it from the stations along them.
+const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substations-layer', ...LINE_HOVER_LAYERS]
 
-// Each hoverable source promotes its id property to the feature id, so this names the feature
-// under the cursor and the popup is only rebuilt when it changes. The HVDC's popup is the same
-// all along it, so it's one feature.
-const hoverKey = (feature?: maplibregl.MapGeoJSONFeature) =>
-  feature && (HVDC_HOVER_LAYERS.includes(feature.layer.id) ? 'hvdc' : `${feature.layer.id}:${feature.id}`)
+// Each hoverable source promotes its id property to the feature id, or numbers its features,
+// so this names the features under the cursor and the popup is only rebuilt when they change.
+// The HVDC's popup is the same all along it, so it's one feature.
+const hoverKey = (features: maplibregl.MapGeoJSONFeature[]) =>
+  [...new Set(features.map((f) => HVDC_HOVER_LAYERS.includes(f.layer.id) ? 'hvdc' : `${f.layer.id}:${f.id}`))].sort().join()
 
 // What the open panel is for: circled, or for the HVDC, its lines in this colour
 const SELECTED_COLOUR = '#3b82f6'
 
-// The HVDC's overhead line, the only one at 350 kV
-const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number', ['get', 'designvolt']], 350]
+// The HVDC's overhead line
+const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number', ['get', 'designvolt']], HVDC_DESIGN_KV]
 
 // The HVDC's lines, a touch darker than the grey of the voltages without a colour of
 // their own, and the chevrons on its cables for the way it's flowing, darker again to
@@ -51,6 +60,10 @@ const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number'
 const HVDC_COLOUR = '#76817f'
 const HVDC_CHEVRON_COLOUR = '#5f6b6d'
 const HVDC_HALO = 'rgba(255,255,255,0.8)'
+// Its lines' width (px), thicker than the other lines' to be easier to see, and how
+// much wider their white outline is
+const HVDC_WIDTH = 2
+const HVDC_OUTLINE_WIDTH = 1.5
 
 // The chevrons show once Cook Strait is wide enough on the map to hold them
 const HVDC_CHEVRONS_MIN_ZOOM = 7.5
@@ -63,6 +76,50 @@ const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill=
     return `<g><path d="${d}" stroke="${HVDC_HALO}" stroke-width="7"/><path d="${d}" stroke="${HVDC_CHEVRON_COLOUR}" stroke-width="3.5"/></g>`
   }).join('')
 }</svg>`
+
+// The lines' estimated flows (see lineFlows), shown by the Power flow toggle: each
+// section of a line thicker the more it carries, a chevron partway along it the
+// way it's flowing, as the HVDC's, and its estimate when hovered. The HVDC's lines
+// are as thick as the others' for its flow.
+const LINE_FLOW_LAYERS = ['line-flows-layer', 'line-flow-arrows-layer', LINE_FLOW_HOVER_LAYER]
+// Each line's width (px) at these MW, and in between
+const LINE_FLOW_WIDTHS: [number, number][] = [[0, 1.5], [100, 3], [400, 6], [1000, 9]]
+const LINE_FLOW_WIDTH: maplibregl.ExpressionSpecification = [
+  'interpolate', ['linear'], ['coalesce', ['feature-state', 'mw'], 0], ...LINE_FLOW_WIDTHS.flat(),
+]
+function lineFlowWidth(mw: number): number {
+  const above = LINE_FLOW_WIDTHS.findIndex(([at]) => mw < at)
+  if (above === -1) return LINE_FLOW_WIDTHS[LINE_FLOW_WIDTHS.length - 1][1]
+  if (above === 0) return LINE_FLOW_WIDTHS[0][1]
+  const [[mw0, px0], [mw1, px1]] = [LINE_FLOW_WIDTHS[above - 1], LINE_FLOW_WIDTHS[above]]
+  return px0 + ((px1 - px0) * (mw - mw0)) / (mw1 - mw0)
+}
+const LINE_FLOW_CHEVRON = 'line-flow-chevron'
+// A chevron's size, bigger for a bigger flow, and smaller the further out the map's
+// zoomed, where the lines' sections are shorter on screen, so they don't overlap
+const chevronSize = (scale: number): maplibregl.ExpressionSpecification =>
+  ['interpolate', ['linear'], ['get', 'mw'], 0, 0.8 * scale, 400, 1.1 * scale, 1000, 1.4 * scale]
+const LINE_FLOW_CHEVRON_SIZE: maplibregl.ExpressionSpecification = [
+  'interpolate', ['linear'], ['zoom'], 6, chevronSize(0.45), 10, chevronSize(0.6), 13, chevronSize(1),
+]
+const NO_FEATURES: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+// One of the HVDC's chevrons, pointing north, for the map to turn to a flow's bearing
+function lineFlowChevron(): ImageData {
+  const scale = 2 // for high-density screens, at pixelRatio 2
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 20 * scale
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(scale, scale)
+  ctx.lineCap = ctx.lineJoin = 'round'
+  const chevron = new Path2D('M4 14 L10 6 L16 14')
+  for (const [colour, width] of [[HVDC_HALO, 7], [HVDC_CHEVRON_COLOUR, 3.5]] as const) {
+    ctx.strokeStyle = colour
+    ctx.lineWidth = width
+    ctx.stroke(chevron)
+  }
+  return ctx.getImageData(0, 0, canvas.width, canvas.height)
+}
 
 // The generation pipeline is what's being built now, so past days and ranges leave it off the map
 const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
@@ -95,12 +152,18 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [showAerial, setShowAerial] = useState(false)
+  const [showFlows, setShowFlows] = useState(false)
+  // The network's pieced together once the flows are first shown (see gridNetwork)
+  const [flowsUsed, setFlowsUsed] = useState(false)
+  const [lines, setLines] = useState<GeoJSON.FeatureCollection | null>(null)
   const { generators, substations } = useDefinitions()
   const generatorsRef = useRef<Generator[]>(generators)
   const substationsRef = useRef<Substation[]>(substations)
   const nodeUnits = useMemo(() => unitsByNode(generators), [generators])
   const unitsByNodeRef = useRef(nodeUnits)
   const recentDataRef = useRef<RecentData | null>(null)
+  // Null while they're not shown
+  const lineFlowsRef = useRef<{ network: GridNetwork; flows: LineFlows } | null>(null)
   // Rebuilds the open hover popup; set once the map has loaded
   const refreshHoverRef = useRef(() => {})
   // Set once the load handler has added the map's sources and layers
@@ -137,6 +200,16 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   useEffect(() => { generatorsRef.current = generators }, [generators])
   useEffect(() => { substationsRef.current = substations }, [substations])
   useEffect(() => { unitsByNodeRef.current = nodeUnits }, [nodeUnits])
+
+  useEffect(() => {
+    fetchTransmissionLines().then(setLines).catch(() => {})
+  }, [])
+  const network = useMemo(
+    () => flowsUsed && lines && substations.length > 0 ? buildGridNetwork(lines, substations) : null,
+    [flowsUsed, lines, substations],
+  )
+  // At the newest of the data's intervals, as the popups show
+  const flows = useMemo(() => network && recentData ? estimateLineFlows(network, recentData) : null, [network, recentData])
 
   // Keep callback refs so map event handlers always see the latest callbacks
   const onGeneratorClickRef = useRef(onGeneratorClick)
@@ -195,7 +268,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
       map.addSource('transmission-lines', {
         type: 'geojson',
-        data: TRANSMISSION_LINES_URL,
+        data: NO_FEATURES,
       })
       // The HVDC, from Benmore to Haywards, thicker than the other lines to be easier to see,
       // and outlined in white for the satellite map. Beneath the other lines, so it doesn't
@@ -206,7 +279,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: { type: 'Feature', geometry: { type: 'LineString', coordinates: HVDC_CABLE }, properties: {} },
       })
-      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#ffffff', 'line-width': 3.5, 'line-opacity': 0.5 }
+      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#ffffff', 'line-width': HVDC_WIDTH + HVDC_OUTLINE_WIDTH, 'line-opacity': 0.5 }
       map.addLayer({ id: 'hvdc-line-outline-layer', type: 'line', source: 'transmission-lines', filter: HVDC_LINE_FILTER, layout: { 'line-cap': 'round' }, paint: hvdcOutline })
       map.addLayer({ id: 'hvdc-cables-outline-layer', type: 'line', source: 'hvdc-cables', layout: { 'line-cap': 'round' }, paint: hvdcOutline })
       map.addLayer({
@@ -215,13 +288,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         source: 'transmission-lines',
         filter: HVDC_LINE_FILTER,
         layout: { 'line-cap': 'round' },
-        paint: { 'line-color': HVDC_COLOUR, 'line-width': 2 },
+        paint: { 'line-color': HVDC_COLOUR, 'line-width': HVDC_WIDTH },
       })
       map.addLayer({
         id: 'hvdc-cables-layer',
         type: 'line',
         source: 'hvdc-cables',
-        paint: { 'line-color': HVDC_COLOUR, 'line-width': 2, 'line-dasharray': [3, 2] },
+        paint: { 'line-color': HVDC_COLOUR, 'line-width': HVDC_WIDTH, 'line-dasharray': [3, 2] },
       })
       map.addLayer({
         id: 'transmission-lines-layer',
@@ -234,17 +307,55 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
           'line-opacity': 0.7,
         },
       })
-      // Hovering anywhere along the HVDC shows its flow. Unseen, and wider than its lines
-      // to be easier to find (wider again on mobile, see HVDC_HOVER_WIDTH).
-      const hvdcHoverPaint: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#000000', 'line-width': HVDC_HOVER_WIDTH.mouse, 'line-opacity': 0 }
+      // Over the lines they're estimated for, which show beneath them where a line
+      // has nothing estimated
+      map.addSource('line-flows', { type: 'geojson', data: NO_FEATURES })
+      map.addLayer({
+        id: 'line-flows-layer',
+        type: 'line',
+        source: 'line-flows',
+        layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, 'line-width': LINE_FLOW_WIDTH, 'line-opacity': 0.85 },
+      })
+      map.addImage(LINE_FLOW_CHEVRON, lineFlowChevron(), { pixelRatio: 2 })
+      map.addSource('line-flow-arrows', { type: 'geojson', data: NO_FEATURES })
+      map.addLayer({
+        id: 'line-flow-arrows-layer',
+        type: 'symbol',
+        source: 'line-flow-arrows',
+        layout: {
+          visibility: 'none',
+          'icon-image': LINE_FLOW_CHEVRON,
+          'icon-rotate': ['get', 'bearing'],
+          'icon-rotation-alignment': 'map',
+          'icon-size': LINE_FLOW_CHEVRON_SIZE,
+          // Never hiding the map's place names, nor hidden by them, the biggest flows' on top
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'symbol-sort-key': ['get', 'mw'],
+        },
+        // Zoomed out, only the bigger flows' show, so they don't crowd the map
+        paint: {
+          'icon-opacity': ['step', ['zoom'],
+            ['case', ['>=', ['get', 'mw'], 150], 1, 0],
+            6.5, ['case', ['>=', ['get', 'mw'], 40], 1, 0],
+            7.5, 1,
+          ],
+        },
+      })
+      // Hovering anywhere along the HVDC shows its flow, and along a line its estimated
+      // flow while they're shown. Unseen, and wider than the lines to be easier to find
+      // (wider again on mobile, see LINE_HOVER_WIDTH).
+      const hoverPaint: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#000000', 'line-width': LINE_HOVER_WIDTH.mouse, 'line-opacity': 0 }
+      map.addLayer({ id: LINE_FLOW_HOVER_LAYER, type: 'line', source: 'line-flows', layout: { visibility: 'none' }, paint: hoverPaint })
       map.addLayer({
         id: 'hvdc-line-hover-layer',
         type: 'line',
         source: 'transmission-lines',
         filter: HVDC_LINE_FILTER,
-        paint: hvdcHoverPaint,
+        paint: hoverPaint,
       })
-      map.addLayer({ id: 'hvdc-cables-hover-layer', type: 'line', source: 'hvdc-cables', paint: hvdcHoverPaint })
+      map.addLayer({ id: 'hvdc-cables-hover-layer', type: 'line', source: 'hvdc-cables', paint: hoverPaint })
 
       map.addSource('under-construction', {
         type: 'geojson',
@@ -341,9 +452,12 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       })
 
       const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '380px' })
-      let hovered: maplibregl.MapGeoJSONFeature | undefined
+      // One feature, or the lines under the cursor where they run close together
+      let hovered: maplibregl.MapGeoJSONFeature[] = []
 
-      const hoverHtml = (feature: maplibregl.MapGeoJSONFeature): string | null => {
+      const hoverHtml = (features: maplibregl.MapGeoJSONFeature[]): string | null => {
+        const [feature] = features
+        if (!feature) return null
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
@@ -352,37 +466,49 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
         }
-        // None on past days, as their dispatch has no HVDC
-        if (HVDC_HOVER_LAYERS.includes(feature.layer.id)) {
-          const transfer = latestHvdcNorth(recentDataRef.current)
-          return transfer && hvdcPopupHtml(transfer)
+        if (LINE_HOVER_LAYERS.includes(feature.layer.id)) {
+          // The HVDC has none on past days EMI hasn't published its flows for
+          const transfer = features.some(f => HVDC_HOVER_LAYERS.includes(f.layer.id)) ? latestHvdcNorth(recentDataRef.current) : null
+          const lineFlows = lineFlowsRef.current
+          const sections = lineFlows
+            ? [...new Set(features.filter(f => f.layer.id === LINE_FLOW_HOVER_LAYER).map(f => Number(f.id)))]
+              .map(index => ({ index, mw: lineFlows.flows.sections[index] }))
+            : []
+          return linesPopupHtml(transfer, lineFlows?.network ?? null, sections)
         }
         const substation = substationsRef.current.find(s => s.siteId === p.siteId)
         return substation ? substationPopupHtml(substation, recentDataRef.current, unitsByNodeRef.current) : null
       }
 
-      // Builds the popup for the hovered feature; only called when that feature or the data changes
+      // Builds the popup for the hovered features; only called when they or the data change
       const renderHover = () => {
-        const html = hovered && hoverHtml(hovered)
-        map.getCanvas().style.cursor = html ? 'pointer' : ''
+        const html = hoverHtml(hovered)
+        // A line has no panel to open, but the HVDC and the rest do
+        map.getCanvas().style.cursor = html && hovered.some(f => f.layer.id !== LINE_FLOW_HOVER_LAYER) ? 'pointer' : ''
         if (!html) { hoverPopup.remove(); return }
         hoverPopup.setHTML(html)
         if (!hoverPopup.isOpen()) hoverPopup.addTo(map)
       }
-      refreshHoverRef.current = () => { if (hovered) renderHover() }
+      refreshHoverRef.current = () => { if (hovered.length > 0) renderHover() }
 
       map.on('mousemove', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: HOVER_LAYERS })
         const feature = HOVER_LAYERS.map(layer => features.find(f => f.layer.id === layer)).find(f => f)
-        // Following the cursor is cheap; the popup is rebuilt only when the cursor reaches another feature
+        // On a line, those within its hover area's width run close enough to it to share the popup
+        const near = (isMobileRef.current ? LINE_HOVER_WIDTH.touch : LINE_HOVER_WIDTH.mouse) / 2
+        const nearPoint = (dx: number, dy: number): [number, number] => [e.point.x + dx, e.point.y + dy]
+        const next = !feature ? []
+          : LINE_HOVER_LAYERS.includes(feature.layer.id) ? map.queryRenderedFeatures([nearPoint(-near, -near), nearPoint(near, near)], { layers: LINE_HOVER_LAYERS })
+            : [feature]
+        // Following the cursor is cheap; the popup is rebuilt only when the cursor reaches other features
         hoverPopup.setLngLat(e.lngLat)
-        if (hoverKey(feature) === hoverKey(hovered)) return
-        hovered = feature
+        if (hoverKey(next) === hoverKey(hovered)) return
+        hovered = next
         renderHover()
       })
 
       map.getCanvas().addEventListener('mouseleave', () => {
-        hovered = undefined
+        hovered = []
         renderHover()
       })
     })
@@ -479,14 +605,63 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     whenLoaded(map, set)
   }, [showAerial])
 
-  // A finger is less precise than a mouse, so on mobile the HVDC is easier to tap
+  // A finger is less precise than a mouse, so on mobile the HVDC and the lines are easier to tap
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     whenLoaded(map, () => {
-      for (const layer of HVDC_HOVER_LAYERS) map.setPaintProperty(layer, 'line-width', isMobile ? HVDC_HOVER_WIDTH.touch : HVDC_HOVER_WIDTH.mouse)
+      for (const layer of LINE_HOVER_LAYERS) map.setPaintProperty(layer, 'line-width', isMobile ? LINE_HOVER_WIDTH.touch : LINE_HOVER_WIDTH.mouse)
     })
   }, [isMobile])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !lines) return
+    whenLoaded(map, () => (map.getSource('transmission-lines') as maplibregl.GeoJSONSource | undefined)?.setData(lines))
+  }, [lines])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !network) return
+    whenLoaded(map, () => (map.getSource('line-flows') as maplibregl.GeoJSONSource | undefined)?.setData(lineSectionsToGeoJson(network)))
+  }, [network])
+
+  useEffect(() => {
+    lineFlowsRef.current = showFlows && network && flows ? { network, flows } : null
+    refreshHoverRef.current()
+  }, [showFlows, network, flows])
+
+  // Each section's MW is set on it as feature state, rather than redrawing all
+  // of the lines each interval, but its chevron turns with the flow
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !network) return
+    whenLoaded(map, () => {
+      network.sections.forEach((_, i) => map.setFeatureState({ source: 'line-flows', id: i }, { mw: flows ? Math.abs(flows.sections[i]) : 0 }))
+      const arrows = map.getSource('line-flow-arrows') as maplibregl.GeoJSONSource | undefined
+      arrows?.setData(flows ? flowArrowsToGeoJson(network, flows.sections) : NO_FEATURES)
+    })
+  }, [network, flows])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    whenLoaded(map, () => {
+      for (const layer of LINE_FLOW_LAYERS) map.setLayoutProperty(layer, 'visibility', showFlows ? 'visible' : 'none')
+    })
+  }, [showFlows])
+
+  // With the flows shown, the HVDC's as thick as a line carrying its transfer, the
+  // one the lines' flows are estimated with
+  const hvdcWidth = showFlows && flows ? lineFlowWidth(Math.abs(flows.hvdcNorth)) : HVDC_WIDTH
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    whenLoaded(map, () => {
+      for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer']) map.setPaintProperty(layer, 'line-width', hvdcWidth)
+      for (const layer of ['hvdc-line-outline-layer', 'hvdc-cables-outline-layer']) map.setPaintProperty(layer, 'line-width', hvdcWidth + HVDC_OUTLINE_WIDTH)
+    })
+  }, [hvdcWidth])
 
   // How much of the map's left side the panel covers
   const panelInset = (!isMobile && leftPanelOpen) ? panelWidth : 0
@@ -494,17 +669,23 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh', '--map-panel-inset': `${panelInset}px` } as React.CSSProperties}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <div
-        role="group"
-        aria-label="Map style"
-        className="toggle-group toggle-group--map"
-        style={{ position: 'absolute', top: 10, left: panelInset + 10, zIndex: 10 }}
-      >
-        {(['street', 'aerial'] as const).map((mode) => (
-          <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>
-            {mode === 'street' ? 'Street' : 'Satellite'}
+      <div style={{ position: 'absolute', top: 10, left: panelInset + 10, zIndex: 10, display: 'flex', gap: 'var(--space-md)' }}>
+        <div role="group" aria-label="Map style" className="toggle-group toggle-group--map">
+          {(['street', 'aerial'] as const).map((mode) => (
+            <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>
+              {mode === 'street' ? 'Street' : 'Satellite'}
+            </button>
+          ))}
+        </div>
+        <div className="toggle-group toggle-group--map">
+          <button
+            onClick={() => { setShowFlows(!showFlows); setFlowsUsed(true) }}
+            aria-pressed={showFlows}
+            title="The estimated flow along each transmission line, from each substation's generation and load"
+          >
+            Power flow
           </button>
-        ))}
+        </div>
       </div>
     </div>
   )
