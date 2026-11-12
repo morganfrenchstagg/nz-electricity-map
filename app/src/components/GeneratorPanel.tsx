@@ -24,7 +24,7 @@ import type { ViewMode } from '../hooks/useUrlState'
 import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import ChartSettingsMenu from './ChartSettingsMenu'
-import { DatePicker } from './DatePickers'
+import { DatePicker } from './LazyDatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
