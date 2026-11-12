@@ -11,6 +11,7 @@ import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
 import { viewBesideNz } from './utils/mapView'
+import { substationsOf, substationsTitle } from './utils/substations'
 
 export default function App() {
   const { generators, substations } = useDefinitions()
@@ -52,7 +53,7 @@ export default function App() {
     } else if (selectedNode.kind === 'hvdc') {
       suffix = 'HVDC Inter-Island Link'
     } else {
-      suffix = `${selectedNode.substation.description} Substation`
+      suffix = substationsTitle(substationsOf(selectedNode))
     }
     document.title = `NZ Electricity Map - ${suffix}`
   }, [selectedNode, gridPanelVisible])
@@ -98,7 +99,7 @@ export default function App() {
   return (
     <>
       <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
-      {selectedNode && (selectedNode.kind === 'substation'
+      {selectedNode && (selectedNode.kind === 'substation' || selectedNode.kind === 'substations'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
         : selectedNode.kind === 'hvdc'
           ? <HvdcPanel node={selectedNode} {...nodePanelProps} />
