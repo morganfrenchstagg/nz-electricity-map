@@ -22,8 +22,13 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
           if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
-          // The date pickers
-          if (/\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(id)) return 'react-aria'
+          // The date pickers. Their calendars and date fields are a chunk of
+          // their own, loaded with DatePickers (see LazyDatePickers), apart from
+          // the menus and popovers the panels need from the start. By name, so
+          // the date hooks' re-exports go with them, not with the menus.
+          if (/\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(id)) {
+            return /\/(use|Hidden)?(Range)?(Date|Time|Calendar|SpinButton)[^/]*(\/|$)/i.test(id) ? 'react-aria-dates' : 'react-aria'
+          }
           if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
         },
       },
