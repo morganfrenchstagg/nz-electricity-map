@@ -199,7 +199,7 @@ export function useDispatchData(mode: DateMode): {
       cancelled = true
       stopPolling?.()
     }
-  }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode])
 
   return { recentData, loading, error }
 }
