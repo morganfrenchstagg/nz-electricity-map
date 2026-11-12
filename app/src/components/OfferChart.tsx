@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import HighchartsReact from 'highcharts-react-official'
+import { HighchartsReact } from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { OffersData } from '../api'
 import type { GeneratorNode, RecentData } from '../types'

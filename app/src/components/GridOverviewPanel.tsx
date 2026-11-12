@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
-import HighchartsReact from 'highcharts-react-official'
+import { HighchartsReact } from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'

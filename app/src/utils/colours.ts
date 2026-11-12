@@ -1,4 +1,4 @@
-import type maplibregl from 'maplibre-gl'
+import type { ExpressionSpecification } from 'maplibre-gl'
 
 const DEFAULT_COLOUR = '#ff0000'
 
@@ -90,10 +90,10 @@ export function fuelCodeLabel(code: string): string {
 // type needs the first label/output pair written out, which a spread of the
 // whole table can't promise, so it's split off from the rest.
 function matchExpression(
-  input: maplibregl.ExpressionSpecification,
+  input: ExpressionSpecification,
   [first, ...rest]: [string | number, string][],
   fallback: string,
-): maplibregl.ExpressionSpecification {
+): ExpressionSpecification {
   return ['match', input, ...first, ...rest.flat(), fallback]
 }
 

@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.12.4",
-    "highcharts": "^13.0.0",
+    "highcharts": "^13.1.1",
     "highcharts-react-official": "^3.2.3",
-    "maplibre-gl": "^4.7.1",
+    "maplibre-gl": "^6.18.0",
     "react": "^18.3.1",
     "react-aria-components": "^1.22.1",
     "react-dom": "^18.3.1"
@@ -24,13 +24,13 @@
     "@react-aria/optimize-locales-plugin": "^2.1.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.72.2",
-    "vite": "^5.4.2",
-    "vitest": "^3.2.7"
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12"
   }
 }
