@@ -3,7 +3,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { FIRST_DAY, yesterdayNZ } from '../hooks/useAggregates'
 import type { useDateRangePicker } from '../hooks/useDateRangePicker'
 import { AggregationToggle, PeriodToggle } from './ToggleGroup'
-import { DateRangePicker } from './DatePickers'
+import { DateRangePicker } from './LazyDatePickers'
 
 interface Props {
   dateMode: DateMode

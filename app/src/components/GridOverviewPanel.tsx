@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from 'react'
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import { HighchartsReact } from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
@@ -180,7 +180,10 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   // grid-scale solar's series where there's both (see fuelsOf).
   const combineSolar = chartSettings.solar === 'combined' && fuels.includes(DISTRIBUTED_SOLAR_FUEL_CODE) && fuels.includes('SOL')
   const seriesFuels = useMemo(() => fuels.filter(f => !(combineSolar && f === DISTRIBUTED_SOLAR_FUEL_CODE)), [fuels, combineSolar])
-  const isShown = (fuel: string) => fuelsOf(fuel, combineSolar).some(f => effectiveFuels.has(f))
+  const isShown = useCallback(
+    (fuel: string) => fuelsOf(fuel, combineSolar).some(f => effectiveFuels.has(f)),
+    [combineSolar, effectiveFuels],
+  )
 
   // Shows or hides a series' fuels together
   function toggleFuel(fuel: string) {
@@ -444,7 +447,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, seriesFuels, combineSolar, fuelToIndices, fuelToUnits, effectiveFuels, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
+  }, [data, generators, fuels, seriesFuels, combineSolar, fuelToIndices, fuelToUnits, effectiveFuels, isShown, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
 
   // On the narrowest panels the title is cut short to keep the picker's ▾ in view
   const header = (
