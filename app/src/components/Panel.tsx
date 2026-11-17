@@ -1,12 +1,13 @@
 import { lazy, Suspense, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
+import { setTheme, useTheme } from '../theme'
 
 const InfoModal = lazy(() => import('./InfoModal'))
 
 // Narrowest panel with room for the grid panel's title beside all of the header's
 // buttons. Narrower panels, and mobile, gather all but Close into a menu.
-const MENU_BELOW_PX = 560
+const MENU_BELOW_PX = 595
 
 // One of a panel's own header buttons
 export interface PanelAction {
@@ -48,6 +49,9 @@ interface Props extends PanelProps {
 // whatever the panel puts below.
 export default function Panel({ header, actions = [], headerRef, visible = true, children, onClose, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
   const [infoOpen, setInfoOpen] = useState(false)
+  const theme = useTheme()
+  const otherTheme = theme === 'dark' ? 'light' : 'dark'
+  const themeLabel = otherTheme === 'dark' ? 'Dark mode' : 'Light mode'
 
   return (
     <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>
@@ -63,6 +67,7 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
                 {actions.map(a => (
                   <MenuItem key={a.label} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
                 ))}
+                <MenuItem onAction={() => setTheme(otherTheme)} className="menu-item">{themeLabel}</MenuItem>
                 <MenuItem onAction={() => setInfoOpen(true)} className="menu-item">About this site</MenuItem>
                 {!isMobile && <MenuItem onAction={() => onExpandedChange(true)} className="menu-item">Expand</MenuItem>}
               </Menu>
@@ -75,6 +80,9 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
                 {a.label}
               </button>
             ))}
+            <button onClick={() => setTheme(otherTheme)} className="button-secondary" aria-label={themeLabel} title={themeLabel}>
+              {otherTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
+            </button>
             <button onClick={() => setInfoOpen(true)} className="button-secondary" aria-label="About this site">
               About this site
             </button>
@@ -116,6 +124,24 @@ export function PanelToolbar({ toolbarRef, compact, children }: { toolbarRef: Re
     <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'wrap' : 'nowrap' }}>
       {children}
     </div>
+  )
+}
+
+// The theme toggle's icons, for the theme it switches to
+function MoonIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
+      <path d="M11.5 8.2A5 5 0 0 1 4.8 1.5a5 5 0 1 0 6.7 6.7Z" />
+    </svg>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
+      <circle cx="6.5" cy="6.5" r="2.3" fill="currentColor" stroke="none" />
+      <path d="M6.5 0.9v1.3M6.5 10.8v1.3M0.9 6.5h1.3M10.8 6.5h1.3M2.54 2.54l.92.92M9.54 9.54l.92.92M2.54 10.46l.92-.92M9.54 3.46l.92-.92" />
+    </svg>
   )
 }
 

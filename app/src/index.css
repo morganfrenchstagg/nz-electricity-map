@@ -1,49 +1,61 @@
-/* Design tokens. The map layers and Highcharts' SVG take colours as JS values,
-   which can't read these, so their colours stay in the code that builds them. */
+/* Design tokens. Each colour is light-dark(light, dark), following the theme:
+   light, unless the viewer picked dark (see theme.ts, which sets data-theme on
+   <html>). Highcharts takes them as var()s in its options; the map's layers
+   can't, so their colours stay in Map, and its basemap stays light. */
 :root {
-  /* Text, darkest first */
-  --color-text-strong: #111;
-  --color-text: #333;
-  --color-text-secondary: #555;
-  --color-text-muted: #888;
-  --color-text-faint: #999;
-  --color-text-disabled: #bbb;
+  color-scheme: light;
+
+  /* Text, strongest first */
+  --color-text-strong: light-dark(#111, #f2f2f2);
+  --color-text: light-dark(#333, #dcdcdc);
+  --color-text-secondary: light-dark(#555, #b4b4b4);
+  --color-text-muted: light-dark(#888, #8f8f8f);
+  --color-text-faint: light-dark(#999, #7c7c7c);
+  --color-text-disabled: light-dark(#bbb, #5c5c5c);
   /* On an accent or series colour */
   --color-text-inverse: #fff;
 
   /* Inputs and checkboxes */
-  --color-border-strong: #ccc;
+  --color-border-strong: light-dark(#ccc, #4c4c4f);
   /* Buttons, popovers and toolbar dividers */
-  --color-border: #ddd;
+  --color-border: light-dark(#ddd, #3c3c3f);
   /* Between panel sections */
-  --color-divider: #eee;
+  --color-divider: light-dark(#eee, #2f2f32);
   /* Between list and table rows */
-  --color-divider-subtle: #f0f0f0;
+  --color-divider-subtle: light-dark(#f0f0f0, #2a2a2d);
 
-  --color-surface: #fff;
+  --color-surface: light-dark(#fff, #1c1c1e);
   /* Group headers, hovered table rows */
-  --color-surface-subtle: #fafafa;
-  --color-surface-hover: #f5f5f5;
-  --color-surface-muted: #f0f0f0;
+  --color-surface-subtle: light-dark(#fafafa, #212124);
+  --color-surface-hover: light-dark(#f5f5f5, #29292c);
+  --color-surface-muted: light-dark(#f0f0f0, #2e2e31);
   /* Secondary buttons, empty meter track */
-  --color-fill: #e7e7e7;
+  --color-fill: light-dark(#e7e7e7, #38383b);
 
   --color-accent: #3b82f6;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-muted: #93c5fd;
+  /* Filled behind white text, e.g. the pressed ToggleGroup button */
+  --color-accent-strong: light-dark(#1d4ed8, #2563eb);
+  --color-accent-muted: light-dark(#93c5fd, #2c4a85);
   /* Selected rows and options */
-  --color-accent-subtle: #f0f4ff;
+  --color-accent-subtle: light-dark(#f0f4ff, #1b2741);
+  /* Accent text, on the surface or accent-subtle */
+  --color-accent-text: light-dark(#1d4ed8, #93c5fd);
 
-  --color-danger: #b91c1c;
-  --color-danger-subtle: #fee2e2;
+  --color-danger: light-dark(#b91c1c, #f87171);
+  --color-danger-subtle: light-dark(#fee2e2, #3d1c1c);
 
-  --color-backdrop: rgba(0, 0, 0, 0.4);
+  /* Charted totals, limits and capacities, drawn over the series' colours */
+  --color-reference: light-dark(#222, #e8e8e8);
+  /* Midnight lines on the charts */
+  --color-chart-rule: light-dark(#aaa, #5a5a5d);
 
-  --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.18);
-  --shadow-modal: 0 8px 40px rgba(0, 0, 0, 0.2);
-  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --color-backdrop: light-dark(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+
+  --shadow-panel: 0 4px 24px light-dark(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.5));
+  --shadow-modal: 0 8px 40px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6));
+  --shadow-popover: 0 4px 16px light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.5));
   /* Controls floating over the map */
-  --shadow-floating: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-floating: 0 2px 8px light-dark(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.5));
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -71,6 +83,10 @@
   --space-xl: 16px;
   --space-2xl: 24px;
   --space-3xl: 32px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 *, *::before, *::after {
@@ -383,6 +399,42 @@ body {
   max-width: calc(100% - var(--map-panel-inset, 0px));
 }
 
+/* maplibre's controls and popups, on the design tokens so they follow dark mode.
+   Under .maplibregl-map to outrank maplibre's own CSS, which loads after this. */
+.maplibregl-map :is(.maplibregl-ctrl-group, .maplibregl-popup-content, .maplibregl-ctrl-attrib.maplibregl-compact) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.maplibregl-map .maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-border);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: var(--color-text-secondary);
+}
+
+.maplibregl-map :is(.maplibregl-popup-anchor-top, .maplibregl-popup-anchor-top-left, .maplibregl-popup-anchor-top-right) .maplibregl-popup-tip {
+  border-bottom-color: var(--color-surface);
+}
+
+.maplibregl-map :is(.maplibregl-popup-anchor-bottom, .maplibregl-popup-anchor-bottom-left, .maplibregl-popup-anchor-bottom-right) .maplibregl-popup-tip {
+  border-top-color: var(--color-surface);
+}
+
+.maplibregl-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--color-surface);
+}
+
+.maplibregl-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--color-surface);
+}
+
+/* Its icons are dark grey SVGs */
+:root[data-theme="dark"] .maplibregl-map :is(.maplibregl-ctrl-icon, .maplibregl-ctrl-attrib-button) {
+  filter: invert(1);
+}
+
 /* The map's Street / Satellite switch: a larger ToggleGroup */
 .toggle-group--map {
   border-color: var(--color-border-strong);
@@ -484,6 +536,11 @@ body {
 .series-button[aria-pressed="true"] {
   background: var(--series-colour);
   color: var(--color-text-inverse);
+}
+
+/* The substation's Total, in --color-reference, which is near white in dark mode */
+.series-button--reference[aria-pressed="true"] {
+  color: var(--color-surface);
 }
 
 /* Clear, "+N more" and the substation generators toggle */
@@ -707,7 +764,7 @@ body {
 .calendar--range .calendar-cell[data-selected] {
   border-radius: 0;
   background: var(--color-accent-subtle);
-  color: var(--color-accent-strong);
+  color: var(--color-accent-text);
 }
 
 .calendar--range .calendar-cell[data-selection-start],
@@ -773,7 +830,7 @@ body {
 .filter-button.is-active {
   border-color: var(--color-accent-muted);
   background: var(--color-accent-subtle);
-  color: var(--color-accent-strong);
+  color: var(--color-accent-text);
   font-weight: 600;
 }
 

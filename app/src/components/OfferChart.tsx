@@ -10,8 +10,8 @@ import { CHART_CONTAINER_PROPS, FIT_TO_CONTAINER, chartAccessibility } from '../
 
 // The lines marking where the offers were dispatched, labelled with a white
 // outline so they read over the offers
-const DISPATCH_COLOUR = '#333333'
-const DISPATCH_LABEL_STYLE = { color: DISPATCH_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: '600', textOutline: '3px #ffffff', whiteSpace: 'nowrap' }
+const DISPATCH_COLOUR = 'var(--color-text)'
+const DISPATCH_LABEL_STYLE = { color: DISPATCH_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: '600', textOutline: '3px var(--color-surface)', whiteSpace: 'nowrap' }
 
 interface Props {
   offersData: OffersData
@@ -173,7 +173,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     const dispatchedRight = dispatched !== null && dispatched.mw > Math.max(cumMW, dispatched.mw) / 2
 
     return {
-      chart: { ...FIT_TO_CONTAINER, type: 'area', height: null, animation: false, backgroundColor: '#ffffff' },
+      chart: { ...FIT_TO_CONTAINER, type: 'area', height: null, animation: false, backgroundColor: 'var(--color-surface)' },
       title: { text: undefined },
       ...chartAccessibility(`${title} offers, trading period ${tradingPeriod}`, {
         // Rather than counting the drawn series, which screen readers don't get
@@ -233,7 +233,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
         plotLines: [{
           value: 0,
           width: 1,
-          color: '#999',
+          color: 'var(--color-text-faint)',
           zIndex: 3,
         }, ...(dispatchedPrice !== null ? [{
           // A negative price is drawn at $0, the axis' foot

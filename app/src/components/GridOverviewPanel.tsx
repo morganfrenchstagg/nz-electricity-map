@@ -327,7 +327,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     return {
       chart: {
         ...FIT_TO_CONTAINER,
-        type: 'area', height: null, animation: false, backgroundColor: '#ffffff',
+        type: 'area', height: null, animation: false, backgroundColor: 'var(--color-surface)',
         className: columns ? 'aggregate-columns' : undefined, // see index.css
       },
       title: { text: undefined },

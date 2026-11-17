@@ -167,12 +167,12 @@ export function midnightPlotLines(times: string[]): Highcharts.XAxisPlotLinesOpt
     .filter((time, i) => i > 0 && time.slice(0, 10) !== times[i - 1].slice(0, 10))
     .map((time) => ({
       value: nzLocalMs(time),
-      color: '#aaaaaa',
+      color: 'var(--color-chart-rule)',
       width: 1,
       dashStyle: 'Solid',
       label: {
         text: Highcharts.dateFormat('%e %b', nzLocalMs(time)),
-        style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
+        style: { color: 'var(--color-text-muted)', fontSize: 'var(--font-size-2xs)' },
         y: 14,
       },
       zIndex: 3,

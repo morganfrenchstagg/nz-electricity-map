@@ -9,14 +9,16 @@ interface SeriesButtonProps {
   onClick: () => void
   // Shift-click: shows this series alone
   onIsolate?: () => void
+  // For colour var(--color-reference): dark text on it while it's showing, as it's near white in dark mode
+  reference?: boolean
   children: ReactNode
 }
 
 // A series toggle button: filled with the series colour when it's showing
-export function SeriesButton({ colour, active, onClick, onIsolate, children }: SeriesButtonProps) {
+export function SeriesButton({ colour, active, onClick, onIsolate, reference = false, children }: SeriesButtonProps) {
   return (
     <button
-      className="series-button"
+      className={reference ? 'series-button series-button--reference' : 'series-button'}
       aria-pressed={active}
       // Stops shift-click extending the page's text selection
       onMouseDown={e => { if (e.shiftKey && onIsolate) e.preventDefault() }}

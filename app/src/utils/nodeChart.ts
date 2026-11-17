@@ -67,7 +67,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
   return {
     chart: {
       ...FIT_TO_CONTAINER,
-      type, height: null, animation: false, backgroundColor: '#ffffff',
+      type, height: null, animation: false, backgroundColor: 'var(--color-surface)',
       className: columns ? 'aggregate-columns' : undefined, // see index.css
     },
     title: { text: undefined },
