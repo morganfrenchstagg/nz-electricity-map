@@ -9,7 +9,7 @@ import { nzLocalMs } from './time'
 import type { HvdcPoint } from './hvdc'
 
 // As GeneratorPanel's capacity line
-const LIMIT_COLOUR = '#222222'
+const LIMIT_COLOUR = 'var(--color-reference)'
 const HALF_HOUR_MS = 30 * 60 * 1000
 
 // A limit's step line, each half hour's held until the next, labelled at its end
@@ -56,7 +56,7 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
   const colour = fuelCodeColour(HVDC_IMPORT_CODE)
 
   return {
-    chart: { ...FIT_TO_CONTAINER, type: 'line', height: null, animation: false, backgroundColor: '#ffffff' },
+    chart: { ...FIT_TO_CONTAINER, type: 'line', height: null, animation: false, backgroundColor: 'var(--color-surface)' },
     title: { text: undefined },
     ...timeChartAccessibility(
       'HVDC transfer',
@@ -77,7 +77,7 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
     yAxis: {
       title: { text: 'Transfer (MW)' },
       gridLineDashStyle: 'Dash',
-      plotLines: [{ value: 0, color: '#999999', width: 1, zIndex: 3 }],
+      plotLines: [{ value: 0, color: 'var(--color-text-faint)', width: 1, zIndex: 3 }],
     },
     tooltip: {
       shared: true,
@@ -140,7 +140,7 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod):
   return {
     chart: {
       ...FIT_TO_CONTAINER,
-      type: 'column', height: null, animation: false, backgroundColor: '#ffffff',
+      type: 'column', height: null, animation: false, backgroundColor: 'var(--color-surface)',
       className: 'aggregate-columns', // see index.css
     },
     title: { text: undefined },
@@ -156,7 +156,7 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod):
     yAxis: {
       title: { text: `Transfer (${unit.label})` },
       gridLineDashStyle: 'Dash',
-      plotLines: [{ value: 0, color: '#999999', width: 1, zIndex: 3 }],
+      plotLines: [{ value: 0, color: 'var(--color-text-faint)', width: 1, zIndex: 3 }],
     },
     plotOptions: {
       column: { borderWidth: 1, borderRadius: 0, pointPadding: 0, groupPadding: 0, stacking: 'normal' },

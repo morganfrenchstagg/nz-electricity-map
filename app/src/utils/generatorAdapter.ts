@@ -193,12 +193,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       if (!outages && adjusted > 0) {
         capacityPlotLines.push({
           value: adjusted,
-          color: '#222222',
+          color: 'var(--color-reference)',
           width: 1,
           dashStyle: 'Solid',
           label: {
             text: `${capacityLabel(units)}: ${formatMW(adjusted)}`,
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)' },
             align: 'right',
             x: -4,
           },
@@ -209,12 +209,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       if (chargeCapacity > 0) {
         capacityPlotLines.push({
           value: -chargeCapacity,
-          color: '#222222',
+          color: 'var(--color-reference)',
           width: 1,
           dashStyle: 'Solid',
           label: {
             text: `Charge: ${formatMW(chargeCapacity)}`,
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)' },
             align: 'right',
             x: -4,
           },
@@ -265,13 +265,13 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
             enabled: true,
             format: `${capacityLabel(units)}: ${formatMW(point[1] as number)}`,
             align: 'right',
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
             crop: false,
             overflow: 'allow' as const,
             x: -4,
           } : { enabled: false },
         })),
-        color: '#222222',
+        color: 'var(--color-reference)',
         dashStyle: 'Solid',
         lineWidth: 2,
         step: 'left',
@@ -377,10 +377,10 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         data: data.map((point, i) => ({
           x: point[0], y: point[1],
           dataLabels: i === lastIndex
-            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
+            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
             : { enabled: false },
         })),
-        color: '#222222', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
+        color: 'var(--color-reference)', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
         marker: { enabled: false }, animation: false, enableMouseTracking: false,
         showInLegend: false, zIndex: 3,
       } as Highcharts.SeriesLineOptions

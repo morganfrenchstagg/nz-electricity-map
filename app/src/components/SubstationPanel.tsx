@@ -24,7 +24,7 @@ import { NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
 const TOTAL = 'Total'
-const TOTAL_COLOUR = '#222222'
+const TOTAL_COLOUR = 'var(--color-reference)'
 const SOLAR = fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)
 const SOLAR_COLOUR = fuelCodeColour(DISTRIBUTED_SOLAR_FUEL_CODE)
 const DEMAND_WITH_SOLAR = `Demand + ${SOLAR}`
@@ -358,7 +358,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       </button>,
     ] : []),
     ...(hasTotal ? [
-      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
+      <SeriesButton key="total" colour={TOTAL_COLOUR} reference active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
         {TOTAL}
       </SeriesButton>,
     ] : []),
@@ -367,7 +367,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // Lead the buttons that can go behind "+N more", as they're long
   const solarButtons = !hasSolar ? [] : [
-    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
+    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} reference active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
       {DEMAND_WITH_SOLAR}
     </SeriesButton>,
     <SeriesButton key="solar" colour={SOLAR_COLOUR} active={solarShown} onClick={() => toggleExtra(solarShown, setSolarToggled)} onIsolate={() => isolate(SOLAR)}>

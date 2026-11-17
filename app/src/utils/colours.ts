@@ -124,14 +124,15 @@ export const MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION = matchExpression(
 
 // Pill colours for an under-construction project's status, shared by the map
 // popups and the pipeline table. The hue tracks how far along the build is.
+// CSS light-dark() pairs, for the light and dark modes (see index.css).
 export const STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
-  'Commissioning': { bg: '#dcfce7', text: '#15803d' },
-  'Pre-Commissioning': { bg: '#d1fae5', text: '#059669' },
-  'Under Construction': { bg: '#ffedd5', text: '#c2410c' },
-  'Early Works': { bg: '#f3f4f6', text: '#374151' },
-  'Committed': { bg: '#dbeafe', text: '#1d4ed8' },
+  'Commissioning': { bg: 'light-dark(#dcfce7, #14361f)', text: 'light-dark(#15803d, #86efac)' },
+  'Pre-Commissioning': { bg: 'light-dark(#d1fae5, #10342a)', text: 'light-dark(#059669, #6ee7b7)' },
+  'Under Construction': { bg: 'light-dark(#ffedd5, #3d2410)', text: 'light-dark(#c2410c, #fdba74)' },
+  'Early Works': { bg: 'light-dark(#f3f4f6, #2e2f33)', text: 'light-dark(#374151, #d1d5db)' },
+  'Committed': { bg: 'light-dark(#dbeafe, #172a4a)', text: 'light-dark(#1d4ed8, #93c5fd)' },
 }
-export const STATUS_COLOUR_DEFAULT = { bg: '#f3f4f6', text: '#374151' }
+export const STATUS_COLOUR_DEFAULT = STATUS_COLOURS['Early Works']
 
 export function statusColour(status: string): { bg: string; text: string } {
   return STATUS_COLOURS[status] ?? STATUS_COLOUR_DEFAULT

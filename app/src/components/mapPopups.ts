@@ -172,7 +172,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
     <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:1px 12px;margin-bottom:6px">
       <span style="font-weight:600">${generator.name}</span>
-      <span style="background:var(--color-accent-subtle);color:var(--color-accent-strong);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600">${generator.site}</span>
+      <span style="background:var(--color-accent-subtle);color:var(--color-accent-text);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600">${generator.site}</span>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0 6px;color:var(--color-text-muted)">
         <span>${generator.operator}${generator.secondaryOperator ? ` / ${generator.secondaryOperator}` : ''}</span>${fuels}
       </div>
