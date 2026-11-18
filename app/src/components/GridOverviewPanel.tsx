@@ -237,6 +237,9 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     }))
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
     const unit = isAggregate ? energyUnit(chartReach(fuelTotals, stacked)) : MW_UNIT
+    // Live MW reaching past 2 GW is labelled on the axis in GW, which keeps its
+    // numbers short. The data and the tooltip stay in MW, alongside the capacities.
+    const axisInGW = !isAggregate && !proportion && chartReach(fuelTotals, stacked) > 2000
     // The total generation at each time, as the tooltip gives it: what's stacked above zero
     const generationTotals = fuelTotals.map(totals => totals.reduce((sum: number, total) => sum + Math.max(total ?? 0, 0), 0))
     const shareOf = (total: number, r: number) => (generationTotals[r] > 0 ? (total / generationTotals[r]) * 100 : 0)
@@ -346,7 +349,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         plotLines: isAggregate ? [] : midnightPlotLines(data.data.map(row => row[0] as string)),
       },
       yAxis: {
-        title: { text: (proportion ? PERCENT_UNIT : unit).label },
+        title: { text: axisInGW ? 'GW' : (proportion ? PERCENT_UNIT : unit).label },
+        // A tick at each whole GW, rather than at each half. The axis then stops
+        // at the lowest value, so a battery charging doesn't stretch it to -1 GW.
+        tickInterval: axisInGW ? 1000 : undefined,
+        startOnTick: !axisInGW,
+        // The chart is updated in place, which keeps options that are left out,
+        // so the formatter is cleared outright when the axis goes back to MW
+        labels: { formatter: axisInGW ? function () { return String((this.value as number) / 1000) } : undefined },
         softMin: 0,
         // The shares' floating point sums can come out a hair over 100
         max: proportion ? 100 : undefined,
