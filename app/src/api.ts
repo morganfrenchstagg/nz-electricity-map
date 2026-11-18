@@ -71,9 +71,6 @@ export interface AggregateResponse {
   hvdc?: HvdcData
 }
 
-// Loaded by maplibre as a GeoJSON source rather than fetched here
-export const TRANSMISSION_LINES_URL = `${API_BASE}/transmission-lines`
-
 interface CacheOptions<T> {
   notFound?: T
   freshFor?: (value: T) => number
@@ -139,6 +136,12 @@ export function fetchDefinitions(): Promise<DefinitionsResponse> {
 
 export function peekDefinitions(): DefinitionsResponse | undefined {
   return lastJson('definitions')
+}
+
+// Transpower's transmission lines, as GeoJSON, which the map both draws and
+// pieces the network together from to estimate their flows (see gridNetwork)
+export function fetchTransmissionLines(): Promise<GeoJSON.FeatureCollection> {
+  return cachedJson('transmission-lines')
 }
 
 // Once the recent intervals are held, only the ones after the newest are

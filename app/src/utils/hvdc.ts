@@ -24,6 +24,13 @@ export const HVDC_CABLE_MIDDLE: [number, number] = [
 // for the reserves to cover losing it, and the map shows them as it does an outage.
 export const HVDC_CAPACITY_MW = { north: 1200, south: 850 }
 
+// Its overhead line is the only one in the transmission lines at 350 kV
+export const HVDC_DESIGN_KV = 350
+
+// The substations its converter stations are at, where it joins each island's
+// AC network: Benmore in the South Island, and Haywards in the North
+export const HVDC_SITES = { south: 'BEN', north: 'HAY' }
+
 // em6 publishes the HVDC's flows an hour or so behind the dispatch, so its last
 // half hour is held for the intervals since, rather than leaving the newest
 // without it. Not for longer than this, in case em6 stops publishing. Nor is the

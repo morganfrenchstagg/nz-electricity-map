@@ -7,6 +7,8 @@ import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissi
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import { hvdcDirection, HVDC_CAPACITY_MW } from '../utils/hvdc'
 import type { HvdcTransfer } from '../utils/hvdc'
+import { sectionEndName } from '../utils/gridNetwork'
+import type { GridNetwork } from '../utils/gridNetwork'
 import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, UnderConstructionNode, Unit } from '../types'
@@ -229,6 +231,40 @@ export function hvdcPopupHtml(transfer: HvdcTransfer): string {
         <span>South</span><span>North</span>
       </div>
     </div>
+  </div>`
+}
+
+// A line's estimated flow along one of its sections (see lineFlows): the MW,
+// and where it's flowing from and to. `mw` runs from → to, or the other way
+// where it's negative.
+function lineFlowHtml(network: GridNetwork, index: number, mw: number): string {
+  const { line } = network.sections[index]
+  const [from, to] = (mw >= 0 ? ['from', 'to'] as const : ['to', 'from'] as const).map((end) => sectionEndName(network, index, end))
+  const way = from && to ? `${from} → ${to}` : from ? `From ${from}` : to ? `To ${to}` : 'Flow'
+  const flowMW = Math.round(Math.abs(mw))
+  const colour = flowMW ? 'var(--color-text-strong)' : 'var(--color-text-faint)'
+  return `<div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span style="font-weight:600">${line.description.replace(' - ', ' – ')}</span>
+      <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;color:var(--color-text-muted)">${dotHtml(voltageColour(line.designKv))}${line.kv} kV${line.cable ? ' cable' : ''}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:12px">
+      <span style="color:${colour}">${way}</span>
+      <span style="font-weight:600;white-space:nowrap;color:${colour}">${formatMW(flowMW)}</span>
+    </div>
+  </div>`
+}
+
+// The lines under the cursor, which can be several where they run close
+// together: the HVDC's flow, if it's one of them and has a `transfer`, then
+// each of the line `sections`' estimated flows, the most first. Null with none.
+export function linesPopupHtml(transfer: HvdcTransfer | null, network: GridNetwork | null, sections: { index: number; mw: number }[]): string | null {
+  const lines = network ? [...sections].sort((a, b) => Math.abs(b.mw) - Math.abs(a.mw)).map(({ index, mw }) => lineFlowHtml(network, index, mw)) : []
+  if (lines.length === 0) return transfer && hvdcPopupHtml(transfer)
+  const blocks = [...(transfer ? [hvdcPopupHtml(transfer)] : []), ...lines]
+  return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
+    ${blocks.map((block, i) => i === 0 ? block : `<div style="border-top:1px solid var(--color-divider);margin-top:var(--space-sm);padding-top:var(--space-sm)">${block}</div>`).join('')}
+    <div style="margin-top:var(--space-xs);font-size:var(--font-size-2xs);color:var(--color-text-muted)">${lines.length > 1 ? 'Flows' : 'Flow'} estimated from each substation's generation and load</div>
   </div>`
 }
 

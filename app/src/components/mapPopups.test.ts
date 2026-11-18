@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { generatorPopupHtml, hvdcPopupHtml } from './mapPopups'
+import { generatorPopupHtml, hvdcPopupHtml, linesPopupHtml } from './mapPopups'
+import { buildGridNetwork } from '../utils/gridNetwork'
 import { nzLocalMs } from '../utils/time'
 import type { Generator, RecentData, Unit } from '../types'
 
@@ -103,5 +104,42 @@ describe('hvdcPopupHtml', () => {
     expect(text(html)).toContain(' 0 MW')
     expect(text(html)).not.toContain('%')
     expect(fills(html)).toEqual([0, 0])
+  })
+})
+
+describe('linesPopupHtml', () => {
+  const site = (siteId: string, description: string, long: number) =>
+    ({ siteId, description, long, lat: -41, type: 'ACSTN' as const, gridZone: 1, island: 'north' as const })
+  const line = (id: number, code: string, description: string): GeoJSON.Feature => ({
+    type: 'Feature',
+    geometry: { type: 'LineString', coordinates: [[175.0, -41], [175.1, -41]] },
+    properties: { OBJECTID: id, MXLOCATION: code, designvolt: '220', type: 'TRANSLINE', description },
+  })
+  // Two circuits side by side, from Haywards to Bunnythorpe
+  const network = buildGridNetwork(
+    { type: 'FeatureCollection', features: [line(1, 'HAY-BPE-A', 'Haywards - Bunnythorpe A'), line(2, 'HAY-BPE-B', 'Haywards - Bunnythorpe B')] },
+    [site('HAY', 'Haywards', 175.0), site('BPE', 'Bunnythorpe', 175.1)],
+  )
+  // MW from Haywards to Bunnythorpe along each circuit
+  const north = (a: number, b: number) => network.sections.map((s, index) => {
+    const mw = s.line.code === 'HAY-BPE-A' ? a : b
+    return { index, mw: s.from === 'HAY' ? mw : -mw }
+  })
+  const transfer = { mw: 600, inLimit: 1200, outLimit: 850 }
+
+  it('lists each of the lines, the most flow first, with where it flows', () => {
+    const html = text(linesPopupHtml(null, network, north(120, 310.4))!)
+    expect(html).toMatch(/Haywards – Bunnythorpe B 220 kV Haywards → Bunnythorpe 310 MW Haywards – Bunnythorpe A 220 kV Haywards → Bunnythorpe 120 MW Flows estimated/)
+  })
+
+  it('puts the HVDC first where it runs alongside them', () => {
+    const html = text(linesPopupHtml(transfer, network, north(-80, -90))!)
+    expect(html).toMatch(/HVDC Inter-Island Link .* 600 MW .* Haywards – Bunnythorpe B 220 kV Bunnythorpe → Haywards 90 MW .* Bunnythorpe → Haywards 80 MW/)
+  })
+
+  it('shows the HVDC on its own as usual, and nothing without its flow or a line', () => {
+    expect(linesPopupHtml(transfer, network, [])).toBe(hvdcPopupHtml(transfer))
+    expect(linesPopupHtml(transfer, null, north(1, 1))).toBe(hvdcPopupHtml(transfer))
+    expect(linesPopupHtml(null, network, [])).toBeNull()
   })
 })

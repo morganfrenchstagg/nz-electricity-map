@@ -34,6 +34,12 @@ A view's data waits up to 2 seconds for its estimate (`SOLAR_WAIT_MS` in `app/sr
 
 The substation panel's estimate, and its dashed line of the substation's demand with the estimate added back, are behind a feature flag for now. Add `substationSolar=true` to the URL's query to show them (see `app/src/featureFlags.ts`). The API estimates from satellite readings up to each day's `observedUntil`, and from the forecast after it, which at a single GXP is too rough to show. So on the 5-minute views the panel's lines stop at the newest reading. Before that, they only skip forecasts of some sun: each day's readings stop around sunset, and the night after is forecast as none. On the aggregate views, the period so far adds today's estimate only up to the newest reading too, and its tooltip says when that was.
 
+### Power flow
+
+The map's Power flow toggle shows an estimate of the flow along each transmission line at the newest interval: each line thicker the more it carries, the HVDC too, with a chevron the way it's flowing. Hovering a line gives its MW, and where it's flowing from and to, with any others running close beside it, and the HVDC's flow where it's one of them.
+
+Nothing publishes the lines' flows, so they're estimated from what each substation puts into the grid or takes out of it (its generation less its load), with a DC power flow (`app/src/utils/lineFlows.ts`). The HVDC's flow comes out of the South Island at Benmore and goes into the North Island at Haywards, and each island's losses are spread over its load. The network is pieced together in the browser from the transmission lines' map data, which doesn't say what connects to what, from where the lines run near the substations and one another (`app/src/utils/gridNetwork.ts`). It leaves out the lines run open to steer the flow, the substations' transformers and the distributors' networks, so it's only a rough guide.
+
 ## Data
 
 The map shows data from [EMI](https://www.emi.ea.govt.nz) provided by the Electricity Authority (New Zealand) and from [Transpower New Zealand](https://www.transpower.co.nz), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It's aggregated and reshaped for the map, and neither licensor endorses this site. The app credits them in the panels' About this site modal and behind the map's ⓘ button (see `app/src/attribution.ts`).
