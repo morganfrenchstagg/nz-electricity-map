@@ -35,6 +35,19 @@ const PTA: Generator = {
     unit('OHG1101 PTA1', 'Pātea Unit 1', 'Hydro', 'HYD', 10, { commissioned: '2026-06-25T02:00:00.000Z' }),
   ],
 }
+// Southdown's two gas units were only metered together, as a combined unit, and all
+// three retired in January 2016. Its battery came after them.
+const SWN: Generator = {
+  site: 'SWN', name: 'Southdown', location: { lat: -36.9, long: 174.8 }, gridZone: '1', island: 'NI', operator: 'Mercury',
+  units: [
+    unit('SWN2201 SWN1', 'Southdown Battery', 'Battery (Discharging)', 'BESS', 1, { commissioned: '2016-12-31T11:00:00.000Z', decomissioned: '2022-05-23T06:59:59.000Z' }),
+    unit('SWN2201 SWN0', 'Southdown', 'Gas', 'GAS', 130, { commissioned: '1995-12-31T11:00:00.000Z', decomissioned: '2016-01-19T10:59:59.000Z' }),
+    unit('SWN2201 SWN5', 'Southdown 5', 'Gas', 'GAS', 50, { commissioned: '2006-12-31T11:00:00.000Z', decomissioned: '2016-01-19T10:59:59.000Z' }),
+    unit('SWN2201 southdown', 'Southdown & Southdown 5', 'Gas', 'GAS', 0, {
+      commissioned: '1995-12-31T11:00:00.000Z', decomissioned: '2016-01-19T10:59:59.000Z', combines: ['SWN2201 SWN0', 'SWN2201 SWN5'],
+    }),
+  ],
+}
 // The 1y and All views' periods, as the map shows them
 const LAST_YEAR = { from: nzLocalMs('2025-10-13T00:00:00'), to: NOW.to }
 const ALL = { from: nzLocalMs('2020-10-01T00:00:00'), to: NOW.to }
@@ -68,6 +81,47 @@ describe('generatorPopupHtml', () => {
     expect(html.match(/Unit 1/g)).toHaveLength(1)
     expect(html).toContain('Unit 1 8 MW / 10 MW (80%)')
     expect(html).not.toContain('retired')
+  })
+})
+
+describe('generatorPopupHtml with combined units', () => {
+  const ANNUAL = { from: nzLocalMs('1997-01-01T00:00:00'), to: NOW.to }
+
+  it('lists a combined unit in place of the units it combines, by its full name', () => {
+    const html = text(generatorPopupHtml(SWN, null, null, ANNUAL, false, []))
+    expect(html).toContain('Southdown & Southdown 5 (retired) —')
+    expect(html).toContain('Battery (retired) —')
+    expect(html.match(/\(retired\)/g)).toHaveLength(2)
+    // With every unit retired, there's no total to give
+    expect(html).not.toContain('Total')
+  })
+
+  it("gives a combined unit in service the capacity of the units it combines, counted once", () => {
+    const in2010 = { from: nzLocalMs('2010-06-01T00:00:00'), to: nzLocalMs('2010-06-01T12:00:00') }
+    const html = text(generatorPopupHtml(SWN, latest('SWN2201 southdown', 90), null, in2010, false, []))
+    expect(html).toContain('Southdown & Southdown 5 90 MW / 180 MW (50%)')
+    expect(html).not.toContain('130 MW')
+  })
+
+  it('finds units it combines at other sites', () => {
+    const TUI: Generator = {
+      ...SWN, site: 'TUI', name: 'Tuai', units: [
+        unit('TUI1101 TUI0', 'Tuai', 'Hydro', 'HYD', 62),
+        unit('TUI1101 waikaremoana', 'Tuai, Kaitawa & Piripaua', 'Hydro', 'HYD', 0, { combines: ['TUI1101 TUI0', 'TUI1101 KTW0'] }),
+      ],
+    }
+    const ktw0 = unit('TUI1101 KTW0', 'Kaitawa', 'Hydro', 'HYD', 36)
+    const html = text(generatorPopupHtml(TUI, latest('TUI1101 waikaremoana', 49), null, NOW, false, [], new Map([[ktw0.node, ktw0]])))
+    expect(html).toContain('Tuai, Kaitawa & Piripaua 49 MW / 98 MW (50%)')
+    expect(html).not.toContain('62 MW')
+  })
+
+  it('names a unit named just as its generator when others beside it are named', () => {
+    const in2010 = { from: nzLocalMs('2010-06-01T00:00:00'), to: nzLocalMs('2010-06-01T12:00:00') }
+    const separate = { ...SWN, units: SWN.units.filter(u => !u.combines) }
+    const html = text(generatorPopupHtml(separate, null, null, in2010, false, []))
+    expect(html).toContain('Southdown — / 130 MW')
+    expect(html).toContain('Southdown 5 — / 50 MW')
   })
 })
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { inServiceAt, inServiceDuring, isCommissioning, isDecommissioned, isRetired, serviceChangesBetween, shortUnitName, unitLabel, unitsByNode } from './generators'
+import { combinedUnitOf, inServiceAt, inServiceDuring, isCombinedOver, isCommissioning, isDecommissioned, isRetired, serviceChangesBetween, shortUnitName, unitLabel, unitsByNode } from './generators'
 import { nzLocalMs } from './time'
 import type { Generator, Unit } from '../types'
 
@@ -35,6 +35,48 @@ describe('shortUnitName', () => {
 
   it('keeps a unit name the generator name does not lead', () => {
     expect(shortUnitName('Taranaki Combined Cycle', 'Stratford')).toBe('Taranaki Combined Cycle')
+  })
+
+  it("keeps a unit name when what's left wouldn't read as one", () => {
+    expect(shortUnitName('Southdown & Southdown 5', 'Southdown')).toBe('Southdown & Southdown 5')
+    expect(shortUnitName('Southdown 5', 'Southdown')).toBe('Southdown 5')
+    expect(shortUnitName('Tuai, Kaitawa & Piripaua', 'Tuai')).toBe('Tuai, Kaitawa & Piripaua')
+  })
+
+  it('still shortens names left starting with a number', () => {
+    expect(shortUnitName('Waipori 2A/3/4', 'Waipori')).toBe('2A/3/4')
+    expect(shortUnitName('Ōtāhuhu A', 'Ōtāhuhu')).toBe('A')
+  })
+})
+
+describe('isCombinedOver', () => {
+  const dated = (node: string, commissioned: string, decomissioned?: string, combines?: string[]): Unit =>
+    ({ ...unit(node, node), commissioned, decomissioned, combines })
+  // Southdown's two units were only ever metered together, and retired with their combined unit
+  const swn0 = dated('SWN2201 SWN0', '1995-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z')
+  const swn5 = dated('SWN2201 SWN5', '2006-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z')
+  const southdown = dated('SWN2201 southdown', '1995-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z', [swn0.node, swn5.node])
+  // Huntly's Rankine units were metered on their own once their combined unit retired
+  const hly1 = dated('HLY2201 HLY1', '1981-12-31T11:00:00.000Z')
+  const huntly14 = dated('HLY2201 huntly_1_4', '1981-12-31T11:00:00.000Z', '1999-12-31T10:59:59.999Z', [hly1.node])
+  const units = [swn0, swn5, southdown, hly1, huntly14]
+
+  it('finds the unit combining another', () => {
+    expect(combinedUnitOf(swn5, units)).toBe(southdown)
+    expect(combinedUnitOf(southdown, units)).toBeUndefined()
+  })
+
+  it('leaves out units only in service within the unit combining them', () => {
+    expect(isCombinedOver(swn0, units)).toBe(true)
+    expect(isCombinedOver(swn5, units)).toBe(true)
+    expect(isCombinedOver(southdown, units)).toBe(false)
+  })
+
+  it('keeps units in service after the unit combining them, over a period reaching then', () => {
+    expect(isCombinedOver(hly1, units)).toBe(false)
+    const in1998 = { from: nzLocalMs('1998-01-01T00:00:00'), to: nzLocalMs('1998-12-31T23:59:59') }
+    expect(isCombinedOver(hly1, units, in1998)).toBe(true)
+    expect(isCombinedOver(hly1, units, { from: in1998.from, to: nzLocalMs('2001-01-01T00:00:00') })).toBe(false)
   })
 })
 

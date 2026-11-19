@@ -3,7 +3,7 @@ import type { UnderConstructionUnit } from '../utils/geo'
 import { fuelCodeColour, fuelColour, fuelFamilies, statusColour, voltageColour, HVDC_IMPORT_CODE } from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
-import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
+import { inServiceAt, inServiceDuring, isCharging, isCombinedOver, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import { hvdcDirection, HVDC_CAPACITY_MW } from '../utils/hvdc'
 import type { HvdcTransfer } from '../utils/hvdc'
@@ -70,9 +70,11 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
 // The `live` views (Today and 3d) also list units still being commissioned once they're
 // dispatching, shown as though in full outage so they don't count towards capacity.
 // Units retired by its end are listed without capacity, except those that moved node
-// (as Pātea's did), which are only listed at the node they moved to. Any of the
-// `pipeline` being built at its site are listed under them.
-export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean, pipeline: UnderConstructionNode[]): string {
+// (as Pātea's did), which are only listed at the node they moved to. A unit that
+// combines others (see Unit.combines) is listed with their capacity, and in their
+// place while they've no generation of their own; any of them at other sites are
+// found in `unitsByNode`. Any of the `pipeline` being built at its site are listed under them.
+export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean, pipeline: UnderConstructionNode[], unitsByNode?: Map<string, Unit>): string {
   const lastRow = data?.data[data.data.length - 1]
   const atMs = period.to
   const genOf = (u: Unit): number | null => {
@@ -82,23 +84,35 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   const commissioning = (u: Unit) => live && isCommissioning(u, atMs) && genOf(u) !== null
   const retired = (u: Unit) => isDecommissioned(u, atMs)
   const movedOn = (u: Unit) => retired(u) && generator.units.some(s => s.unitCode === u.unitCode && inServiceAt(s, atMs))
+  const inService = (u: Unit): PopupUnit => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) })
+  // A combined unit's capacity is that of the units it combines in service
+  const combinedUnit = (u: Unit): PopupUnit => {
+    const parts = (u.combines ?? [])
+      .map(node => generator.units.find(c => c.node === node) ?? unitsByNode?.get(node))
+      .filter((c): c is Unit => !!c && inServiceAt(c, atMs))
+      .map(inService)
+    const sum = (f: (c: PopupUnit) => number) => parts.reduce((total, c) => total + f(c), 0)
+    return { ...u, capacity: sum(c => c.capacity), installedCapacity: sum(installedCapacityOf), outageMW: sum(c => c.outageMW), available: sum(c => c.available) }
+  }
   const activeUnits: PopupUnit[] = generator.units
-    .filter(u => (inServiceDuring(u, period) && !movedOn(u)) || commissioning(u))
+    .filter(u => ((inServiceDuring(u, period) && !movedOn(u)) || commissioning(u)) && !isCombinedOver(u, generator.units, period))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(u => commissioning(u)
       ? { ...u, outageMW: Math.abs(installedCapacityOf(u)), available: 0 }
       : retired(u) ? { ...u, capacity: 0, outageMW: 0, available: 0 }
-        : { ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) })
+        : u.combines ? combinedUnit(u) : inService(u))
   // A battery's charging unit goes by its discharging unit's name, and shares its row:
   // one bar out from zero in the middle, charging to the left and discharging to the right
   const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)
   const pairedCharging = new Set(activeUnits.map(chargingUnitOf))
   // The popup's heading already names the generator, so unit names drop it, and a
-  // unit named just as its generator goes unnamed
-  const rows = activeUnits.filter(u => !pairedCharging.has(u)).map(u => ({ u, name: shortUnitName(u.name, generator.name) }))
+  // unit named just as its generator goes unnamed, unless others are named beside it
+  const shortNames = activeUnits.filter(u => !pairedCharging.has(u)).map(u => ({ u, name: shortUnitName(u.name, generator.name) }))
+  const anyNamed = shortNames.some(r => r.name)
+  const rows = shortNames.map(({ u, name }) => ({ u, name: name || (anyNamed ? u.name : '') }))
   // With one row, or none named, the fuel goes under the heading as in the generator
   // panel, in place of a dot on each row
-  const fuelInHeading = rows.length === 1 || rows.every(r => !r.name)
+  const fuelInHeading = rows.length === 1 || !anyNamed
   const unitRows = rows.map(({ u, name }) => {
     const charging = chargingUnitOf(u)
     const chargeMW = charging ? genOf(charging) : null
@@ -140,8 +154,8 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   const totalCapStr = hasOutage
     ? `<s style="color:var(--color-text-faint)">${formatMW(generatingUnits.reduce((sum, u) => sum + u.capacity, 0))}</s> ${formatMW(totalCap)}`
     : formatMW(totalCap)
-  // A single row would only repeat itself as the total
-  const totalRow = rows.length > 1 ? `
+  // A single row would only repeat itself as the total, and rows all retired would total nothing
+  const totalRow = rows.length > 1 && !activeUnits.every(retired) ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:var(--space-md)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span style="color:var(--color-text-muted)">Total</span>

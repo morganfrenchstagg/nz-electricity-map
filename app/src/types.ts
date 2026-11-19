@@ -10,6 +10,10 @@ export interface Unit {
   decomissioned?: string
   installedCapacity?: number
   outageBlock?: string
+  // The nodes of the units this one stands in for, when they were only metered
+  // together (as Southdown's two were), until this one is decommissioned. It has
+  // no capacity of its own: the units it combines hold it (see combinedUnitOf).
+  combines?: string[]
 }
 
 export interface Generator {
