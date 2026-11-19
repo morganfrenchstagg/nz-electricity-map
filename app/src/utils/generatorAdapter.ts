@@ -5,7 +5,7 @@ import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamilies, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
-import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
+import { inServiceAt, inServiceDuring, isCharging, isCombinedOver, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
 import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 import type { Period } from './time'
@@ -147,8 +147,9 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   const activeUnits = generator.units.filter((u) => inServiceDuring(u, period))
   const shownUnits = live ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at)) : activeUnits
   const movedNodes = movedNodesOf(generator.units)
-  // Moved units are charted under their current node only
-  const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
+  // Moved units are charted under their current node only, and units combined into
+  // another (see isCombinedOver) under it, having none of their own
+  const historyUnits = generator.units.filter((u) => !(u.node in movedNodes) && !isCombinedOver(u, generator.units))
 
   // A generator opened for a day before it was built still names its fuels
   const subtitleFuels = fuelFamilies((activeUnits.length > 0 ? activeUnits : generator.units).map((u) => u.fuel))
@@ -314,8 +315,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     movedNodes,
 
     getCodes(recent, includeRetired = false) {
-      // Moved units are charted under their current node only
-      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allShownUnits)
+      // Moved units are charted under their current node only, and combined units' under them
+      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes) && !isCombinedOver(u, allUnits)) : allShownUnits)
         .filter(c => recent.series.includes(c))
     },
 

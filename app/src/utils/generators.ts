@@ -81,11 +81,32 @@ export function unitLabel(unit: Unit): string {
 
 // A unit's name without its generator's leading it ("Huntly Unit 5" is "Unit 5"),
 // for where the generator is already named. A unit named just as its generator is ''.
+// What's left has to read as a name, so "Southdown & Southdown 5" and "Southdown 5"
+// keep theirs rather than becoming "& Southdown 5" and "5".
 export function shortUnitName(unitName: string, generatorName: string): string {
   if (!unitName.startsWith(generatorName)) return unitName
   const rest = unitName.slice(generatorName.length)
+  if (rest === '') return ''
   // Only a whole word, so "Te" wouldn't cut "Tekapo" short
-  return rest === '' || /^[\s-]/.test(rest) ? rest.replace(/^[\s-]+/, '') : unitName
+  if (!/^[\s-]/.test(rest)) return unitName
+  const short = rest.replace(/^[\s-]+/, '')
+  return /^[\p{L}\p{N}]/u.test(short) && !/^\d+$/.test(short) ? short : unitName
+}
+
+// The unit among `units` that combines this one (see Unit.combines)
+export function combinedUnitOf(unit: Unit, units: Unit[]): Unit | undefined {
+  return units.find((c) => c.combines?.includes(unit.node))
+}
+
+// A unit combined into another has no generation of its own while that one stands
+// in for it, so it's left out over a period it's only in service within that one's
+// (all of Southdown's two units' service, but not Huntly's Rankine units', which
+// outlasted theirs). Without a period, over all of its service.
+export function isCombinedOver(unit: Unit, units: Unit[], period: Period = { from: -Infinity, to: Infinity }): boolean {
+  const combined = combinedUnitOf(unit, units)
+  if (!combined) return false
+  const after = Math.max(period.from, serviceEnd(combined) + 1)
+  return after > period.to || !inServiceDuring(unit, { from: after, to: period.to })
 }
 
 // Every unit by its node. A node shared by several units maps to the first.
