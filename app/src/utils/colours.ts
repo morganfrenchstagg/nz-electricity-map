@@ -15,6 +15,7 @@ const FUELS = [
   { code: 'GAS', label: 'Gas', colour: 'rgb(253, 180, 98)', fuelNames: ['Gas'], renewable: false },
   { code: 'CLG', label: 'Coal / Gas', colour: 'rgb(139, 87, 42)', fuelNames: ['Coal/Gas'], renewable: false },
   { code: 'DIE', label: 'Diesel', colour: 'rgb(135, 72, 0)', fuelNames: ['Diesel'], renewable: false },
+  { code: 'FOSSIL', label: 'Fossil fuels', colour: 'rgb(176, 120, 64)', fuelNames: [], renewable: false },
   { code: 'BIO', label: 'Biomass', colour: '#6a3d9a', fuelNames: ['Biomass'], renewable: true },
   { code: 'BESS', label: 'Battery (discharging)', colour: '#76721E', fuelNames: ['Battery', 'Battery (Discharging)'], renewable: true },
   { code: 'BESS-C', label: 'Battery (charging)', colour: '#76721E', fuelNames: ['Battery (Charging)'], renewable: false },
@@ -30,6 +31,11 @@ export const CHARGING_FUEL_CODE = 'BESS-C'
 // dispatched. It has no units: its output is estimated from the weather by its
 // own API (see utils/distributedSolar), and charted just above grid solar.
 export const DISTRIBUTED_SOLAR_FUEL_CODE = 'SOL-D'
+
+// Not a fuel, but the series GridOverviewPanel charts the fossil fuels as when
+// they're combined (see chartSettings), in gas's place in the order
+export const FOSSIL_FUEL_CODE = 'FOSSIL'
+export const FOSSIL_FUEL_CODES: ReadonlySet<string> = new Set(['GAS', 'CLG', 'DIE'])
 
 // Not a fuel, but charted as one in GridOverviewPanel's island views: the HVDC
 // bringing power into the island like a generator, or taking it out below zero,
@@ -61,7 +67,7 @@ export const RENEWABLE_FUEL_CODES: ReadonlySet<string> =
   new Set(FUELS.filter(f => f.renewable).map(f => f.code))
 
 // Canonical display order for fuel codes (used in GridOverviewPanel, and by fuel name via FUEL_NAME_SORT_INDEX)
-export const FUEL_CODE_ORDER = ['HVDC-IN', 'BESS', 'DIE', 'HYD', 'SOL-D', 'SOL', 'WIN', 'GAS', 'CLG', 'BIO', 'GEO', 'BESS-C', 'HVDC-OUT'] as const
+export const FUEL_CODE_ORDER = ['HVDC-IN', 'BESS', 'DIE', 'HYD', 'SOL-D', 'SOL', 'WIN', 'FOSSIL', 'GAS', 'CLG', 'BIO', 'GEO', 'BESS-C', 'HVDC-OUT'] as const
 
 // Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
 export const FUEL_NAME_SORT_INDEX: Record<string, number> =

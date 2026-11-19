@@ -8,7 +8,7 @@ import { chartKind, useDistributedSolar, useDistributedSolarEnergy, useShownWith
 import type { RecentData, SelectedNode, Unit } from '../types'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FUEL_CODE, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
+import { fuelCodeColour, fuelCodeLabel, CHARGING_FUEL_CODE, DISTRIBUTED_SOLAR_FUEL_CODE, FOSSIL_FUEL_CODE, FOSSIL_FUEL_CODES, FUEL_CODE_ORDER, HVDC_EXPORT_CODE, HVDC_IMPORT_CODE, RENEWABLE_FUEL_CODES } from '../utils/colours'
 import { hvdcEnergyInto, hvdcInto } from '../utils/hvdc'
 import { distributedSolarAt, distributedSolarCapacities, distributedSolarEnergy, solarSoFar } from '../utils/distributedSolar'
 import { CHART_CONTAINER_PROPS, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, chartReach, columnFillEvents, dataInterval, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from '../utils/chart'
@@ -35,11 +35,15 @@ function fuelLabel(fuel: string, island: Island): string {
   return fuelCodeLabel(fuel)
 }
 
-// The fuels a series charts. With the solar combined, grid-scale solar's has
-// embedded solar's in it too.
-function fuelsOf(seriesFuel: string, combineSolar: boolean): string[] {
+// The fuels a series charts, of those there are. With the solar combined,
+// grid-scale solar's has embedded solar's in it too, and the fossil fuels'
+// series, there only when they're combined, has each of them.
+function fuelsOf(seriesFuel: string, fuels: string[], combineSolar: boolean): string[] {
+  if (seriesFuel === FOSSIL_FUEL_CODE) return fuels.filter(f => FOSSIL_FUEL_CODES.has(f))
   return combineSolar && seriesFuel === 'SOL' ? [DISTRIBUTED_SOLAR_FUEL_CODE, 'SOL'] : [seriesFuel]
 }
+
+const FUEL_ORDER: readonly string[] = FUEL_CODE_ORDER
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
@@ -62,6 +66,13 @@ const TOOLTIP_GROUPS: { label: string; colourFuel: string; totals: boolean; part
     parts: [[fuelCodeLabel('BESS'), 'Discharging'], [fuelCodeLabel(CHARGING_FUEL_CODE), 'Charging']],
   },
 ]
+// Listed with them while the fossil fuels are charted as one series
+const FOSSIL_TOOLTIP_GROUP: typeof TOOLTIP_GROUPS[number] = {
+  label: fuelCodeLabel(FOSSIL_FUEL_CODE),
+  colourFuel: FOSSIL_FUEL_CODE,
+  totals: true,
+  parts: ['GAS', 'CLG', 'DIE'].map(fuel => [fuelCodeLabel(fuel), fuelCodeLabel(fuel)]),
+}
 
 interface Props extends PanelProps {
   dateMode: DateMode
@@ -177,19 +188,28 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
 
   // Each series' fuel, a button each. Combined, embedded solar is charted in
-  // grid-scale solar's series where there's both (see fuelsOf).
+  // grid-scale solar's series where there's both, and the fossil fuels in one
+  // series of their own (see fuelsOf).
   const combineSolar = chartSettings.solar === 'combined' && fuels.includes(DISTRIBUTED_SOLAR_FUEL_CODE) && fuels.includes('SOL')
-  const seriesFuels = useMemo(() => fuels.filter(f => !(combineSolar && f === DISTRIBUTED_SOLAR_FUEL_CODE)), [fuels, combineSolar])
+  const combineFossil = chartSettings.fossil === 'combined' && fuels.some(f => FOSSIL_FUEL_CODES.has(f))
+  const seriesFuels = useMemo(() => {
+    const series = fuels.filter(f => !(combineSolar && f === DISTRIBUTED_SOLAR_FUEL_CODE) && !(combineFossil && FOSSIL_FUEL_CODES.has(f)))
+    if (!combineFossil) return series
+    // Before the first fuel after it in the order, or one that isn't in it
+    const order = (f: string) => FUEL_ORDER.indexOf(f)
+    const at = series.findIndex(f => order(f) === -1 || order(f) > order(FOSSIL_FUEL_CODE))
+    return at === -1 ? [...series, FOSSIL_FUEL_CODE] : [...series.slice(0, at), FOSSIL_FUEL_CODE, ...series.slice(at)]
+  }, [fuels, combineSolar, combineFossil])
   const isShown = useCallback(
-    (fuel: string) => fuelsOf(fuel, combineSolar).some(f => effectiveFuels.has(f)),
-    [combineSolar, effectiveFuels],
+    (fuel: string) => fuelsOf(fuel, fuels, combineSolar).some(f => effectiveFuels.has(f)),
+    [fuels, combineSolar, effectiveFuels],
   )
 
   // Shows or hides a series' fuels together
   function toggleFuel(fuel: string) {
     const show = !isShown(fuel)
     const next = new Set(effectiveFuels)
-    for (const f of fuelsOf(fuel, combineSolar)) {
+    for (const f of fuelsOf(fuel, fuels, combineSolar)) {
       if (show) next.add(f)
       else next.delete(f)
     }
@@ -199,7 +219,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
   // Shows a series alone, hiding every other
   function isolateFuel(fuel: string) {
-    const isolated = fuelsOf(fuel, combineSolar)
+    const isolated = fuelsOf(fuel, fuels, combineSolar)
     onActiveFuelsChange(isolated.length === fuels.length ? null : new Set(isolated))
   }
 
@@ -214,7 +234,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
 
     // Each shown series' fuel, and the fuels it charts that are shown
     const shownFuels = seriesFuels.filter(isShown)
-    const shownFuelsOf = (fuel: string) => fuelsOf(fuel, combineSolar).filter(f => effectiveFuels.has(f))
+    const shownFuelsOf = (fuel: string) => fuelsOf(fuel, fuels, combineSolar).filter(f => effectiveFuels.has(f))
     // Stacked, distributed solar is charted at 0 where there's no estimate, as
     // nulls part way up a stack draw from 0 instead, but it's left out of the
     // tooltip there. Its line just breaks.
@@ -399,12 +419,14 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           // too, so the island's exports read as the part of its generation sent away.
           const total = fuelPoints.reduce((sum, p) => sum + Math.max(p.y, 0), 0)
 
-          // A fuel's row: its generation, capacity and share of the total
+          // A fuel's row: its generation, capacity and share of the total. A
+          // group's parts are indented, and not bold, to set its heading apart.
           const row = (label: string, colour: string, y: number, cap: number, indent = false) => {
+            const bold = (text: string) => (indent ? text : `<b>${text}</b>`)
             const val = formatValue(y)
-            const formatted = y === 0 ? val : `<b>${val}</b>`
+            const formatted = y === 0 ? val : bold(val)
             const ratioOfTotal = total > 0 ? y / total : 0
-            const percentageStr = ratioOfTotal !== 0 ? `<b>${(ratioOfTotal * 100).toFixed(1)}%</b>` : total > 0 ? '0%' : '–'
+            const percentageStr = ratioOfTotal !== 0 ? bold(`${(ratioOfTotal * 100).toFixed(1)}%`) : total > 0 ? '0%' : '–'
             // No capacity comparison for aggregate totals
             const capCell = isAggregate ? '' : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
             const labelStyle = indent ? ' style="padding-left:var(--space-lg)"' : ''
@@ -412,7 +434,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
           }
 
           // Each group's points, in its parts' order, where two or more are in the tooltip (see TOOLTIP_GROUPS)
-          const groups = TOOLTIP_GROUPS
+          const groups = (combineFossil ? [...TOOLTIP_GROUPS, FOSSIL_TOOLTIP_GROUP] : TOOLTIP_GROUPS)
             .map(group => ({
               group,
               points: group.parts.flatMap(([name, label]) => {
@@ -457,7 +479,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
       },
       series,
     }
-  }, [data, generators, fuels, seriesFuels, combineSolar, fuelToIndices, fuelToUnits, effectiveFuels, isShown, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
+  }, [data, generators, fuels, seriesFuels, combineSolar, combineFossil, fuelToIndices, fuelToUnits, effectiveFuels, isShown, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
 
   // On the narrowest panels the title is cut short to keep the picker's ▾ in view
   const header = (
@@ -507,7 +529,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
         />
         {/* At the toolbar's end, under the header's Close */}
         <div style={{ display: 'flex', marginLeft: 'auto' }}>
-          <ChartSettingsMenu settings={chartSettings} onChange={onChartSettingsChange} offered={['chartType', 'solar']} />
+          <ChartSettingsMenu settings={chartSettings} onChange={onChartSettingsChange} offered={['chartType', 'solar', 'fossil']} />
         </div>
       </PanelToolbar>
 
