@@ -43,6 +43,17 @@ export const CHART_SETTINGS = {
       { value: 'combined', label: 'Combined' },
     ],
   },
+  // Gas, coal and diesel charted as series of their own, or as one Fossil
+  // fuels series
+  fossil: {
+    label: 'Combine fossil fuels',
+    param: 'fossil',
+    checkbox: true,
+    options: [
+      { value: 'separate', label: 'Separate' },
+      { value: 'combined', label: 'Combined' },
+    ],
+  },
 } as const satisfies Record<string, ChartSettingDefinition>
 
 export type ChartSettingKey = keyof typeof CHART_SETTINGS
