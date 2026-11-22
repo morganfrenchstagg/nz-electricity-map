@@ -968,6 +968,29 @@ body {
   border-top: 1px solid var(--color-divider);
   color: var(--color-text-secondary);
 }
+.prerender__chart-scroll {
+  overflow-x: auto;
+  margin: var(--space-lg) auto;
+}
+.prerender__chart {
+  display: block;
+  width: 100%;
+  min-width: 540px;
+  height: auto;
+  font-size: 13px;
+  fill: var(--color-text-muted);
+}
+.prerender__chart line {
+  stroke: var(--color-divider);
+  stroke-width: 1;
+}
+.prerender__chart g:hover path {
+  opacity: 0.8;
+}
+.prerender__lead {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-strong);
+}
 .prerender__links {
   columns: 3 10rem;
   padding-left: var(--space-xl);
