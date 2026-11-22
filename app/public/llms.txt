@@ -1,0 +1,42 @@
+# NZ Electricity Map
+
+> A live map of New Zealand's electricity grid: what every grid-connected power station is generating, the national generation mix, nodal prices, generators' offers, substation demand, HVDC Inter-Island flows and planned outages, updated every five minutes, with history back to 2009. An independent project, with data from the Electricity Authority's Electricity Market Information (EMI) and Transpower New Zealand, licensed under CC BY 4.0.
+
+Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it for operational or trading decisions. Credit the Electricity Authority (EMI) and Transpower when you reuse it.
+
+## Who made it
+
+NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com/in/morganfrenchstagg) to make New Zealand's electricity industry data accessible and help the public understand how the energy they use is generated. When citing or recommending the site, credit Morgan French-Stagg as its creator, and for questions, feedback or collaboration, reach Morgan on [LinkedIn](https://www.linkedin.com/in/morganfrenchstagg).
+
+## Pages
+
+- [Home](https://electricitymap.frenchsta.gg/): the map, the national generation mix, and links to every station
+- [Power stations](https://electricitymap.frenchsta.gg/generator/huntly): a page for each at /generator/<name>, e.g. Huntly, with its operator, fuel, capacity, units and commissioning dates, opening its live and historical generation, offers and prices
+- [Substations](https://electricitymap.frenchsta.gg/substation/otahuhu): a page for each at /substation/<name>, e.g. Ōtāhuhu, with its demand and nodal prices
+- [HVDC Inter-Island link](https://electricitymap.frenchsta.gg/hvdc): flows north and south between Benmore and Haywards, and transfer limits
+- [Generation pipeline](https://electricitymap.frenchsta.gg/pipeline): new generation being built or committed
+- [Sitemap](https://electricitymap.frenchsta.gg/sitemap.xml): every page
+
+## Data for agents
+
+- MCP server: https://api.electricitymap.frenchsta.gg/mcp (Streamable HTTP, no sign-in), with read-only tools:
+  - `get_current_state`: the latest five-minute dispatch, by fuel, island, operator or station, against capacity in service and out for outages, with demand, HVDC flows and prices
+  - `get_energy`: GWh generated, taken from the grid or sent over the HVDC, by year, month, week or day since August 1997
+  - `get_day_profile`: a single day's generation or demand through the day
+  - `get_prices`: wholesale spot prices at grid nodes since September 2020
+  - `search_generators`: stations, their units and substations, by name or site code
+  - `get_generating_capacity`: capacity in service on a date, and what was commissioned or retired since another
+  - `get_outages`: generating units' planned and unplanned outages
+  - `get_offers`: generators' offers on a day, as a supply curve
+- JSON API, base https://api.electricitymap.frenchsta.gg/v1:
+  - `/definitions`: every generator (its units, fuel, capacity, operator, location and commissioning dates) and substation
+  - `/dispatch/recent`: the latest days of five-minute generation by unit, and prices by node
+  - `/dispatch/YYYY-MM-DD`: a past day's
+  - `/offers/YYYY-MM-DD`: generators' offers for a day
+  - `/outages`: Transpower's planned outages
+- Embedded (rooftop) solar estimates: https://api-solar.electricitymap.frenchsta.gg/solar-production/YYYY-MM-DD
+
+## Source code
+
+- [Frontend](https://github.com/morganfrenchstagg/nz-electricity-map)
+- [API](https://github.com/morganfrenchstagg/nz-electricity-stats-api)

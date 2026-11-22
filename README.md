@@ -40,6 +40,12 @@ The map's Power flow toggle shows an estimate of the flow along each transmissio
 
 Nothing publishes the lines' flows, so they're estimated from what each substation puts into the grid or takes out of it (its generation less its load), with a DC power flow (`app/src/utils/lineFlows.ts`). The HVDC's flow comes out of the South Island at Benmore and goes into the North Island at Haywards, and each island's losses are spread over its load. The network is pieced together in the browser from the transmission lines' map data, which doesn't say what connects to what, from where the lines run near the substations and one another (`app/src/utils/gridNetwork.ts`). It leaves out the lines run open to steer the flow, the substations' transformers and the distributors' networks, so it's only a rough guide.
 
+## Pages for search engines
+
+The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. It reads the definitions from the API repo's `src/data/generators.json` and `substations.json`, which `/definitions` serves as they are, because Cloudflare's bot protection blocks GitHub's runners from the API itself (with `VITE_API_BASE` set, from that API's `/definitions`). The build fails if it can't fetch them. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
+
+The app opens a station's panel at its page, and writes a single station's page into the URL in place of `?node=`. A station added to the API has no page until the next deploy, which runs daily as well as on each push to main.
+
 ## Data
 
 The map shows data from [EMI](https://www.emi.ea.govt.nz) provided by the Electricity Authority (New Zealand) and from [Transpower New Zealand](https://www.transpower.co.nz), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It's aggregated and reshaped for the map, and neither licensor endorses this site. The app credits them in the panels' About this site modal and behind the map's ⓘ button (see `app/src/attribution.ts`).
