@@ -17,6 +17,12 @@ export const ORIGIN = 'https://electricitymap.frenchsta.gg'
 const API_URL = 'https://api.electricitymap.frenchsta.gg/v1'
 const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
 const CC_BY = 'https://creativecommons.org/licenses/by/4.0/'
+const LINKEDIN = 'https://www.linkedin.com/in/morganfrenchstagg'
+const CREATOR = { '@type': 'Person', '@id': `${ORIGIN}/#creator`, name: 'Morgan French-Stagg', url: LINKEDIN, sameAs: [LINKEDIN] }
+// Who made the site, at the foot of every page
+const CREDIT = `<footer class="prerender__credit"><p>${SITE_NAME} is an independent project created by
+<a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>, with help from Jack Gibbons. Questions or feedback?
+Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p></footer>`
 const FUEL_ORDER = ['Hydro', 'Geothermal', 'Wind', 'Solar', 'Battery', 'Gas', 'Coal and gas', 'Diesel']
 
 export interface Definitions {
@@ -111,12 +117,14 @@ function breadcrumbs(trail: { name: string; path: string }[]): { html: string; j
 function webPage(path: string, name: string, description: string, extra: object = {}): object {
   return {
     '@type': 'WebPage', '@id': ORIGIN + path, url: ORIGIN + path, name, description,
-    isPartOf: { '@id': `${ORIGIN}/#website` }, inLanguage: 'en-NZ', ...extra,
+    isPartOf: { '@id': `${ORIGIN}/#website` }, inLanguage: 'en-NZ', author: { '@id': CREATOR['@id'] }, ...extra,
   }
 }
 
+// Every page's structured data names its creator in full, as an @id isn't
+// followed from one page to another
 function graph(...items: object[]): object {
-  return { '@context': 'https://schema.org', '@graph': items }
+  return { '@context': 'https://schema.org', '@graph': [...items, CREATOR] }
 }
 
 const SOURCES = `<p>Data from the Electricity Authority's <a href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</a>
@@ -261,22 +269,21 @@ ${fuels.map((f) => `<h3>${esc(f)}</h3>${linkList(sortByName(byFuel.get(f) ?? [],
 <h2>Substations</h2>
 <h3>North Island</h3>${substationLinks('north')}
 <h3>South Island</h3>${substationLinks('south')}`
-  const creator = { '@type': 'Person', name: 'Morgan French-Stagg', url: 'https://www.linkedin.com/in/morganfrenchstagg' }
   return {
     path: '/', title: HOME_TITLE, description, body,
     jsonLd: graph(
-      { '@type': 'WebSite', '@id': `${ORIGIN}/#website`, url: `${ORIGIN}/`, name: SITE_NAME, description, inLanguage: 'en-NZ' },
+      { '@type': 'WebSite', '@id': `${ORIGIN}/#website`, url: `${ORIGIN}/`, name: SITE_NAME, description, inLanguage: 'en-NZ', creator: { '@id': CREATOR['@id'] } },
       {
         '@type': 'WebApplication', '@id': `${ORIGIN}/#app`, url: `${ORIGIN}/`, name: SITE_NAME, description,
         applicationCategory: 'ReferenceApplication', operatingSystem: 'Any', isAccessibleForFree: true,
-        offers: { '@type': 'Offer', price: 0, priceCurrency: 'NZD' }, creator,
+        offers: { '@type': 'Offer', price: 0, priceCurrency: 'NZD' }, creator: { '@id': CREATOR['@id'] },
       },
       {
         '@type': 'Dataset', '@id': `${ORIGIN}/#dataset`, url: `${ORIGIN}/`,
         name: 'New Zealand electricity generation, prices and offers',
         description: 'Five-minute generation by power station and fuel, nodal prices, offers, substation demand, HVDC flows and planned outages for New Zealand\'s national grid, reshaped from the Electricity Authority\'s EMI data and Transpower\'s.',
         keywords: ['New Zealand', 'electricity', 'generation', 'renewable energy', 'wholesale prices', 'national grid'],
-        creator, license: CC_BY, isAccessibleForFree: true,
+        creator: { '@id': CREATOR['@id'] }, license: CC_BY, isAccessibleForFree: true,
         isBasedOn: ['https://www.emi.ea.govt.nz', 'https://www.transpower.co.nz'],
         spatialCoverage: { '@type': 'Place', name: 'New Zealand' },
         distribution: [{ '@type': 'DataDownload', encodingFormat: 'application/json', contentUrl: `${API_URL}/definitions` }],
@@ -317,7 +324,7 @@ export function renderPage(template: string, page: Page): string {
     `<meta property="og:url" content="${esc(url)}" />`,
     `<script type="application/ld+json">${JSON.stringify(page.jsonLd).replace(/</g, '\\u003c')}</script>`,
   ].join('\n    ')
-  const body = `<main class="prerender">\n${page.body}\n</main>`
+  const body = `<main class="prerender">\n${page.body}\n${CREDIT}\n</main>`
   return fillBlock(fillBlock(template, 'page-head', head), 'page-body', body)
 }
 

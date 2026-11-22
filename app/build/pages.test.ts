@@ -55,6 +55,15 @@ describe('buildPages', () => {
     expect(page('/generator/otahuhu').description).toBe('Ōtāhuhu was a 380 MW gas power station in the North Island, operated by Contact until 2015. See its historical generation.')
   })
 
+  it("credits the site's creator on every page, in its text and structured data", () => {
+    for (const p of pages) {
+      const graph = (p.jsonLd as { '@graph': { '@type': string; name?: string; author?: object }[] })['@graph']
+      expect(graph).toContainEqual(expect.objectContaining({ '@type': 'Person', name: 'Morgan French-Stagg', url: 'https://www.linkedin.com/in/morganfrenchstagg' }))
+    }
+    const html = renderPage(TEMPLATE, page('/substation/huntly'))
+    expect(html).toContain('created by\n<a href="https://www.linkedin.com/in/morganfrenchstagg" rel="author">Morgan French-Stagg</a>')
+  })
+
   it('links a substation to the generation connected there', () => {
     expect(page('/substation/huntly').body).toContain('<a href="/generator/huntly">Huntly</a>')
   })
