@@ -15,7 +15,15 @@ Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it
 
 ## Data for agents
 
-- MCP server: https://api.electricitymap.frenchsta.gg/mcp (Streamable HTTP), for querying the data directly
+- MCP server: https://api.electricitymap.frenchsta.gg/mcp (Streamable HTTP, no sign-in), with read-only tools:
+  - `get_current_state`: the latest five-minute dispatch, by fuel, island, operator or station, against capacity in service and out for outages, with demand, HVDC flows and prices
+  - `get_energy`: GWh generated, taken from the grid or sent over the HVDC, by year, month, week or day since August 1997
+  - `get_day_profile`: a single day's generation or demand through the day
+  - `get_prices`: wholesale spot prices at grid nodes since September 2020
+  - `search_generators`: stations, their units and substations, by name or site code
+  - `get_generating_capacity`: capacity in service on a date, and what was commissioned or retired since another
+  - `get_outages`: generating units' planned and unplanned outages
+  - `get_offers`: generators' offers on a day, as a supply curve
 - JSON API, base https://api.electricitymap.frenchsta.gg/v1:
   - `/definitions`: every generator (its units, fuel, capacity, operator, location and commissioning dates) and substation
   - `/dispatch/recent`: the latest days of five-minute generation by unit, and prices by node
