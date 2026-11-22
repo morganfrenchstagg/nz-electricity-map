@@ -329,10 +329,31 @@ ${pages.map((p) => `  <url><loc>${esc(ORIGIN + p.path)}</loc></url>`).join('\n')
 `
 }
 
-// Writes every page, and the sitemap, from the built index.html and the API's
+// The API's /definitions is its generators.json and substations.json as they
+// are, so the build reads them from its repo: Cloudflare's bot protection
+// answers GitHub's runners with a 403 on the API itself. VITE_API_BASE reads
+// another API's /definitions instead, e.g. a branch's preview deployment.
+const DEFINITIONS_REPO = 'https://raw.githubusercontent.com/morganfrenchstagg/nz-electricity-stats-api/main/src/data'
+
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`station-pages: ${url} answered ${response.status}`)
+  return await response.json() as T
+}
+
+async function loadDefinitions(apiBase?: string): Promise<Definitions> {
+  if (apiBase) return getJson<Definitions>(`${apiBase.replace(/\/$/, '')}/definitions`)
+  const [generators, substations] = await Promise.all([
+    getJson<Generator[]>(`${DEFINITIONS_REPO}/generators.json`),
+    getJson<Substation[]>(`${DEFINITIONS_REPO}/substations.json`),
+  ])
+  return { generators, substations }
+}
+
+// Writes every page, and the sitemap, from the built index.html and the
 // definitions. The build fails if they can't be fetched, rather than deploy
 // without the station pages.
-export function stationPages(apiBase: string): Plugin {
+export function stationPages(apiBase?: string): Plugin {
   return {
     name: 'station-pages',
     apply: 'build',
@@ -340,11 +361,8 @@ export function stationPages(apiBase: string): Plugin {
     async generateBundle(_options, bundle) {
       const index = bundle['index.html']
       if (!index || index.type !== 'asset') throw new Error('station-pages: no index.html in the bundle')
-      const url = `${apiBase.replace(/\/$/, '')}/definitions`
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`station-pages: ${url} answered ${response.status}`)
-      const defs = await response.json() as Definitions
-      if (!defs.generators?.length || !defs.substations?.length) throw new Error(`station-pages: ${url} has no generators or substations`)
+      const defs = await loadDefinitions(apiBase)
+      if (!defs.generators?.length || !defs.substations?.length) throw new Error('station-pages: the definitions have no generators or substations')
 
       const template = String(index.source)
       const pages = buildPages(defs)

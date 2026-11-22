@@ -36,7 +36,7 @@ The substation panel's estimate, and its dashed line of the substation's demand 
 
 ## Pages for search engines
 
-The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. So `npm run build` needs the API (or `VITE_API_BASE`) to be reachable, and fails if it isn't. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
+The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. It reads the definitions from the API repo's `src/data/generators.json` and `substations.json`, which `/definitions` serves as they are, because Cloudflare's bot protection blocks GitHub's runners from the API itself (with `VITE_API_BASE` set, from that API's `/definitions`). The build fails if it can't fetch them. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
 
 The app opens a station's panel at its page, and writes a single station's page into the URL in place of `?node=`. A station added to the API has no page until the next deploy, which runs daily as well as on each push to main.
 

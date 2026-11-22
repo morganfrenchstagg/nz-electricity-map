@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     // Leave out the date pickers' strings in languages other than English
     { ...optimizeLocales.vite({ locales: ['en-US'] }), enforce: 'pre' },
     // A page for each station, and the sitemap, from the API's definitions
-    stationPages(loadEnv(mode, '.', 'VITE_').VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1'),
+    stationPages(loadEnv(mode, '.', 'VITE_').VITE_API_BASE),
   ],
   base: '/',
   build: {
