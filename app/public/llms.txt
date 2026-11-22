@@ -1,0 +1,30 @@
+# NZ Electricity Map
+
+> A live map of New Zealand's electricity grid: what every grid-connected power station is generating, the national generation mix, nodal prices, generators' offers, substation demand, HVDC Inter-Island flows and planned outages, updated every five minutes, with history back to 2009. An independent project, with data from the Electricity Authority's Electricity Market Information (EMI) and Transpower New Zealand, licensed under CC BY 4.0.
+
+Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it for operational or trading decisions. Credit the Electricity Authority (EMI) and Transpower when you reuse it.
+
+## Pages
+
+- [Home](https://electricitymap.frenchsta.gg/): the map, the national generation mix, and links to every station
+- [Power stations](https://electricitymap.frenchsta.gg/generator/huntly): a page for each at /generator/<name>, e.g. Huntly, with its operator, fuel, capacity, units and commissioning dates, opening its live and historical generation, offers and prices
+- [Substations](https://electricitymap.frenchsta.gg/substation/otahuhu): a page for each at /substation/<name>, e.g. Ōtāhuhu, with its demand and nodal prices
+- [HVDC Inter-Island link](https://electricitymap.frenchsta.gg/hvdc): flows north and south between Benmore and Haywards, and transfer limits
+- [Generation pipeline](https://electricitymap.frenchsta.gg/pipeline): new generation being built or committed
+- [Sitemap](https://electricitymap.frenchsta.gg/sitemap.xml): every page
+
+## Data for agents
+
+- MCP server: https://api.electricitymap.frenchsta.gg/mcp (Streamable HTTP), for querying the data directly
+- JSON API, base https://api.electricitymap.frenchsta.gg/v1:
+  - `/definitions`: every generator (its units, fuel, capacity, operator, location and commissioning dates) and substation
+  - `/dispatch/recent`: the latest days of five-minute generation by unit, and prices by node
+  - `/dispatch/YYYY-MM-DD`: a past day's
+  - `/offers/YYYY-MM-DD`: generators' offers for a day
+  - `/outages`: Transpower's planned outages
+- Embedded (rooftop) solar estimates: https://api-solar.electricitymap.frenchsta.gg/solar-production/YYYY-MM-DD
+
+## Source code
+
+- [Frontend](https://github.com/morganfrenchstagg/nz-electricity-map)
+- [API](https://github.com/morganfrenchstagg/nz-electricity-stats-api)

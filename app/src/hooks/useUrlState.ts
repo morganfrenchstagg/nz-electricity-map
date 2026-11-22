@@ -5,12 +5,17 @@ import type { DateMode } from './useDispatchData'
 import { FIRST_DAY } from './useAggregates'
 import { CHART_SETTING_PARAMS, readChartSettings, writeChartSettings } from '../utils/chartSettings'
 import type { ChartSettings } from '../utils/chartSettings'
+import { generatorSlug, nodeParamOfPath, stationPath, substationSlug } from '../utils/stationPaths'
 
 export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
-//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC, substation:OTA,
-//                   substations:OTA,PEN or hvdc
+//   /generator/huntly, /substation/otahuhu or /hvdc
+//                   the open panel, when it's a single station (see stationPaths), or
+//   ?node=          several stations: generators:HLY,TCC or substations:OTA,PEN, or
+//                   any node while the pipeline is open. A single station's
+//                   ?node=generator:HLY, substation:OTA or hvdc, from older links,
+//                   opens its page.
 //   ?mode=          today | recent | last90 | lastYear | 5y | all, with
 //   ?aggregation=   a view's totals when they aren't its default: weekly for
 //                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
@@ -23,7 +28,7 @@ export type ViewMode = 'generation' | 'offers'
 //   ?chart=line     the charts' lines in place of stacks, and any other chart
 //                   setting that isn't its default under its own param (see chartSettings)
 //   ?expanded=true  the panel is expanded
-//   /pipeline       the pipeline modal is open
+//   /pipeline       the pipeline modal is open, in place of the station's path
 // Any other params the link had (e.g. utm_source, or a flag in featureFlags.ts)
 // are kept, after these.
 const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', ...CHART_SETTING_PARAMS, 'expanded']
@@ -32,6 +37,8 @@ const PERIOD_MODES = ['today', 'recent', 'last90', 'lastYear', '5y', 'all'] as c
 
 interface UrlState {
   node: string | null
+  // The open station's page, when it has one
+  nodePath: string | null
   dateMode: DateMode
   viewMode: ViewMode
   tradingPeriod: number
@@ -52,8 +59,10 @@ function readUrl(): UrlState {
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)
   const fuels = p.get('fuels')
+  const pathNode = nodeParamOfPath(window.location.pathname)
   return {
-    node: p.get('node'),
+    node: pathNode ?? p.get('node'),
+    nodePath: pathNode ? window.location.pathname : null,
     dateMode: from && to ? { kind: 'range', from, to }
       : date ? { kind: 'date', date }
         : periodMode(period, p.get('aggregation')),
@@ -68,7 +77,7 @@ function readUrl(): UrlState {
 
 function writeUrl(state: UrlState) {
   const p = new URLSearchParams()
-  if (state.node) p.set('node', state.node)
+  if (state.node && (state.pipelineOpen || !state.nodePath)) p.set('node', state.node)
   const { dateMode } = state
   if (dateMode.kind === 'date') p.set('date', dateMode.date)
   else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
@@ -89,7 +98,7 @@ function writeUrl(state: UrlState) {
 
   // Opening the pipeline is a new history entry, so Back closes it
   const onPipeline = window.location.pathname === '/pipeline'
-  const path = state.pipelineOpen ? '/pipeline' : onPipeline ? '/' : window.location.pathname
+  const path = state.pipelineOpen ? '/pipeline' : state.nodePath ?? '/'
   const url = `${path}?${p.toString()}`
   if (state.pipelineOpen && !onPipeline) window.history.pushState({}, '', url)
   else window.history.replaceState({}, '', url)
@@ -103,10 +112,14 @@ function nodeParam(node: NonNullable<SelectedNode>): string {
   return `substation:${node.substation.siteId}`
 }
 
+// A single station is matched by its site code, or by its page's slug (see stationPaths)
 function resolveNode(param: string, generators: Generator[], substations: Substation[]): SelectedNode {
   if (param === 'hvdc') return { kind: 'hvdc' }
   if (param.startsWith('generator:')) {
-    const gen = generators.find(g => g.site === param.slice('generator:'.length))
+    const key = param.slice('generator:'.length)
+    const gen = generators.find(g => g.site === key)
+      ?? generators.find(g => generatorSlug(g, generators) === key)
+      ?? generators.find(g => g.site.toLowerCase() === key)
     return gen ? { kind: 'generator', generator: gen } : null
   }
   if (param.startsWith('generators:')) {
@@ -116,7 +129,10 @@ function resolveNode(param: string, generators: Generator[], substations: Substa
     return gens.length > 1 ? { kind: 'generators', generators: gens } : null
   }
   if (param.startsWith('substation:')) {
-    const sub = substations.find(s => s.siteId === param.slice('substation:'.length))
+    const key = param.slice('substation:'.length)
+    const sub = substations.find(s => s.siteId === key)
+      ?? substations.find(s => substationSlug(s, substations) === key)
+      ?? substations.find(s => s.siteId.toLowerCase() === key)
     return sub ? { kind: 'substation', substation: sub } : null
   }
   if (param.startsWith('substations:')) {
@@ -135,6 +151,8 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   const [initial] = useState(readUrl)
   // ?node= stays in the URL as it was until it's resolved
   const [linkedNode, setLinkedNode] = useState(initial.node)
+  // ...and the path it came from stays too
+  const [linkedPath, setLinkedPath] = useState(initial.nodePath)
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
   const [dateMode, setDateMode] = useState(initial.dateMode)
   const [viewMode, setViewModeState] = useState(initial.viewMode)
@@ -153,6 +171,7 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   // The Offers view belongs to the generator panel, so goes when it does
   const selectNode = useCallback((node: SelectedNode) => {
     setLinkedNode(null)
+    setLinkedPath(null)
     setSelectedNode(node)
     if (node === null || node.kind === 'substation' || node.kind === 'substations' || node.kind === 'hvdc') setViewMode('generation')
   }, [setViewMode])
@@ -170,9 +189,10 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   }, [])
 
   const node = linkedNode ?? (selectedNode && nodeParam(selectedNode))
+  const nodePath = linkedNode !== null ? linkedPath : selectedNode && stationPath(selectedNode, generators, substations)
   useEffect(() => {
-    writeUrl({ node, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen })
-  }, [node, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
+    writeUrl({ node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen })
+  }, [node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
 
   return {
     selectedNode, selectNode,

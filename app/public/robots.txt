@@ -1,0 +1,5 @@
+# Every page is open to search engines and AI agents
+User-agent: *
+Allow: /
+
+Sitemap: https://electricitymap.frenchsta.gg/sitemap.xml
