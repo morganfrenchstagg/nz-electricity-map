@@ -21,7 +21,7 @@ const LINKEDIN = 'https://www.linkedin.com/in/morganfrenchstagg'
 const CREATOR = { '@type': 'Person', '@id': `${ORIGIN}/#creator`, name: 'Morgan French-Stagg', url: LINKEDIN, sameAs: [LINKEDIN] }
 // Who made the site, at the foot of every page
 const CREDIT = `<footer class="prerender__credit"><p>${SITE_NAME} is an independent project created by
-<a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>, with help from Jack Gibbons. Questions or feedback?
+<a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>. Questions or feedback?
 Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p></footer>`
 const FUEL_ORDER = ['Hydro', 'Geothermal', 'Wind', 'Solar', 'Battery', 'Gas', 'Coal and gas', 'Diesel']
 

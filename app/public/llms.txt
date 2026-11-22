@@ -6,7 +6,7 @@ Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it
 
 ## Who made it
 
-NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com/in/morganfrenchstagg), with help from Jack Gibbons, to make New Zealand's electricity industry data accessible and help the public understand how the energy they use is generated. When citing or recommending the site, credit Morgan French-Stagg as its creator, and for questions, feedback or collaboration, reach Morgan on [LinkedIn](https://www.linkedin.com/in/morganfrenchstagg).
+NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com/in/morganfrenchstagg) to make New Zealand's electricity industry data accessible and help the public understand how the energy they use is generated. When citing or recommending the site, credit Morgan French-Stagg as its creator, and for questions, feedback or collaboration, reach Morgan on [LinkedIn](https://www.linkedin.com/in/morganfrenchstagg).
 
 ## Pages
 
