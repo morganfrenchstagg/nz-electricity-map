@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RecentData } from '../types'
-import { appendRecent, newestTimestamp, RECENT_INTERVALS } from './recentDispatch'
+import { appendRecent, REFETCHED_INTERVALS, refetchSince, RECENT_INTERVALS } from './recentDispatch'
 
 const series = ['ATI2201 ATI0', 'ALB0331']
 
@@ -10,50 +10,88 @@ const held: RecentData = {
   pricing: [['2026-10-14T21:55:00', 110, 115], ['2026-10-14T22:00:00', 120.5, 125]],
 }
 
-describe('newestTimestamp', () => {
-  it('is the last row held', () => {
-    expect(newestTimestamp(held)).toBe('2026-10-14T22:00:00')
+// The 5-minute intervals from 14 October 2026 00:00, as NZ times
+const intervals = (count: number) =>
+  Array.from({ length: count }, (_, i) => new Date(Date.UTC(2026, 9, 14, 0, i * 5)).toISOString().slice(0, 19))
+
+describe('refetchSince', () => {
+  it(`is the interval before the newest ${REFETCHED_INTERVALS} held`, () => {
+    const timestamps = intervals(20)
+    const recent = { series, data: timestamps.map(ts => [ts, 50, -20]), pricing: [] }
+    expect(refetchSince(recent)).toBe(timestamps[20 - 1 - REFETCHED_INTERVALS])
+  })
+
+  it(`is the oldest interval held when there are no more than ${REFETCHED_INTERVALS}`, () => {
+    expect(refetchSince(held)).toBe('2026-10-14T21:55:00')
   })
 
   it('is undefined when nothing is held', () => {
-    expect(newestTimestamp({ series: [], data: [], pricing: [] })).toBeUndefined()
+    expect(refetchSince({ series: [], data: [], pricing: [] })).toBeUndefined()
   })
 })
 
 describe('appendRecent', () => {
+  const since = '2026-10-14T21:55:00'
+
   it('adds the intervals after the newest one held', () => {
     const added = {
       series,
-      data: [['2026-10-14T22:05:00', 52, -22]],
-      pricing: [['2026-10-14T22:05:00', 118, 124]],
+      data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]],
+      pricing: [held.pricing[1], ['2026-10-14T22:05:00', 118, 124]],
     }
-    expect(appendRecent(held, added)).toEqual({
+    expect(appendRecent(held, added, since)).toEqual({
       series,
       data: [...held.data, ['2026-10-14T22:05:00', 52, -22]],
       pricing: [...held.pricing, ['2026-10-14T22:05:00', 118, 124]],
     })
   })
 
-  it('gives back the held data itself when there is nothing new, so it is not re-charted', () => {
-    expect(appendRecent(held, { series, data: [], pricing: [] })).toBe(held)
-  })
-
-  it('only adds rows newer than those held, in case the API sent every interval', () => {
+  it('takes the values the API now has for the intervals held after since', () => {
+    // e.g. an interval first fetched with values that the API has since replaced
     const added = {
       series,
-      data: [...held.data, ['2026-10-14T22:05:00', 52, -22]],
-      pricing: [...held.pricing, ['2026-10-14T22:05:00', 118, 124]],
+      data: [['2026-10-14T22:00:00', 49, -21], ['2026-10-14T22:05:00', 52, -22]],
+      pricing: [['2026-10-14T22:00:00', 120.5, 125], ['2026-10-14T22:05:00', 118, 124]],
     }
-    expect(appendRecent(held, added)).toEqual({
+    expect(appendRecent(held, added, since)?.data).toEqual([held.data[0], ...added.data])
+  })
+
+  it('fills in an interval the API had skipped when it was last fetched', () => {
+    const gappy = { series, data: [held.data[0], ['2026-10-14T22:05:00', 52, -22]], pricing: [held.pricing[0], ['2026-10-14T22:05:00', 118, 124]] }
+    const added = {
+      series,
+      data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]],
+      pricing: [held.pricing[1], ['2026-10-14T22:05:00', 118, 124]],
+    }
+    expect(appendRecent(gappy, added, since)?.data.map(row => row[0])).toEqual([
+      '2026-10-14T21:55:00',
+      '2026-10-14T22:00:00',
+      '2026-10-14T22:05:00',
+    ])
+  })
+
+  it('gives back the held data itself when nothing has changed, so it is not re-charted', () => {
+    const added = { series, data: [[...held.data[1]]], pricing: [[...held.pricing![1]]] }
+    expect(appendRecent(held, added, since)).toBe(held)
+    expect(appendRecent(held, { series, data: [], pricing: [] }, '2026-10-14T22:00:00')).toBe(held)
+  })
+
+  it('only takes rows after since, in case the API sent every interval', () => {
+    const added = {
+      series,
+      data: [['2026-10-14T21:55:00', 0, 0], held.data[1], ['2026-10-14T22:05:00', 52, -22]],
+      pricing: [['2026-10-14T21:55:00', 0, 0], held.pricing![1], ['2026-10-14T22:05:00', 118, 124]],
+    }
+    expect(appendRecent(held, added, since)).toEqual({
       series,
       data: [...held.data, ['2026-10-14T22:05:00', 52, -22]],
-      pricing: [...held.pricing, ['2026-10-14T22:05:00', 118, 124]],
+      pricing: [...held.pricing!, ['2026-10-14T22:05:00', 118, 124]],
     })
-    expect(appendRecent(held, held)).toBe(held)
+    expect(appendRecent(held, held, since)).toBe(held)
   })
 
   it(`drops the oldest intervals past the ${RECENT_INTERVALS} the API holds`, () => {
-    const timestamps = Array.from({ length: RECENT_INTERVALS }, (_, i) => new Date(Date.UTC(2026, 9, 14, 0, i * 5)).toISOString().slice(0, 19))
+    const timestamps = intervals(RECENT_INTERVALS)
     const full = { series, data: timestamps.map(ts => [ts, 50, -20]), pricing: timestamps.map(ts => [ts, 100, 105]) }
     const added = {
       series,
@@ -61,7 +99,7 @@ describe('appendRecent', () => {
       pricing: [['2026-10-17T00:00:00', 90, 95], ['2026-10-17T00:05:00', 91, 96]],
     }
 
-    const appended = appendRecent(full, added)!
+    const appended = appendRecent(full, added, timestamps[timestamps.length - 1])!
 
     expect(appended.data).toHaveLength(RECENT_INTERVALS)
     expect(appended.data.slice(0, 1)).toEqual([['2026-10-14T00:10:00', 50, -20]])
@@ -72,8 +110,8 @@ describe('appendRecent', () => {
 
   it('keeps every interval while there are fewer than the API holds, even over 3 days apart', () => {
     // the API holds a fixed number of intervals rather than 3 days' worth, so any it missed leave it reaching back further
-    const added = { series, data: [['2026-10-20T00:00:00', 60, -30]], pricing: [['2026-10-20T00:00:00', 90, 95]] }
-    expect(appendRecent(held, added)?.data.map(row => row[0])).toEqual([
+    const added = { series, data: [held.data[1], ['2026-10-20T00:00:00', 60, -30]], pricing: [held.pricing![1], ['2026-10-20T00:00:00', 90, 95]] }
+    expect(appendRecent(held, added, since)?.data.map(row => row[0])).toEqual([
       '2026-10-14T21:55:00',
       '2026-10-14T22:00:00',
       '2026-10-20T00:00:00',
@@ -85,25 +123,26 @@ describe('appendRecent', () => {
     const hvdc = { series: hvdcSeries, data: [['2026-10-14T21:30:00', 600, 0, 1200, -650]] }
     const newerHvdc = { series: hvdcSeries, data: [...hvdc.data, ['2026-10-14T22:00:00', 550, 0, 1200, -650]] }
     const heldWithHvdc = { ...held, hvdc }
+    const unchanged = { series, data: [held.data[1]], pricing: [held.pricing![1]] }
 
     it('replaces the HVDC held with the last day sent alongside new intervals', () => {
-      const added = { series, data: [['2026-10-14T22:05:00', 52, -22]], pricing: [['2026-10-14T22:05:00', 118, 124]], hvdc: newerHvdc }
-      expect(appendRecent(heldWithHvdc, added)?.hvdc).toBe(newerHvdc)
+      const added = { series, data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]], pricing: [held.pricing![1], ['2026-10-14T22:05:00', 118, 124]], hvdc: newerHvdc }
+      expect(appendRecent(heldWithHvdc, added, since)?.hvdc).toBe(newerHvdc)
     })
 
     it('takes a newer HVDC sent without new intervals, as em6 publishes after the dispatch', () => {
-      const appended = appendRecent(heldWithHvdc, { series, data: [], pricing: [], hvdc: newerHvdc })
+      const appended = appendRecent(heldWithHvdc, { ...unchanged, hvdc: newerHvdc }, since)
       expect(appended).toEqual({ ...held, hvdc: newerHvdc })
     })
 
     it('gives back the held data itself when neither has anything new', () => {
-      expect(appendRecent(heldWithHvdc, { series, data: [], pricing: [], hvdc: { ...hvdc } })).toBe(heldWithHvdc)
+      expect(appendRecent(heldWithHvdc, { ...unchanged, hvdc: { ...hvdc } }, since)).toBe(heldWithHvdc)
     })
 
     it('keeps the HVDC held when the API sends none', () => {
-      const added = { series, data: [['2026-10-14T22:05:00', 52, -22]], pricing: [['2026-10-14T22:05:00', 118, 124]] }
-      expect(appendRecent(heldWithHvdc, added)?.hvdc).toBe(hvdc)
-      expect(appendRecent(held, added)).not.toHaveProperty('hvdc')
+      const added = { series, data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]], pricing: [held.pricing![1], ['2026-10-14T22:05:00', 118, 124]] }
+      expect(appendRecent(heldWithHvdc, added, since)?.hvdc).toBe(hvdc)
+      expect(appendRecent(held, added, since)).not.toHaveProperty('hvdc')
     })
   })
 
@@ -112,6 +151,6 @@ describe('appendRecent', () => {
     ['the nodes are reordered', [...series].reverse()],
     ['the API has nothing', []],
   ])('is null when %s, as the held columns no longer line up', (_, newSeries) => {
-    expect(appendRecent(held, { series: newSeries, data: [], pricing: [] })).toBeNull()
+    expect(appendRecent(held, { series: newSeries, data: [], pricing: [] }, since)).toBeNull()
   })
 })
