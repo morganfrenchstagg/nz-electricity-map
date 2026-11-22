@@ -22,9 +22,8 @@ function pocpUrl(prefixes: string[]): string {
   return `https://customerportal.transpower.co.nz/pocp/outages?${params.toString()}`
 }
 
-// `ms` is an outage timestamp in the "local time as UTC" convention (see outageMs
-// in utils/time.ts), so it must be read back out with timeZone: 'UTC' to get the
-// raw values the API sent — 'Pacific/Auckland' would shift them again.
+// `ms` is in the "local time as UTC" convention (see outageMs), so format with timeZone 'UTC' to
+// get the API's values back; 'Pacific/Auckland' would shift them again.
 function formatDateTime(ms: number): string {
   return new Date(ms).toLocaleString('en-NZ', {
     timeZone: 'UTC',

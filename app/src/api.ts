@@ -2,13 +2,12 @@ import type { Generator, HvdcData, RecentData, Substation } from './types'
 import { nzLocalMs, nzNowMs, todayNZ } from './utils/time'
 import { appendRecent, refetchSince } from './utils/recentDispatch'
 
-// Every API request belongs here. Freshness follows each response's max-age, so
-// this cache agrees with the browser's HTTP cache instead of keeping its own
-// copy of how long each endpoint lasts.
+// All API requests go through here. Cache freshness follows each response's
+// max-age, matching the browser's HTTP cache rather than hard-coding lifetimes.
 // VITE_API_BASE points the app at another API, e.g. a local `wrangler dev` (see README)
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
-// The distributed solar estimate comes from its own API (nz-solar-stats-api).
-// VITE_SOLAR_API_BASE points the app at another, e.g. a local `wrangler dev` (see README)
+// The distributed solar estimate has its own API (nz-solar-stats-api).
+// VITE_SOLAR_API_BASE overrides it, as VITE_API_BASE does (see README)
 const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-solar.electricitymap.frenchsta.gg').replace(/\/$/, '')
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
@@ -47,27 +46,25 @@ export interface SolarProduction {
   date: string
   // The day's 15-minute instants, in UTC
   profileTimes: string[]
-  // Up to this instant (in UTC) the estimate is from satellite readings, and
-  // after it from the forecast. Null for a day with no readings yet.
+  // Satellite readings up to this instant (UTC), forecast after. Null with no readings yet.
   observedUntil: string | null
-  // Each GXP's installed distributed solar as at the last month end on or
-  // before `date`, and its estimated MW at each of profileTimes
+  // Installed distributed solar as at the last month end on or before `date`,
+  // and estimated MW at each of profileTimes
   gxps: { gxp: string; distributedMw: number; profileMw: number[] }[]
 }
 
-// The estimate added up into energy at each GXP, over each period of a file
+// The estimate as energy per GXP, over each period of a file
 export interface SolarEnergy {
-  // GXPs, the most energy first, which can differ from one file to the next
+  // GXPs, most energy first; the order can differ between files
   series: string[]
-  // Each period's first and last NZ dates, how many of its days have been
-  // estimated so far, and the MWh at each of series in them
+  // Each period's first and last NZ dates, days estimated so far, and MWh per GXP
   data: { from: string; to: string; days: number; totalMwh: number; mwh: number[] }[]
 }
 
 export interface AggregateResponse {
   series: string[]
   data: (string | number)[][]
-  // The MWh the HVDC sent north and south in each period, whatever `nodes` asks for
+  // MWh the HVDC sent north and south per period, regardless of `nodes`
   hvdc?: HvdcData
 }
 
@@ -77,7 +74,7 @@ export const TRANSMISSION_LINES_URL = `${API_BASE}/transmission-lines`
 interface CacheOptions<T> {
   notFound?: T
   freshFor?: (value: T) => number
-  // In place of fetching `path`, e.g. to fetch only what's new since the value held
+  // Replaces fetching `path`, e.g. to fetch only what's new since the held value
   load?: (held: T | undefined) => Promise<{ value: T; maxAgeMs: number }>
 }
 
@@ -102,7 +99,7 @@ function cachedJson<T>(path: string, { notFound, freshFor, load }: CacheOptions<
   if (hit && Date.now() < hit.expires) return hit.promise as Promise<T>
   const entry: CacheEntry = {
     value: hit?.value,
-    expires: Infinity, // so callers share the request while it's in flight
+    expires: Infinity, // callers share the request while it's in flight
     promise: (load ? load(hit?.value as T | undefined) : getJson(path, notFound)).then(
       ({ value, maxAgeMs }) => {
         entry.value = value
@@ -119,14 +116,14 @@ function cachedJson<T>(path: string, { notFound, freshFor, load }: CacheOptions<
   return entry.promise as Promise<T>
 }
 
-// Hooks render this straight away, even if stale, then call the matching fetch*
+// Hooks render this immediately, even if stale, then call the matching fetch*
 function lastJson<T>(path: string): T | undefined {
   return cache.get(path)?.value as T | undefined
 }
 
-// dispatch/recent is sent with a 5-second max-age, but nothing new can arrive
-// until an interval after its newest row. The API publishes each interval a
-// few minutes late, so after that it's checked again once a minute.
+// dispatch/recent has a 5-second max-age, but nothing new can arrive until an
+// interval after its newest row. Intervals are published a few minutes late, so
+// after that it's rechecked once a minute.
 function untilNextDispatch(data: RecentData): number {
   const newest = data.data[data.data.length - 1]
   const due = newest ? nzLocalMs(newest[0] as string) + DISPATCH_INTERVAL_MS - nzNowMs() : 0
@@ -141,10 +138,9 @@ export function peekDefinitions(): DefinitionsResponse | undefined {
   return lastJson('definitions')
 }
 
-// Once the recent intervals are held, only the newest few are fetched again
-// along with any new ones, rather than all 3 days (see refetchSince). If the
-// nodes have changed it's all fetched again, as the held rows' columns no
-// longer line up (see appendRecent).
+// Once held, only the newest few intervals and any new ones are refetched, not
+// all 3 days (see refetchSince). If the nodes changed, it's all refetched, as
+// the held rows' columns no longer line up (see appendRecent).
 async function loadRecentDispatch(held: RecentData | undefined): Promise<{ value: RecentData; maxAgeMs: number }> {
   const since = held && refetchSince(held)
   if (!held || !since) return getJson('dispatch/recent')
@@ -179,17 +175,16 @@ export function peekOutages(): OutageData | undefined {
   return lastJson('outages')
 }
 
-// How far the solar API's estimates reach: every day from estimatedFrom to
-// estimatedTo has been estimated and added into its energy totals. Null before
-// any have.
+// Every day from estimatedFrom to estimatedTo is estimated and in the energy
+// totals. Null before any are.
 interface SolarCoverage {
   estimatedFrom: string | null
   estimatedTo: string | null
 }
 
-// The solar API 404s for a day or period it has no estimate for, so each is
-// checked against its coverage rather than asked for. Its max-age runs to the
-// API's next aggregate run, which moves estimatedTo on.
+// The solar API 404s for days or periods with no estimate, so requests are
+// checked against coverage first. Its max-age runs to the next aggregate run,
+// which advances estimatedTo.
 function fetchSolarCoverage(): Promise<SolarCoverage> {
   return cachedJson('solar-energy', {
     load: async () => {
@@ -199,11 +194,10 @@ function fetchSolarCoverage(): Promise<SolarCoverage> {
   })
 }
 
-// Whether the solar API has an estimate for a "YYYY-MM-DD" NZ date. Its
-// production job stores today's every 10 minutes from midnight, so it's there
-// once the day's first run has had the time the API allows it, and none for
-// days to come. Past days are there back to the first it's estimated. If its
-// coverage can't be had, a past day is asked for anyway.
+// Whether the solar API has an estimate for a "YYYY-MM-DD" NZ date. Today's is
+// stored every 10 minutes from midnight, so it exists once the first run's
+// allowed time has passed; future days have none. Past days go back to the first
+// estimated. If coverage is unavailable, a past day is requested anyway.
 async function solarHasDay(date: string): Promise<boolean> {
   const today = todayNZ()
   if (date >= today) return date === today && nzNowMs() >= nzLocalMs(`${today}T00:00:00`) + SOLAR_RUN_MS
@@ -211,8 +205,8 @@ async function solarHasDay(date: string): Promise<boolean> {
   return !coverage || (coverage.estimatedFrom !== null && date >= coverage.estimatedFrom)
 }
 
-// Whether the solar API has energy totals for any of the days in an aggregates
-// path's file (see aggregatePathDays). If its coverage can't be had, it's asked for anyway.
+// Whether the solar API has totals for any day in an aggregates path's file (see
+// aggregatePathDays). If coverage is unavailable, it's requested anyway.
 async function solarHasTotals(path: string): Promise<boolean> {
   const coverage = await fetchSolarCoverage().catch(() => null)
   if (!coverage) return true
@@ -226,15 +220,15 @@ function isoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
-// The Monday an ISO week-numbering year starts on: that of its week with 4 January in it
+// An ISO week-numbering year starts on the Monday of the week containing 4 January
 function isoYearStart(year: number): string {
   const jan4 = Date.UTC(year, 0, 4)
   return isoDate(jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY_MS)
 }
 
-// The NZ dates an aggregates path's file covers, from its first to the day
-// after its last: a month's ("2026/09"), an ISO week-numbering year's weeks
-// ("2026/weekly"), a year's months ("2026/monthly"), or every year ("annual")
+// NZ dates an aggregates file covers, as [first, day after last]: a month
+// ("2026/09"), an ISO year's weeks ("2026/weekly"), a year's months
+// ("2026/monthly"), or every year ("annual")
 function aggregatePathDays(path: string): [string, string] {
   const [year, period] = path.split('/')
   if (!period) return ['0000-01-01', '9999-12-31']
@@ -243,16 +237,14 @@ function aggregatePathDays(path: string): [string, string] {
   return [`${year}-${period}-01`, isoDate(Date.UTC(Number(year), Number(period), 1))]
 }
 
-// The solar API's max-age runs to its next update: a minute or so for today
-// and yesterday, which it estimates every 10 minutes, and hours for days and
-// periods it's done with
+// The solar API's max-age runs to its next update: about a minute for today and
+// yesterday (re-estimated every 10 minutes), hours for finished days and periods
 function solarProductionPath(date: string): string {
   return `solar-production/${date}`
 }
 
-// `date` is a "YYYY-MM-DD" date. Null for a day the API has no estimate for,
-// which isn't asked for if its coverage says so. That's checked again on the
-// next call, against the coverage held until it expires.
+// `date` is "YYYY-MM-DD". Null for a day with no estimate, which isn't requested
+// if coverage says so. Rechecked each call, against coverage cached until it expires.
 export function fetchSolarProduction(date: string): Promise<SolarProduction | null> {
   const path = solarProductionPath(date)
   return cachedJson(path, {
@@ -268,9 +260,8 @@ export function peekSolarProduction(date: string): SolarProduction | null | unde
   return lastJson(solarProductionPath(date))
 }
 
-// The solar API's file for the same periods as an aggregates path (see
-// fetchAggregates): "2026/09" is daily/2026-09, "2026/weekly" weekly/2026, and
-// "annual" annual
+// The solar file matching an aggregates path (see fetchAggregates): "2026/09" is
+// daily/2026-09, "2026/weekly" weekly/2026, "annual" annual
 function solarEnergyPath(path: string): string {
   const [year, period] = path.split('/')
   if (!period) return `solar-energy/${year}`
@@ -278,9 +269,8 @@ function solarEnergyPath(path: string): string {
   return `solar-energy/${period}/${year}`
 }
 
-// `path` is an aggregates path (see fetchAggregates). Null for one the API has
-// nothing for yet, e.g. a year before its backfill reaches, which isn't asked
-// for if its coverage says so (as with fetchSolarProduction).
+// `path` is an aggregates path (see fetchAggregates). Null where the API has
+// nothing yet, e.g. a year before its backfill; skipped if coverage says so.
 export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
   const solarPath = solarEnergyPath(path)
   return cachedJson(solarPath, {
@@ -294,8 +284,8 @@ export function fetchSolarEnergy(path: string): Promise<SolarEnergy | null> {
 
 // `path` is a month of daily totals ("2026/09"), a year of weekly or monthly
 // totals ("2026/weekly", "2026/monthly"), or every year's totals ("annual").
-// `nodes` are prefix-matched by the API, so a substation siteId returns every
-// bus and generator at that site. Empty `nodes` returns every node.
+// The API prefix-matches `nodes`, so a substation siteId returns every bus and
+// generator at that site. Empty `nodes` returns every node.
 export function fetchAggregates(path: string, nodes: string): Promise<AggregateResponse> {
   const query = nodes ? `?nodes=${encodeURIComponent(nodes)}` : ''
   // A month or year with nothing aggregated yet (e.g. on the 1st) 404s

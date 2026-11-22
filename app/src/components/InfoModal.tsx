@@ -21,8 +21,7 @@ function Section({ heading, children }: { heading: string; children: ReactNode }
 
 const ccBy = <Link href={CC_BY_URL}>CC BY 4.0</Link>
 
-// What the site is, where its data comes from, and the licence and disclaimer
-// that go with it. Opened from the About this site button in every Panel's header.
+// What the site is, its data sources, licence and disclaimer. Opened from every Panel's header.
 export default function InfoModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }

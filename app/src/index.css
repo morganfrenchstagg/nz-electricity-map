@@ -1,7 +1,6 @@
-/* Design tokens. Each colour is light-dark(light, dark), following the theme:
-   light, unless the viewer picked dark (see theme.ts, which sets data-theme on
-   <html>). Highcharts takes them as var()s in its options; the map's layers
-   can't, so their colours stay in Map, and its basemap stays light. */
+/* Design tokens. Colours are light-dark(light, dark): light unless the viewer
+   picked dark (theme.ts sets data-theme on <html>). Highcharts takes them as
+   var()s; map layers can't, so their colours live in Map and the basemap stays light. */
 :root {
   color-scheme: light;
 
@@ -34,8 +33,8 @@
   /* Secondary buttons, empty meter track */
   --color-fill: light-dark(#e7e7e7, #38383b);
 
-  /* Ink, not a hue: every colour on the map and charts is a fuel or a voltage,
-     so pressed, selected and focused controls stay out of their way */
+  /* Ink, not a hue: map and chart colours all mean a fuel or voltage, so
+     pressed, selected and focused controls stay out of their way */
   --color-accent: light-dark(#1f2328, #e6e6e6);
   /* An active filter's border */
   --color-accent-muted: light-dark(#8a8f96, #6b6f75);
@@ -76,7 +75,7 @@
   /* Panel and modal titles */
   --font-size-lg: 15px;
 
-  /* Spacing scale, for padding. Sizes off the scale round to the nearest step. */
+  /* Spacing scale, for padding. Off-scale sizes round to the nearest step. */
   --space-2xs: 2px;
   --space-xs: 4px;
   --space-sm: 6px;
@@ -135,8 +134,8 @@ body {
   padding-block: var(--space-sm);
 }
 
-/* The outer columns line up with the modal's gutter. :where() keeps these at
-   one class's specificity, so a cell's own class (e.g. .empty-state) wins. */
+/* Outer columns align with the modal's gutter. :where() keeps one-class
+   specificity, so a cell's own class (e.g. .empty-state) wins. */
 .data-table :where(th, td) {
   padding: var(--space-md) var(--space-lg);
 }
@@ -167,7 +166,7 @@ body {
   color: var(--color-danger);
 }
 
-/* Layout lives inline in the components; these are the shared looks and states. */
+/* Layout is inline in the components; these are shared looks and states. */
 
 /* Panel, which GeneratorPanel, SubstationPanel and GridOverviewPanel sit in */
 .side-panel {
@@ -393,14 +392,14 @@ body {
   padding-left: var(--space-xl);
 }
 
-/* Wrap the map's attribution, once opened from its ⓘ button, beside the panel
-   (Map sets --map-panel-inset) rather than running it underneath */
+/* Wrap the opened map attribution beside the panel (Map sets
+   --map-panel-inset) rather than under it */
 .maplibregl-ctrl-bottom-right {
   max-width: calc(100% - var(--map-panel-inset, 0px));
 }
 
-/* maplibre's controls and popups, on the design tokens so they follow dark mode.
-   Under .maplibregl-map to outrank maplibre's own CSS, which loads after this. */
+/* maplibre's controls and popups on the design tokens, for dark mode. Scoped
+   under .maplibregl-map to outrank maplibre's CSS, which loads after this. */
 .maplibregl-map :is(.maplibregl-ctrl-group, .maplibregl-popup-content, .maplibregl-ctrl-attrib.maplibregl-compact) {
   background: var(--color-surface);
   color: var(--color-text);
@@ -457,10 +456,9 @@ body {
   font-weight: 500;
 }
 
-/* The chevrons on the HVDC's cables (see Map), lit one after another the way the
-   HVDC's flowing, each nudged that way as it lights. Only the grey fades, over
-   each one's halo, so an unlit chevron still stands out from the cables, paler.
-   Hovers and clicks go through them to the cables. */
+/* Chevrons on the HVDC cables (see Map), lit in turn in the flow direction and
+   nudged that way as they light. Only the grey fades, over each halo, so unlit
+   chevrons still stand out from the cables. Pointer events pass to the cables. */
 .hvdc-flow {
   pointer-events: none;
 }
@@ -469,8 +467,8 @@ body {
   visibility: hidden;
 }
 
-/* A block, so the marker is just as tall as the chevrons, without room below for
-   text, and centres them on the cables */
+/* A block, so the marker is exactly as tall as the chevrons (no room for text
+   below) and centres them on the cables */
 .hvdc-flow svg {
   display: block;
 }
@@ -520,9 +518,9 @@ body {
   }
 }
 
-/* A chart series toggle, drawn as a legend entry: a swatch of --series-colour,
-   filled while the series is showing and hollow while it's hidden, then its name.
-   The colour stays in the swatch, so the name reads on any fuel's colour. */
+/* A series toggle drawn as a legend entry: a --series-colour swatch, filled when
+   shown and hollow when hidden, then the name. Colour stays in the swatch so the
+   name reads on any fuel. */
 /* Narrow sides, so a row fits as many as it can before "+N more" */
 .series-button {
   display: inline-flex;
@@ -954,14 +952,14 @@ th:hover > * > .sort-arrow.is-active {
 
 /* GeneratorPanel's and GridOverviewPanel's 90d, 1y, 5y and All column charts */
 
-/* Gapless columns: without this, anti-aliasing leaves a faint light seam
-   where neighbouring columns meet, even on whole-pixel edges. */
+/* Without this, anti-aliasing leaves a faint seam between neighbouring columns,
+   even on whole-pixel edges */
 .aggregate-columns .highcharts-column-series .highcharts-point {
   shape-rendering: crispEdges;
 }
 
-/* Match the area charts' fillOpacity (0.8). Faded as one group rather than
-   per column, so where column borders overlap they don't stack into darker lines. */
+/* Match the area charts' fillOpacity (0.8). Fading the group, not each column,
+   stops overlapping borders stacking into darker lines. */
 .aggregate-columns .highcharts-series-group {
   opacity: 0.8;
 }

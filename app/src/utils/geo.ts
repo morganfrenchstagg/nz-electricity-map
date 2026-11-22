@@ -2,8 +2,7 @@ import type { Generator, Substation, UnderConstructionNode, Unit } from '../type
 import { inServiceDuring, isCharging, isCommissioning } from './generators'
 import type { Period } from './time'
 
-// The units shown for the period: those in service during it, and in the live views,
-// any still being commissioned that are among the nodes `dispatching`
+// In service during the period or, in live views, still being commissioned but in `dispatching`
 const isShown = (u: Unit, period: Period, dispatching?: Set<string>) =>
   inServiceDuring(u, period) || (dispatching !== undefined && dispatching.has(u.node) && isCommissioning(u, period.to))
 
@@ -34,8 +33,8 @@ export function generatorsToGeoJson(generators: Generator[], period: Period, dis
     }
   })
 
-  // Smallest first so the largest generators draw on top. MapLibre also hit-tests in reverse
-  // data order, so clicks and hovers on overlapping points pick the largest one too
+  // Smallest first so the largest draw on top. MapLibre hit-tests in reverse data order, so
+  // clicks and hovers on overlapping points pick the largest too.
   features.sort((a, b) => a.properties!.totalCapacityMW - b.properties!.totalCapacityMW)
 
   return { type: 'FeatureCollection', features }

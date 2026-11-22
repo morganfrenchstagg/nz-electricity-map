@@ -10,9 +10,9 @@ import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 import type { Period } from './time'
 
-// A unit that moves substation (e.g. Pātea, from Hawera to Ōhangai in 2026) is
-// listed twice under the same unit code: decommissioned at its old node and in
-// service at its new one. Maps each such old node to the new one.
+// A unit that moves substation (e.g. Pātea, Hawera to Ōhangai in 2026) is listed
+// twice under one unit code: decommissioned at the old node, in service at the
+// new. Maps each old node to its new one.
 function movedNodesOf(units: Unit[]): Record<string, string> {
   const moved: Record<string, string> = {}
   for (const unit of units) {
@@ -23,25 +23,22 @@ function movedNodesOf(units: Unit[]): Record<string, string> {
   return moved
 }
 
-// A unit's capacity at `atMs`: none before it's commissioned or after it's
-// decommissioned, and what any outage leaves in between
+// Zero outside its service dates; otherwise what any outage leaves
 function capacityAt(unit: Unit, outages: OutageData | null, atMs: number): number {
   return inServiceAt(unit, atMs) ? unitCapacityAt(unit, outages, atMs) : 0
 }
 
-// The total capacity of the generating (not charging) units at `atMs`
 function generatingCapacityAt(units: Unit[], outages: OutageData | null, atMs: number): number {
   return units.filter((u) => !isCharging(u)).reduce((sum, u) => sum + capacityAt(u, outages, atMs), 0)
 }
 
-// MW the charging units among `units` can draw at `atMs`. They're listed with
-// negative capacity, so this is its size, for the chart to go that far below zero.
+// Charging units are listed with negative capacity; this is its size, for how
+// far the chart goes below zero.
 function chargeCapacityOf(units: Unit[], outages: OutageData | null, atMs: number): number {
   return units.filter(isCharging).reduce((sum, u) => sum + Math.abs(capacityAt(u, outages, atMs)), 0)
 }
 
-// Where the units' capacity can change within the chart: as their outages start
-// and end, and as they come into or go out of service
+// Outage starts and ends, and units entering or leaving service
 function capacityChangesBetween(units: Unit[], outages: OutageData, from: number, to: number): number[] {
   const changes = serviceChangesBetween(units, from, to)
   for (const unit of units) {
@@ -55,8 +52,8 @@ function capacityChangesBetween(units: Unit[], outages: OutageData, from: number
   return changes
 }
 
-// Over a chart with outage data, the most the units' capacity reaches; otherwise
-// all of their normal maximums, as though every one was in service throughout
+// With outage data, the most capacity reaches over the chart; otherwise the sum
+// of normal maximums, as if every unit was in service throughout
 function peakCapacity(units: Unit[], outages: OutageData | null, rows?: ChartRow[]): number {
   if (!outages || !rows || rows.length === 0) {
     return units.filter((u) => !isCharging(u)).reduce((sum, u) => sum + u.capacity, 0)
@@ -67,13 +64,12 @@ function peakCapacity(units: Unit[], outages: OutageData | null, rows?: ChartRow
     .map((t) => generatingCapacityAt(units, outages, t)))
 }
 
-// The capacity line over the chart's rows, stepping wherever capacity changes
+// Steps wherever capacity changes
 function capacitySteps(units: Unit[], outages: OutageData, rows: ChartRow[]): [number, number][] {
   const firstTime = nzLocalMs(rows[0].time)
   const lastTime = nzLocalMs(rows[rows.length - 1].time)
   const sortedTs = [...new Set(capacityChangesBetween(units, outages, firstTime, lastTime))].sort((a, b) => a - b)
 
-  // Only emitting a point when capacity actually changes
   const data: [number, number][] = [[firstTime, generatingCapacityAt(units, outages, firstTime)]]
   let prev = data[0][1]
   for (const t of sortedTs) {
@@ -87,7 +83,7 @@ function capacitySteps(units: Unit[], outages: OutageData, rows: ChartRow[]): [n
   return data
 }
 
-// Units' codes in chart order: by fuel, then name
+// By fuel, then name
 function chartOrder(units: Unit[]): string[] {
   return units
     .slice()
@@ -98,14 +94,14 @@ function chartOrder(units: Unit[]): string[] {
     .map((u) => u.node)
 }
 
-// Until a view's period is given, the units in service now
+// Default when no view period is given: units in service now
 function nowPeriod(): Period {
   const now = nzNowMs()
   return { from: now, to: now }
 }
 
-// The capacity line's label. Over batteries alone, charging below zero, it's
-// their discharge capacity; with other fuels in, it's capacity as usual.
+// Over batteries alone (charging below zero) the line is discharge capacity;
+// with other fuels in, ordinary capacity.
 function capacityLabel(units: Unit[]): string {
   return units.some(isCharging) && units.every((u) => isCharging(u) || u.fuelCode === 'BESS') ? 'Discharge' : 'Capacity'
 }
@@ -114,17 +110,17 @@ function capacityLabel(units: Unit[]): string {
 export interface GeneratorAdapter {
   title: string
   subtitle: string
-  // Dispatch data charts the units in service during the view's period (and in the
-  // live views, any still being commissioned that are dispatching); the aggregate
-  // views pass includeRetired to chart every unit's history.
+  // Units in service during the view's period, plus in live views any still
+  // commissioning that are dispatching. Aggregate views pass includeRetired to
+  // chart every unit's history.
   getCodes(recent: RecentData, includeRetired?: boolean): string[]
-  // Every unit's code in chart order, retired and moved units' included, for
-  // the Offers view to pick out the units with offers
+  // All units in chart order, retired and moved included, for the Offers view to
+  // pick out those with offers
   unitCodes: string[]
   labelFor(code: string): string
   colourFor(code: string): string
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
-  // Several generators' units are named in a legend
+  // For several generators, to name their units
   showLegend: boolean
   capacityMW(effectiveCodes: Set<string>): number
   normalCapacityMW(effectiveCodes: Set<string>): number
@@ -133,22 +129,22 @@ export interface GeneratorAdapter {
   subtitleFuels: { label: string; colour: string }[]
   // Node codes (or prefixes) to request from the aggregates API, retired units' included
   queryNodes: string[]
-  // Old nodes of units that moved, mapped to their current node. The aggregate
-  // views add their history into the current node's series (foldMovedNodes).
+  // Moved units' old nodes, mapped to the current node. Aggregate views fold
+  // their history into the current node's series (foldMovedNodes).
   movedNodes: Record<string, string>
 }
 
-// `period` is the view's (see periodOf), in the same "local time as UTC" convention
-// used by outageMs, so comparisons with outage timestamps are consistent. Capacity
-// is read at its end, beside the latest dispatch. `live` views (Today and 3d) also
-// chart units still being commissioned once they're dispatching, without their capacity.
+// `period` is the view's (see periodOf), in outageMs's "local time as UTC"
+// convention. Capacity is read at its end, beside the latest dispatch. `live`
+// views (Today and 3d) also chart dispatching units still being commissioned,
+// without their capacity.
 export function createGeneratorAdapter(generator: Generator, outages: OutageData | null, period = nowPeriod(), live = false): GeneratorAdapter {
   const at = period.to
   const activeUnits = generator.units.filter((u) => inServiceDuring(u, period))
   const shownUnits = live ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at)) : activeUnits
   const movedNodes = movedNodesOf(generator.units)
-  // Moved units are charted under their current node only, and units combined into
-  // another (see isCombinedOver) under it, having none of their own
+  // Moved units chart under their current node only; units combined into another
+  // (see isCombinedOver) under it
   const historyUnits = generator.units.filter((u) => !(u.node in movedNodes) && !isCombinedOver(u, generator.units))
 
   // A generator opened for a day before it was built still names its fuels
@@ -185,7 +181,6 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         : activeUnits
       const adjusted = generatingCapacityAt(units, outages, at)
 
-      // softMax = maximum capacity the generator reaches over the chart period
       const softMaxCap = peakCapacity(units, outages, rows)
       const chargeCapacity = chargeCapacityOf(units, outages, at)
 
@@ -206,7 +201,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
           zIndex: 3,
         })
       }
-      // The step line leaves out charging, so its line is drawn either way
+      // The step line leaves out charging, so this one is drawn either way
       if (chargeCapacity > 0) {
         capacityPlotLines.push({
           value: -chargeCapacity,
@@ -315,7 +310,7 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     movedNodes,
 
     getCodes(recent, includeRetired = false) {
-      // Moved units are charted under their current node only, and combined units' under them
+      // Moved units chart under their current node only, combined units under the one they joined
       return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes) && !isCombinedOver(u, allUnits)) : allShownUnits)
         .filter(c => recent.series.includes(c))
     },

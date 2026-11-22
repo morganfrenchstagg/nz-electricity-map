@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
-// The app's icons, one set: lines in currentColor on a 16-unit grid, 13px unless
-// sized. Hidden from screen readers, as each one's button has its own label.
+// Lines in currentColor on a 16-unit grid, 13px unless sized. Hidden from screen readers, as each
+// button has its own label.
 function Icon({ size = 13, viewBox = '0 0 16 16', children }: { size?: number; viewBox?: string; children: ReactNode }) {
   return (
     <svg width={size} height={size} viewBox={viewBox} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>

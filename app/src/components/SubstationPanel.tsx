@@ -28,7 +28,7 @@ const TOTAL_COLOUR = 'var(--color-reference)'
 const SOLAR = fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)
 const SOLAR_COLOUR = fuelCodeColour(DISTRIBUTED_SOLAR_FUEL_CODE)
 const DEMAND_WITH_SOLAR = `Demand + ${SOLAR}`
-// The series that aren't codes, which the tooltip lists apart from them
+// Not codes, so the tooltip lists them apart
 const EXTRA_SERIES = [TOTAL, SOLAR, DEMAND_WITH_SOLAR]
 
 // The data has a substation's load as negative generation
@@ -39,18 +39,16 @@ function busColour(code: string): string {
   return voltageColour(code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN)
 }
 
-// The substation's load at each time, over every code charted, shown or not
+// Over every code charted, shown or not
 function totalLoads({ rows, codes }: ChartData): number[] {
   return rows.map((row) => codes.reduce((sum, code) => sum + toLoad(row[code] as number), 0))
 }
 
-// The substation's demand at each time: its buses' load, without the
-// generators that Total nets off it
+// Buses' load only, without the generators Total nets off
 function demandLoads({ rows, codes }: ChartData): number[] {
   return totalLoads({ rows, codes: codes.filter((code) => !isGeneratorCode(code)) })
 }
 
-// The Total line, its loads divided by unitSize to chart them in the panel's unit
 function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, unitSize: number): Highcharts.SeriesLineOptions {
   return {
     type: 'line',
@@ -65,10 +63,9 @@ function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, uni
   }
 }
 
-// The distributed solar estimated at the substation, charted above 0 (unlike
-// its generators, which are negative load), and a dashed line adding it back
-// onto the demand (see demandLoads): the demand there would be without it. Both are left off where
-// there's no estimate.
+// The estimate charted above 0 (unlike generators, which are negative load), and
+// a dashed line adding it back onto demand (see demandLoads): the demand without
+// it. Both are left off where there's no estimate.
 function distributedSolarSeries({ rows }: ChartData, solar: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
   const points = (value: (estimate: number, i: number) => number) =>
     rows.map((row, i): [number, number | null] => {
@@ -145,8 +142,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
 
-  // With several substations, each bus is named with its substation's. The
-  // generators' units are named with theirs already.
+  // With several substations, buses are prefixed with their substation's name.
+  // Generator units already carry theirs.
   const labelFor = useCallback((code: string) => {
     const unit = unitFor(code)
     if (unit) return unitLabel(unit)
@@ -166,15 +163,12 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const hasGenerators = allCodes.some(isGeneratorCode)
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
 
-  // The distributed solar estimated at the substations: its MW at each of the
-  // chart's times, up to where it turns to the forecast (see observedSolar), or
-  // on the aggregate views its MWh in each period (and the periods, for the
-  // tooltip's note on the period so far), with today's so far up to the same
-  // point added to the period so far, null where there's no estimate. Null
-  // when it has none in the view, or the flag is off. The panel is only
-  // rendered while it's showing, so that's all it waits on. The data is
-  // charted with it, rather than it following a moment later, unless it's slow
-  // (see useShownWithSolar).
+  // MW at each chart time up to the forecast (see observedSolar), or in aggregate
+  // views MWh per period (plus the periods, for the tooltip's note), with today's
+  // so far added to the current period; null where there's no estimate. Null
+  // overall with none in the view or the flag off. The panel only renders while
+  // showing, so that's all it waits on. Data waits to be charted with it unless
+  // it's slow (see useShownWithSolar).
   const solarProduction = useDistributedSolar(dateMode, SUBSTATION_SOLAR)
   const solarTotals = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
   const { shown, waiting: waitingForSolar } = useShownWithSolar(
@@ -205,9 +199,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // A lone code's Total would just repeat it
   const hasTotal = allCodes.length > 1
-  // Until the user toggles it, Total shows only when the substation has
-  // generators, or distributed solar: with no generators, Total is the demand
-  // the dashed line adds the estimate to
+  // Until toggled, Total shows only with generators or distributed solar: with no
+  // generators, Total is the demand the dashed line adds the estimate to
   const [totalToggled, setTotalToggled] = useState<boolean | null>(null)
   const totalShown = hasTotal && (totalToggled ?? (hasGenerators || hasSolar))
   const [solarToggled, setSolarToggled] = useState<boolean | null>(null)
@@ -221,16 +214,15 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   }, [node])
   const extrasShown = [totalShown, solarShown, solarDemandShown].filter(Boolean).length
 
-  // Turns Total, distributed solar and the dashed demand line all on or all off
+  // Total, distributed solar and the dashed demand line together
   function setExtrasToggled(shown: boolean) {
     setTotalToggled(shown)
     setSolarToggled(shown)
     setSolarDemandToggled(shown)
   }
 
-  // Deselects every generator, or selects them all again. If no buses are
-  // selected either, hiding falls back to all buses so the chart isn't empty.
-  // The Total line includes the generators, so it's switched with them.
+  // If no buses are selected either, hiding falls back to all buses so the chart
+  // isn't empty. Total includes the generators, so it switches with them.
   function toggleGenerators() {
     const buses = [...effectiveCodes].filter(c => !isGeneratorCode(c))
     if (!generatorsShown) {
@@ -243,8 +235,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     setTotalToggled(!generatorsShown)
   }
 
-  // As on the grid overview: Clear deselects every series, Total included, and
-  // once nothing is selected it becomes Select all, which turns them all on.
+  // As on the grid overview: Clear deselects everything, Total included, then
+  // becomes Select all
   const nothingSelected = effectiveCodes.size === 0 && extrasShown === 0
   function clearOrSelectAll() {
     setActiveCodes(nothingSelected ? null : new Set())
@@ -315,7 +307,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1 }
         const row = (p: Highcharts.Point) => tooltipRow(p, context)
 
-        // Buses on top, then generators below a heading
         const isGenerator = (p: Highcharts.Point) => isGeneratorCode(chartData.codes[p.series.index] ?? '')
         const genPoints = points.filter(isGenerator)
         let rows = points.filter((p) => !isGenerator(p)).map(row).join('')
@@ -345,7 +336,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     })
   }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solar, solarEstimate, solarShown, solarDemandShown, isAggregate, aggregatePeriod, title, hasGenerators])
 
-  // Series buttons: the generators toggle and Total lead, then a button per bus and generator
   const showUnitSelector = allCodes.length > 1
   const leadButtons = [
     ...(hasGenerators ? [
@@ -381,8 +371,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         {labelFor(code)}
       </SeriesButton>
     )
-    // The buses come first; a divider leads the first generator, and the first
-    // bus after the distributed solar buttons
+    // A divider leads the first generator, and the first bus after the solar buttons
     const afterSolar = i === 0 && solarButtons.length > 0
     if (!afterSolar && !(i > 0 && isGeneratorCode(code) && !isGeneratorCode(allCodes[i - 1]))) return button
     return (
@@ -422,7 +411,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         </div>
       )}
 
-      {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         <NodeChart
           chartKey={`${siteKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}

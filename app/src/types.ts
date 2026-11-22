@@ -5,14 +5,13 @@ export interface Unit {
   capacity: number
   fuel: string
   fuelCode: string
-  // When the unit came into and went out of service, as ISO instants (see utils/generators)
+  // Service start and end, as ISO instants (see utils/generators)
   commissioned?: string
   decomissioned?: string
   installedCapacity?: number
   outageBlock?: string
-  // The nodes of the units this one stands in for, when they were only metered
-  // together (as Southdown's two were), until this one is decommissioned. It has
-  // no capacity of its own: the units it combines hold it (see combinedUnitOf).
+  // Nodes of units this one stands in for while they're only metered together (as Southdown's
+  // two were), until it's decommissioned. The units it combines hold its capacity (see combinedUnitOf).
   combines?: string[]
 }
 
@@ -39,8 +38,8 @@ export interface Substation {
   island: 'north' | 'south'
 }
 
-// A generation project in the pipeline (see data/underConstruction). It sits
-// on the map at its location, or else with the generator at its site.
+// A pipeline project (see data/underConstruction). Mapped at its location, or else with the
+// generator at its site.
 export interface UnderConstructionNode {
   name: string
   locationDescription?: string
@@ -66,15 +65,13 @@ export interface RecentData {
   hvdc?: HvdcData
 }
 
-// The HVDC's flows and transfer limits (MW), a row for each half hour: its NZ
-// time, then northFlow, southFlow, northLimit and southLimit (as named in
-// `series`), or null where there's none. dispatch/recent has em6's last day, and
-// a past day's dispatch/:date has EMI's metered flows once EMI has published
-// them, with em6's limits, which are only kept from October 2026. em6 gives the
-// south limit as negative.
+// HVDC flows and transfer limits (MW), a row per half hour: NZ time, then northFlow, southFlow,
+// northLimit, southLimit (as named in `series`), null where missing. dispatch/recent has em6's
+// last day; a past dispatch/:date has EMI's metered flows once published, with em6's limits,
+// kept only from October 2026. em6 gives the south limit as negative.
 //
-// On the aggregate views, a row for each period, timestamped as the dispatch
-// rows are, with the MWh sent northFlow and southFlow (see useAggregates).
+// On aggregate views, a row per period, timestamped like the dispatch rows, with the MWh sent
+// northFlow and southFlow (see useAggregates).
 export interface HvdcData {
   series: string[]
   data: (string | number | null)[][]

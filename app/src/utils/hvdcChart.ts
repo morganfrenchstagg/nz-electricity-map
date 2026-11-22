@@ -8,13 +8,13 @@ import { hvdcEnergies, hvdcPoints } from './hvdc'
 import { nzLocalMs } from './time'
 import type { HvdcPoint } from './hvdc'
 
-// As GeneratorPanel's capacity line
+// Matches GeneratorPanel's capacity line
 const LIMIT_COLOUR = 'var(--color-reference)'
 const HALF_HOUR_MS = 30 * 60 * 1000
 
-// A limit's step line, each half hour's held until the next, labelled at its end
-// as GeneratorPanel's capacity line is. The south limit's label goes `below` its
-// line, away from the transfer above it.
+// Each half hour held until the next, labelled at its end like GeneratorPanel's
+// capacity line. `below` puts the south limit's label under its line, away from
+// the transfer.
 function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoint) => number | null, below = false): Highcharts.SeriesLineOptions {
   const data = points.map((point) => [point.ms, limitOf(point)] as [number, number | null])
   const lastMs = [...data].reverse().find(([, y]) => y !== null)?.[0]
@@ -45,10 +45,9 @@ function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoi
   }
 }
 
-// The HVDC's transfer over its half hours (see HvdcData): flowing north above
-// zero and south below it, between step lines of its limits each way where em6
-// has them. It spans `times`, the view's dispatch timestamps, so days without
-// the HVDC are left blank rather than cut off. Null with no flows.
+// Half-hourly transfer (see HvdcData), north above zero and south below, between
+// limit step lines where em6 has them. Spans `times` (the view's dispatch
+// timestamps) so days without HVDC data show blank, not cut off. Null with no flows.
 export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => row[0] as string)): Highcharts.Options | null {
   const points = hvdcPoints(hvdc)
   if (points.length === 0) return null
@@ -112,9 +111,8 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
   }
 }
 
-// The MWh the HVDC sent each way in each of an aggregate view's periods (see
-// HvdcData), as columns: north above zero and south below it, as it can have
-// flowed both ways. Null with no totals.
+// MWh each way per aggregate-view period (see HvdcData), as columns north above
+// zero and south below, as it can flow both ways in a period. Null with no totals.
 export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod): Highcharts.Options | null {
   const energies = hvdcEnergies(hvdc)
   if (energies.length === 0) return null

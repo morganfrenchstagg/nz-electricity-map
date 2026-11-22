@@ -16,7 +16,7 @@ import { substationsOf, substationsTitle } from './utils/substations'
 const loadMap = () => import('./components/Map')
 const Map = lazy(loadMap)
 
-// Where the map is until it's there, so nothing moves when it arrives
+// Holds the map's space until it loads, so nothing moves
 const mapPlaceholder = <div style={{ width: '100%', height: '100vh' }} />
 
 export default function App() {
@@ -35,13 +35,12 @@ export default function App() {
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
 
-  // On mobile the panel covers the map, so the map, with its tiles and
-  // transmission lines, waits for the panel to first close. From then on it
-  // stays, so reopening the panel doesn't lose it.
+  // On mobile the panel covers the map, so the map waits for the panel to first close, then
+  // stays mounted so reopening the panel doesn't lose it
   const mapCovered = isMobile && leftPanelOpen
   const [mapWanted, setMapWanted] = useState(!mapCovered)
   if (!mapCovered && !mapWanted) setMapWanted(true)
-  // Its code alone is fetched once the page has loaded, so Show map doesn't wait for it
+  // Prefetch just its code after page load, so Show map doesn't wait for it
   useEffect(() => {
     if (mapWanted) return
     let timer: number | undefined
@@ -55,13 +54,11 @@ export default function App() {
     selectNode(null)
   }, [selectNode])
 
-  // On desktop the panel starts as wide as it can with all of NZ in view on the map beside it.
-  // On mobile, where the panel covers the map, or a viewport too small for both, it starts
-  // at 60% and the map at its default view.
+  // On desktop the panel starts as wide as fits with all of NZ in view beside it. Mobile
+  // (where it covers the map) and viewports too small for both start it at 60%.
   const [initialView] = useState(() => isMobile ? null : viewBesideNz(window.innerWidth, window.innerHeight))
   const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6))
 
-  // Keep the document/tab title in sync with whichever panel is open
   useEffect(() => {
     let suffix: string
     if (selectedNode === null) {
@@ -80,9 +77,7 @@ export default function App() {
     document.title = `NZ Electricity Map - ${suffix}`
   }, [selectedNode, gridPanelVisible])
 
-  // Single source of dispatch data for the date-driven panels, so the node
-  // panels and GridOverviewPanel share one fetch instead of each running
-  // their own hook (and firing duplicate requests on date changes).
+  // One fetch shared by the node panels and GridOverviewPanel, not duplicate requests from each
   const { recentData, loading, error } = useDispatchData(dateMode)
 
   const handleGeneratorClick = useCallback((generator: Generator) => {

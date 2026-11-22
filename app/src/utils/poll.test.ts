@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pollWhileVisible } from './poll'
 
-// The tests run in node, so stand in for the bits of `document` that are used
+// Tests run in node, so stub the bits of `document` used
 let doc: EventTarget & { visibilityState: DocumentVisibilityState }
 
 function setVisibility(state: DocumentVisibilityState) {

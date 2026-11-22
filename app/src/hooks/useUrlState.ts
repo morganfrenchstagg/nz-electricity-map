@@ -8,24 +8,22 @@ import type { ChartSettings } from '../utils/chartSettings'
 
 export type ViewMode = 'generation' | 'offers'
 
-// Everything a link carries, in the order it's written:
-//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC, substation:OTA,
-//                   substations:OTA,PEN or hvdc
+// What a link carries, in the order it's written:
+//   ?node=          the open panel: generator:HLY, generators:HLY,TCC,
+//                   substation:OTA, substations:OTA,PEN or hvdc
 //   ?mode=          today | recent | last90 | lastYear | 5y | all, with
-//   ?aggregation=   a view's totals when they aren't its default: weekly for
-//                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
-//                   for All, or instead
+//   ?aggregation=   non-default totals: weekly (90d), daily (1y), weekly (5y),
+//                   monthly or quarterly (All), or instead
 //   ?date=          a single day, or
 //   ?from=&to=      a custom range
 //   ?view=offers    the generator panel's Offers view, with
 //   ?tp=            its trading period
-//   ?fuels=         the grid overview's fuels, when not all of them
-//   ?chart=line     the charts' lines in place of stacks, and any other chart
-//                   setting that isn't its default under its own param (see chartSettings)
+//   ?fuels=         the grid overview's fuels, when not all
+//   ?chart=line     lines instead of stacks; other non-default chart settings
+//                   get their own params (see chartSettings)
 //   ?expanded=true  the panel is expanded
 //   /pipeline       the pipeline modal is open
-// Any other params the link had (e.g. utm_source, or a flag in featureFlags.ts)
-// are kept, after these.
+// Other params (e.g. utm_source, or a flag in featureFlags.ts) are kept, after these.
 const PARAMS = ['node', 'mode', 'aggregation', 'date', 'from', 'to', 'view', 'tp', 'fuels', ...CHART_SETTING_PARAMS, 'expanded']
 
 const PERIOD_MODES = ['today', 'recent', 'last90', 'lastYear', '5y', 'all'] as const
@@ -128,9 +126,9 @@ function resolveNode(param: string, generators: Generator[], substations: Substa
   return null
 }
 
-// The state kept in the URL, read from it once on load and written back whole
-// whenever any of it changes, so the URL never depends on which part changed
-// first. The URL's ?node= is resolved against the definitions once they load.
+// Read from the URL once on load and written back whole on any change, so the
+// URL never depends on which part changed first. ?node= resolves once the
+// definitions load.
 export function useUrlState(generators: Generator[], substations: Substation[]) {
   const [initial] = useState(readUrl)
   // ?node= stays in the URL as it was until it's resolved

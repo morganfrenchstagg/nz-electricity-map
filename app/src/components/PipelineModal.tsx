@@ -82,7 +82,6 @@ export default function PipelineModal({ onClose }: Props) {
   return (
     <div onClick={onClose} className="modal-backdrop" style={{ padding: 'var(--space-xl) var(--space-2xl)' }}>
       <div onClick={e => e.stopPropagation()} className="modal" style={{ width: '100%', maxWidth: 1200, maxHeight: '90vh' }}>
-        {/* Header */}
         <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div className="title">Generation pipeline</div>
@@ -92,7 +91,6 @@ export default function PipelineModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* Filter bar */}
         <div className="section" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <FilterDropdown label="Fuel" options={ALL_FUELS} active={fuels} onToggle={v => setFuels(toggle(fuels, v))} onClear={() => setFuels(new Set())} swatch={fuel => ({ background: fuelColour(fuel), borderRadius: '50%' })} />
           <FilterDropdown label="Status" options={STATUS_ORDER} active={statuses} onToggle={v => setStatuses(toggle(statuses, v))} onClear={() => setStatuses(new Set())} swatch={status => ({ background: statusColour(status).bg, border: `1px solid ${statusColour(status).text}` })} />
@@ -108,7 +106,6 @@ export default function PipelineModal({ onClose }: Props) {
           )}
         </div>
 
-        {/* Table */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>

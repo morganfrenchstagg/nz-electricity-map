@@ -19,8 +19,8 @@ import type { InitialView } from '../utils/mapView'
 import type { Generator, GeneratorNode, Substation, SubstationNode, SelectedNode, RecentData } from '../types'
 import { substationsOf } from '../utils/substations'
 
-// maplibre's worker is a separate file. Vite bundles it (?worker&url) and maplibre is
-// told where it ended up, as it can't find it beside its own module once bundled.
+// Once bundled, maplibre can't find its worker beside its module, so Vite emits it
+// as a file (?worker&url) and maplibre is told where.
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
@@ -28,41 +28,39 @@ const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercat
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 
-// The HVDC's hover areas, wider than its lines: its overhead line, and its cables across Cook Strait
+// Hover areas wider than the HVDC's lines: the overhead line and the Cook Strait cables
 const HVDC_HOVER_LAYERS = ['hvdc-line-hover-layer', 'hvdc-cables-hover-layer']
-// How wide they are (px): for a mouse, and on mobile for a finger
+// px, for a mouse and for a finger on mobile
 const HVDC_HOVER_WIDTH = { mouse: 10, touch: 20 }
 
-// Hoverable layers in priority order: generators > under-construction > substations > HVDC.
-// This prevents a nearby substation from stealing the popup when the cursor is over a generator,
-// and the HVDC from stealing it from the stations along it.
+// Priority order, so a nearby substation doesn't steal a generator's popup, nor the
+// HVDC the popups of stations along it.
 const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substations-layer', ...HVDC_HOVER_LAYERS]
 
-// Each hoverable source promotes its id property to the feature id, so this names the feature
-// under the cursor and the popup is only rebuilt when it changes. The HVDC's popup is the same
-// all along it, so it's one feature.
+// Sources promote their id property to the feature id, so this identifies the hovered
+// feature and the popup rebuilds only when it changes. The HVDC counts as one feature,
+// as its popup is the same all along it.
 const hoverKey = (feature?: maplibregl.MapGeoJSONFeature) =>
   feature && (HVDC_HOVER_LAYERS.includes(feature.layer.id) ? 'hvdc' : `${feature.layer.id}:${feature.id}`)
 
-// What the open panel is for: circled, or for the HVDC, its lines in this colour.
-// The ink of index.css's --color-accent, as the panel's selected controls are.
+// Rings the open panel's node, or colours the HVDC's lines. index.css's
+// --color-accent ink, like the panel's selected controls.
 const SELECTED_COLOUR = '#1f2328'
 
 // The HVDC's overhead line, the only one at 350 kV
 const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number', ['get', 'designvolt']], 350]
 
-// The HVDC's lines, a touch darker than the grey of the voltages without a colour of
-// their own, and the chevrons on its cables for the way it's flowing, darker again to
-// stand out on them
+// A touch darker than the grey of uncoloured voltages. The flow chevrons are darker
+// again to stand out on the cables.
 const HVDC_COLOUR = '#76817f'
 const HVDC_CHEVRON_COLOUR = '#5f6b6d'
 const HVDC_HALO = 'rgba(255,255,255,0.8)'
 
-// The chevrons show once Cook Strait is wide enough on the map to hold them
+// Below this, Cook Strait is too narrow on the map to hold the chevrons
 const HVDC_CHEVRONS_MIN_ZOOM = 7.5
 
-// Three chevrons pointing east, each over a white halo to stand out on the cables and
-// the satellite map. They're lit in turn the way they point (see index.css).
+// Three east-pointing chevrons, haloed in white to stand out on the cables and the
+// satellite map. Lit in turn the way they point (see index.css).
 const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
   [7, 18, 29].map((x) => {
     const d = `M${x} 4 L${x + 8} 10 L${x} 16`
@@ -70,10 +68,10 @@ const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill=
   }).join('')
 }</svg>`
 
-// The generation pipeline is what's being built now, so past days and ranges leave it off the map
+// The pipeline is what's being built now, so past days and ranges leave it off
 const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
 
-// Where each of the selected generators or substations is, as [lng, lat]
+// [lng, lat] of each selected generator or substation
 function selectionPoints(node: GeneratorNode | SubstationNode): [number, number][] {
   if (node.kind === 'generator') return [[node.generator.location.long, node.generator.location.lat]]
   if (node.kind === 'generators') return node.generators.map(g => [g.location.long, g.location.lat])
@@ -91,8 +89,8 @@ interface Props {
   // Where the map opens beside the panel, in place of INITIAL_CENTER and INITIAL_ZOOM
   initialView?: Pick<InitialView, 'center' | 'zoom'> | null
   recentData: RecentData | null
-  // The generators in service during it are on the map, and Today and 3d keep
-  // outages up to date (see useOutages)
+  // Generators in service during it are shown; Today and 3d keep outages up to
+  // date (see useOutages)
   dateMode: DateMode
   isMobile?: boolean
 }
@@ -112,8 +110,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   // Set once the load handler has added the map's sources and layers
   const mapLoadedRef = useRef(false)
   const hvdcFlowMarkerRef = useRef<maplibregl.Marker | null>(null)
-  // Runs `update` once the sources are added. Not isStyleLoaded(), which is false again
-  // while a source reloads after setData, and 'load' doesn't fire again to run it then.
+  // Runs `update` once the map's sources are added. Not isStyleLoaded(): that's
+  // false again while a source reloads after setData, and 'load' won't fire again.
   const whenLoaded = (map: maplibregl.Map, update: () => void) => mapLoadedRef.current ? update() : map.once('load', update)
   const leftPanelOpenRef = useRef(leftPanelOpen)
   useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
@@ -129,7 +127,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     refreshHoverRef.current()
   }, [recentData])
   const outages = useOutages(isLiveMode(dateMode))
-  // The nodes dispatching in the live views, where units still being commissioned are shown once they are
+  // Live views show units still being commissioned once they dispatch
   const dispatching = useMemo(
     () => isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined,
     [dateMode, recentData],
@@ -144,7 +142,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   useEffect(() => { substationsRef.current = substations }, [substations])
   useEffect(() => { unitsByNodeRef.current = nodeUnits }, [nodeUnits])
 
-  // Keep callback refs so map event handlers always see the latest callbacks
+  // The map's handlers are bound once, so they read callbacks through refs
   const onGeneratorClickRef = useRef(onGeneratorClick)
   const onSubstationClickRef = useRef(onSubstationClick)
   const onHvdcClickRef = useRef(onHvdcClick)
@@ -164,14 +162,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       zoom: initialView?.zoom ?? INITIAL_ZOOM,
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION_HTML },
     })
-    // Compact attribution starts open until the map is first dragged; start on just its ⓘ button
+    // Compact attribution starts expanded until the first drag; start on its ⓘ button
     map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
-    // The chevrons on the HVDC's cables for the way it's flowing, added to the map while
-    // em6 has a flow (see hvdcFlow below). A marker, so the browser animates them without
-    // the map redrawing every frame. Turned with the map, to lie along the cables.
+    // Added while em6 has a flow (see hvdcFlow below). A marker, so the browser animates
+    // them without the map redrawing every frame. Turns with the map, along the cables.
     const chevrons = document.createElement('div')
     chevrons.className = 'hvdc-flow'
     chevrons.innerHTML = HVDC_CHEVRONS_SVG
@@ -203,11 +200,9 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: TRANSMISSION_LINES_URL,
       })
-      // The HVDC, from Benmore to Haywards, thicker than the other lines to be easier to see,
-      // and outlined in white for the satellite map. Beneath the other lines, so it doesn't
-      // cover them where they meet or run alongside it. Its undersea cables, which the
-      // transmission lines leave out, carry its overhead line across Cook Strait, dashed as
-      // they're under the sea.
+      // The HVDC (Benmore to Haywards): thicker than other lines, outlined in white for the
+      // satellite map, and beneath them so it doesn't cover them where they meet or run
+      // alongside. The undersea cables, missing from the transmission lines, are dashed.
       map.addSource('hvdc-cables', {
         type: 'geojson',
         data: { type: 'Feature', geometry: { type: 'LineString', coordinates: HVDC_CABLE }, properties: {} },
@@ -240,8 +235,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
           'line-opacity': 0.7,
         },
       })
-      // Hovering anywhere along the HVDC shows its flow. Unseen, and wider than its lines
-      // to be easier to find (wider again on mobile, see HVDC_HOVER_WIDTH).
+      // Unseen, and wider than the HVDC's lines so it's easy to hover (see HVDC_HOVER_WIDTH)
       const hvdcHoverPaint: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#000000', 'line-width': HVDC_HOVER_WIDTH.mouse, 'line-opacity': 0 }
       map.addLayer({
         id: 'hvdc-line-hover-layer',
@@ -307,7 +301,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
-      // A white edge round the ring, so it still shows on the dark of the satellite imagery
+      // White edge so the ring shows on dark satellite imagery
       map.addLayer({
         id: 'selected-node-halo-layer',
         type: 'circle',
@@ -331,9 +325,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         },
       })
 
-      // Place names (towns, cities, regions, the country) above everything added here, so
-      // the generators and substations don't hide them. Other basemap labels, like roads
-      // and points of interest, stay beneath.
+      // Place names above everything added here, so markers don't hide them. Other
+      // basemap labels, like roads, stay beneath.
       for (const layer of map.getStyle().layers) {
         if (layer.type === 'symbol' && layer['source-layer'] === 'place') map.moveLayer(layer.id)
       }
@@ -386,7 +379,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         return substation ? substationPopupHtml(substation, recentDataRef.current, unitsByNodeRef.current) : null
       }
 
-      // Builds the popup for the hovered feature; only called when that feature or the data changes
+      // Only called when the hovered feature or the data changes
       const renderHover = () => {
         const html = hovered && hoverHtml(hovered)
         map.getCanvas().style.cursor = html ? 'pointer' : ''
@@ -399,7 +392,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       map.on('mousemove', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: HOVER_LAYERS })
         const feature = HOVER_LAYERS.map(layer => features.find(f => f.layer.id === layer)).find(f => f)
-        // Following the cursor is cheap; the popup is rebuilt only when the cursor reaches another feature
+        // Following the cursor is cheap; the popup rebuilds only for another feature
         hoverPopup.setLngLat(e.lngLat)
         if (hoverKey(feature) === hoverKey(hovered)) return
         hovered = feature
@@ -438,9 +431,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
 
-  // The chevrons point east along the cables for a flow north, as the North Island is
-  // to the right of Cook Strait, or west for a flow south. Past days' dispatch has no
-  // HVDC, so they have none.
+  // Chevrons point east along the cables for a flow north (the North Island is right of
+  // Cook Strait), west for south. Past days' dispatch has no HVDC, so they have none.
   const hvdcFlow = hvdcDirection(latestHvdcNorth(recentData))
   useEffect(() => {
     const map = mapRef.current

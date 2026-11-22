@@ -1,5 +1,4 @@
-// What DatePickers and the stand-ins LazyDatePickers shows until it loads have
-// in common, kept apart so the stand-ins don't bring DatePickers with them
+// Shared by DatePickers and LazyDatePickers' stand-ins, kept apart so the stand-ins don't load DatePickers
 
 // en-NZ whatever the browser's language: dd/mm/yyyy, weeks starting on Monday
 export const LOCALE = 'en-NZ'

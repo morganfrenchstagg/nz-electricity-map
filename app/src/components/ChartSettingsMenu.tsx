@@ -7,13 +7,12 @@ import { Check, Gear } from './icons'
 interface Props {
   settings: ChartSettings
   onChange: (settings: ChartSettings) => void
-  // The settings the panel's chart follows, in the order they're listed
+  // The settings this panel's chart follows, in listed order
   offered: ChartSettingKey[]
 }
 
-// A gear button, for the end of a panel's toolbar, that opens a popover of
-// choices for how the panel's chart shows its data (see chartSettings). Picking
-// one leaves the popover open, so the chart can be seen changing behind it.
+// A gear at the end of a panel's toolbar (see chartSettings). Picking leaves the popover open, so
+// the chart can be seen changing behind it.
 export default function ChartSettingsMenu({ settings, onChange, offered }: Props) {
   return (
     <DialogTrigger>

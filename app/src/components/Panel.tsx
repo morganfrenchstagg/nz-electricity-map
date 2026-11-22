@@ -6,8 +6,8 @@ import { Dots, Moon, Sun } from './icons'
 
 const InfoModal = lazy(() => import('./InfoModal'))
 
-// Narrowest panel with room for the grid panel's title beside all of the header's
-// buttons. Narrower panels, and mobile, gather all but Close into a menu.
+// Narrowest panel with room for the grid panel's title and every header button.
+// Narrower panels, and mobile, put all but Close in a menu.
 const MENU_BELOW_PX = 595
 
 // One of a panel's own header buttons
@@ -16,8 +16,7 @@ export interface PanelAction {
   onClick: () => void
 }
 
-// Whether the panel's header gathers its buttons into a menu, as it does on
-// mobile and on panels too narrow for them (see MENU_BELOW_PX)
+// Whether the header gathers its buttons into a menu
 export function hasHeaderMenu({ isMobile = false, expanded, panelWidth }: Pick<PanelProps, 'isMobile' | 'expanded' | 'panelWidth'>) {
   return isMobile || (!expanded && panelWidth < MENU_BELOW_PX)
 }
@@ -35,7 +34,7 @@ export interface PanelProps {
 interface Props extends PanelProps {
   // Before the buttons in the header row
   header: ReactNode
-  // The panel's own buttons, before About this site
+  // The panel's own buttons, before the shared ones
   actions?: PanelAction[]
   // The header row, for a panel that drops header content when it overflows
   headerRef?: Ref<HTMLDivElement>
@@ -44,10 +43,7 @@ interface Props extends PanelProps {
   children: ReactNode
 }
 
-// The resizable side panel that GeneratorPanel, SubstationPanel and
-// GridOverviewPanel fill: a header ending in the panel's own buttons and those
-// to open About this site, expand the panel over the map or close it, then
-// whatever the panel puts below.
+// The resizable side panel that GeneratorPanel, SubstationPanel and GridOverviewPanel fill
 export default function Panel({ header, actions = [], headerRef, visible = true, children, onClose, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
   const [infoOpen, setInfoOpen] = useState(false)
   const theme = useTheme()
@@ -117,9 +113,8 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
   )
 }
 
-// The row of controls under the header. When it's too narrow for one line
-// (see useCompactWhenOverflowing, which measures it through toolbarRef), the
-// panel switches its toggles to dropdowns and the row wraps.
+// Controls under the header. When too narrow for one line (measured by useCompactWhenOverflowing
+// via toolbarRef), the panel switches its toggles to dropdowns and the row wraps.
 export function PanelToolbar({ toolbarRef, compact, children }: { toolbarRef: Ref<HTMLDivElement>; compact: boolean; children: ReactNode }) {
   return (
     <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'wrap' : 'nowrap' }}>

@@ -1,18 +1,14 @@
 import type { RecentData } from '../types'
 
-// The most intervals dispatch/recent holds (3 days of them), dropping the oldest
-// as each new one arrives. Matches the API's MAX_DATA_POINTS.
+// dispatch/recent holds 3 days of 5-minute intervals, dropping the oldest as each arrives.
+// Matches the API's MAX_DATA_POINTS.
 export const RECENT_INTERVALS = (60 / 5) * 24 * 3
 
-// How many of the newest intervals held are fetched again with each new one.
-// The API can give an interval different values after it's first been fetched,
-// and fill in one it skipped, so these are taken from it again rather than
-// kept as first fetched. Kept as first fetched, a bad interval would stay on
-// the chart until the page was reloaded.
+// Newest intervals refetched each time: the API can revise an interval after it's first fetched,
+// or fill in one it skipped, and a bad one kept would stay on the chart until a reload.
 export const REFETCHED_INTERVALS = 6
 
-// The interval to fetch everything after (dispatch/recent?since=): the one
-// before the last REFETCHED_INTERVALS held, or the oldest when there are fewer
+// For dispatch/recent?since=: the interval before the last REFETCHED_INTERVALS, or the oldest if fewer
 export function refetchSince(recent: RecentData): string | undefined {
   const row = recent.data[Math.max(recent.data.length - 1 - REFETCHED_INTERVALS, 0)]
   return row?.[0] as string | undefined
@@ -20,15 +16,12 @@ export function refetchSince(recent: RecentData): string | undefined {
 
 type Row = (string | number | null)[]
 
-// Takes the intervals fetched after `since` in place of those held, dropping
-// the oldest past RECENT_INTERVALS like the API does, so it matches what
-// fetching all of them would give. Only rows after `since` are taken, so an
-// API that ignores `since` and sends everything is fine too. The HVDC's whole
-// last day comes every time, so it replaces the one held. Gives back `held`
-// itself when nothing has changed, so it isn't re-charted.
+// Replaces held intervals after `since` with the fetched ones, dropping the oldest past
+// RECENT_INTERVALS like the API, so it matches a full fetch. Filters to after `since` in case
+// the API ignores it. The HVDC's whole last day comes every time, so it replaces the held one.
+// Returns `held` itself when unchanged, so it isn't re-charted.
 //
-// Null when the nodes have changed, as the held rows' columns no longer line
-// up with the new ones and it all needs fetching again.
+// Null when the nodes have changed: the held columns no longer line up, so refetch it all.
 export function appendRecent(held: RecentData, added: RecentData, since: string): RecentData | null {
   if (added.series.length !== held.series.length || added.series.some((s, i) => s !== held.series[i])) return null
 

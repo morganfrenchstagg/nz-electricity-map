@@ -104,8 +104,7 @@ describe('unitsByNode', () => {
   })
 })
 
-// Commissioned at 2:00pm on 21 July 2021 and decommissioned through 7:29:59.999pm
-// on 5 September 2025, both NZST
+// Commissioned 2pm 21 July 2021, decommissioned through 7:29:59.999pm 5 September 2025, both NZST
 const served = (extra: Partial<Unit> = {}): Unit => ({
   ...unit('LTN2201 TUR0', 'Turitea'),
   commissioned: '2021-07-21T02:00:00.000Z',

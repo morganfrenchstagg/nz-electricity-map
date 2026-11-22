@@ -17,8 +17,7 @@ interface Props {
   empty: boolean
 }
 
-// The period toggle with its date range picker's calendar button (and the 90d,
-// 1y, 5y and All views' totals toggle) and data status in every panel's toolbar.
+// Period and totals toggles, range picker and data status for every panel's toolbar.
 // GeneratorPanel's Offers view has its own.
 export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
   const {

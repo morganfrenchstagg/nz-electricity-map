@@ -11,7 +11,7 @@ import type { Period } from '../utils/time'
 import type { OutageData } from '../api'
 import type { Generator, Substation, RecentData, UnderConstructionNode, Unit } from '../types'
 
-// HTML for the map's hover popups, which MapLibre takes as a string rather than React
+// HTML for the map's hover popups: MapLibre takes a string, not React
 
 function renderUnitStats(u: { capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }): string {
   const capacityParts = [
@@ -33,7 +33,7 @@ function renderStatusPill(status: string): string {
     : ''
 }
 
-// The generator panel's capacity bar stripes, in red to stand out on a 3px bar
+// As on the generator panel's capacity bar, but red to stand out on a 3px bar
 const OUTAGE_STRIPES = 'repeating-linear-gradient(45deg, var(--color-danger) 0, var(--color-danger) 2px, transparent 2px, transparent 5px)'
 
 type PopupUnit = Unit & { outageMW: number; available: number }
@@ -42,9 +42,8 @@ function dotHtml(colour: string): string {
   return `<span style="width:8px;height:8px;border-radius:50%;background:${colour};flex-shrink:0"></span>`
 }
 
-// A 3px bar filled `fillPct` of the way in `colour`, with `stripesPct` of outage
-// stripes at the far end. `reversed` runs it right to left, for the left half of
-// a bar out from zero in the middle (see ZERO_TICK).
+// A 3px bar with `stripesPct` of outage stripes at the far end. `reversed` runs
+// right to left, for the left half of a centre-zero bar (see ZERO_TICK).
 function barHtml(fillPct: number, colour: string, reversed = false, stripesPct = 0): string {
   return `<div style="flex:1;display:flex;${reversed ? 'flex-direction:row-reverse;' : ''}justify-content:space-between;height:3px;background:var(--color-fill);border-radius:2px;overflow:hidden">
     <div style="width:${fillPct}%;background:${colour};border-radius:2px"></div>
@@ -52,13 +51,12 @@ function barHtml(fillPct: number, colour: string, reversed = false, stripesPct =
   </div>`
 }
 
-// Marks zero between the two halves of a bar out from the middle
+// Marks zero between the halves of a centre-zero bar
 const ZERO_TICK = '<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>'
 
-// A unit's bar: its generation from the start, and any outage at the far end.
-// An outage leaves what's left of installed capacity (see unitCapacityAt), so the
-// bar is then scaled to installed capacity to fit the outage in beside generation.
-// `reversed` is for a battery's charging half.
+// Generation from the start, any outage at the far end. Available capacity
+// excludes the outage (see unitCapacityAt), so with one the bar scales to
+// installed capacity to fit both. `reversed` is for a battery's charging half.
 function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): string {
   const scale = Math.abs(u.outageMW > 0 ? installedCapacityOf(u) : u.available)
   const fillPct = genMW !== null && scale !== 0 ? Math.min(100, (Math.abs(genMW) / scale) * 100) : 0
@@ -66,14 +64,13 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
   return barHtml(fillPct, fuelColour(u.fuel), reversed, stripesPct)
 }
 
-// `period` is what the map shows (see periodOf): its units, and their outages at its end.
-// The `live` views (Today and 3d) also list units still being commissioned once they're
-// dispatching, shown as though in full outage so they don't count towards capacity.
-// Units retired by its end are listed without capacity, except those that moved node
-// (as Pātea's did), which are only listed at the node they moved to. A unit that
-// combines others (see Unit.combines) is listed with their capacity, and in their
-// place while they've no generation of their own; any of them at other sites are
-// found in `unitsByNode`. Any of the `pipeline` being built at its site are listed under them.
+// `period` is what the map shows (see periodOf); outages are as at its end.
+// `live` views (Today, 3d) also list commissioning units once dispatching, as if
+// fully out so they don't count towards capacity. Units retired by the end show no
+// capacity, except ones that moved node (as Pātea's did), listed only at the new
+// node. A combining unit (see Unit.combines) takes its parts' capacity and their
+// place while they've no generation of their own; parts at other sites come from
+// `unitsByNode`. `pipeline` units being built at the site are listed below.
 export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean, pipeline: UnderConstructionNode[], unitsByNode?: Map<string, Unit>): string {
   const lastRow = data?.data[data.data.length - 1]
   const atMs = period.to
@@ -101,30 +98,30 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
       ? { ...u, outageMW: Math.abs(installedCapacityOf(u)), available: 0 }
       : retired(u) ? { ...u, capacity: 0, outageMW: 0, available: 0 }
         : u.combines ? combinedUnit(u) : inService(u))
-  // A battery's charging unit goes by its discharging unit's name, and shares its row:
-  // one bar out from zero in the middle, charging to the left and discharging to the right
+  // A battery's charging unit shares its discharging unit's name and row: one
+  // centre-zero bar, charging left, discharging right
   const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)
   const pairedCharging = new Set(activeUnits.map(chargingUnitOf))
-  // The popup's heading already names the generator, so unit names drop it, and a
-  // unit named just as its generator goes unnamed, unless others are named beside it
+  // The heading names the generator, so unit names drop it. A unit named just as
+  // its generator goes unnamed, unless others are named.
   const shortNames = activeUnits.filter(u => !pairedCharging.has(u)).map(u => ({ u, name: shortUnitName(u.name, generator.name) }))
   const anyNamed = shortNames.some(r => r.name)
   const rows = shortNames.map(({ u, name }) => ({ u, name: name || (anyNamed ? u.name : '') }))
-  // With one row, or none named, the fuel goes under the heading as in the generator
-  // panel, in place of a dot on each row
+  // With one row or none named, the fuel goes under the heading (as in the
+  // generator panel) instead of a dot per row
   const fuelInHeading = rows.length === 1 || !anyNamed
   const unitRows = rows.map(({ u, name }) => {
     const charging = chargingUnitOf(u)
     const chargeMW = charging ? genOf(charging) : null
     const dischargeMW = genOf(u)
     const genMW = chargeMW === null ? dischargeMW : (dischargeMW ?? 0) + chargeMW
-    // A charging battery is measured against what it can draw rather than what it can give
+    // A charging battery is measured against what it can draw, not give
     const capUnit = charging && (genMW ?? 0) < 0 ? charging : u
     const { outageMW, available } = capUnit
     const pct = genMW !== null && available !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(available)) * 100)) : 0
     const colour = fuelColour(u.fuel)
     const genStr = genMW !== null ? formatMW(genMW) : '—'
-    // An outage strikes out the usual capacity for what's left, in red
+    // An outage strikes out the usual capacity, with what's left in red
     const capStr = capUnit.capacity === 0 ? null
       : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(capUnit.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
         : formatMW(available)
@@ -180,9 +177,8 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
         </div>`
       }).join('')}
     </div>` : ''
-  // As wide as its content, so the operator line and unit names fit without running
-  // under the site code or being cut short. The operator line sits in the name's
-  // column, leaving the site code a column of its own.
+  // Sized to content so the operator line and unit names neither run under the
+  // site code nor truncate. The site code gets its own grid column.
   return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
     <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:1px 12px;margin-bottom:6px">
       <span style="font-weight:600">${generator.name}</span>
@@ -197,15 +193,14 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   </div>`
 }
 
-// The HVDC's flow, shown as generatorPopupHtml shows a battery: one bar out from
-// zero in the middle, flowing south to the left and north to the right, as the
-// North Island is to the right of Cook Strait. `transfer` is into the North Island
-// (see latestHvdcNorth), and each way is measured against its limit then. A limit
-// under that way's capacity (HVDC_CAPACITY_MW) is shown as a generator's outage is:
-// the capacity struck out for the limit, and the rest of that half striped.
+// Drawn like a battery: a centre-zero bar, south to the left and north to the
+// right (the North Island is right of Cook Strait). `transfer` is into the North
+// Island (see latestHvdcNorth); each way is measured against its current limit.
+// A limit under HVDC_CAPACITY_MW is shown like an outage: capacity struck out for
+// the limit, and the rest of that half striped.
 export function hvdcPopupHtml(transfer: HvdcTransfer): string {
   const { inLimit: northLimit, outLimit: southLimit } = transfer
-  // em6's half hours are interpolated between (see hvdcInto), so it's to the MW
+  // em6's half hours are interpolated (see hvdcInto), so round to the MW
   const flowMW = Math.round(Math.abs(transfer.mw))
   const direction = hvdcDirection(transfer)
   const ways = {
@@ -213,7 +208,7 @@ export function hvdcPopupHtml(transfer: HvdcTransfer): string {
     south: { limit: southLimit, capacity: Math.max(HVDC_CAPACITY_MW.south, southLimit) },
   }
   const colour = fuelCodeColour(HVDC_IMPORT_CODE)
-  // As unitBarHtml's, scaled to the capacity to fit the cut to it in beside the flow
+  // As in unitBarHtml, scaled to capacity to fit the limit's cut beside the flow
   const halfHtml = (way: 'north' | 'south') => {
     const { limit, capacity } = ways[way]
     const fillPct = way === direction ? Math.min(100, (flowMW / capacity) * 100) : 0

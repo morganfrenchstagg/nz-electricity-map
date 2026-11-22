@@ -10,13 +10,12 @@ interface Props {
   active: Set<string>
   onToggle: (option: string) => void
   onClear: () => void
-  // Each option's swatch, when it has one
   swatch?: (option: string) => React.CSSProperties | undefined
   // The popover's edge to line up with the button's
   align?: 'left' | 'right'
 }
 
-// A filter button that opens a popover of options to pick any number of
+// Picks any number of options from a popover
 export default function FilterDropdown({ label, countLabel = (n) => `${label}: ${n}`, options, active, onToggle, onClear, swatch, align = 'left' }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)

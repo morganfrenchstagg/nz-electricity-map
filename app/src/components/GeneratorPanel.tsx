@@ -33,9 +33,8 @@ const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
 
-// `date` is built from outage timestamps via the "local time as UTC" convention
-// (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
-// to get the raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
+// `date` is in the "local time as UTC" convention (see outageMs), so it's read
+// with timeZone 'UTC'. 'Pacific/Auckland' would shift it a second time.
 function formatOutageEnd(date: Date): string {
   const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'UTC' })
   if (endNZ === todayNZ()) {
@@ -51,7 +50,7 @@ interface Props extends NodePanelProps {
   // The trading period the Offers view shows
   tradingPeriod: number
   onTradingPeriodChange: (period: number) => void
-  // How the Generation view's chart shows the units, shared with GridOverviewPanel's
+  // Shared with GridOverviewPanel
   chartSettings: ChartSettings
   onChartSettingsChange: (settings: ChartSettings) => void
 }
@@ -67,7 +66,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const headerMenu = hasHeaderMenu(panel)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
-  // The period is read as the adapter's made, so live views' capacity keeps up with the outages polled
+  // periodOf is read when the adapter's made, so live views' capacity keeps up with polled outages
   const adapter = useMemo(
     () => node.kind === 'generator'
       ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode), isLiveMode(dateMode))
@@ -81,9 +80,9 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   })
   const generationSelection = useCodeSelection(allCodes, node)
   const { effectiveCodes } = generationSelection
-  // The units counted towards capacity and outages. The data leaves out units that
-  // didn't dispatch, so they aren't charted or picked out, but while every unit
-  // charted is shown, they're counted too (the adapter keeps to those in service).
+  // Units counted towards capacity and outages. The data leaves out units that
+  // didn't dispatch, so they can't be picked, but they count while every charted
+  // unit is shown (the adapter keeps to those in service).
   const capacityCodes = useMemo(
     () => effectiveCodes.size === allCodes.length ? new Set(adapter.queryNodes) : effectiveCodes,
     [effectiveCodes, allCodes, adapter],
@@ -97,8 +96,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
   const offersDispatch = useOffersDispatch(offersData?.date ?? null)
-  // The units with offers that day, which the Offers view's unit buttons pick
-  // between. They're picked apart from the Generation view's.
+  // Units with offers that day, selected separately from the Generation view's
   const offerCodes = useMemo(() => {
     if (!offersData) return []
     const offered = new Set(Object.values(offersData.data).flatMap((period) => Object.keys(period)))
@@ -107,14 +105,14 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const offerSelection = useCodeSelection(offerCodes, node)
   const buttonCodes = viewMode === 'offers' ? offerCodes : allCodes
   const buttonSelection = viewMode === 'offers' ? offerSelection : generationSelection
-  // Fetch the chart code alongside the offers data rather than after it arrives
+  // Fetch the chart code alongside the offers data, not after
   useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
 
   const maxTradingPeriod = offersData
     ? Math.max(...Object.keys(offersData.data).map(Number))
     : 48
-  // The trading period dropdown's options, each with its half hour once the
-  // offers' date is known (Latest's isn't until they load)
+  // Each with its half hour once the offers' date is known (Latest's isn't until
+  // they load)
   const periodDate = offersData?.date ?? (offerDate !== 'latest' ? offerDate : null)
   const tradingPeriodOptions = useMemo(
     () => Array.from({ length: maxTradingPeriod }, (_, i) => {
@@ -130,7 +128,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     handleFromChange, handlePeriodClick, handleCustomClick,
   } = datePicker
 
-  // When the latest offers load, reflect their actual date in the date picker
+  // Show the latest offers' actual date in the date picker
   useEffect(() => {
     if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
   }, [offersData, offerDate, setFromDate])
@@ -173,9 +171,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     return result
   }, [outages, capacityCodes, findUnit])
 
-  // The soonest any current outage starts to ease, rather than the soonest any
-  // record ends: a record that hasn't started yet, or overlaps another on the
-  // same block, doesn't end anything
+  // When a current outage first eases, not the soonest record end: a record not
+  // yet started, or overlapping another on the same block, doesn't end anything
   const soonestOutageEnd = useMemo(() => {
     const nowMs = nzNowMs()
     let soonest: number | null = null
@@ -202,8 +199,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     return details
   }, [unitOutages, adapter])
 
-  // First segment of each outageBlock (e.g. "RUK_STN" -> "RUK") identifies the
-  // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
+  // An outageBlock's first segment (e.g. "RUK_STN" -> "RUK") identifies the plant
+  // in Transpower's POCP outage portal, for the "view in POCP" link
   const outageBlockPrefixes = useMemo(() => {
     if (!outages) return []
     const nowMs = nzNowMs()
@@ -237,11 +234,10 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     buttonSelection.setActiveCodes(nothingSelected ? null : new Set())
   }
 
-  // As proportions, the units are charted as their shares of the shown units'
-  // generation, stacked up to 100%. Unlike GridOverviewPanel's fuels, a battery
-  // charging has no share rather than a negative one, as at one site it can
-  // outweigh everything generated there. Their capacity, in MW, has no place
-  // on that chart.
+  // Proportion charts each unit's share of the shown units' generation, stacked to
+  // 100%. Unlike GridOverviewPanel's fuels, battery charging gets no share rather
+  // than a negative one, as at one site it can outweigh all generation there.
+  // Capacity (MW) isn't charted with shares.
   const { chartType } = chartSettings
   const proportion = chartType === 'proportion'
 
@@ -250,7 +246,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
     const capSeries = isAggregate || proportion ? null : adapter.capacitySeries(chartData.rows, capacityCodes)
 
-    // Step-left lookup: capacity at a given timestamp from the step-line data
+    // Step-left lookup on the capacity line
     const capPoints = capSeries
       ? ((capSeries as Highcharts.SeriesLineOptions).data as { x: number; y: number }[])
       : null
@@ -266,8 +262,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
     const prices = pricesByTime(isAggregate ? null : recentData, chartData.codes)
 
-    // Aggregate totals are MWh, charted in GWh unless the columns stay small.
-    // As lines, every unit is charted from zero.
+    // Aggregate totals are MWh, in GWh unless the columns stay small. As lines,
+    // every unit is charted from zero.
     const stacked = chartType !== 'line' && chartData.codes.length > 1
     const shownCodes = chartData.codes.filter(code => effectiveCodes.has(code))
     const unit = isAggregate
@@ -328,7 +324,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     })
   }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod, chartType, proportion])
 
-  // A button per unit, when there's more than one
   const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
     <SeriesButton key={code} colour={adapter.colourFor(code)} active={buttonSelection.effectiveCodes.has(code)} onClick={() => buttonSelection.toggleCode(code)} onIsolate={() => buttonSelection.isolateCode(code)}>
       {adapter.labelFor(code)}
@@ -444,7 +439,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
               />
             </div>}
 
-            {/* Trading period stepper */}
             {!compactToolbar && <div className="divider" />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <button
@@ -503,7 +497,6 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
         </div>
       )}
 
-      {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         {viewMode === 'offers' ? (
           offersLoading && !offersData ? (

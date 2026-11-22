@@ -33,7 +33,7 @@ const GRID_ZONE_NAMES: Record<number, string> = {
   14: 'Southland',
 }
 
-// A row's tick box: ticked, part-ticked (some of a group), or not
+// Part-ticked when some of a group is picked
 function CheckBox({ checked, partial = false, size }: { checked: boolean; partial?: boolean; size: 14 | 16 }) {
   return (
     <span style={{ width: size, height: size, borderRadius: size === 16 ? 4 : 3, border: checked ? 'none' : '1.5px solid var(--color-border-strong)', background: checked ? 'var(--color-accent)' : partial ? 'var(--color-accent-muted)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -97,7 +97,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   const toggleSite = (site: string) => setSelectedSites(prev => toggleAll(prev, [site]))
   const toggleSubstation = (siteId: string) => setSelectedSubstations(prev => toggleAll(prev, [siteId]))
 
-  // The open tab's selection, which its footer counts, clears and views
   const picked = tab === 'generation' ? selectedSites : selectedSubstations
   const setPicked = tab === 'generation' ? setSelectedSites : setSelectedSubstations
   const pickedNoun = tab === 'generation' ? 'generator' : 'substation'
@@ -123,7 +122,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Reset search and filters when switching tabs
   const handleTabChange = (t: Tab) => { setTab(t); setQuery(''); setSelectedFuels(new Set()); setSelectedSchemes(new Set()) }
 
   const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -142,13 +140,11 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   return (
     <div onClick={onClose} className="modal-backdrop">
       <div onClick={e => e.stopPropagation()} className="modal" style={{ width: 560, maxHeight: '80vh' }}>
-        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--color-divider)', padding: '0 var(--space-md)' }}>
           <button className={tabClass('generation')} onClick={() => handleTabChange('generation')}>Generation</button>
           <button className={tabClass('substation')} onClick={() => handleTabChange('substation')}>Substations</button>
         </div>
 
-        {/* Search + filter dropdowns */}
         {(() => {
           const searchInput = (
             <input
@@ -193,7 +189,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
           )
         })()}
 
-        {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {tab === 'generation' && (() => {
             if (filteredGenerators.length === 0) return <div className="empty-state">No results</div>
@@ -314,7 +309,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
           })()}
         </div>
 
-        {/* Selection footer */}
         <div style={{ padding: 'var(--space-lg) var(--space-xl)', borderTop: '1px solid var(--color-divider)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
             {picked.size === 0 ? `No ${pickedNoun}s selected` : `${picked.size} ${pickedNoun}${picked.size !== 1 ? 's' : ''} selected`}

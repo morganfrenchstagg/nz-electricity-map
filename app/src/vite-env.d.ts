@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  // The API to use in place of production, e.g. a local `wrangler dev` (see README)
+  // Overrides the production API, e.g. a local `wrangler dev` (see README)
   readonly VITE_API_BASE?: string
-  // The distributed solar API to use in place of production, e.g. a local `wrangler dev` (see README)
+  // Overrides the production distributed solar API, e.g. a local `wrangler dev` (see README)
   readonly VITE_SOLAR_API_BASE?: string
 }
 

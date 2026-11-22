@@ -5,8 +5,8 @@ import { nzLocalMs } from './time'
 
 const everyGxp = () => true
 
-// A day's estimate at two GXPs, from its first 15-minute instant (in UTC) on,
-// observed throughout unless `observedUntil` is given
+// Two GXPs from the first 15-minute instant (UTC), observed throughout unless
+// `observedUntil` is given
 function day(date: string, firstTime: string, isl: number[], bln: number[], capacity = { isl: 50, bln: 40 }, observedUntil?: string | null): SolarProduction {
   const start = Date.parse(firstTime)
   const profileTimes = isl.map((_, i) => new Date(start + i * 15 * 60 * 1000).toISOString())
@@ -58,7 +58,7 @@ describe('distributedSolarAt', () => {
 })
 
 describe('observedSolar', () => {
-  // The estimate charted at each of `times` (in NZ), with the forecast left out
+  // At each of `times` (NZ), forecast left out
   function charted(days: SolarProduction[], times: string[]) {
     const ms = times.map((time) => nzLocalMs(time))
     return observedSolar(days, ms, distributedSolarAt(days, ms, everyGxp))
@@ -76,8 +76,8 @@ describe('observedSolar', () => {
   })
 
   it('runs on through a night forecast as none, into the next day’s readings', () => {
-    // 11:15pm to 11:45pm on the 25th, observed until 11:15pm, then midnight to
-    // 12:15am on the 26th, observed throughout
+    // 11:15pm to 11:45pm on the 25th, observed until 11:15pm; midnight to 12:15am
+    // on the 26th, observed throughout
     const yesterday = day('2026-10-25', '2026-10-25T10:15:00.000Z', [0, 0, 0], [0, 0, 0], undefined, '2026-10-25T10:15:00.000Z')
     const today = day('2026-10-26', '2026-10-25T11:00:00.000Z', [0, 0], [0, 0])
     expect(charted([yesterday, today], ['2026-10-25T23:15:00', '2026-10-25T23:30:00', '2026-10-26T00:00:00'])).toEqual([0, 0, 0])
@@ -129,7 +129,7 @@ describe('distributedSolarCapacities', () => {
 })
 
 describe('distributedSolarEnergy', () => {
-  // A week's daily totals, with ISL and BLN in the order the API sends them
+  // A week's daily totals, GXPs in the order the API sends them
   const week: SolarEnergy = {
     series: ['BLN', 'ISL'],
     data: [

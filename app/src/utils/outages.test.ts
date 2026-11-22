@@ -6,7 +6,7 @@ import { nzLocalMs, nzNowMs } from './time'
 
 afterEach(() => { vi.useRealTimers() })
 
-// An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
+// An outage on 13 October 2026 (NZDT), as the API sends it
 function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
   return { outageBlock: block, timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
 }
@@ -111,7 +111,7 @@ describe('outageEasesAt', () => {
   })
 })
 
-// A battery's charging unit is listed with negative capacity, as the API sends it
+// The API lists a battery's charging unit with negative capacity
 const CHARGING: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'HLY2201 HLY91', capacity: -100 }
 // 42 MW normally, 50 MW installed
 const HYDRO: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'ATI2201 ATI0', capacity: 42, installedCapacity: 50 }

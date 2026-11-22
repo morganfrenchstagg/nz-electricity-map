@@ -7,7 +7,7 @@ const PROFILE_STEP_MS = 15 * 60 * 1000
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 
-// The index of the last of `points` at or before `ms`, or -1 if there's none
+// `points` must be sorted by time. -1 if none is at or before `ms`.
 function lastAtOrBefore(points: [number, number][], ms: number): number {
   let lo = 0
   let hi = points.length - 1
@@ -24,10 +24,9 @@ function lastAtOrBefore(points: [number, number][], ms: number): number {
   return found
 }
 
-// Distributed solar's estimated MW at each of `times` (in the "local time as
-// UTC" convention), summed over the GXPs `includeGxp` keeps. It's interpolated
-// between the estimate's 15-minute points, and its last point holds for the 15
-// minutes after it. Times the estimate doesn't cover are null.
+// Estimated MW at each of `times` ("local time as UTC"), summed over the GXPs
+// `includeGxp` keeps. Interpolated between 15-minute points; the last point holds
+// for 15 minutes. Null where the estimate doesn't reach.
 export function distributedSolarAt(days: SolarProduction[], times: number[], includeGxp: (gxp: string) => boolean): (number | null)[] {
   const points = days
     .flatMap((day) => {
@@ -51,11 +50,10 @@ export function distributedSolarAt(days: SolarProduction[], times: number[], inc
   })
 }
 
-// `values` (distributedSolarAt's MW at each of `times`) with the forecast left
-// out, as at a single GXP it's too rough to show: everything after the newest
-// satellite reading, and before that, any forecast of sun. A day's readings
-// stop around sunset, and its night is forecast as none, which is kept so the
-// line runs on through it into the next day's readings.
+// `values` (from distributedSolarAt) without the forecast, too rough to show at a
+// single GXP: everything after the newest satellite reading, and any forecast sun
+// before it. Readings stop around sunset and nights are forecast as zero; that's
+// kept so the line runs through the night into the next day's readings.
 export function observedSolar(days: SolarProduction[], times: number[], values: (number | null)[]): (number | null)[] {
   const observedUntil = new Map(days.map((day) => [
     day.date,
@@ -69,8 +67,8 @@ export function observedSolar(days: SolarProduction[], times: number[], values: 
   })
 }
 
-// The distributed solar installed at the GXPs `includeGxp` keeps, keyed by
-// each of `days`' dates. It steps at month ends, which a range can span.
+// Installed MW at the kept GXPs, keyed by date. It steps at month ends, which a
+// range can span.
 export function distributedSolarCapacities(days: SolarProduction[], includeGxp: (gxp: string) => boolean): Map<string, number> {
   return new Map(days.map((day) => [
     day.date,
@@ -78,19 +76,16 @@ export function distributedSolarCapacities(days: SolarProduction[], includeGxp: 
   ]))
 }
 
-// Today's distributed solar energy so far, in MWh, and with the forecast left
-// out, the last time it covers
+// `until`: the last time covered, when the forecast is left out
 export interface SolarSoFar {
   mwh: number
   until?: number
 }
 
-// Today's distributed solar energy so far at the GXPs `includeGxp` keeps, for
-// the aggregate views' period so far, as the API's totals stop at yesterday.
-// Its MW at each 5-minute dispatch time from midnight up to `now` (in the
-// "local time as UTC" convention) is summed as the dispatch totals are.
-// `observedOnly` leaves out the forecast (see observedSolar). Null when there's
-// no estimate for today at those GXPs.
+// Today's MWh so far at the kept GXPs, for the aggregate views, as the API's
+// totals stop at yesterday. Sums MW at each 5-minute dispatch time from midnight
+// to `now` ("local time as UTC"), as the dispatch totals are. `observedOnly`
+// leaves out the forecast (see observedSolar). Null with no estimate for today.
 export function solarSoFar(days: SolarProduction[], today: string, now: number, includeGxp: (gxp: string) => boolean, observedOnly = false): SolarSoFar | null {
   const estimate = days.filter((day) => day.date === today && day.gxps.some((g) => includeGxp(g.gxp)))
   const times: number[] = []
@@ -103,21 +98,19 @@ export function solarSoFar(days: SolarProduction[], today: string, now: number, 
   return observedOnly ? { mwh, until: covered[covered.length - 1] } : { mwh }
 }
 
-// A period's distributed solar energy estimated at the GXPs kept, in MWh, and
-// how many of its days that's from. On the period so far, `until` is the last
-// time today's share covers, when the forecast is left out.
+// `days`: how many days the MWh is from. `until`: on the period so far, the last
+// time today's share covers when the forecast is left out.
 export interface SolarPeriod {
   mwh: number
   days: number
   until?: number
 }
 
-// Each period of `files`, keyed by its first day, at the GXPs `includeGxp`
-// keeps, with `soFar` (see solarSoFar) added to the one `today` falls in. A
-// period starting today has no total yet, so it's keyed by today. A period can
-// be short of days, as the backfill only covers part of the oldest, and days
-// can still be waiting on weather, so it's from the days it has. A period with
-// no days estimated is left out.
+// Each period of `files` at the kept GXPs, keyed by its first day, with `soFar`
+// added to the one containing `today` (one starting today has no total yet, so
+// it's created under today).
+// Periods can be short of days: the backfill covers only part of the oldest, and
+// days can still be waiting on weather. Periods with no days are left out.
 export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: string) => boolean, today: string, soFar: SolarSoFar | null): Map<string, SolarPeriod> {
   const energy = new Map<string, SolarPeriod>()
   let current: SolarPeriod | undefined
@@ -139,8 +132,7 @@ export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: s
   return energy
 }
 
-// The tooltip's note on the period so far, when its share of today stops short
-// of now (see solarSoFar), or null
+// For the period so far, when today's share stops short of now (see solarSoFar)
 export function solarPeriodNote(period: SolarPeriod | undefined): string | null {
   return period?.until !== undefined ? `Today's embedded solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings` : null
 }

@@ -1,7 +1,5 @@
-// Calls `load` every `ms`, but only while the page is visible: a background tab,
-// minimised window or locked screen stops polling until it's seen again. Coming
-// back loads straight away rather than waiting out the rest of the interval.
-// Returns a function that stops polling.
+// Only while the page is visible (not a background tab, minimised window or locked screen).
+// Loads straight away on return rather than waiting out the interval. Returns a stop function.
 export function pollWhileVisible(load: () => void, ms: number): () => void {
   let timer: ReturnType<typeof setInterval> | undefined
 

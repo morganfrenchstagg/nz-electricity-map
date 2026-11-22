@@ -108,7 +108,6 @@ describe('chartReach', () => {
 })
 
 describe('totalMWh', () => {
-  // A row at a time of day on 13 October 2026
   const row = (time: string, values: Record<string, number>): ChartRow => ({ time: `2026-10-13T${time}:00`, ...values })
 
   it('integrates MW over time', () => {

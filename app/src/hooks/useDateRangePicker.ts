@@ -13,8 +13,7 @@ function inputDates(m: DateMode): [string, string] {
   return m.kind === 'date' ? [m.date, ''] : m.kind === 'range' ? [m.from, m.to] : ['', '']
 }
 
-// Why a from date, or from–to range, can't be charted, if it can't. The
-// pickers' bounds stop most of these, but dates can still be typed in.
+// Why from, or from–to, can't be charted. The pickers' bounds stop most of these, but dates can be typed.
 export function dateRangeError(from: string, to: string): string | null {
   if (!from) return null
   if (from < FIRST_DAY) return `Data starts on ${FIRST_DAY_LABEL}`
@@ -26,23 +25,19 @@ export function dateRangeError(from: string, to: string): string | null {
   return null
 }
 
-// The state behind DateControls' period toggle and date range picker, in
-// every panel's toolbar. `compact` is the toolbar's collapsed layout (see
-// useCompactWhenOverflowing), which hides the picker until it's in use.
+// For DateControls in each panel's toolbar. `compact` is the collapsed toolbar
+// (see useCompactWhenOverflowing), which hides the picker until it's in use.
 export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: DateMode) => void, compact: boolean) {
-  // Date picker local state — initialized from dateMode prop (which may come from URL).
-  // A single day leaves toDate empty.
+  // dateMode may come from the URL. A single day leaves toDate empty.
   const [fromDate, setFromDate] = useState(() => inputDates(dateMode)[0])
   const [toDate, setToDate] = useState(() => inputDates(dateMode)[1])
   const [pickerOpen, setPickerOpen] = useState(false)
   // "Custom dates" chosen in the compact toolbar's dropdown, before a date is picked
   const [customRequested, setCustomRequested] = useState(false)
 
-  // dateMode is shared, and GridOverviewPanel stays mounted while a node panel
-  // is open, so follow dateMode when the other panel changes it. This panel's
-  // own handlers already leave the picker matching the dateMode they set. Done
-  // while rendering rather than in an effect, so GeneratorPanel's effect
-  // showing the latest offers' date still runs after it.
+  // dateMode is shared and GridOverviewPanel stays mounted under a node panel, so follow the
+  // other panel's changes. During render, not in an effect, so GeneratorPanel's effect setting
+  // the latest offers' date still runs after it.
   const dateModeKey = JSON.stringify(dateMode)
   const [syncedDateModeKey, setSyncedDateModeKey] = useState(dateModeKey)
   if (dateModeKey !== syncedDateModeKey) {
@@ -56,7 +51,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
   // The compact toolbar only shows the picker's calendar button while it's in use
   const showDateInputs = !compact || customDates
 
-  // The range picker's value, where a single day starts and ends on it
+  // A single day starts and ends on it
   const pickerRange = useMemo(
     () => fromDate ? { start: fromDate, end: toDate || fromDate } : null,
     [fromDate, toDate],
@@ -64,8 +59,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   const rangeError = useMemo(() => dateRangeError(fromDate, toDate), [fromDate, toDate])
 
-  // A range from the range picker. When it can't be charted, rangeError says
-  // why and the chart is left as it is.
+  // If it can't be charted, rangeError says why and the chart stays as it is
   const handleRangeChange = useCallback((range: { start: string; end: string }) => {
     const from = range.start
     const to = range.end !== range.start ? range.end : ''
@@ -75,8 +69,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     onDateModeChange(to ? { kind: 'range', from, to } : { kind: 'date', date: from })
   }, [onDateModeChange])
 
-  // A date from GeneratorPanel's Offers date picker, which starts the range
-  // when there is one
+  // From GeneratorPanel's Offers date picker; starts the range if there is one
   const handleFromChange = useCallback((val: string | null) => {
     setFromDate(val ?? '')
     if (!val) return
@@ -90,8 +83,8 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
     setFromDate('')
     setToDate('')
     setCustomRequested(false)
-    // 1y, 5y and All start on their default totals, or keep the ones picked if
-    // clicked again. A new object either way, so Today or 3d clicked again reloads.
+    // Aggregate views start on their default totals, or keep the picked ones if clicked
+    // again. Always a new object, so clicking Today or 3d again reloads.
     onDateModeChange(dateMode.kind === period ? { ...dateMode } : periodMode(period))
   }, [dateMode, onDateModeChange])
 

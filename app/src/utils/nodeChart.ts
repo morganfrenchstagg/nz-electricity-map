@@ -10,10 +10,9 @@ const identity = (value: number) => value
 interface NodeChartOptions {
   chartData: ChartData
   aggregatePeriod: AggregatePeriod | null
-  // The codes the user has shown; the rest are charted hidden
+  // Shown codes; the rest are charted hidden
   effectiveCodes: Set<string>
-  // A generator's units are areas, which become columns for the aggregate
-  // views' totals. A substation's buses and generators are lines.
+  // A generator's units are areas (columns for aggregate totals); a substation's are lines
   type: 'area' | 'line'
   stacking?: Highcharts.OptionsStackingValue
   labelFor: (code: string) => string
@@ -25,17 +24,14 @@ interface NodeChartOptions {
   legend?: boolean
   yAxis: Highcharts.YAxisOptions
   tooltipFormatter: Highcharts.TooltipFormatterCallbackFunction
-  // The chart's name and description for screen readers (see timeChartAccessibility)
+  // Screen reader name and description (see timeChartAccessibility)
   accessibility: Pick<Highcharts.Options, 'lang' | 'accessibility'>
 }
 
-// The chart GeneratorPanel and SubstationPanel share: a series per code, and a
-// line at each midnight of the dispatch data, around each panel's own axis,
-// tooltip and extra series.
+// Shared by GeneratorPanel and SubstationPanel, which supply their own axis, tooltip and extra series
 export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, type, stacking, labelFor, colourFor, transformValue = identity, extraSeries = [], legend = false, yAxis, tooltipFormatter, accessibility }: NodeChartOptions): Highcharts.Options {
   const isAggregate = aggregatePeriod !== null
-  // Aggregate totals: stacked areas become stacked columns (which already stack
-  // negative values separately, so no 'neg' stack), and lines get markers.
+  // Aggregate totals: areas become columns, which stack negatives apart without a 'neg' stack
   const columns = isAggregate && type === 'area'
 
   const series: Highcharts.SeriesOptionsType[] = chartData.codes.map((code) => {
@@ -48,10 +44,8 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
       type: columns ? 'column' : type,
       name: labelFor(code),
       color: colour,
-      // Highcharts rounds each column's edges to whole pixels separately, so a
-      // boundary landing on a half pixel can round apart and leave a 1px gap.
-      // A border in the column's own colour (see plotOptions.column) covers it.
-      // Zero-height columns skip the border, or it would draw as a 1px line.
+      // Highcharts rounds each column's edges separately, which can leave 1px gaps. A border in
+      // the column's colour covers them; zero-height columns skip it, or it draws as a line.
       borderColor: colour,
       visible: effectiveCodes.has(code),
       data: isAggregate
@@ -103,9 +97,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
   }
 }
 
-// Each charted code's price at each dispatch timestamp. Built once per chart
-// rather than per tooltip, which fires on every mouse move. A node can have no
-// price at some timestamps, so values may be null.
+// Built once per chart, not per tooltip, which fires on every mouse move. Null where a node has no price.
 export function pricesByTime(recentData: RecentData | null, codes: string[]): Map<number, Record<string, number | null>> {
   const prices = new Map<number, Record<string, number | null>>()
   if (!recentData?.pricing) return prices
@@ -125,15 +117,13 @@ interface TooltipRowContext {
   // Each code's price at the tooltip's time
   prices: Record<string, number | null> | undefined
   formatValue: (value: number) => string
-  // Name each row's series, when the tooltip lists more than one
+  // Set when the tooltip lists more than one series
   showName: boolean
-  // A point's value, where it isn't the y it's charted at (e.g. a unit's
-  // generation, charted as its share)
+  // When the value isn't the charted y, as a unit's generation charted as its share
   valueFor?: (point: Highcharts.Point) => number
 }
 
-// A point's row in a node chart's tooltip: its colour, its series' name, its
-// value (and `after` it, e.g. a generator's capacity) and its node's price
+// Colour, series name, value (then `after`, as a generator's capacity) and node price
 export function tooltipRow(point: Highcharts.Point, { codes, prices, formatValue, showName, valueFor }: TooltipRowContext, after = ''): string {
   const value = valueFor ? valueFor(point) : point.y ?? 0
   const val = formatValue(value)
@@ -144,7 +134,7 @@ export function tooltipRow(point: Highcharts.Point, { codes, prices, formatValue
   return `<tr><td><span style="color:${String(point.color)}">●</span> ${showName ? point.series.name : ''}</td><td>${formatted}${after}</td><td>${priceStr}</td></tr>`
 }
 
-// The tooltip's last row, totalling its points when it lists more than one
+// The tooltip's last row, when it lists more than one point
 export function tooltipTotalRow(total: number, formatValue: (value: number) => string, after = ''): string {
   return `<tr><td></td></tr><tr><td>Total: <b>${formatValue(total)}${after}</td></tr>`
 }

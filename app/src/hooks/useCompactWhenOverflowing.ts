@@ -1,10 +1,8 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
-// For a single-line toolbar with a compact layout to fall back on (dropdowns
-// instead of segmented buttons): true once the full layout overflows the
-// toolbar, and false again once the toolbar is wide enough for it. Measured
-// from the toolbar itself rather than the viewport, since the panels it sits
-// in are resizable.
+// For a single-line toolbar with a compact fallback (dropdowns for segmented buttons): true once
+// the full layout overflows, false once there's room again. Measures the toolbar, not the
+// viewport, as the panels are resizable.
 export function useCompactWhenOverflowing<T extends HTMLElement>() {
   const ref = useRef<T>(null)
   const [compact, setCompact] = useState(false)
@@ -29,10 +27,9 @@ export function useCompactWhenOverflowing<T extends HTMLElement>() {
     }
   }, [compact])
 
-  // After every render, as the toolbar's contents change (loading text, offers mode)
+  // After every render, as the contents change (loading text, offers mode)
   useLayoutEffect(check)
 
-  // And whenever the toolbar is resized
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return

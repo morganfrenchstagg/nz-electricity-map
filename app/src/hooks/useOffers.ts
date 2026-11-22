@@ -6,14 +6,13 @@ import { nzLocalMs, nzMidnightMs, nzWallClockMs } from '../utils/time'
 
 const PERIOD_MS = 30 * 60000
 
-// The offers API's "YYYYMMDD" dates as "YYYY-MM-DD"; dashed dates are left as they are
+// The offers API's "YYYYMMDD" as "YYYY-MM-DD"; dashed dates pass through
 export function offersIsoDate(date: string): string {
   return date.length === 8 ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}` : date
 }
 
-// A trading period's half hour in NZ time, e.g. "2:00 pm–2:30 pm" for period
-// 29. Periods count half hours from NZ midnight, so a day the clocks change
-// has 46 or 50 of them.
+// In NZ time, e.g. "2:00 pm–2:30 pm" for period 29. Periods count half hours from NZ midnight,
+// so a day the clocks change has 46 or 50.
 export function tradingPeriodLabel(tp: number, date: string): string {
   const startMs = nzMidnightMs(offersIsoDate(date)) + (tp - 1) * PERIOD_MS
   const endMs = startMs + PERIOD_MS
@@ -29,11 +28,9 @@ export interface PeriodDispatch {
   price: number | null
 }
 
-// Where a trading period's offers were dispatched: the MW `codes` generated,
-// and the price at their nodes, each averaged over the period's 5-minute
-// intervals (a period's final price is the average of its dispatch prices).
-// Nodes' prices are weighted by what each generated. Null when the dispatch
-// has none of the period's intervals.
+// The MW `codes` generated and their nodes' price, averaged over the period's 5-minute intervals
+// (a period's final price is the average of its dispatch prices), prices weighted by generation.
+// Null when the dispatch has none of the period's intervals.
 export function tradingPeriodDispatch(dispatch: RecentData, codes: string[], date: string, tp: number): PeriodDispatch | null {
   // Dispatch timestamps are NZ wall-clock time. The day the clocks go back,
   // the repeated hour's two periods share their wall-clock intervals.
@@ -52,8 +49,8 @@ export function tradingPeriodDispatch(dispatch: RecentData, codes: string[], dat
   const prices: number[] = []
   for (const code of codes) {
     const i = dispatch.series.indexOf(code) + 1 // +1: col 0 is timestamp
-    // A code missing from the dispatch generated nothing. Offers are to
-    // generate, so a unit drawing power counts as generating nothing too.
+    // Missing from the dispatch means nothing generated. Offers are to generate, so a unit
+    // drawing power counts as nothing too.
     const codeMW = i === 0 ? 0 : Math.max(0, rows.reduce((sum, row) => sum + (row[i] as number), 0) / rows.length)
     mw += codeMW
     // A unit's price is its bus's (ATI2201 of ATI2201 ATI0), there when the unit isn't
@@ -98,8 +95,7 @@ export function useOffers(date: string | null): { offersData: OffersData | null;
   return { offersData, loading, error }
 }
 
-// The dispatch the day of the offers shown, to mark where they were
-// dispatched. Without it the offers are shown unmarked.
+// To mark where the offers were dispatched; without it they're shown unmarked
 export function useOffersDispatch(offersDate: string | null): RecentData | null {
   const day = offersDate && offersIsoDate(offersDate)
   const [dispatch, setDispatch] = useState<RecentData | null>(null)
