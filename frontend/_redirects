@@ -1,5 +1,11 @@
-/pipeline /index.html 200
-/map /index.html 200
-/summary /index.html 200
-/offers /index.html 200
-/* /index.html 200
+# Every other page is a file the build writes: index.html, hvdc.html,
+# pipeline.html and a page for each station (see app/build/pages.ts). Anything
+# else gets 404.html. A station added to the API since the last build has no
+# page until the next, which runs daily (see pages-deployment.yaml). A rewrite
+# can't fall back to the app for it: Pages applies rewrites before its files,
+# so /generator/* would hide every station's page.
+#
+# Old links. Rewrites go to / rather than /index.html, which Pages redirects to /.
+/map / 200
+/summary / 200
+/offers / 200

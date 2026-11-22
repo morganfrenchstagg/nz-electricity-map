@@ -963,3 +963,62 @@ th:hover > * > .sort-arrow.is-active {
 .aggregate-columns .highcharts-series-group {
   opacity: 0.8;
 }
+
+/* Each page's content as the build writes it (see build/pages.ts), for search
+   engines and AI agents, and for the moment before the app replaces it */
+.prerender {
+  height: 100%;
+  overflow: auto;
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+.prerender > * {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.prerender h1, .prerender h2, .prerender h3 {
+  color: var(--color-text-strong);
+  line-height: 1.25;
+}
+.prerender a {
+  color: var(--color-accent-text);
+}
+.prerender__crumbs {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+.prerender__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-xs) var(--space-xl);
+}
+.prerender__facts dt {
+  color: var(--color-text-muted);
+}
+.prerender__facts dd {
+  margin: 0;
+}
+.prerender table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.prerender th, .prerender td {
+  padding: var(--space-xs) var(--space-lg) var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-divider);
+  text-align: left;
+  white-space: nowrap;
+}
+.prerender__credit {
+  margin-top: var(--space-3xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-divider);
+  color: var(--color-text-secondary);
+}
+.prerender__links {
+  columns: 3 10rem;
+  padding-left: var(--space-xl);
+}

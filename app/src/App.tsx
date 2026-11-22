@@ -11,6 +11,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
 import { viewBesideNz } from './utils/mapView'
 import { substationsOf, substationsTitle } from './utils/substations'
+import { generatorTitle, HOME_TITLE, HVDC_TITLE, nodeParamOfPath, PIPELINE_TITLE, SITE_NAME, substationTitle } from './utils/stationPaths'
 
 // maplibre is the largest library by far, so the panel doesn't wait for it
 const loadMap = () => import('./components/Map')
@@ -59,23 +60,28 @@ export default function App() {
   const [initialView] = useState(() => isMobile ? null : viewBesideNz(window.innerWidth, window.innerHeight))
   const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6))
 
+  // A station is titled as its own page is (see stationPaths), and keeps that title while
+  // it's being found. The pipeline, open over the grid panel, has its own.
   useEffect(() => {
-    let suffix: string
-    if (selectedNode === null) {
-      suffix = gridPanelVisible ? 'Grid generation' : 'Map'
+    if (pipelineOpen && selectedNode === null && gridPanelVisible) {
+      document.title = PIPELINE_TITLE
+    } else if (selectedNode === null) {
+      if (!nodeParamOfPath(window.location.pathname)) document.title = HOME_TITLE
     } else if (selectedNode.kind === 'generator') {
-      suffix = selectedNode.generator.name
-    } else if (selectedNode.kind === 'generators') {
-      suffix = selectedNode.generators.length <= 2
-        ? selectedNode.generators.map(g => g.name).join(', ')
-        : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`
+      document.title = generatorTitle(selectedNode.generator)
+    } else if (selectedNode.kind === 'substation') {
+      document.title = substationTitle(selectedNode.substation)
     } else if (selectedNode.kind === 'hvdc') {
-      suffix = 'HVDC inter-island link'
+      document.title = HVDC_TITLE
     } else {
-      suffix = substationsTitle(substationsOf(selectedNode))
+      const names = selectedNode.kind === 'generators'
+        ? (selectedNode.generators.length <= 2
+          ? selectedNode.generators.map(g => g.name).join(', ')
+          : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`)
+        : substationsTitle(substationsOf(selectedNode))
+      document.title = `${names} | ${SITE_NAME}`
     }
-    document.title = `NZ Electricity Map - ${suffix}`
-  }, [selectedNode, gridPanelVisible])
+  }, [selectedNode, pipelineOpen, gridPanelVisible])
 
   // One fetch shared by the node panels and GridOverviewPanel, not duplicate requests from each
   const { recentData, loading, error } = useDispatchData(dateMode)
