@@ -38,6 +38,8 @@ The substation panel's estimate, and its dashed line of the substation's demand 
 
 The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. It reads the definitions from the API repo's `src/data/generators.json` and `substations.json`, which `/definitions` serves as they are, because Cloudflare's bot protection blocks GitHub's runners from the API itself (with `VITE_API_BASE` set, from that API's `/definitions`). The build fails if it can't fetch them. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
 
+Station, substation and HVDC pages also give their yearly generation, demand or flows, from the API's `/dispatch/aggregates/annual`, and there are pages about each fuel (`/fuel/hydro`), each operator with more than one station (`/operator/meridian-energy`), each island (`/island/north-island`) and the grid's renewable share (`/renewable-energy`). Those are pages of their own, without the app, so search engines that run it still index their content (see `app/build/topics.ts`). If the API can't be reached, the pages are written without their yearly figures rather than fail the build.
+
 The app opens a station's panel at its page, and writes a single station's page into the URL in place of `?node=`. A station added to the API has no page until the next deploy, which runs daily as well as on each push to main.
 
 ## Data
