@@ -1,5 +1,6 @@
 import type { Generator, Substation, Unit } from '../src/types'
 import { capacityUnits, SITE_NAME, stationKind } from '../src/utils/stationPaths'
+import { gwh, ordinal, pct } from '../src/utils/annualStats'
 
 // What every built page shares: its type, the site's constants, and helpers for
 // writing its text, HTML and structured data (see pages.ts and topics.ts)
@@ -33,29 +34,15 @@ export interface Page {
   standalone?: boolean
 }
 
+// Shared with the app's panels, so their figures read the same
+export { gwh, ordinal, pct }
+
 export function esc(text: string | number): string {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 export function mw(n: number): string {
   return `${n.toLocaleString('en-NZ', { maximumFractionDigits: 1 })} MW`
-}
-
-// Whole GWh from 100 up, and to a decimal place below
-export function gwh(n: number): string {
-  return `${n.toLocaleString('en-NZ', { maximumFractionDigits: Math.abs(n) >= 100 ? 0 : 1 })} GWh`
-}
-
-// To a decimal place, so a share too small to show one says so
-export function pct(fraction: number): string {
-  if (fraction > 0 && fraction < 0.0005) return 'under 0.1%'
-  return `${(fraction * 100).toLocaleString('en-NZ', { maximumFractionDigits: 1 })}%`
-}
-
-export function ordinal(n: number): string {
-  const tens = n % 100, ones = n % 10
-  const suffix = tens >= 11 && tens <= 13 ? 'th' : ones === 1 ? 'st' : ones === 2 ? 'nd' : ones === 3 ? 'rd' : 'th'
-  return `${n}${suffix}`
 }
 
 // "an 84 MW", "a 953 MW"

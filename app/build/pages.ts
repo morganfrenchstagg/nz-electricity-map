@@ -12,8 +12,8 @@ import {
   kindPhrase, link, linkList, MCP_URL, mw, nzDate, nzYear, ordinal, ORIGIN, pct, primaryFuel, sortByName, SOURCES, webPage,
 } from './html'
 import type { Definitions, Page } from './html'
-import { generationNodes, hoursIn, parseStats, RENEWABLE_FUELS, substationDemand, sumNodes } from './stats'
-import type { AnnualAggregates, Stats } from './stats'
+import { changeOn, demandSummary, generationNodes, hoursIn, parseStats, RENEWABLE_FUELS, stationFigures, stationSummary, substationDemand, sumNodes } from './stats'
+import type { AnnualAggregates, StationFigures, Stats } from './stats'
 import { FUEL_TOPICS, fuelPath, fuelTopic, islandPath, operatorPath, operatorsWithPages, RENEWABLE_PATH, topicNav, topicPages } from './topics'
 import { buildContext, firstYear, yearlyChart, yearlyTable } from './yearly'
 import type { Context } from './yearly'
@@ -30,20 +30,7 @@ export type { Definitions, Page }
 
 const ACCENT = 'var(--color-accent)'
 
-// What a station's page works out once for every station: each one's yearly
-// generation, and where it ranked in the latest full year
-interface StationFigures {
-  yearly: Map<Generator, number[]>
-  rank: Map<Generator, number>
-}
-
-function stationFigures(ctx: Context): StationFigures {
-  const yearly = new Map<Generator, number[]>()
-  if (!ctx.stats) return { yearly, rank: new Map() }
-  for (const g of ctx.defs.generators) yearly.set(g, sumNodes(ctx.stats, generationNodes(g.units)))
-  const ranked = ctx.full < 0 ? [] : [...yearly].filter(([, v]) => v[ctx.full] > 0).sort((a, b) => b[1][ctx.full] - a[1][ctx.full])
-  return { yearly, rank: new Map(ranked.map(([g], i) => [g, i + 1])) }
-}
+const NO_FIGURES: StationFigures = { yearly: new Map(), rank: new Map() }
 
 // Its generation over its capacity through a year, when that capacity didn't
 // change during it, so the one figure fits the whole year
@@ -58,27 +45,22 @@ function capacityFactor(g: Generator, year: number, energy: number): number | nu
 }
 
 function generatorStats(g: Generator, ctx: Context, figures: StationFigures): string {
-  const { stats, total, full, current } = ctx
+  const { stats, total } = ctx
   const values = figures.yearly.get(g)
   if (!stats || !values) return ''
   const from = firstYear(values)
   if (from >= values.length) return ''
-  const retired = isRetired(g)
+  const { latest, best, soFar } = stationSummary(stats, values, total, isRetired(g))
   const sentences: string[] = []
-  if (!retired && full >= 0 && values[full] > 0) {
-    const year = stats.years[full]
+  if (latest) {
     const rank = figures.rank.get(g)
-    const factor = capacityFactor(g, year, values[full])
-    sentences.push(`In ${year}, ${g.name} generated ${gwh(values[full])}, ${pct(values[full] / total[full])} of New Zealand's grid generation`
+    const factor = capacityFactor(g, latest.year, latest.gwh)
+    sentences.push(`In ${latest.year}, ${g.name} generated ${gwh(latest.gwh)}, ${pct(latest.share)} of New Zealand's grid generation`
       + (rank ? `, the ${rank === 1 ? '' : `${ordinal(rank)} `}most of any station` : '')
       + (factor ? `, at a capacity factor of ${pct(factor)}` : '') + '.')
   }
-  const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
-  if (fullYears.length > 1) {
-    const best = fullYears.reduce((b, i) => values[i] > values[b] ? i : b, fullYears[0])
-    sentences.push(`Its best year was ${stats.years[best]}, with ${gwh(values[best])}.`)
-  }
-  if (!retired && current >= 0 && values[current] > 0) sentences.push(`So far in ${stats.years[current]}, it's generated ${gwh(values[current])}.`)
+  if (best) sentences.push(`Its best year was ${best.year}, with ${gwh(best.gwh)}.`)
+  if (soFar) sentences.push(`So far in ${soFar.year}, it's generated ${gwh(soFar.gwh)}.`)
   return `<h2>Generation by year</h2>
 ${sentences.length ? `<p>${esc(sentences.join(' '))}</p>` : ''}
 ${yearlyChart(stats, values, from, { colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh })}
@@ -162,15 +144,14 @@ ${SOURCES}`
 }
 
 function substationStats(s: Substation, ctx: Context): string {
-  const { stats, full } = ctx
-  if (!stats || full < 0) return ''
+  const { stats } = ctx
+  if (!stats) return ''
   const values = substationDemand(stats, s.siteId)
-  if (!(values[full] > 0.05)) return ''
+  const summary = demandSummary(stats, values)
+  if (!summary) return ''
   const from = firstYear(values)
-  const before = full - 10 >= from && values[full - 10] > 0 ? full - 10 : -1
-  const change = before >= 0 ? values[full] / values[before] - 1 : 0
-  const sentence = `In ${stats.years[full]}, ${gwh(values[full])} was taken from the grid at ${s.description}`
-    + (before < 0 ? '' : Math.abs(change) < 0.005 ? `, about the same as in ${stats.years[before]}` : `, ${change > 0 ? 'up' : 'down'} ${pct(Math.abs(change))} on ${stats.years[before]}`) + '.'
+  const sentence = `In ${summary.latest.year}, ${gwh(summary.latest.gwh)} was taken from the grid at ${s.description}`
+    + (summary.change ? `, ${changeOn(summary.change)}` : '') + '.'
   return `<h2>Demand by year</h2>
 <p>${esc(sentence)} That's what its buses drew from the grid, net of any generation embedded in the networks behind them.</p>
 ${yearlyChart(stats, values, from, { colour: ACCENT, unit: 'GWh', label: `Electricity taken from the grid at ${s.description} each year, in GWh`, format: gwh })}
@@ -313,7 +294,7 @@ ${fuels.map((f) => `<h3>${fuelHeading(f)}</h3>${linkList(sortByName(byFuel.get(f
 
 export function buildPages(defs: Definitions, projects: UnderConstructionNode[] = underConstruction, stats: Stats | null = null): Page[] {
   const ctx = buildContext(defs, stats)
-  const figures = stationFigures(ctx)
+  const figures = ctx.stats ? stationFigures(ctx.stats, ctx.defs.generators) : NO_FIGURES
   return [
     homePage(ctx),
     hvdcPage(ctx),

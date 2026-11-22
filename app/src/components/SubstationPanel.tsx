@@ -21,6 +21,7 @@ import { useDateRangePicker } from '../hooks/useDateRangePicker'
 import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
+import { SubstationYearly } from './YearlySummary'
 import type { NodePanelProps } from './NodePanelParts'
 
 const TOTAL = 'Total'
@@ -432,6 +433,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           empty={!chartData}
         />
       </div>
+      <SubstationYearly substations={substations} />
     </Panel>
   )
 }

@@ -1,8 +1,10 @@
 import { barChart } from './charts'
 import { esc, table } from './html'
 import type { Definitions } from './html'
-import { currentYear, lastFullYear, totalGeneration } from './stats'
+import { currentYear, lastFullYear, totalGeneration, yearLabel } from './stats'
 import type { Stats } from './stats'
+
+export { firstYear, yearLabel } from './stats'
 
 // What every page's yearly figures are worked out from, once for the build
 
@@ -23,19 +25,6 @@ export function buildContext(defs: Definitions, stats: Stats | null): Context {
     full: stats ? lastFullYear(stats) : -1,
     current: stats ? currentYear(stats) : -1,
   }
-}
-
-// "2025", "2026 so far", "1997 (Aug–Dec)"
-export function yearLabel(stats: Stats, i: number): string {
-  const year = stats.years[i]
-  if (!stats.partial.has(year)) return String(year)
-  return i === 0 ? `${year} (Aug–Dec)` : `${year} so far`
-}
-
-// The first year with anything in it, so a station's table starts when it did
-export function firstYear(values: number[]): number {
-  const i = values.findIndex((v) => Math.abs(v) >= 0.05)
-  return i === -1 ? values.length : i
 }
 
 export interface Column {

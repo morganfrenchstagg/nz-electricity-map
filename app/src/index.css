@@ -914,6 +914,40 @@ body {
   opacity: 0.8;
 }
 
+/* A station's or substation's year in figures, at the foot of its panel (see YearlySummary) */
+.yearly-summary {
+  flex-shrink: 0;
+  padding-block: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--color-divider);
+  border-bottom: none;
+}
+.yearly-summary h2 {
+  margin: 0 0 var(--space-xs);
+}
+.yearly-summary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-sm) var(--space-xl);
+  max-width: 720px;
+  margin: 0;
+}
+.yearly-summary dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+.yearly-summary dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.yearly-summary dd span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
 /* Each page's content as the build writes it (see build/pages.ts), for search
    engines and AI agents, and for the moment before the app replaces it */
 .prerender {

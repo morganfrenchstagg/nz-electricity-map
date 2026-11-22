@@ -26,6 +26,7 @@ import DateControls from './DateControls'
 import ChartSettingsMenu from './ChartSettingsMenu'
 import { DatePicker } from './LazyDatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
+import { GeneratorYearly } from './YearlySummary'
 import type { NodePanelProps } from './NodePanelParts'
 
 const OutageModal = lazy(() => import('./OutageModal'))
@@ -524,6 +525,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           />
         )}
       </div>
+      <GeneratorYearly generators={node.kind === 'generator' ? [node.generator] : node.generators} />
       <Suspense fallback={null}>
         {outageModalOpen && (
           <OutageModal
