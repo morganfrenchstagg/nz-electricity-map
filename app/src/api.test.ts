@@ -47,16 +47,25 @@ describe('fetchDispatch("recent")', () => {
     expect(requested[0].search).toBe('')
   })
 
-  it('then only fetches the intervals after the newest one held, and adds them on', async () => {
+  it('then only fetches the newest intervals held again, and any new ones, and adds them on', async () => {
     responses.push(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50]))
     await api.fetchDispatch('recent')
 
-    responses.push(recent(['2026-10-14T22:05:00', 52]))
+    responses.push(recent(['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
     const updated = await refetchRecent()
 
-    expect(requested[1].searchParams.get('since')).toBe('2026-10-14T22:00:00')
+    expect(requested[1].searchParams.get('since')).toBe('2026-10-14T21:55:00')
     expect(updated).toEqual(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
     expect(api.peekDispatch('recent')).toBe(updated)
+  })
+
+  it('takes the values the API now has for an interval already held', async () => {
+    responses.push(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', -650]))
+    await api.fetchDispatch('recent')
+
+    responses.push(recent(['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
+
+    expect(await refetchRecent()).toEqual(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
   })
 
   it('keeps the same data when nothing new has arrived', async () => {

@@ -1,6 +1,6 @@
 import type { Generator, HvdcData, RecentData, Substation } from './types'
 import { nzLocalMs, nzNowMs, todayNZ } from './utils/time'
-import { appendRecent, newestTimestamp } from './utils/recentDispatch'
+import { appendRecent, refetchSince } from './utils/recentDispatch'
 
 // Every API request belongs here. Freshness follows each response's max-age, so
 // this cache agrees with the browser's HTTP cache instead of keeping its own
@@ -141,14 +141,15 @@ export function peekDefinitions(): DefinitionsResponse | undefined {
   return lastJson('definitions')
 }
 
-// Once the recent intervals are held, only the ones after the newest are
-// fetched, rather than all 3 days again. If the nodes have changed it's all
-// fetched again, as the held rows' columns no longer line up (see appendRecent).
+// Once the recent intervals are held, only the newest few are fetched again
+// along with any new ones, rather than all 3 days (see refetchSince). If the
+// nodes have changed it's all fetched again, as the held rows' columns no
+// longer line up (see appendRecent).
 async function loadRecentDispatch(held: RecentData | undefined): Promise<{ value: RecentData; maxAgeMs: number }> {
-  const since = held && newestTimestamp(held)
+  const since = held && refetchSince(held)
   if (!held || !since) return getJson('dispatch/recent')
   const added = await getJson<RecentData>(`dispatch/recent?since=${encodeURIComponent(since)}`)
-  const value = appendRecent(held, added.value)
+  const value = appendRecent(held, added.value, since)
   return value ? { ...added, value } : getJson('dispatch/recent')
 }
 
