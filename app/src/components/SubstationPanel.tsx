@@ -13,18 +13,18 @@ import { distributedSolarAt, distributedSolarEnergy, observedSolar, solarPeriodN
 import { energyUnit, MW_UNIT } from '../utils/format'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import { unitLabel } from '../utils/generators'
+import { substationsOf, substationsTitle } from '../utils/substations'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 import { useCompactWhenOverflowing } from '../hooks/useCompactWhenOverflowing'
 import { useDateRangePicker } from '../hooks/useDateRangePicker'
-import { SUBSTATION_FIRST_DAY } from '../hooks/useAggregates'
 import Panel, { hasHeaderMenu, PanelToolbar } from './Panel'
 import DateControls from './DateControls'
 import { NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 
 const TOTAL = 'Total'
-const TOTAL_COLOUR = '#222222'
+const TOTAL_COLOUR = 'var(--color-reference)'
 const SOLAR = fuelCodeLabel(DISTRIBUTED_SOLAR_FUEL_CODE)
 const SOLAR_COLOUR = fuelCodeColour(DISTRIBUTED_SOLAR_FUEL_CODE)
 const DEMAND_WITH_SOLAR = `Demand + ${SOLAR}`
@@ -104,9 +104,15 @@ interface Props extends NodePanelProps {
   node: SubstationNode
 }
 
-// A substation's load by bus, and the generators connected there
+// A substation's load by bus, and the generators connected there, or several
+// substations' together
 export default function SubstationPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, ...panel }: Props) {
-  const { substation } = node
+  const substations = useMemo(() => substationsOf(node), [node])
+  const multiple = substations.length > 1
+  const title = substationsTitle(substations)
+  const siteIds = useMemo(() => substations.map((s) => s.siteId), [substations])
+  // Keys this selection's charts and solar estimate apart from another's
+  const siteKey = siteIds.join(',')
   const { generators } = useDefinitions()
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The title shrinks, and the toolbar collapses to dropdowns, when too narrow
@@ -124,38 +130,43 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     return null
   }, [generators])
 
-  // Buses first, then generators alphabetically by name
+  // Buses first, by substation, then generators alphabetically by name
   const getCodes = useCallback((recent: RecentData) => {
-    const codes = substationCodes(recent, substation.siteId)
+    const codes = [...new Set(substations.flatMap((s) => substationCodes(recent, s.siteId)))]
     const genName = (code: string) => { const unit = unitFor(code); return unit ? unitLabel(unit) : code }
     return [
       ...codes.filter((c) => !isGeneratorCode(c)),
       ...codes.filter(isGeneratorCode).sort((a, b) => genName(a).localeCompare(genName(b))),
     ]
-  }, [substation, unitFor])
+  }, [substations, unitFor])
 
   const { aggregatePeriod, isAggregate, allCodes, chartData: loadedChartData, loading: dataLoading, error: dataError } = useNodeData({
-    dateMode, recentData, loading, error, queryNodes: [substation.siteId], getCodes,
+    dateMode, recentData, loading, error, queryNodes: siteIds, getCodes,
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
 
+  // With several substations, each bus is named with its substation's. The
+  // generators' units are named with theirs already.
   const labelFor = useCallback((code: string) => {
     const unit = unitFor(code)
     if (unit) return unitLabel(unit)
-    return isGeneratorCode(code) ? unitOfCode(code) : busLabel(code, allCodes)
-  }, [unitFor, allCodes])
+    if (isGeneratorCode(code)) return unitOfCode(code)
+    const bus = busLabel(code, allCodes)
+    const site = multiple ? substations.find((s) => code.startsWith(s.siteId)) : undefined
+    return site ? `${site.description} ${bus}` : bus
+  }, [unitFor, allCodes, multiple, substations])
 
   const colourFor = useCallback((code: string) => {
     const unit = unitFor(code)
     return unit ? fuelColour(unit.fuel) : busColour(code)
   }, [unitFor])
 
-  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar, SUBSTATION_FIRST_DAY)
+  const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
   const hasGenerators = allCodes.some(isGeneratorCode)
   const generatorsShown = hasGenerators && [...effectiveCodes].some(isGeneratorCode)
 
-  // The distributed solar estimated at the substation: its MW at each of the
+  // The distributed solar estimated at the substations: its MW at each of the
   // chart's times, up to where it turns to the forecast (see observedSolar), or
   // on the aggregate views its MWh in each period (and the periods, for the
   // tooltip's note on the period so far), with today's so far up to the same
@@ -168,13 +179,13 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const solarTotals = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
   const { shown, waiting: waitingForSolar } = useShownWithSolar(
     { chartData: loadedChartData, solarDays: solarProduction.days, solarEnergy: solarTotals.files },
-    `${substation.siteId} ${JSON.stringify(dateMode)}`, chartKind(dateMode, substation.siteId), SUBSTATION_SOLAR, !dataLoading, solarProduction.loaded && solarTotals.loaded,
+    `${siteKey} ${JSON.stringify(dateMode)}`, chartKind(dateMode, siteKey), SUBSTATION_SOLAR, !dataLoading, solarProduction.loaded && solarTotals.loaded,
   )
   const chartData = shown?.chartData ?? null
   const solarDays = shown?.solarDays
   const solarEnergy = shown?.solarEnergy
   const solarEstimate = useMemo(() => {
-    const atSubstation = (gxp: string) => gxp === substation.siteId
+    const atSubstation = (gxp: string) => siteIds.includes(gxp)
     if (!chartData || !solarDays || !solarEnergy) return null
     if (isAggregate) {
       if (!solarEnergy.some((file) => file.series.some(atSubstation))) return null
@@ -188,7 +199,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     const times = chartData.rows.map((row) => nzLocalMs(row.time))
     const values = observedSolar(solarDays, times, distributedSolarAt(solarDays, times, atSubstation))
     return values.some((v) => v !== null) ? { values, periods: [] } : null
-  }, [chartData, isAggregate, solarDays, solarEnergy, substation])
+  }, [chartData, isAggregate, solarDays, solarEnergy, siteIds])
   const solar = solarEstimate?.values ?? null
   const hasSolar = solar !== null
 
@@ -324,7 +335,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
-        `${substation.description} Substation load`,
+        `${title} load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
           + (solar ? ', and embedded solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
         aggregatePeriod,
@@ -332,7 +343,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solar, solarEstimate, solarShown, solarDemandShown, isAggregate, aggregatePeriod, substation, hasGenerators])
+  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solar, solarEstimate, solarShown, solarDemandShown, isAggregate, aggregatePeriod, title, hasGenerators])
 
   // Series buttons: the generators toggle and Total lead, then a button per bus and generator
   const showUnitSelector = allCodes.length > 1
@@ -347,7 +358,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       </button>,
     ] : []),
     ...(hasTotal ? [
-      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
+      <SeriesButton key="total" colour={TOTAL_COLOUR} reference active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
         {TOTAL}
       </SeriesButton>,
     ] : []),
@@ -356,7 +367,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // Lead the buttons that can go behind "+N more", as they're long
   const solarButtons = !hasSolar ? [] : [
-    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
+    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} reference active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
       {DEMAND_WITH_SOLAR}
     </SeriesButton>,
     <SeriesButton key="solar" colour={SOLAR_COLOUR} active={solarShown} onClick={() => toggleExtra(solarShown, setSolarToggled)} onIsolate={() => isolate(SOLAR)}>
@@ -383,7 +394,8 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   })
 
   const header = (
-    <NodeTitle node={node} title={`${substation.description} Substation`} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} />
+    // Past two, the title names only the first, so the line under it names them all
+    <NodeTitle node={node} title={title} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle={substations.length > 2 ? substations.map((s) => s.description).join(', ') : undefined} />
   )
 
   return (
@@ -397,12 +409,6 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           loading={dataLoading || waitingForSolar}
           error={dataError}
           empty={allCodes.length === 0}
-          // Substation data only starts in September 2020 (see
-          // SUBSTATION_FIRST_DAY), so All would be empty for most of its years.
-          // Opening a substation on All moves it to 5y instead (see
-          // useUrlState's selectNode). If substation data is backfilled to
-          // 2009, add All back here and drop that move.
-          hideAll
         />
       </PanelToolbar>
 
@@ -419,7 +425,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         <NodeChart
-          chartKey={`${substation.siteId}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}
+          chartKey={`${siteKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}
           options={chartOptions}
           loading={dataLoading || waitingForSolar}
           error={dataError}

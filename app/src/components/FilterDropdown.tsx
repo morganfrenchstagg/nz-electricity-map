@@ -58,7 +58,7 @@ export default function FilterDropdown({ label, countLabel = (n) => `${label}: $
             return (
               <div key={opt} onClick={() => onToggle(opt)} className={checked ? 'menu-item is-selected' : 'menu-item'}>
                 {swatchStyle && <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, ...swatchStyle }} />}
-                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-strong)' : 'var(--color-text)' }}>{opt}</span>
+                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-text)' : 'var(--color-text)' }}>{opt}</span>
                 {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
               </div>
             )

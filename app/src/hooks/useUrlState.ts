@@ -9,7 +9,8 @@ import type { ChartSettings } from '../utils/chartSettings'
 export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
-//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC, substation:OTA or hvdc
+//   ?node=          the open node panel: generator:HLY, generators:HLY,TCC, substation:OTA,
+//                   substations:OTA,PEN or hvdc
 //   ?mode=          today | recent | last90 | lastYear | 5y | all, with
 //   ?aggregation=   a view's totals when they aren't its default: weekly for
 //                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
@@ -98,6 +99,7 @@ function nodeParam(node: NonNullable<SelectedNode>): string {
   if (node.kind === 'generator') return `generator:${node.generator.site}`
   if (node.kind === 'generators') return `generators:${node.generators.map(g => g.site).join(',')}`
   if (node.kind === 'hvdc') return 'hvdc'
+  if (node.kind === 'substations') return `substations:${node.substations.map(s => s.siteId).join(',')}`
   return `substation:${node.substation.siteId}`
 }
 
@@ -116,6 +118,12 @@ function resolveNode(param: string, generators: Generator[], substations: Substa
   if (param.startsWith('substation:')) {
     const sub = substations.find(s => s.siteId === param.slice('substation:'.length))
     return sub ? { kind: 'substation', substation: sub } : null
+  }
+  if (param.startsWith('substations:')) {
+    const siteIds = param.slice('substations:'.length).split(',')
+    const subs = siteIds.map(id => substations.find(s => s.siteId === id)).filter(Boolean) as Substation[]
+    if (subs.length === 1) return { kind: 'substation', substation: subs[0] }
+    return subs.length > 1 ? { kind: 'substations', substations: subs } : null
   }
   return null
 }
@@ -142,14 +150,11 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     if (mode === 'generation') setTradingPeriod(1)
   }, [])
 
-  // The Offers view belongs to the generator panel, so goes when it does. And
-  // substations have no All view (see SubstationPanel), so opening one on All
-  // moves to 5y.
+  // The Offers view belongs to the generator panel, so goes when it does
   const selectNode = useCallback((node: SelectedNode) => {
     setLinkedNode(null)
     setSelectedNode(node)
-    if (node === null || node.kind === 'substation' || node.kind === 'hvdc') setViewMode('generation')
-    if (node?.kind === 'substation') setDateMode(m => m.kind === 'all' ? periodMode('5y') : m)
+    if (node === null || node.kind === 'substation' || node.kind === 'substations' || node.kind === 'hvdc') setViewMode('generation')
   }, [setViewMode])
 
   useEffect(() => {

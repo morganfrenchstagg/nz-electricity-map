@@ -158,7 +158,7 @@ export function chartReach(rows: (number | null)[][], stacked: boolean): number 
 // strings still work. The object form would also merge in the default
 // day.boundary format, relabelling midnight on hourly axes with the date.
 export const DATETIME_LABEL_FORMATS = {
-  day: '%e %b', hour: '%I:%M %p', minute: '%I:%M %p',
+  day: '%e %b', hour: '%l%P', minute: '%l:%M%P',
 } as Highcharts.AxisDateTimeLabelFormatsOptions
 
 // A line, labelled with the date, at each midnight in a run of dispatch timestamps
@@ -167,12 +167,12 @@ export function midnightPlotLines(times: string[]): Highcharts.XAxisPlotLinesOpt
     .filter((time, i) => i > 0 && time.slice(0, 10) !== times[i - 1].slice(0, 10))
     .map((time) => ({
       value: nzLocalMs(time),
-      color: '#aaaaaa',
+      color: 'var(--color-chart-rule)',
       width: 1,
       dashStyle: 'Solid',
       label: {
         text: Highcharts.dateFormat('%e %b', nzLocalMs(time)),
-        style: { color: '#888888', fontSize: 'var(--font-size-2xs)' },
+        style: { color: 'var(--color-text-muted)', fontSize: 'var(--font-size-2xs)' },
         y: 14,
       },
       zIndex: 3,

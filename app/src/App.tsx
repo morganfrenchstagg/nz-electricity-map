@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
-import Map from './components/Map'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import GeneratorPanel from './components/GeneratorPanel'
 import SubstationPanel from './components/SubstationPanel'
 import HvdcPanel from './components/HvdcPanel'
@@ -11,6 +10,14 @@ import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
 import { viewBesideNz } from './utils/mapView'
+import { substationsOf, substationsTitle } from './utils/substations'
+
+// maplibre is the largest library by far, so the panel doesn't wait for it
+const loadMap = () => import('./components/Map')
+const Map = lazy(loadMap)
+
+// Where the map is until it's there, so nothing moves when it arrives
+const mapPlaceholder = <div style={{ width: '100%', height: '100vh' }} />
 
 export default function App() {
   const { generators, substations } = useDefinitions()
@@ -27,6 +34,22 @@ export default function App() {
   } = useUrlState(generators, substations)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
+
+  // On mobile the panel covers the map, so the map, with its tiles and
+  // transmission lines, waits for the panel to first close. From then on it
+  // stays, so reopening the panel doesn't lose it.
+  const mapCovered = isMobile && leftPanelOpen
+  const [mapWanted, setMapWanted] = useState(!mapCovered)
+  if (!mapCovered && !mapWanted) setMapWanted(true)
+  // Its code alone is fetched once the page has loaded, so Show map doesn't wait for it
+  useEffect(() => {
+    if (mapWanted) return
+    let timer: number | undefined
+    const prefetch = () => { timer = window.setTimeout(loadMap, 1000) }
+    if (document.readyState === 'complete') prefetch()
+    else window.addEventListener('load', prefetch, { once: true })
+    return () => { window.removeEventListener('load', prefetch); window.clearTimeout(timer) }
+  }, [mapWanted])
 
   const closeNode = useCallback(() => {
     selectNode(null)
@@ -52,7 +75,7 @@ export default function App() {
     } else if (selectedNode.kind === 'hvdc') {
       suffix = 'HVDC Inter-Island Link'
     } else {
-      suffix = `${selectedNode.substation.description} Substation`
+      suffix = substationsTitle(substationsOf(selectedNode))
     }
     document.title = `NZ Electricity Map - ${suffix}`
   }, [selectedNode, gridPanelVisible])
@@ -63,12 +86,12 @@ export default function App() {
   const { recentData, loading, error } = useDispatchData(dateMode)
 
   const handleGeneratorClick = useCallback((generator: Generator) => {
-    selectNode({ kind: 'generator', generator }),
+    selectNode({ kind: 'generator', generator })
     setGridPanelVisible(false)
   }, [selectNode])
 
   const handleSubstationClick = useCallback((substation: Substation) => {
-    selectNode({ kind: 'substation', substation }),
+    selectNode({ kind: 'substation', substation })
     setGridPanelVisible(false)
   }, [selectNode])
 
@@ -97,8 +120,12 @@ export default function App() {
 
   return (
     <>
-      <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
-      {selectedNode && (selectedNode.kind === 'substation'
+      {mapWanted ? (
+        <Suspense fallback={mapPlaceholder}>
+          <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
+        </Suspense>
+      ) : mapPlaceholder}
+      {selectedNode && (selectedNode.kind === 'substation' || selectedNode.kind === 'substations'
         ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
         : selectedNode.kind === 'hvdc'
           ? <HvdcPanel node={selectedNode} {...nodePanelProps} />
@@ -109,6 +136,8 @@ export default function App() {
             onViewModeChange={setViewMode}
             tradingPeriod={tradingPeriod}
             onTradingPeriodChange={setTradingPeriod}
+            chartSettings={chartSettings}
+            onChartSettingsChange={setChartSettings}
           />)}
       <GridOverviewPanel
         dateMode={dateMode}

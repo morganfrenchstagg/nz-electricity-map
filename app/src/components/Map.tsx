@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useOutages } from '../hooks/useOutages'
 import { isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
@@ -19,7 +20,12 @@ import { fetchTransmissionLines } from '../api'
 import { DATA_ATTRIBUTION_HTML } from '../attribution'
 import type { OutageData } from '../api'
 import type { InitialView } from '../utils/mapView'
-import type { Generator, Substation, SelectedNode, RecentData } from '../types'
+import type { Generator, GeneratorNode, Substation, SubstationNode, SelectedNode, RecentData } from '../types'
+import { substationsOf } from '../utils/substations'
+
+// maplibre's worker is a separate file. Vite bundles it (?worker&url) and maplibre is
+// told where it ended up, as it can't find it beside its own module once bundled.
+maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
@@ -122,6 +128,13 @@ function lineFlowChevron(): ImageData {
 
 // The generation pipeline is what's being built now, so past days and ranges leave it off the map
 const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
+
+// Where each of the selected generators or substations is, as [lng, lat]
+function selectionPoints(node: GeneratorNode | SubstationNode): [number, number][] {
+  if (node.kind === 'generator') return [[node.generator.location.long, node.generator.location.lat]]
+  if (node.kind === 'generators') return node.generators.map(g => [g.location.long, g.location.lat])
+  return substationsOf(node).map(s => [s.long, s.lat])
+}
 
 interface Props {
   onGeneratorClick: (generator: Generator) => void
@@ -415,6 +428,13 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
           'circle-stroke-color': SELECTED_COLOUR,
         },
       })
+
+      // Place names (towns, cities, regions, the country) above everything added here, so
+      // the generators and substations don't hide them. Other basemap labels, like roads
+      // and points of interest, stay beneath.
+      for (const layer of map.getStyle().layers) {
+        if (layer.type === 'symbol' && layer['source-layer'] === 'place') map.moveLayer(layer.id)
+      }
       mapLoadedRef.current = true
 
       map.on('click', (e) => {
@@ -453,7 +473,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
           const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current), pipelineFor(dateModeRef.current)) : null
+          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current), pipelineFor(dateModeRef.current), unitsByNodeRef.current) : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
@@ -507,6 +527,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     mapRef.current = map
     return () => map.remove()
+    // The map is built once; initialView is only where it starts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -565,11 +587,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      const points: [number, number][] =
-        selectedNode.kind === 'generator' ? [[selectedNode.generator.location.long, selectedNode.generator.location.lat]]
-          : selectedNode.kind === 'generators' ? selectedNode.generators.map(g => [g.location.long, g.location.lat])
-            : [[selectedNode.substation.long, selectedNode.substation.lat]]
-      src.setData({ type: 'FeatureCollection', features: points.map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
+      src.setData({ type: 'FeatureCollection', features: selectionPoints(selectedNode).map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
     }
     whenLoaded(map, update)
   }, [selectedNode])
@@ -583,13 +601,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     // The HVDC runs the length of the South Island, so the map stays where it was clicked
     if (selectedNode && selectedNode.kind !== 'hvdc') {
-      const [lng, lat] = selectedNode.kind === 'generator'
-        ? [selectedNode.generator.location.long, selectedNode.generator.location.lat]
-        : selectedNode.kind === 'generators'
-          ? [selectedNode.generators[0].location.long, selectedNode.generators[0].location.lat]
-          : [selectedNode.substation.long, selectedNode.substation.lat]
-
-      map.easeTo({ center: [lng, lat], padding: panelPadding, duration: isMobile ? 0 : 400 })
+      // A selection of several is centred on the first
+      map.easeTo({ center: selectionPoints(selectedNode)[0], padding: panelPadding, duration: isMobile ? 0 : 400 })
     } else {
       map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }

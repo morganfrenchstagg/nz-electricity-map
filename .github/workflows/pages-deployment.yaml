@@ -21,11 +21,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # The same checks as pr-checks.yaml, so a push straight to main can't
+      # deploy what a PR would have failed.
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+      - name: Lint
+        working-directory: app
+        run: npm run lint
+      - name: Run tests
+        working-directory: app
+        run: npm test
       - name: Build React app
         working-directory: app
-        run: |
-          npm install
-          npm run build
+        run: npm run build
       - name: Publish
         uses: cloudflare/wrangler-action@v3
         with:

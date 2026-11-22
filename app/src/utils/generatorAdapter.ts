@@ -5,7 +5,7 @@ import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamilies, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
-import { inServiceAt, inServiceDuring, isCharging, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
+import { inServiceAt, inServiceDuring, isCharging, isCombinedOver, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
 import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 import type { Period } from './time'
@@ -147,8 +147,9 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
   const activeUnits = generator.units.filter((u) => inServiceDuring(u, period))
   const shownUnits = live ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at)) : activeUnits
   const movedNodes = movedNodesOf(generator.units)
-  // Moved units are charted under their current node only
-  const historyUnits = generator.units.filter((u) => !(u.node in movedNodes))
+  // Moved units are charted under their current node only, and units combined into
+  // another (see isCombinedOver) under it, having none of their own
+  const historyUnits = generator.units.filter((u) => !(u.node in movedNodes) && !isCombinedOver(u, generator.units))
 
   // A generator opened for a day before it was built still names its fuels
   const subtitleFuels = fuelFamilies((activeUnits.length > 0 ? activeUnits : generator.units).map((u) => u.fuel))
@@ -193,12 +194,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       if (!outages && adjusted > 0) {
         capacityPlotLines.push({
           value: adjusted,
-          color: '#222222',
+          color: 'var(--color-reference)',
           width: 1,
           dashStyle: 'Solid',
           label: {
             text: `${capacityLabel(units)}: ${formatMW(adjusted)}`,
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)' },
             align: 'right',
             x: -4,
           },
@@ -209,12 +210,12 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
       if (chargeCapacity > 0) {
         capacityPlotLines.push({
           value: -chargeCapacity,
-          color: '#222222',
+          color: 'var(--color-reference)',
           width: 1,
           dashStyle: 'Solid',
           label: {
             text: `Charge: ${formatMW(chargeCapacity)}`,
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)' },
             align: 'right',
             x: -4,
           },
@@ -265,13 +266,13 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
             enabled: true,
             format: `${capacityLabel(units)}: ${formatMW(point[1] as number)}`,
             align: 'right',
-            style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
+            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
             crop: false,
             overflow: 'allow' as const,
             x: -4,
           } : { enabled: false },
         })),
-        color: '#222222',
+        color: 'var(--color-reference)',
         dashStyle: 'Solid',
         lineWidth: 2,
         step: 'left',
@@ -314,8 +315,8 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     movedNodes,
 
     getCodes(recent, includeRetired = false) {
-      // Moved units are charted under their current node only
-      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes)) : allShownUnits)
+      // Moved units are charted under their current node only, and combined units' under them
+      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes) && !isCombinedOver(u, allUnits)) : allShownUnits)
         .filter(c => recent.series.includes(c))
     },
 
@@ -377,10 +378,10 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
         data: data.map((point, i) => ({
           x: point[0], y: point[1],
           dataLabels: i === lastIndex
-            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: '#222222', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
+            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
             : { enabled: false },
         })),
-        color: '#222222', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
+        color: 'var(--color-reference)', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
         marker: { enabled: false }, animation: false, enableMouseTracking: false,
         showInLegend: false, zIndex: 3,
       } as Highcharts.SeriesLineOptions

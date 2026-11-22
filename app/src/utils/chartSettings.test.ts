@@ -6,10 +6,11 @@ describe('readChartSettings', () => {
     expect(readChartSettings(new URLSearchParams('chart=line'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'line' })
     expect(readChartSettings(new URLSearchParams('chart=proportion'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'proportion' })
     expect(readChartSettings(new URLSearchParams('solar=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, solar: 'combined' })
+    expect(readChartSettings(new URLSearchParams('fossil=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, fossil: 'combined' })
   })
 
   it('reads every setting a link gives', () => {
-    expect(readChartSettings(new URLSearchParams('chart=line&solar=combined'))).toEqual({ chartType: 'line', solar: 'combined' })
+    expect(readChartSettings(new URLSearchParams('chart=line&solar=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'line', solar: 'combined' })
   })
 
   it('defaults a setting the link leaves out', () => {
@@ -22,6 +23,10 @@ describe('readChartSettings', () => {
 
   it('keeps solar separate by default', () => {
     expect(DEFAULT_CHART_SETTINGS.solar).toBe('separate')
+  })
+
+  it('keeps fossil fuels separate by default', () => {
+    expect(DEFAULT_CHART_SETTINGS.fossil).toBe('separate')
   })
 })
 
@@ -40,8 +45,8 @@ describe('writeChartSettings', () => {
 
   it('reads back what it writes', () => {
     const params = new URLSearchParams()
-    writeChartSettings({ chartType: 'line', solar: 'combined' }, params)
-    expect(params.toString()).toBe('chart=line&solar=combined')
-    expect(readChartSettings(params)).toEqual({ chartType: 'line', solar: 'combined' })
+    writeChartSettings({ chartType: 'line', solar: 'combined', fossil: 'combined' }, params)
+    expect(params.toString()).toBe('chart=line&solar=combined&fossil=combined')
+    expect(readChartSettings(params)).toEqual({ chartType: 'line', solar: 'combined', fossil: 'combined' })
   })
 })

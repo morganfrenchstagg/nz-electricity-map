@@ -6,6 +6,9 @@ import Highcharts from 'highcharts'
 import 'highcharts/modules/accessibility'
 import './index.css'
 import App from './App.tsx'
+import { initTheme } from './theme'
+
+initTheme()
 
 const FONT_STACK = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif'
 
@@ -16,6 +19,12 @@ const AXIS_TEXT = {
 }
 
 Highcharts.setOptions({
+  // Highcharts follows the theme by the class initTheme puts on <html>. Its
+  // text, lines and tooltips are blended from these, so they match the panels' surface.
+  palette: {
+    light: { backgroundColor: '#ffffff' },
+    dark: { backgroundColor: '#1c1c1e' },
+  },
   chart: { style: { fontFamily: FONT_STACK } },
   xAxis: AXIS_TEXT,
   yAxis: AXIS_TEXT,

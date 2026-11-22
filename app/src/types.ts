@@ -10,6 +10,10 @@ export interface Unit {
   decomissioned?: string
   installedCapacity?: number
   outageBlock?: string
+  // The nodes of the units this one stands in for, when they were only metered
+  // together (as Southdown's two were), until this one is decommissioned. It has
+  // no capacity of its own: the units it combines hold it (see combinedUnitOf).
+  combines?: string[]
 }
 
 export interface Generator {
@@ -81,7 +85,10 @@ export type GeneratorNode =
   | { kind: 'generator'; generator: Generator }
   | { kind: 'generators'; generators: Generator[] }
 
-export type SubstationNode = { kind: 'substation'; substation: Substation }
+// A substation, or several picked together (see NodePickerModal)
+export type SubstationNode =
+  | { kind: 'substation'; substation: Substation }
+  | { kind: 'substations'; substations: Substation[] }
 
 // The HVDC link between the islands, picked from the map (see HvdcPanel)
 export type HvdcNode = { kind: 'hvdc' }

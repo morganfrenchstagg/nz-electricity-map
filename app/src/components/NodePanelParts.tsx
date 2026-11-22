@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import HighchartsReact from 'highcharts-react-official'
+import { HighchartsReact } from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { RecentData, SelectedNode } from '../types'
 import type { DateMode } from '../hooks/useDispatchData'

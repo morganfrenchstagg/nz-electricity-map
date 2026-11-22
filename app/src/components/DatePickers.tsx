@@ -7,12 +7,11 @@ import {
 } from 'react-aria-components'
 import { parseDate } from '@internationalized/date'
 import type { CalendarDate } from '@internationalized/date'
+import { CalendarIcon, LOCALE, rangeLabel } from './dateLabels'
+import type { Range } from './dateLabels'
 
 // The pickers are built on React Aria's, the unstyled base of React Spectrum's.
 // Dates come and go as ISO "YYYY-MM-DD" strings, like DateMode's.
-
-// en-NZ whatever the browser's language: dd/mm/yyyy, weeks starting on Monday
-const LOCALE = 'en-NZ'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) =>
   new Date(Date.UTC(2000, i, 1)).toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }))
@@ -24,9 +23,7 @@ interface CommonProps {
   onOpenChange: (isOpen: boolean) => void
 }
 
-type Range = { start: string; end: string }
-
-interface DateRangePickerProps extends CommonProps {
+export interface DateRangePickerProps extends CommonProps {
   // A single day is a range that starts and ends on it
   value: Range | null
   onChange: (range: Range) => void
@@ -36,6 +33,8 @@ interface DateRangePickerProps extends CommonProps {
   error: string | null
   // Shown pressed, as a picked range is in place of the period buttons
   isActive: boolean
+  // Focus the button on mount, as when it takes over from LazyDatePickers' stand-in
+  autoFocus?: boolean
 }
 
 // The From and To fields' dates, either of which can be part typed or cleared
@@ -48,16 +47,9 @@ function toDraft(value: Range | null): Draft {
   return value ? { start: parseDate(value.start), end: parseDate(value.end) } : { start: null, end: null }
 }
 
-// e.g. "21 Oct 2026 – 24 Oct 2026", read in UTC so it isn't the day before west of UTC
-function rangeLabel({ start, end }: Range) {
-  const format = (iso: string) => new Date(`${iso}T00:00:00Z`)
-    .toLocaleDateString(LOCALE, { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' })
-  return start === end ? format(start) : `${format(start)} – ${format(end)}`
-}
-
 // A calendar button, for the end of PeriodToggle, that opens typed From and To
 // dates over a calendar to pick the range from
-export function DateRangePicker({ value, onChange, min, max, maxDays, error, isActive, isOpen, onOpenChange }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, min, max, maxDays, error, isActive, isOpen, onOpenChange, autoFocus }: DateRangePickerProps) {
   const [minValue, maxValue] = useBounds(min, max)
   const [draft, setDraft] = useState(() => toDraft(value))
   // The calendar's month, which follows the dates as they're typed
@@ -94,7 +86,7 @@ export function DateRangePicker({ value, onChange, min, max, maxDays, error, isA
   return (
     <I18nProvider locale={LOCALE}>
       <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-        <Button aria-label={value ? rangeLabel(value) : 'Custom dates'} className={isActive ? 'calendar-button is-active' : 'calendar-button'}>
+        <Button autoFocus={autoFocus} aria-label={value ? rangeLabel(value) : 'Custom dates'} className={isActive ? 'calendar-button is-active' : 'calendar-button'}>
           <CalendarIcon />
         </Button>
         <CalendarPopover>
@@ -157,7 +149,7 @@ function DateRangeField({ label, ...props }: DateRangeFieldProps) {
   )
 }
 
-interface DatePickerProps extends CommonProps {
+export interface DatePickerProps extends CommonProps {
   isInvalid?: boolean
   ariaLabel: string
   value: string
@@ -201,15 +193,6 @@ export function DatePicker({ value, onChange, min, max, isOpen, onOpenChange, is
 
 function useBounds(min: string, max: string): [CalendarDate, CalendarDate] {
   return useMemo(() => [parseDate(min), parseDate(max)], [min, max])
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="11" rx="1.5" />
-      <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" />
-    </svg>
-  )
 }
 
 // DatePicker's, inside its field
