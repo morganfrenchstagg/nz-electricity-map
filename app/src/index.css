@@ -12,8 +12,10 @@
   --color-text-muted: light-dark(#888, #8f8f8f);
   --color-text-faint: light-dark(#999, #7c7c7c);
   --color-text-disabled: light-dark(#bbb, #5c5c5c);
-  /* On an accent or series colour */
+  /* On a series colour */
   --color-text-inverse: #fff;
+  /* On the accent, which is light in dark mode */
+  --color-text-on-accent: light-dark(#fff, #111);
 
   /* Inputs and checkboxes */
   --color-border-strong: light-dark(#ccc, #4c4c4f);
@@ -32,14 +34,15 @@
   /* Secondary buttons, empty meter track */
   --color-fill: light-dark(#e7e7e7, #38383b);
 
-  --color-accent: #3b82f6;
-  /* Filled behind white text, e.g. the pressed ToggleGroup button */
-  --color-accent-strong: light-dark(#1d4ed8, #2563eb);
-  --color-accent-muted: light-dark(#93c5fd, #2c4a85);
+  /* Ink, not a hue: every colour on the map and charts is a fuel or a voltage,
+     so pressed, selected and focused controls stay out of their way */
+  --color-accent: light-dark(#1f2328, #e6e6e6);
+  /* An active filter's border */
+  --color-accent-muted: light-dark(#8a8f96, #6b6f75);
   /* Selected rows and options */
-  --color-accent-subtle: light-dark(#f0f4ff, #1b2741);
-  /* Accent text, on the surface or accent-subtle */
-  --color-accent-text: light-dark(#1d4ed8, #93c5fd);
+  --color-accent-subtle: light-dark(#eceef0, #2c2e32);
+  /* Text on accent-subtle */
+  --color-accent-text: var(--color-text-strong);
 
   --color-danger: light-dark(#b91c1c, #f87171);
   --color-danger-subtle: light-dark(#fee2e2, #3d1c1c);
@@ -64,9 +67,9 @@
 
   /* Badges, chart axis labels */
   --font-size-2xs: 10px;
-  /* Captions, status text, uppercase headings, chart axis titles */
+  /* Captions, status text, chart axis titles */
   --font-size-xs: 11px;
-  /* Toolbar controls, secondary text, map popups and chart tooltips */
+  /* Toolbar controls, small headings, secondary text, map popups and chart tooltips */
   --font-size-sm: 12px;
   /* Body text and most controls */
   --font-size-base: 13px;
@@ -111,13 +114,11 @@ body {
   font-weight: 600;
 }
 
-/* Small uppercase heading over a group, table column or popup section */
-.eyebrow {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+/* Small heading over a group, table column or popup section */
+.heading-sm {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 /* A row of a panel or modal (header, toolbar, filters…), ruled off from the next */
@@ -235,7 +236,7 @@ body {
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
   font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
@@ -267,6 +268,7 @@ body {
 
 .icon-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 /* Segmented buttons (ToggleGroup) */
@@ -294,8 +296,8 @@ body {
 
 .toggle-group > button[aria-pressed="true"],
 .toggle-group > .calendar-button.is-active {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-weight: 600;
 }
 
@@ -341,14 +343,12 @@ body {
   border: 1.5px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: transparent;
-  font-size: var(--font-size-xs);
-  line-height: 1;
 }
 
 .checkbox[data-selected] .checkbox-box {
   border: none;
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
 }
 
 .checkbox[data-focus-visible] .checkbox-box {
@@ -520,35 +520,53 @@ body {
   }
 }
 
-/* A chart series toggle, filled with --series-colour while it's showing */
+/* A chart series toggle, drawn as a legend entry: a swatch of --series-colour,
+   filled while the series is showing and hollow while it's hidden, then its name.
+   The colour stays in the swatch, so the name reads on any fuel's colour. */
 /* Narrow sides, so a row fits as many as it can before "+N more" */
 .series-button {
-  padding: var(--space-xs) var(--space-md);
-  border: 1.5px solid var(--series-colour);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--series-colour);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.series-button[aria-pressed="true"] {
-  background: var(--series-colour);
-  color: var(--color-text-inverse);
-}
-
-/* The substation's Total, in --color-reference, which is near white in dark mode */
-.series-button--reference[aria-pressed="true"] {
-  color: var(--color-surface);
-}
-
-/* Clear, "+N more" and the substation generators toggle */
-.series-button--neutral {
-  --series-colour: var(--color-border-strong);
+.series-button::before {
+  content: "";
   flex-shrink: 0;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--series-colour);
+  border-radius: 2px;
+}
+
+.series-button:hover {
+  background: var(--color-surface-hover);
+}
+
+.series-button[aria-pressed="true"] {
+  color: var(--color-text-strong);
+}
+
+.series-button[aria-pressed="true"]::before {
+  background: var(--series-colour);
+}
+
+/* Clear, "+N more" and the substation generators toggle: no series, so no swatch */
+.series-button--neutral {
+  flex-shrink: 0;
+}
+
+.series-button--neutral::before {
+  display: none;
 }
 
 /* Not aria-pressed: the generators toggle's label already says Show or Hide */
@@ -597,7 +615,7 @@ body {
 
 .date-segment[data-focused] {
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
 }
 
 .date-field-dash {
@@ -622,6 +640,7 @@ body {
 
 .date-field-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 /* DateRangePicker's From and To dates, over its calendar */
@@ -675,13 +694,12 @@ body {
 }
 
 .calendar-nav {
-  padding: 0 var(--space-sm) var(--space-2xs);
+  display: flex;
+  padding: var(--space-xs);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
-  line-height: 1.2;
   cursor: pointer;
 }
 
@@ -755,8 +773,8 @@ body {
 }
 
 .calendar-cell[data-selected] {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-weight: 600;
 }
 
@@ -769,8 +787,8 @@ body {
 
 .calendar--range .calendar-cell[data-selection-start],
 .calendar--range .calendar-cell[data-selection-end] {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
 }
 
 .calendar--range .calendar-cell[data-selection-start] {
@@ -788,9 +806,43 @@ body {
   outline-offset: -2px;
 }
 
+/* A selected day is filled with the ink the outline's drawn in, so its ring
+   sits inside a gap of surface instead */
+.calendar-cell[data-selected][data-focus-visible] {
+  box-shadow: inset 0 0 0 4px var(--color-surface);
+}
+
+/* A sortable column's arrow: the sorted column's, or faintly the one under the pointer */
+.sort-arrow {
+  opacity: 0;
+}
+
+th:hover > * > .sort-arrow {
+  opacity: 0.4;
+}
+
+.sort-arrow.is-active,
+th:hover > * > .sort-arrow.is-active {
+  opacity: 1;
+}
+
+/* A link in body text or a table: ink, picked out by its underline */
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
 /* The offers view's trading period arrows */
 .stepper-button {
-  padding: var(--space-2xs) var(--space-md);
+  display: flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface);

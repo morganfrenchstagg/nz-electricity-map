@@ -7,13 +7,13 @@ const BACKEND_SOURCE_URL = 'https://github.com/morganfrenchstagg/nz-electricity-
 const LINKEDIN_URL = 'https://www.linkedin.com/in/morganfrenchstagg'
 
 function Link({ href, children }: { href: string; children: ReactNode }) {
-  return <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>{children}</a>
+  return <a href={href} target="_blank" rel="noopener noreferrer" className="link">{children}</a>
 }
 
 function Section({ heading, children }: { heading: string; children: ReactNode }) {
   return (
     <section className="info-section">
-      <h2 className="eyebrow">{heading}</h2>
+      <h2 className="heading-sm">{heading}</h2>
       {children}
     </section>
   )
@@ -45,8 +45,9 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
         <div style={{ overflow: 'auto', padding: 'var(--space-xl)' }}>
           <Section heading="About">
             <p>
-              NZ Electricity Map aims to present electricity industry data in an accessible way, to help
-              better inform the public about how the energy we use is generated.
+              Where New Zealand's electricity comes from, power station by power station: what each one
+              is generating, its offers, prices and outages, and the grid's fuel mix back to 1997, from
+              public market data.
             </p>
             <p>
               This is an independent project. The source code is available on GitHub

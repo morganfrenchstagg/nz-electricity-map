@@ -1,6 +1,7 @@
 import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
 import { nzNowMs, outageMs } from '../utils/time'
+import { ExternalLink } from './icons'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
@@ -65,17 +66,14 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
                 href={pocpUrl(outageBlockPrefixes)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}
+                className="link"
+                style={{ fontSize: 'var(--font-size-sm)', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-xs)' }}
               >
-                View in POCP ↗
+                View in POCP <ExternalLink size={12} />
               </a>
             )}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--font-size-lg)', color: 'var(--color-text-secondary)', padding: 'var(--space-xs)', lineHeight: 1 }}
-            >
-              ✕
+            <button onClick={onClose} className="button-secondary">
+              Close
             </button>
           </div>
         </div>
@@ -86,12 +84,12 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th className="eyebrow" style={thStyle}>Unit</th>
-                  <th className="eyebrow" style={thStyle}>Outage</th>
-                  <th className="eyebrow" style={thStyle}>Capacity remaining</th>
-                  <th className="eyebrow" style={thStyle}>Start</th>
-                  <th className="eyebrow" style={thStyle}>End</th>
-                  <th className="eyebrow" style={thStyle}>Status</th>
+                  <th className="heading-sm" style={thStyle}>Unit</th>
+                  <th className="heading-sm" style={thStyle}>Outage</th>
+                  <th className="heading-sm" style={thStyle}>Capacity remaining</th>
+                  <th className="heading-sm" style={thStyle}>Start</th>
+                  <th className="heading-sm" style={thStyle}>End</th>
+                  <th className="heading-sm" style={thStyle}>Status</th>
                 </tr>
               </thead>
               <tbody>

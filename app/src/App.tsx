@@ -65,7 +65,7 @@ export default function App() {
   useEffect(() => {
     let suffix: string
     if (selectedNode === null) {
-      suffix = gridPanelVisible ? 'Grid Generation' : 'Map'
+      suffix = gridPanelVisible ? 'Grid generation' : 'Map'
     } else if (selectedNode.kind === 'generator') {
       suffix = selectedNode.generator.name
     } else if (selectedNode.kind === 'generators') {
@@ -73,7 +73,7 @@ export default function App() {
         ? selectedNode.generators.map(g => g.name).join(', ')
         : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`
     } else if (selectedNode.kind === 'hvdc') {
-      suffix = 'HVDC Inter-Island Link'
+      suffix = 'HVDC inter-island link'
     } else {
       suffix = substationsTitle(substationsOf(selectedNode))
     }
@@ -179,7 +179,7 @@ export default function App() {
             fontWeight: 500,
           }}
         >
-          NZ Grid Generation ↑
+          NZ grid generation
         </button>
       )}
     </>

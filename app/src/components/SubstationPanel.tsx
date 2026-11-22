@@ -320,7 +320,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         const genPoints = points.filter(isGenerator)
         let rows = points.filter((p) => !isGenerator(p)).map(row).join('')
         if (genPoints.length > 0) {
-          rows += `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Generation</td></tr>` + genPoints.map(row).join('')
+          rows += `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Generation</td></tr>` + genPoints.map(row).join('')
         }
         if (points.length > 1) {
           rows += tooltipTotalRow(points.reduce((sum, p) => sum + (p.y ?? 0), 0), formatValue)
@@ -328,7 +328,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
         // The estimate isn't part of the substation's load, so it's listed after the total
         const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR)
         if (solarPoints.length > 0) {
-          rows += `<tr><td colspan="3" class="eyebrow" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
+          rows += `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
           const note = solarPeriodNote(solarEstimate?.periods[solarPoints[0].index])
           if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
@@ -358,7 +358,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       </button>,
     ] : []),
     ...(hasTotal ? [
-      <SeriesButton key="total" colour={TOTAL_COLOUR} reference active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
+      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
         {TOTAL}
       </SeriesButton>,
     ] : []),
@@ -367,7 +367,7 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
 
   // Lead the buttons that can go behind "+N more", as they're long
   const solarButtons = !hasSolar ? [] : [
-    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} reference active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
+    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
       {DEMAND_WITH_SOLAR}
     </SeriesButton>,
     <SeriesButton key="solar" colour={SOLAR_COLOUR} active={solarShown} onClick={() => toggleExtra(solarShown, setSolarToggled)} onIsolate={() => isolate(SOLAR)}>

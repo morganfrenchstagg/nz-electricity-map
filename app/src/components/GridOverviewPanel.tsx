@@ -24,6 +24,7 @@ import DateControls from './DateControls'
 import ChartSettingsMenu from './ChartSettingsMenu'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
+import { ChevronDown } from './icons'
 
 type Island = 'all' | 'NI' | 'SI'
 
@@ -481,21 +482,22 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
     }
   }, [data, generators, fuels, seriesFuels, combineSolar, combineFossil, fuelToIndices, fuelToUnits, effectiveFuels, isShown, isAggregate, aggregatePeriod, island, hvdc, distributedSolar, stacked, proportion])
 
-  // On the narrowest panels the title is cut short to keep the picker's ▾ in view
+  // On the narrowest panels the title is cut short to keep the picker's chevron in view
   const header = (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-      <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>NZ Grid Generation</span>
+      <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>NZ grid generation</span>
       <button
         onClick={() => setPickerOpen(true)}
-        style={{ fontWeight: 400, fontSize: 'var(--font-size-base)', border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', lineHeight: 1, flexShrink: 0 }}
+        aria-label="Pick a generator or substation"
+        style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-faint)', flexShrink: 0 }}
       >
-        ▾
+        <ChevronDown size={12} />
       </button>
     </div>
   )
 
   return (
-    <Panel {...panel} visible={visible} header={header} actions={[{ label: 'Generation Pipeline ↗', onClick: () => onPipelineOpenChange(true) }]}>
+    <Panel {...panel} visible={visible} header={header} actions={[{ label: 'Generation pipeline', onClick: () => onPipelineOpenChange(true) }]}>
       <Suspense fallback={null}>
         {pickerOpen && (
           <NodePickerModal

@@ -4,6 +4,7 @@ import type { UnderConstructionNode } from '../types'
 import { fuelColour, statusColour } from '../utils/colours'
 import { formatMonthYear } from '../utils/format'
 import FilterDropdown from './FilterDropdown'
+import { ArrowDown, ArrowUp, ExternalLink } from './icons'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
 
@@ -84,7 +85,7 @@ export default function PipelineModal({ onClose }: Props) {
         {/* Header */}
         <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div className="title">Generation Pipeline</div>
+            <div className="title">Generation pipeline</div>
           </div>
           <button onClick={onClose} className="button-secondary">
             Close
@@ -100,7 +101,7 @@ export default function PipelineModal({ onClose }: Props) {
           {hasFilters && (
             <button
               onClick={() => { setFuels(new Set()); setYears(new Set()); setOperators(new Set()); setStatuses(new Set()) }}
-              style={{ background: 'none', border: 'none', color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', cursor: 'pointer', padding: 'var(--space-2xs) var(--space-xs)', fontWeight: 500, whiteSpace: 'nowrap' }}
+              className="button-secondary"
             >
               Clear all
             </button>
@@ -120,7 +121,7 @@ export default function PipelineModal({ onClose }: Props) {
                 <SortTh col="generation" label="Annual gen" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
                 <SortTh col="cost" label="Cost" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
                 <SortTh col="openBy" label="Open by" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
-                <th className="eyebrow" style={th()}></th>
+                <th className="heading-sm" style={th()}></th>
               </tr>
             </thead>
             <tbody>
@@ -173,10 +174,11 @@ export default function PipelineModal({ onClose }: Props) {
                           target="_blank"
                           rel="noreferrer"
                           onClick={e => e.stopPropagation()}
-                          style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-sm)', textDecoration: 'none', opacity: 0.7 }}
+                          style={{ display: 'flex', color: 'var(--color-text-muted)' }}
                           title="Source"
+                          aria-label={`Source for ${n.name}`}
                         >
-                          ↗
+                          <ExternalLink size={12} />
                         </a>
                       ) : null}
                     </td>
@@ -199,13 +201,13 @@ function SortTh({ col, label, sortCol, sortDir, onSort, align = 'left' }: {
   return (
     <th
       onClick={() => onSort(col)}
-      className="eyebrow"
+      className="heading-sm"
       style={{ ...th(), textAlign: align, cursor: 'pointer', userSelect: 'none', color: active ? 'var(--color-text-strong)' : 'var(--color-text-secondary)' }}
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
         {label}
-        <span style={{ fontSize: 'var(--font-size-2xs)', opacity: active ? 1 : 0.3 }}>
-          {active ? (sortDir === 'asc' ? '▲' : '▼') : '▲'}
+        <span className={active ? 'sort-arrow is-active' : 'sort-arrow'}>
+          {active && sortDir === 'desc' ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
         </span>
       </span>
     </th>

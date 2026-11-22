@@ -7,6 +7,7 @@ import type { DateMode } from '../hooks/useDispatchData'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { CHART_CONTAINER_PROPS } from '../utils/chart'
 import type { PanelProps } from './Panel'
+import { ChevronDown } from './icons'
 
 // The pieces GeneratorPanel and SubstationPanel share
 
@@ -55,7 +56,7 @@ export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitl
           style={{ lineHeight: 1.3, border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
         >
           {title}
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', fontWeight: 400 }}>▾</span>
+          <span style={{ color: 'var(--color-text-faint)' }}><ChevronDown size={12} /></span>
         </button>
         {onClear && (
           <button onClick={onClear} className="button-secondary" aria-label='Clear'>

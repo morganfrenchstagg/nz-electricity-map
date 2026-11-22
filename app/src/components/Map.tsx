@@ -44,8 +44,9 @@ const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substatio
 const hoverKey = (feature?: maplibregl.MapGeoJSONFeature) =>
   feature && (HVDC_HOVER_LAYERS.includes(feature.layer.id) ? 'hvdc' : `${feature.layer.id}:${feature.id}`)
 
-// What the open panel is for: circled, or for the HVDC, its lines in this colour
-const SELECTED_COLOUR = '#3b82f6'
+// What the open panel is for: circled, or for the HVDC, its lines in this colour.
+// The ink of index.css's --color-accent, as the panel's selected controls are.
+const SELECTED_COLOUR = '#1f2328'
 
 // The HVDC's overhead line, the only one at 350 kV
 const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number', ['get', 'designvolt']], 350]
@@ -306,6 +307,18 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       })
+      // A white edge round the ring, so it still shows on the dark of the satellite imagery
+      map.addLayer({
+        id: 'selected-node-halo-layer',
+        type: 'circle',
+        source: 'selected-node',
+        paint: {
+          'circle-color': 'transparent',
+          'circle-radius': 13,
+          'circle-stroke-width': 5,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
       map.addLayer({
         id: 'selected-node-layer',
         type: 'circle',
@@ -454,7 +467,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const update = () => {
       const src = map.getSource('selected-node') as maplibregl.GeoJSONSource | undefined
       if (!src) return
-      // The HVDC is picked out in the selection's blue rather than circled
+      // The HVDC is picked out in the selection's ink rather than circled
       const hvdcColour = selectedNode?.kind === 'hvdc' ? SELECTED_COLOUR : HVDC_COLOUR
       for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer']) map.setPaintProperty(layer, 'line-color', hvdcColour)
       if (!selectedNode || selectedNode.kind === 'hvdc') {

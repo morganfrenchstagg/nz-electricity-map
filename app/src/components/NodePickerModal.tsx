@@ -4,6 +4,7 @@ import { fuelColour, fuelFamilies, fuelFamily } from '../utils/colours'
 import { isRetired } from '../utils/generators'
 import { substationsOf } from '../utils/substations'
 import FilterDropdown from './FilterDropdown'
+import { Check, Minus } from './icons'
 
 interface Props {
   generators: Generator[]
@@ -36,7 +37,7 @@ const GRID_ZONE_NAMES: Record<number, string> = {
 function CheckBox({ checked, partial = false, size }: { checked: boolean; partial?: boolean; size: 14 | 16 }) {
   return (
     <span style={{ width: size, height: size, borderRadius: size === 16 ? 4 : 3, border: checked ? 'none' : '1.5px solid var(--color-border-strong)', background: checked ? 'var(--color-accent)' : partial ? 'var(--color-accent-muted)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {(checked || partial) && <span style={{ color: 'var(--color-text-inverse)', fontSize: size === 16 ? 'var(--font-size-xs)' : 'var(--font-size-2xs)', lineHeight: 1 }}>✓</span>}
+      {(checked || partial) && <span style={{ color: 'var(--color-text-on-accent)' }}>{checked ? <Check size={size - 4} /> : <Minus size={size - 4} />}</span>}
     </span>
   )
 }
@@ -212,7 +213,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                 <div key={operator}>
                   <div
                     onClick={toggleOperator}
-                    className="eyebrow"
+                    className="heading-sm"
                     style={{ padding: 'var(--space-md) var(--space-xl) var(--space-xs)', background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider-subtle)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                   >
                     <CheckBox checked={allChecked} partial={someChecked} size={14} />
@@ -281,7 +282,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                       <div key={zone}>
                         <div
                           onClick={() => setSelectedSubstations(prev => toggleAll(prev, zoneSubs.map(s => s.siteId)))}
-                          className="eyebrow"
+                          className="heading-sm"
                           style={{ position: 'sticky', top: 28, zIndex: 1, padding: 'var(--space-sm) var(--space-xl) var(--space-xs) var(--space-2xl)', background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider-subtle)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                         >
                           <CheckBox checked={allChecked} partial={someChecked} size={14} />

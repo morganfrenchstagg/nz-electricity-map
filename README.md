@@ -20,7 +20,7 @@ Or put it in `app/.env.local` (gitignored) to keep it set. A local `wrangler dev
 
 ### Embedded solar
 
-The generation chart adds an estimate of embedded (rooftop and other undispatched, also called distributed) solar, as a fuel of its own, Embedded Solar (est.), from [nz-solar-stats-api](https://github.com/morganfrenchstagg/nz-solar-stats-api)'s `/solar-production/{date}`. It uses the production deployment by default. To use another, such as a local copy, set `VITE_SOLAR_API_BASE` to its root URL:
+The generation chart adds an estimate of embedded (rooftop and other undispatched, also called distributed) solar, as a fuel of its own, Embedded solar (est.), from [nz-solar-stats-api](https://github.com/morganfrenchstagg/nz-solar-stats-api)'s `/solar-production/{date}`. It uses the production deployment by default. To use another, such as a local copy, set `VITE_SOLAR_API_BASE` to its root URL:
 
 ```
 VITE_SOLAR_API_BASE=http://localhost:8787 npm run dev

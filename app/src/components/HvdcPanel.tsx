@@ -42,7 +42,7 @@ export default function HvdcPanel({ node, onClear, dateMode, onDateModeChange, r
   const dataError = aggregatePeriod ? aggregates.error : error
 
   const header = (
-    <NodeTitle node={node} title="HVDC Inter-Island Link" compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle="Benmore to Haywards" />
+    <NodeTitle node={node} title="HVDC inter-island link" compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle="Benmore to Haywards" />
   )
 
   return (

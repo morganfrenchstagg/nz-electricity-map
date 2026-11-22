@@ -9,16 +9,14 @@ interface SeriesButtonProps {
   onClick: () => void
   // Shift-click: shows this series alone
   onIsolate?: () => void
-  // For colour var(--color-reference): dark text on it while it's showing, as it's near white in dark mode
-  reference?: boolean
   children: ReactNode
 }
 
-// A series toggle button: filled with the series colour when it's showing
-export function SeriesButton({ colour, active, onClick, onIsolate, reference = false, children }: SeriesButtonProps) {
+// A series toggle, as a legend entry: its swatch is filled while the series is showing
+export function SeriesButton({ colour, active, onClick, onIsolate, children }: SeriesButtonProps) {
   return (
     <button
-      className={reference ? 'series-button series-button--reference' : 'series-button'}
+      className="series-button"
       aria-pressed={active}
       // Stops shift-click extending the page's text selection
       onMouseDown={e => { if (e.shiftKey && onIsolate) e.preventDefault() }}
@@ -93,7 +91,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
       {expanded || hiddenCount <= 0 ? items : items.slice(0, fitCount)}
       {hiddenCount > 0 && (
         <button onClick={() => setExpanded(v => !v)} className={NEUTRAL_CLASS}>
-          {expanded ? 'Show fewer ▲' : `+${hiddenCount} more ▼`}
+          {expanded ? 'Show fewer' : `+${hiddenCount} more`}
         </button>
       )}
       {trail}
@@ -103,7 +101,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
           {lead}
           {items}
           {trail}
-          <button className={NEUTRAL_CLASS}>{`+${items.length} more ▼`}</button>
+          <button className={NEUTRAL_CLASS}>{`+${items.length} more`}</button>
         </div>
       </div>
     </div>

@@ -168,7 +168,7 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
   const ucUnits = generator.site ? ucUnitsForSite(pipeline, generator.site) : []
   const ucSection = ucUnits.length > 0 ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:${totalRow ? '2px' : 'var(--space-md)'}">
-      <div class="eyebrow" style="margin-bottom:4px">Under Construction</div>
+      <div class="heading-sm" style="margin-bottom:4px">Under construction</div>
       ${ucUnits.map((u, i) => {
         const label = u.locationDescription ?? `Unit ${i + 1}`
         const stats = renderUnitStats(u)
@@ -229,7 +229,7 @@ export function hvdcPopupHtml(transfer: HvdcTransfer): string {
   const textColour = isFlowing ? 'var(--color-text-strong)' : 'var(--color-text-faint)'
   return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
     <div style="margin-bottom:6px">
-      <div style="font-weight:600">HVDC Inter-Island Link</div>
+      <div style="font-weight:600">HVDC inter-island link</div>
       <div style="color:var(--color-text-muted)">Benmore to Haywards</div>
     </div>
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm)">
@@ -319,7 +319,7 @@ export function substationPopupHtml(substation: Substation, data: RecentData | n
     ${codes.length > 0 ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:6px">${busRows}</div>
     ${genRows ? `<div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
-      <div class="eyebrow" style="margin-bottom:4px">Generation</div>
+      <div class="heading-sm" style="margin-bottom:4px">Generation</div>
       ${genRows}
     </div>` : ''}
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px;display:flex;justify-content:space-between;align-items:center">

@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import type { ReactNode, Ref } from 'react'
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import { setTheme, useTheme } from '../theme'
+import { Dots, Moon, Sun } from './icons'
 
 const InfoModal = lazy(() => import('./InfoModal'))
 
@@ -60,7 +61,7 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
         {hasHeaderMenu({ isMobile, expanded, panelWidth }) ? (
           <MenuTrigger>
             <Button className="button-secondary" style={isMobile ? { padding: 'var(--space-sm) var(--space-lg)' } : undefined} aria-label="More">
-              <DotsIcon />
+              <Dots />
             </Button>
             <Popover placement="bottom end" offset={4} className="popover">
               <Menu aria-label="More" className="menu">
@@ -81,7 +82,7 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
               </button>
             ))}
             <button onClick={() => setTheme(otherTheme)} className="button-secondary" aria-label={themeLabel} title={themeLabel}>
-              {otherTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
+              {otherTheme === 'dark' ? <Moon /> : <Sun />}
             </button>
             <button onClick={() => setInfoOpen(true)} className="button-secondary" aria-label="About this site">
               About this site
@@ -124,33 +125,5 @@ export function PanelToolbar({ toolbarRef, compact, children }: { toolbarRef: Re
     <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'wrap' : 'nowrap' }}>
       {children}
     </div>
-  )
-}
-
-// The theme toggle's icons, for the theme it switches to
-function MoonIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
-      <path d="M11.5 8.2A5 5 0 0 1 4.8 1.5a5 5 0 1 0 6.7 6.7Z" />
-    </svg>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
-      <circle cx="6.5" cy="6.5" r="2.3" fill="currentColor" stroke="none" />
-      <path d="M6.5 0.9v1.3M6.5 10.8v1.3M0.9 6.5h1.3M10.8 6.5h1.3M2.54 2.54l.92.92M9.54 9.54l.92.92M2.54 10.46l.92-.92M9.54 3.46l.92-.92" />
-    </svg>
-  )
-}
-
-function DotsIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
-      <circle cx="2" cy="6.5" r="1.25" />
-      <circle cx="6.5" cy="6.5" r="1.25" />
-      <circle cx="11" cy="6.5" r="1.25" />
-    </svg>
   )
 }

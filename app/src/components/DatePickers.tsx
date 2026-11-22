@@ -7,8 +7,9 @@ import {
 } from 'react-aria-components'
 import { parseDate } from '@internationalized/date'
 import type { CalendarDate } from '@internationalized/date'
-import { CalendarIcon, LOCALE, rangeLabel } from './dateLabels'
+import { LOCALE, rangeLabel } from './dateLabels'
 import type { Range } from './dateLabels'
+import { CalendarIcon, ChevronLeft, ChevronRight } from './icons'
 
 // The pickers are built on React Aria's, the unstyled base of React Spectrum's.
 // Dates come and go as ISO "YYYY-MM-DD" strings, like DateMode's.
@@ -143,7 +144,7 @@ interface DateRangeFieldProps {
 function DateRangeField({ label, ...props }: DateRangeFieldProps) {
   return (
     <DateField {...props} validationBehavior="aria" shouldForceLeadingZeros className="date-range-field">
-      <Label className="eyebrow">{label}</Label>
+      <Label className="heading-sm">{label}</Label>
       <DateInput className="date-field date-field-input">{s => <DateSegment segment={s} className="date-segment" />}</DateInput>
     </DateField>
   )
@@ -229,7 +230,7 @@ function CalendarHeader() {
 
   return (
     <header className="calendar-header">
-      <Button slot="previous" className="calendar-nav">‹</Button>
+      <Button slot="previous" className="calendar-nav" aria-label="Previous month"><ChevronLeft size={14} /></Button>
       <select
         aria-label="Month"
         value={focusedDate.month}
@@ -248,7 +249,7 @@ function CalendarHeader() {
       >
         {years.map(y => <option key={y} value={y}>{y}</option>)}
       </select>
-      <Button slot="next" className="calendar-nav">›</Button>
+      <Button slot="next" className="calendar-nav" aria-label="Next month"><ChevronRight size={14} /></Button>
     </header>
   )
 }

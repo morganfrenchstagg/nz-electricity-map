@@ -1,6 +1,7 @@
 import { lazy, startTransition, Suspense, useState } from 'react'
 import type { DatePickerProps, DateRangePickerProps } from './DatePickers'
-import { CalendarIcon, rangeLabel } from './dateLabels'
+import { rangeLabel } from './dateLabels'
+import { CalendarIcon } from './icons'
 
 // DatePickers, with React Aria's calendars and date fields (about a third of
 // it), loads once a picker is wanted rather than with the page. Until then each

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown, Close } from './icons'
 
 interface Props {
   // Shown while nothing is picked
@@ -45,10 +46,11 @@ export default function FilterDropdown({ label, countLabel = (n) => `${label}: $
         {isActive && (
           <span
             onClick={e => { e.stopPropagation(); onClear() }}
-            style={{ opacity: 0.5, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}
-          >✕</span>
+            aria-label={`Clear ${label}`}
+            style={{ opacity: 0.6 }}
+          ><Close size={11} /></span>
         )}
-        <span style={{ opacity: 0.4, fontSize: 'var(--font-size-xs)' }}>▾</span>
+        <span style={{ opacity: 0.5 }}><ChevronDown size={12} /></span>
       </button>
       {open && (
         <div className="popover" style={{ top: 'calc(100% + 4px)', [align]: 0, zIndex: 50, minWidth: 200, maxHeight: 260, overflowY: 'auto' }}>
@@ -59,7 +61,7 @@ export default function FilterDropdown({ label, countLabel = (n) => `${label}: $
               <div key={opt} onClick={() => onToggle(opt)} className={checked ? 'menu-item is-selected' : 'menu-item'}>
                 {swatchStyle && <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, ...swatchStyle }} />}
                 <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-text)' : 'var(--color-text)' }}>{opt}</span>
-                {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
+                {checked && <Check size={12} />}
               </div>
             )
           })}

@@ -27,6 +27,7 @@ import ChartSettingsMenu from './ChartSettingsMenu'
 import { DatePicker } from './LazyDatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
+import { ChevronLeft, ChevronRight } from './icons'
 
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
@@ -452,7 +453,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 className="stepper-button"
                 aria-label="Previous trading period"
               >
-                ◀
+                <ChevronLeft size={12} />
               </button>
               <select
                 value={tradingPeriod}
@@ -468,7 +469,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 className="stepper-button"
                 aria-label="Next trading period"
               >
-                ▶
+                <ChevronRight size={12} />
               </button>
             </div>
             {offersLoading && <span className="status-text">Loading…</span>}
