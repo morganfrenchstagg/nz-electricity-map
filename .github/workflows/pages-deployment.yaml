@@ -7,6 +7,11 @@ on:
       - 'frontend/**'
       - 'app/**'
       - '.github/workflows/pages-deployment.yaml'
+  # Daily, so a station added to the API's definitions gets its page (see
+  # app/build/pages.ts)
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
 jobs:
   deploy:
     runs-on: ubuntu-latest

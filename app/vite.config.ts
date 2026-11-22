@@ -1,12 +1,15 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import optimizeLocales from '@react-aria/optimize-locales-plugin'
+import { stationPages } from './build/pages'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     // Leave out the date pickers' strings in languages other than English
     { ...optimizeLocales.vite({ locales: ['en-US'] }), enforce: 'pre' },
+    // A page for each station, and the sitemap, from the API's definitions
+    stationPages(loadEnv(mode, '.', 'VITE_').VITE_API_BASE),
   ],
   base: '/',
   build: {
@@ -39,4 +42,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
