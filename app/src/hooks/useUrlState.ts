@@ -16,7 +16,8 @@ export type ViewMode = 'generation' | 'offers'
 //                   any node while the pipeline is open. A single station's
 //                   ?node=generator:HLY, substation:OTA or hvdc, from older links,
 //                   opens its page.
-//   ?mode=          today | recent | last90 | lastYear | 5y | all, with
+//   ?mode=          today | recent | last90 | lastYear | 5y | all (today by
+//                   default, or recent, the last 3 days, on a station's page), with
 //   ?aggregation=   a view's totals when they aren't its default: weekly for
 //                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
 //                   for All, or instead
@@ -55,11 +56,12 @@ function readUrl(): UrlState {
   const from = day('from'), to = day('to'), date = day('date')
   // The 30d view was dropped for 90d, which its old links open instead
   const mode = p.get('mode') === 'last30' ? 'last90' : p.get('mode')
-  const period = PERIOD_MODES.find(m => m === mode) ?? 'today'
+  // A station's page opens at its last 3 days, and the rest of the site at today
+  const pathNode = nodeParamOfPath(window.location.pathname)
+  const period = PERIOD_MODES.find(m => m === mode) ?? (pathNode ? 'recent' : 'today')
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)
   const fuels = p.get('fuels')
-  const pathNode = nodeParamOfPath(window.location.pathname)
   return {
     node: pathNode ?? p.get('node'),
     nodePath: pathNode ? window.location.pathname : null,
