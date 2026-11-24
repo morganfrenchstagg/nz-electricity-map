@@ -11,6 +11,8 @@ export interface Bar {
   value: number
   // Only partly covered, e.g. the current year so far: drawn faded
   partial?: boolean
+  // What its tooltip calls it, if not its label, e.g. "2026 so far"
+  title?: string
 }
 
 const W = 720, H = 220
@@ -60,7 +62,7 @@ export function barChart(bars: Bar[], { colour, unit, label, format }: { colour:
   const marks = bars.map((b, i) => {
     const x = PLOT.left + i * band
     const h = Math.max(0, yOf(0) - yOf(Math.max(0, b.value)))
-    const tip = `${b.label}: ${format(b.value)}${b.partial ? ' (so far)' : ''}`
+    const tip = `${b.title ?? b.label}: ${format(b.value)}`
     return `<g><title>${esc(tip)}</title><rect x="${round(x)}" y="${PLOT.top}" width="${round(band)}" height="${plotH}" fill="transparent"/>`
       + (h > 0 ? `<path d="${barPath(round(x + (band - barW) / 2), round(yOf(0) - h), round(barW), round(h))}" style="fill:${esc(colour)}"${b.partial ? ' fill-opacity="0.45"' : ''}/>` : '')
       + (labelled(i) ? `<text x="${round(x + band / 2)}" y="${H - 8}" text-anchor="middle">${esc(b.label)}</text>` : '')
