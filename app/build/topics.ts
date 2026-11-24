@@ -3,7 +3,7 @@ import { fuelColour } from '../src/utils/colours'
 import { isCharging, isDecommissioned } from '../src/utils/generators'
 import { generatorPath, SITE_NAME, slugify } from '../src/utils/stationPaths'
 import {
-  breadcrumbs, esc, graph, gwh, island, link, linkList, list, mw, ordinal, pct, primaryFuel, sortByName, SOURCES,
+  breadcrumbs, esc, fitDescription, graph, gwh, island, link, linkList, list, mw, ordinal, pct, primaryFuel, sortByName, SOURCES,
   table, unitFuel, webPage,
 } from './html'
 import type { Page } from './html'
@@ -159,9 +159,9 @@ function fuelPage(topic: FuelTopic, ctx: Context): Page | null {
       + (live.length > 1 ? `. The largest are ${list(live.slice(0, 3).map((s) => s.g.name))}.` : live.length ? `: ${live[0].g.name}.` : '.'),
     yearly && stats && current >= 0 ? `So far in ${stats.years[current]}, they've generated ${gwh(yearly[current])}, ${pct(yearly[current] / total[current])} of the grid's generation.` : '',
   ].filter(Boolean).join(' ')
-  const description = `${topic.heading}: ${plural(live.length, topic.one, topic.several)} with ${mw(capacity)} of capacity`
-    + (yearly && year !== null ? `, generating ${pct(yearly[full] / total[full])} of the grid's electricity in ${year}` : '')
-    + '. Yearly generation since 1997, and every station.'
+  const description = fitDescription(`${topic.heading}: ${mw(capacity)} across ${plural(live.length, topic.one, topic.several)}`
+    + (yearly && year !== null ? `, ${pct(yearly[full] / total[full])} of the grid's generation in ${year}` : '') + '.',
+  'Every station, and yearly generation since 1997.')
   const from = yearly ? firstYear(yearly) : 0
 
   const content = `<p class="prerender__lead">${esc(lead)}</p>
@@ -196,8 +196,9 @@ function operatorPage(operator: string, ctx: Context, rank: Map<string, number>)
     `${operator} operates ${plural(live.length, 'power station', 'power stations')} on New Zealand's national grid, with ${mw(capacity)} of capacity in service${mix.length > 1 ? `: ${list(mix)}` : mix.length ? ` (${mix[0].replace(/^.* of /, '')})` : ''}.`,
     yearly && year !== null ? `In ${year}, its stations generated ${gwh(yearly[full])}, ${pct(yearly[full] / ctx.total[full])} of the grid's generation${place ? `, the ${place === 1 ? '' : `${ordinal(place)} `}most of any operator` : ''}.` : '',
   ].filter(Boolean).join(' ')
-  const description = `${operator}'s ${plural(live.length, 'power station', 'power stations')} in New Zealand, with ${mw(capacity)} of capacity`
-    + (yearly && year !== null ? `, and their ${gwh(yearly[full])} of generation in ${year}` : '') + ': every station, and yearly generation since 1997.'
+  const description = fitDescription(`${operator} operates ${plural(live.length, 'power station', 'power stations')} in New Zealand with ${mw(capacity)} of capacity`
+    + (yearly && year !== null ? `, generating ${gwh(yearly[full])} in ${year}` : '') + '.',
+  'Every station, and yearly generation since 1997.')
   const from = yearly ? firstYear(yearly) : 0
 
   const content = `<p class="prerender__lead">${esc(lead)}</p>
