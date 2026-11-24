@@ -33,6 +33,13 @@ export interface Page {
   standalone?: boolean
 }
 
+// A page's description: Bing flags one over 160 characters, and search engines
+// cut it short there, so the second sentence goes in only when it fits
+export function fitDescription(about: string, more: string): string {
+  const both = `${about} ${more}`
+  return both.length <= 160 ? both : about
+}
+
 export function esc(text: string | number): string {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

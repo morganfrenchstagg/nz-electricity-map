@@ -3,6 +3,7 @@ import type { Generator, Substation, Unit } from '../src/types'
 import { buildPages, esc, pageFile, renderPage, sitemap } from './pages'
 import type { Definitions } from './pages'
 import { barChart } from './charts'
+import { fitDescription } from './html'
 import { parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
 import type { AnnualAggregates } from './stats'
 
@@ -231,6 +232,24 @@ describe('pages with yearly figures', () => {
     expect(topic).not.toContain('modulepreload')
     expect(topic).toContain('<link rel="stylesheet" href="/assets/index.css">')
     expect(renderPage(template, page('/generator/manapouri'))).toContain('script type="module"')
+  })
+})
+
+describe('descriptions', () => {
+  it('adds the second sentence only when it fits in 160 characters', () => {
+    expect(fitDescription('A short one.', 'And more.')).toBe('A short one. And more.')
+    expect(fitDescription(`${'x'.repeat(150)}.`, 'And more.')).toBe(`${'x'.repeat(150)}.`)
+  })
+
+  it('keeps every page\'s description within 160 characters', () => {
+    for (const page of [...buildPages(defs, []), ...buildPages(withHydro, [], stats)]) {
+      expect(page.description.length, page.path).toBeLessThanOrEqual(160)
+    }
+  })
+
+  it('ends a station\'s description with what its page shows, when it fits', () => {
+    expect(buildPages(withHydro, [], stats).find((p) => p.path === '/generator/huntly')!.description)
+      .toBe('Huntly is a 1,269 MW gas and coal power station in the North Island, operated by Genesis Energy. See its live and historical generation, offers and prices.')
   })
 })
 
