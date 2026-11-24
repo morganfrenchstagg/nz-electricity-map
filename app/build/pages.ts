@@ -381,23 +381,22 @@ async function loadDefinitions(apiBase?: string): Promise<Definitions> {
   return { generators, substations }
 }
 
-// The yearly totals come from the API itself. Without them the pages are
-// written without their yearly figures, rather than fail the deploy.
-async function loadStats(apiBase: string | undefined, warn: (message: string) => void): Promise<Stats | null> {
-  const url = `${(apiBase ?? API_URL).replace(/\/$/, '')}/dispatch/aggregates/annual`
-  try {
-    const stats = parseStats(await getJson<AnnualAggregates>(url), nzYear(new Date()))
-    console.log(`station-pages: yearly figures for ${stats.years[0]}–${stats.years[stats.years.length - 1]}`)
-    return stats
-  } catch (error) {
-    warn(`writing the pages without yearly figures: ${error instanceof Error ? error.message : String(error)}`)
-    return null
-  }
+// The API at its workers.dev address, which isn't behind frenchsta.gg's bot
+// protection, so GitHub's runners can reach it
+const BUILD_API_URL = 'https://nz-electricity-stats-api.morgan6725.workers.dev/v1'
+
+// The yearly totals come from the API itself
+async function loadStats(apiBase?: string): Promise<Stats> {
+  const url = `${(apiBase ?? BUILD_API_URL).replace(/\/$/, '')}/dispatch/aggregates/annual`
+  const stats = parseStats(await getJson<AnnualAggregates>(url), nzYear(new Date()))
+  console.log(`station-pages: yearly figures for ${stats.years[0]}–${stats.years[stats.years.length - 1]}`)
+  return stats
 }
 
 // Writes every page, and the sitemap, from the built index.html, the
-// definitions and the yearly totals. The build fails if the definitions can't
-// be fetched, rather than deploy without the station pages.
+// definitions and the yearly totals. The build fails if either can't be
+// fetched, so a deploy never replaces the pages with ones that lack their
+// figures, or drops the pages that are nothing but figures.
 export function stationPages(apiBase?: string): Plugin {
   return {
     name: 'station-pages',
@@ -406,10 +405,8 @@ export function stationPages(apiBase?: string): Plugin {
     async generateBundle(_options, bundle) {
       const index = bundle['index.html']
       if (!index || index.type !== 'asset') throw new Error('station-pages: no index.html in the bundle')
-      const [defs, stats] = await Promise.all([
-        loadDefinitions(apiBase).catch((error: Error) => { throw new Error(`station-pages: ${error.message}`) }),
-        loadStats(apiBase, (message) => this.warn(message)),
-      ])
+      const [defs, stats] = await Promise.all([loadDefinitions(apiBase), loadStats(apiBase)])
+        .catch((error: Error) => { throw new Error(`station-pages: ${error.message}`) })
       if (!defs.generators?.length || !defs.substations?.length) throw new Error('station-pages: the definitions have no generators or substations')
 
       const template = String(index.source)
