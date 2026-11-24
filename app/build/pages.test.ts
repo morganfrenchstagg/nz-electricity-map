@@ -174,6 +174,8 @@ describe('pages with yearly figures', () => {
     expect(body).toContain('So far in 2026, it&#39;s generated 4,000 GWh.'.replace('&#39;', "'"))
     expect(body).toContain('<td>2026 so far</td><td>4,000 GWh</td>')
     expect(body).toContain('<td>1997 (Aug–Dec)</td><td>2,000 GWh</td>')
+    expect(body).toContain('<title>1997 (Aug–Dec): 2,000 GWh</title>')
+    expect(body).toContain('<title>2026 so far: 4,000 GWh</title>')
   })
 
   it('leaves out a capacity factor when its capacity changed during the year', () => {
@@ -233,7 +235,7 @@ describe('pages with yearly figures', () => {
 })
 
 describe('barChart', () => {
-  const svg = barChart([{ label: '2024', value: 12000 }, { label: '2025', value: 0 }, { label: '2026', value: 6000, partial: true }], {
+  const svg = barChart([{ label: '2024', value: 12000 }, { label: '2025', value: 0 }, { label: '2026', value: 6000, partial: true, title: '2026 so far' }], {
     colour: 'red', unit: 'GWh', label: 'Generation each year', format: (v) => `${v} GWh`,
   })
 
@@ -244,7 +246,7 @@ describe('barChart', () => {
 
   it('gives each bar its value as a tooltip, and the chart a label', () => {
     expect(svg).toContain('<title>2024: 12000 GWh</title>')
-    expect(svg).toContain('<title>2026: 6000 GWh (so far)</title>')
+    expect(svg).toContain('<title>2026 so far: 6000 GWh</title>')
     expect(svg).toContain('role="img" aria-label="Generation each year"')
   })
 

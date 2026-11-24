@@ -55,6 +55,6 @@ export function yearlyTable(stats: Stats, columns: Column[], from = 0): string {
 
 export function yearlyChart(stats: Stats, values: number[], from: number, opts: { colour: string; unit: string; label: string; format: (v: number) => string }): string {
   return barChart(stats.years.slice(from).map((year, j) => ({
-    label: String(year), value: values[from + j], partial: stats.partial.has(year),
+    label: String(year), value: values[from + j], partial: stats.partial.has(year), title: yearLabel(stats, from + j),
   })), opts)
 }
