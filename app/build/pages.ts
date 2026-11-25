@@ -199,17 +199,20 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
   const from = values ? firstYear(values) : 0
   // Left out for a station with nothing on record yet
   const yearly = stats && values && from < values.length ? { stats, values } : null
-  const description = yearly
-    ? `${g.name}'s electricity generation every year since ${yearly.stats.years[from]}, its share of New Zealand's grid generation, and its records, from its best year to when it first generated.`
-    : `${g.name}'s electricity generation by year, quarter and month, and its records, from its best year to when it first generated.`
+  const since = yearly ? ` every year since ${yearly.stats.years[from]}` : ' by year, quarter and month'
+  const records = ' and its records, from its best year to when it first generated'
+  // Shorter than the page's intro, to stay within 160 characters (see fitDescription)
+  // for the longest name, Te Puna Mauri ō Omaru's
+  const description = `${g.name}'s generation${since}${yearly ? ", its share of New Zealand's grid" : ','}${records}.`
+  const intro = `${g.name}'s electricity generation${since}${yearly ? ", its share of New Zealand's grid generation," : ','}${records}.`
   const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: station, path: stationPath }, { name: 'Historical generation', path }])
-  const records = yearly ? historicRecords(g, ctx, yearly.values, from) : []
+  const facts = yearly ? historicRecords(g, ctx, yearly.values, from) : []
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(description)} The live map charts it by year, quarter or month back to August 1997, with when it first generated and its best year and month.</p>
-${records.length ? `<h2>Records</h2>
-<dl class="prerender__facts">${records.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+<p>${esc(intro)} The live map charts it by year, quarter or month back to August 1997, with when it first generated and its best year and month.</p>
+${facts.length ? `<h2>Records</h2>
+<dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
 ${yearly ? `<h2>Generation by year</h2>
 ${yearlyChart(yearly.stats, yearly.values, from, { colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh })}
 ${yearlyTable(yearly.stats, [
