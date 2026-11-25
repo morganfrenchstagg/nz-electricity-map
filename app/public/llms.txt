@@ -11,8 +11,13 @@ NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com
 ## Pages
 
 - [Home](https://electricitymap.frenchsta.gg/): the map, the national generation mix, and links to every station
-- [Power stations](https://electricitymap.frenchsta.gg/generator/huntly): a page for each at /generator/<name>, e.g. Huntly, with its operator, fuel, capacity, units and commissioning dates, opening its live and historical generation, offers and prices
-- [Substations](https://electricitymap.frenchsta.gg/substation/otahuhu): a page for each at /substation/<name>, e.g. Ōtāhuhu, with its demand and nodal prices
+- [Power stations](https://electricitymap.frenchsta.gg/generator/huntly): a page for each at /generator/<name>, e.g. Huntly, with its operator, fuel, capacity, units, commissioning dates and yearly generation (with its share of the grid's and capacity factor), opening its live and historical generation, offers and prices
+- [Power station histories](https://electricitymap.frenchsta.gg/generator/huntly/historic): a page for each at /generator/<name>/historic, with its records (its best year, its total on record and when it's on record from) and its generation and share of the grid's every year, opening its generation by year, quarter or month back to August 1997, with when it first generated and its best year and month
+- [Substations](https://electricitymap.frenchsta.gg/substation/otahuhu): a page for each at /substation/<name>, e.g. Ōtāhuhu, with its yearly demand, opening its live demand and nodal prices
+- [How renewable is New Zealand's electricity?](https://electricitymap.frenchsta.gg/renewable-energy): the grid's renewable share every year since 1997, by fuel
+- [By fuel](https://electricitymap.frenchsta.gg/fuel/hydro): a page for each at /fuel/<fuel> (hydro, geothermal, wind, solar, gas, coal, diesel, batteries), with its yearly generation and share, capacity and every station
+- [By operator](https://electricitymap.frenchsta.gg/operator/meridian-energy): a page for each company with more than one station at /operator/<name>, e.g. Meridian Energy, with its capacity by fuel, yearly generation and stations
+- [By island](https://electricitymap.frenchsta.gg/island/north-island): /island/north-island and /island/south-island, with generation by fuel, demand and HVDC flows
 - [HVDC Inter-Island link](https://electricitymap.frenchsta.gg/hvdc): flows north and south between Benmore and Haywards, and transfer limits
 - [Generation pipeline](https://electricitymap.frenchsta.gg/pipeline): new generation being built or committed
 - [Sitemap](https://electricitymap.frenchsta.gg/sitemap.xml): every page
@@ -32,6 +37,7 @@ NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com
   - `/definitions`: every generator (its units, fuel, capacity, operator, location and commissioning dates) and substation
   - `/dispatch/recent`: the latest days of five-minute generation by unit, and prices by node
   - `/dispatch/YYYY-MM-DD`: a past day's
+  - `/dispatch/aggregates/annual`: each node's MWh every year since 1997 (generating units' nodes are generation, buses' are negative where power was taken)
   - `/offers/YYYY-MM-DD`: generators' offers for a day
   - `/outages`: Transpower's planned outages
 - Embedded (rooftop) solar estimates: https://api-solar.electricitymap.frenchsta.gg/solar-production/YYYY-MM-DD

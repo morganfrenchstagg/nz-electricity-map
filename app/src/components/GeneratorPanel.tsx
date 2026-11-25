@@ -28,6 +28,8 @@ import { DatePicker } from './LazyDatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
 import { ChevronLeft, ChevronRight } from './icons'
+import GenerationRecords from './GenerationRecords'
+import { isCharging } from '../utils/generators'
 
 const OutageModal = lazy(() => import('./OutageModal'))
 const loadOfferChart = () => import('./OfferChart')
@@ -221,6 +223,15 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       .filter(code => chartData.codes.includes(code))
       .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
   }, [chartData, effectiveCodes])
+
+  // The units shown that generate, which the records are found for: not a battery's charging unit
+  const recordCodes = useMemo(
+    () => allCodes.filter((code) => {
+      const unit = findUnit(code)
+      return effectiveCodes.has(code) && !(unit && isCharging(unit))
+    }),
+    [allCodes, effectiveCodes, findUnit],
+  )
 
   // MWh over the displayed period, for the units shown
   const totalGenerationMWh = useMemo(() => {
@@ -518,6 +529,15 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           />
         )}
       </div>
+      {viewMode === 'generation' && dateMode.kind === 'all' && (dataLoading || allCodes.length > 0) && (
+        <GenerationRecords
+          queryNodes={adapter.queryNodes}
+          movedNodes={adapter.movedNodes}
+          codes={recordCodes}
+          someUnits={effectiveCodes.size < allCodes.length}
+          chartLoading={dataLoading}
+        />
+      )}
       <Suspense fallback={null}>
         {outageModalOpen && (
           <OutageModal

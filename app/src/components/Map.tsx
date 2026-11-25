@@ -27,6 +27,8 @@ const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
+// How far in the map opens on a generator's page, enough to see the station and what's around it
+const OPENED_GENERATOR_ZOOM = 11
 
 // Hover areas wider than the HVDC's lines: the overhead line and the Cook Strait cables
 const HVDC_HOVER_LAYERS = ['hvdc-line-hover-layer', 'hvdc-cables-hover-layer']
@@ -84,6 +86,9 @@ interface Props {
   onHvdcClick: () => void
   onClear: () => void
   selectedNode: SelectedNode
+  // The generator the page was opened at (see useUrlState). The map zooms in on it,
+  // once: as the map's made, or as it's found. A node picked any other way keeps the zoom.
+  openedGenerator: GeneratorNode | null
   leftPanelOpen: boolean
   panelWidth: number
   // Where the map opens beside the panel, in place of INITIAL_CENTER and INITIAL_ZOOM
@@ -95,9 +100,11 @@ interface Props {
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, onClear, selectedNode, leftPanelOpen, panelWidth, initialView, recentData, dateMode, isMobile = false }: Props) {
+export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, onClear, selectedNode, openedGenerator, leftPanelOpen, panelWidth, initialView, recentData, dateMode, isMobile = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  // Whether the map has zoomed in on openedGenerator
+  const zoomedInRef = useRef(false)
   const [showAerial, setShowAerial] = useState(false)
   const { generators, substations } = useDefinitions()
   const generatorsRef = useRef<Generator[]>(generators)
@@ -155,11 +162,14 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   useEffect(() => {
     if (!containerRef.current) return
 
+    // On mobile the map's only made once the panel's closed, by when the generator's been found
+    const opened = openedGenerator && { center: selectionPoints(openedGenerator)[0], zoom: OPENED_GENERATOR_ZOOM }
+    zoomedInRef.current = !!opened
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: STYLE_URL,
-      center: initialView?.center ?? INITIAL_CENTER,
-      zoom: initialView?.zoom ?? INITIAL_ZOOM,
+      center: opened?.center ?? initialView?.center ?? INITIAL_CENTER,
+      zoom: opened?.zoom ?? initialView?.zoom ?? INITIAL_ZOOM,
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION_HTML },
     })
     // Compact attribution starts expanded until the first drag; start on its ⓘ button
@@ -407,7 +417,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     mapRef.current = map
     return () => map.remove()
-    // The map is built once; initialView is only where it starts
+    // The map is built once; initialView and openedGenerator are only where it starts
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -481,11 +491,17 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     // The HVDC runs the length of the South Island, so the map stays where it was clicked
     if (selectedNode && selectedNode.kind !== 'hvdc') {
       // A selection of several is centred on the first
-      map.easeTo({ center: selectionPoints(selectedNode)[0], padding: panelPadding, duration: isMobile ? 0 : 400 })
+      const center = selectionPoints(selectedNode)[0]
+      if (selectedNode === openedGenerator && !zoomedInRef.current) {
+        zoomedInRef.current = true
+        map.jumpTo({ center, zoom: OPENED_GENERATOR_ZOOM, padding: panelPadding })
+      } else {
+        map.easeTo({ center, padding: panelPadding, duration: isMobile ? 0 : 400 })
+      }
     } else {
       map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }
-  }, [selectedNode, leftPanelOpen, isMobile])
+  }, [selectedNode, openedGenerator, leftPanelOpen, isMobile])
 
   useEffect(() => {
     const map = mapRef.current
