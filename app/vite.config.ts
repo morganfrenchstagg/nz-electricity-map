@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import optimizeLocales from '@react-aria/optimize-locales-plugin'
 import { stationPages } from './build/pages'
 
+// An entry's absolute path, from this file's folder, whatever folder the build runs in
+const entry = (path: string) => decodeURIComponent(new URL(path, import.meta.url).pathname)
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
@@ -19,6 +22,12 @@ export default defineConfig(({ mode }) => ({
     outDir: '../frontend',
     emptyOutDir: false,
     rolldownOptions: {
+      input: {
+        index: entry('./index.html'),
+        // The tooltips of the charts on the pages that don't load the app,
+        // which the station-pages plugin adds to them (see build/pages.ts)
+        chartTooltip: entry('./src/chartTooltip.ts'),
+      },
       output: {
         // Large, rarely-changing vendor libraries get their own chunks, so app
         // changes don't invalidate them in the browser cache

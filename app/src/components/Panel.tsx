@@ -8,13 +8,10 @@ const InfoModal = lazy(() => import('./InfoModal'))
 
 // Narrowest panel with room for the grid panel's title and every header button.
 // Narrower panels, and mobile, put all but Close in a menu.
-const MENU_BELOW_PX = 595
+const MENU_BELOW_PX = 680
 
-// One of a panel's own header buttons
-export interface PanelAction {
-  label: string
-  onClick: () => void
-}
+// A header button, or a link to one of the site's pages outside the app (e.g. Analysis)
+export type PanelAction = { label: string } & ({ onClick: () => void; href?: never } | { href: string; onClick?: never })
 
 // Whether the header gathers its buttons into a menu
 export function hasHeaderMenu({ isMobile = false, expanded, panelWidth }: Pick<PanelProps, 'isMobile' | 'expanded' | 'panelWidth'>) {
@@ -62,7 +59,7 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
             <Popover placement="bottom end" offset={4} className="popover">
               <Menu aria-label="More" className="menu">
                 {actions.map(a => (
-                  <MenuItem key={a.label} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
+                  <MenuItem key={a.label} href={a.href} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
                 ))}
                 <MenuItem onAction={() => setTheme(otherTheme)} className="menu-item">{themeLabel}</MenuItem>
                 <MenuItem onAction={() => setInfoOpen(true)} className="menu-item">About this site</MenuItem>
@@ -72,7 +69,11 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
           </MenuTrigger>
         ) : (
           <>
-            {actions.map(a => (
+            {actions.map(a => a.href ? (
+              <a key={a.label} href={a.href} className="button-secondary">
+                {a.label}
+              </a>
+            ) : (
               <button key={a.label} onClick={a.onClick} className="button-secondary">
                 {a.label}
               </button>

@@ -1,5 +1,5 @@
 import type { Generator, Substation, Unit } from '../src/types'
-import { capacityUnits, SITE_NAME, stationKind } from '../src/utils/stationPaths'
+import { ANALYSIS_PATH, capacityUnits, SITE_NAME, stationKind } from '../src/utils/stationPaths'
 
 // What every built page shares: its type, the site's constants, and helpers for
 // writing its text, HTML and structured data (see pages.ts and topics.ts)
@@ -10,13 +10,29 @@ export const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
 export const CC_BY = 'https://creativecommons.org/licenses/by/4.0/'
 const LINKEDIN = 'https://www.linkedin.com/in/morganfrenchstagg'
 export const CREATOR = { '@type': 'Person', '@id': `${ORIGIN}/#creator`, name: 'Morgan French-Stagg', url: LINKEDIN, sameAs: [LINKEDIN] }
-// Who made the site, at the foot of every page
-export const CREDIT = `<footer class="prerender__credit"><p>${SITE_NAME} is an independent project created by
-<a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>. Questions or feedback?
-Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p></footer>`
-export const SOURCES = `<p>Data from the Electricity Authority's <a href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</a>
+// The data's sources and who made the site, at the foot of every page
+export const FOOTER = `<footer class="prerender__footer">
+<p>Data from the Electricity Authority's <a href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</a>
 and <a href="https://www.transpower.co.nz">Transpower New Zealand</a>, licensed under <a href="${CC_BY}">CC BY 4.0</a>,
-and <a href="https://www.em6.co.nz">em6</a>. This site is independent and isn't endorsed by them.</p>`
+and <a href="https://www.em6.co.nz">em6</a>. This site is independent and isn't endorsed by them.</p>
+<p>${SITE_NAME} is an independent project created by
+<a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>. Questions or feedback?
+Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p>
+</footer>`
+
+// The site's icon, as public/favicon.svg draws it
+const ICON = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path d="M36 6 14 36h15l-3 22 24-32H35z" fill="#fff"/></svg>'
+
+// Atop every page: the site's name, the Analysis section, marked when the page
+// at `path` is in it, and a button into the live map at `live`
+export function header(live: string, path: string): string {
+  const current = path === ANALYSIS_PATH ? ' aria-current="page"' : path.startsWith(`${ANALYSIS_PATH}/`) ? ' aria-current="true"' : ''
+  return `<header class="prerender__header"><div class="prerender__bar">
+<a class="prerender__brand" href="/" aria-label="${SITE_NAME}">${ICON}<span>${SITE_NAME}</span></a>
+<nav class="prerender__nav" aria-label="Sections"><a href="${ANALYSIS_PATH}"${current}>Analysis</a></nav>
+<a class="prerender__cta" href="${esc(live)}">Open live map</a>
+</div></header>`
+}
 
 export interface Definitions {
   generators: Generator[]
@@ -31,6 +47,8 @@ export interface Page {
   body: string
   // A page of its own, without the app, which would replace its content (see renderPage)
   standalone?: boolean
+  // Where its header's Open live map button goes, if not the map as it opens
+  live?: string
 }
 
 // A page's description: Bing flags one over 160 characters, and search engines
@@ -131,10 +149,43 @@ export function linkList(links: { href: string; text: string }[]): string {
   return `<ul class="prerender__links">${links.map((l) => `<li>${link(l.href, l.text)}</li>`).join('')}</ul>`
 }
 
-// A table of rows of HTML (already escaped), its header text escaped here
-export function table(head: string[], rows: string[][]): string {
-  return `<table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+function row(cells: string[], numericFrom: number): string {
+  return `<tr>${cells.map((c, i) => i >= numericFrom ? `<td class="num">${c}</td>` : `<td>${c}</td>`).join('')}</tr>`
 }
+
+// A table of rows of HTML (already escaped), its header text escaped here. The
+// columns from `numericFrom` on are figures, right-aligned. Rows in `more` are
+// shown only once its toggle, labelled `more.label`, is opened (see .prerender__more).
+export function table(head: string[], rows: string[][], numericFrom = head.length, more?: { label: string; rows: string[][] }): string {
+  const thead = `<thead><tr>${head.map((h, i) => `<th${i >= numericFrom ? ' class="num"' : ''}>${esc(h)}</th>`).join('')}</tr></thead>`
+  const body = (rs: string[][], cls = '') => `<tbody${cls}>${rs.map((r) => row(r, numericFrom)).join('')}</tbody>`
+  const html = `<div class="prerender__table"><table>${thead}${body(rows)}${more ? body(more.rows, ' class="prerender__more-rows"') : ''}</table></div>`
+  return more ? `<div class="prerender__more">${html}<details><summary>${esc(more.label)}</summary></details></div>` : html
+}
+
+// A column of figures to one precision, a decimal place when they're all under
+// 100 and none otherwise, with none at all as "–"
+export function figures(values: number[]): string[] {
+  const digits = Math.max(0, ...values.filter((v) => !Number.isNaN(v)).map(Math.abs)) < 100 ? 1 : 0
+  const smallest = 0.5 * 10 ** -digits
+  return values.map((v) => {
+    if (Number.isNaN(v) || Math.abs(v) < 0.05) return '–'
+    if (Math.abs(v) < smallest) return `&lt;${(2 * smallest).toLocaleString('en-NZ')}`
+    return v.toLocaleString('en-NZ', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+  })
+}
+
+// A share in a table or a chart's tooltip, always to a decimal place, with none as "–"
+export function shareText(fraction: number): string {
+  if (Number.isNaN(fraction) || fraction === 0) return '–'
+  if (fraction > 0 && fraction < 0.0005) return '<0.1%'
+  return `${(fraction * 100).toLocaleString('en-NZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+}
+
+export function shareCell(fraction: number): string {
+  return esc(shareText(fraction))
+}
+
 
 export function breadcrumbs(trail: { name: string; path: string }[]): { html: string; jsonLd: object } {
   return {

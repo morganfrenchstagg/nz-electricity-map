@@ -229,6 +229,10 @@ body {
   line-height: 1;
   cursor: pointer;
 }
+/* A link that looks like one, e.g. the grid panel's Analysis */
+a.button-secondary {
+  text-decoration: none;
+}
 
 .button-primary {
   padding: var(--space-sm) var(--space-xl);
@@ -964,32 +968,135 @@ th:hover > * > .sort-arrow.is-active {
   opacity: 0.8;
 }
 
-/* Each page's content as the build writes it (see build/pages.ts), for search
-   engines and AI agents, and for the moment before the app replaces it */
+/* Each page as the build writes it (see build/pages.ts), for search engines and
+   AI agents, and for the moment before the app replaces it. It's read like a
+   document: it grows with its content, so the window scrolls, and its text sits
+   in a column. */
 .prerender {
-  height: 100%;
-  overflow: auto;
-  padding: var(--space-2xl) var(--space-xl);
+  /* Wide enough for every table; paragraphs stay narrower, to be read */
+  --prerender-column: 1040px;
+  min-height: 100%;
   background: var(--color-surface);
   color: var(--color-text);
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
 }
-.prerender > * {
-  max-width: 760px;
+.prerender__bar,
+.prerender__main {
+  max-width: calc(var(--prerender-column) + 2 * var(--space-xl));
+  margin-inline: auto;
+  padding-inline: var(--space-xl);
+}
+.prerender__main a,
+.prerender__footer a {
+  color: var(--color-accent-text);
+  text-underline-offset: 0.15em;
+}
+
+/* The site's name, its sections, and the button into the live map */
+.prerender__header {
+  border-bottom: 1px solid var(--color-divider);
+}
+.prerender__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding-block: var(--space-lg);
+}
+.prerender__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--color-text-strong);
+  font-weight: 600;
+  text-decoration: none;
+}
+.prerender__brand svg {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+.prerender__cta {
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 150ms;
+}
+.prerender__cta:hover {
+  background: color-mix(in oklch, var(--color-accent) 85%, black);
+}
+.prerender__nav {
   margin-left: auto;
-  margin-right: auto;
 }
-.prerender h1, .prerender h2, .prerender h3 {
+.prerender__nav a {
+  padding: var(--space-md) var(--space-xs);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.prerender__nav a:hover {
+  color: var(--color-text-strong);
+}
+/* The section the page is in */
+.prerender__nav a[aria-current] {
+  color: var(--color-text-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.5em;
+}
+/* On a phone, just the icon, so the section and the button fit beside it */
+@media (max-width: 420px) {
+  .prerender__brand span {
+    display: none;
+  }
+}
+
+.prerender__main {
+  padding-block: var(--space-2xl) 0;
+}
+.prerender__main :is(h1, h2, h3) {
   color: var(--color-text-strong);
   line-height: 1.25;
+  text-wrap: balance;
 }
-.prerender a {
-  color: var(--color-accent-text);
+.prerender__main h1 {
+  margin: var(--space-md) 0 var(--space-2xl);
+  font-size: 30px;
+  letter-spacing: -0.01em;
+}
+/* More room above a heading than below it, so it reads as the start of what follows */
+.prerender__main h2 {
+  margin: 48px 0 var(--space-lg);
+  font-size: 20px;
+}
+.prerender__main h3 {
+  margin: var(--space-3xl) 0 var(--space-md);
+  font-size: 16px;
+}
+.prerender__main p {
+  max-width: 68ch;
+  margin: 0 0 var(--space-xl);
 }
 .prerender__crumbs {
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: 13px;
 }
+.prerender__main .prerender__crumbs a {
+  color: inherit;
+}
+.prerender__lead {
+  font-size: 16px;
+}
+
+/* A station's facts */
 .prerender__facts {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -1001,47 +1108,294 @@ th:hover > * > .sort-arrow.is-active {
 .prerender__facts dd {
   margin: 0;
 }
-.prerender table {
-  display: block;
+
+/* Tables span the column, their figures right-aligned with digits of one
+   width, and scroll sideways when they're wider than the screen */
+.prerender__table {
   overflow-x: auto;
-  border-collapse: collapse;
+  margin: var(--space-lg) 0 var(--space-xl);
 }
-.prerender th, .prerender td {
-  padding: var(--space-xs) var(--space-lg) var(--space-xs) 0;
+.prerender table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.prerender th,
+.prerender td {
+  padding: var(--space-sm) var(--space-lg);
   border-bottom: 1px solid var(--color-divider);
   text-align: left;
+}
+/* Names and headings wrap when a table's tight for room; figures don't */
+.prerender td.num {
   white-space: nowrap;
 }
-.prerender__credit {
-  margin-top: var(--space-3xl);
-  padding-top: var(--space-lg);
+.prerender th {
+  vertical-align: bottom;
+  border-bottom-color: var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.prerender :is(th, td):first-child {
+  padding-left: 0;
+}
+.prerender :is(th, td):last-child {
+  padding-right: 0;
+}
+.prerender :is(th, td).num {
+  text-align: right;
+}
+/* On a phone, closer columns, so more of a table's figures fit on screen */
+@media (max-width: 600px) {
+  .prerender th,
+  .prerender td {
+    padding-inline: var(--space-md);
+    vertical-align: top;
+  }
+}
+
+/* A table's earlier rows, hidden until the toggle under it is opened. Where
+   :has() isn't supported, they show. */
+.prerender__more:has(> details:not([open])) .prerender__more-rows {
+  display: none;
+}
+.prerender__more summary {
+  width: fit-content;
+  margin-top: calc(-1 * var(--space-md));
+  color: var(--color-accent-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* A chart (see build/charts.ts): the years' columns, with the gridlines behind
+   them, their labels in a gutter on the right, the unit over those and the
+   years under the columns */
+.prerender__chart {
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  grid-template-rows: auto 220px auto;
+  margin: var(--space-xl) 0 var(--space-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.prerender__chart-unit {
+  grid-area: 1 / 2;
+  padding: 0 0 var(--space-md) var(--space-sm);
+}
+.prerender__chart-ticks {
+  position: relative;
+  grid-area: 2 / 1 / 3 / 3;
+}
+/* A gridline across the columns, its label in the gutter, centred on it */
+.prerender__chart-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  height: 0;
+}
+.prerender__chart-tick::before {
+  content: '';
+  flex: 1;
   border-top: 1px solid var(--color-divider);
+}
+.prerender__chart-tick span {
+  width: 48px;
+  padding-left: var(--space-sm);
+}
+.prerender__chart-columns {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  grid-area: 2 / 1;
+}
+.prerender__chart-column {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+/* The year the pointer's on, like a crosshair */
+.prerender__chart-column:hover {
+  background: var(--color-surface-hover);
+}
+.prerender__chart-bar {
+  width: min(24px, 80%);
+  border-radius: 4px 4px 0 0;
+  background: var(--chart-colour);
+}
+.prerender__chart-bar--part {
+  opacity: 0.45;
+}
+.prerender__chart-mark {
+  position: absolute;
+  left: 50%;
+  width: min(30px, 100%);
+  height: 3px;
+  background: var(--color-reference);
+  transform: translate(-50%, 50%);
+}
+/* Each year's label centred under its column, however much wider than it */
+.prerender__chart-years {
+  display: flex;
+  grid-area: 3 / 1;
+  padding-top: var(--space-sm);
+}
+.prerender__chart-years span {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .prerender__chart {
+    grid-template-rows: auto 180px auto;
+  }
+}
+.prerender__main .prerender__key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-xl);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.prerender__key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.prerender__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.prerender__swatch--mark {
+  width: 14px;
+  height: 3px;
+  border-radius: 0;
+  background: var(--color-reference);
+}
+
+/* A built chart's tooltip (see src/chartTooltip.ts): its year, then each
+   figure's swatch, name and value, like the app's charts' */
+.chart-tooltip {
+  position: fixed;
+  z-index: 10;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.chart-tooltip[hidden] {
+  display: none;
+}
+.chart-tooltip__title {
+  display: block;
+  margin-bottom: var(--space-2xs);
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+.chart-tooltip__rows {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 var(--space-lg);
+}
+.chart-tooltip__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   color: var(--color-text-secondary);
 }
-.prerender__chart-scroll {
-  overflow-x: auto;
-  margin: var(--space-lg) auto;
+.chart-tooltip__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
 }
-.prerender__chart {
-  display: block;
-  width: 100%;
-  min-width: 540px;
-  height: auto;
-  font-size: 13px;
-  fill: var(--color-text-muted);
+.chart-tooltip__swatch {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
 }
-.prerender__chart line {
-  stroke: var(--color-divider);
-  stroke-width: 1;
+.chart-tooltip__swatch--part {
+  opacity: 0.45;
 }
-.prerender__chart g:hover path {
-  opacity: 0.8;
+.chart-tooltip__swatch--none {
+  visibility: hidden;
 }
-.prerender__lead {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-strong);
+.chart-tooltip__swatch--mark {
+  width: 12px;
+  height: 3px;
+  border-radius: 0;
+  background: var(--color-reference);
 }
+
 .prerender__links {
   columns: 3 10rem;
   padding-left: var(--space-xl);
+}
+
+/* Links to every topic page, in groups */
+.prerender__explore-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-xl) var(--space-2xl);
+}
+.prerender__explore-wide {
+  grid-column: span 2;
+}
+.prerender__explore-wide ul {
+  columns: 2;
+  column-gap: var(--space-2xl);
+}
+.prerender__main .prerender__explore h3 {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.prerender__main .prerender__explore ul + h3 {
+  margin-top: var(--space-xl);
+}
+.prerender__explore ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prerender__explore li {
+  margin-bottom: var(--space-xs);
+  break-inside: avoid;
+}
+/* A list of links reads as one without each underlined */
+.prerender__explore-groups a:not(:hover) {
+  text-decoration: none;
+}
+
+/* The data's sources and who made the site. Its rule spans the window; its
+   text lines up with the column. */
+.prerender__footer {
+  margin-top: 64px;
+  padding: var(--space-2xl) max(var(--space-xl), calc((100% - var(--prerender-column)) / 2)) var(--space-3xl);
+  border-top: 1px solid var(--color-divider);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.prerender__footer p {
+  max-width: 68ch;
+  margin: 0 0 var(--space-md);
 }

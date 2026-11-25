@@ -1,10 +1,13 @@
+import type { ChartTip } from '../src/utils/chartTip'
 import { esc } from './html'
 
-// A bar chart of one series, as inline SVG, for the built pages: one bar a year,
-// growing from the baseline, each with its value as a tooltip. Its table beside
-// it carries every value. Bars are at most 24px wide with a 4px rounded end;
-// gridlines are hairlines; text wears the text colours, not the bar's (see
-// .prerender__chart in index.css).
+// A bar chart of one series for the built pages: one bar a year, growing from
+// the baseline, and a second series, if any, marked as a line across each bar.
+// It's HTML rather than SVG, so its text stays its size however wide the page
+// is, and its bars just narrow on a phone. Each column carries its year's
+// figures in data-tip, for the tooltip that src/chartTooltip.ts shows over it
+// on a page of its own (see renderPage). Its table beside it carries every
+// value. See .prerender__chart in index.css.
 
 export interface Bar {
   label: string
@@ -13,10 +16,22 @@ export interface Bar {
   partial?: boolean
   // What its tooltip calls it, if not its label, e.g. "2026 so far"
   title?: string
+  // A second series' value, marked as a line across the bar
+  mark?: number
+  // Its year's other figures, for its tooltip, after the bar's and the mark's
+  more?: [string, string][]
 }
 
-const W = 720, H = 220
-const PLOT = { top: 12, right: 8, bottom: 26, left: 52 }
+export interface ChartOptions {
+  colour: string
+  unit: string
+  // The chart as a screen reader announces it
+  label: string
+  format: (v: number) => string
+  // What the bars, and the marks across them, are called in their tooltips
+  name: string
+  markName?: string
+}
 
 function niceStep(rough: number): number {
   const power = 10 ** Math.floor(Math.log10(rough))
@@ -29,46 +44,44 @@ function tickLabel(value: number, compact: boolean, unit: string): string {
   return unit === '%' ? `${n}%` : n
 }
 
-// A bar's path: square at the baseline, its top corners rounded
-function barPath(x: number, y: number, w: number, h: number): string {
-  const r = Math.min(4, w / 2, h)
-  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`
-}
-
-function round(n: number): number {
-  return Math.round(n * 10) / 10
-}
-
-export function barChart(bars: Bar[], { colour, unit, label, format }: { colour: string; unit: string; label: string; format: (v: number) => string }): string {
+export function barChart(bars: Bar[], { colour, unit, label, format, name, markName }: ChartOptions): string {
   if (bars.length === 0) return ''
-  const max = Math.max(...bars.map((b) => b.value), 0)
+  const max = Math.max(...bars.map((b) => Math.max(b.value, b.mark ?? 0)), 0)
   const step = niceStep((max || 1) / 4)
   const top = Math.ceil((max || 1) / step) * step
-  const plotW = W - PLOT.left - PLOT.right, plotH = H - PLOT.top - PLOT.bottom
-  const band = plotW / bars.length
-  const barW = Math.max(1, Math.min(24, band - 2))
-  const yOf = (v: number) => PLOT.top + plotH - (v / top) * plotH
   const compact = top >= 10000
+  // A value's height, as a percentage of the plot's
+  const height = (v: number) => Math.round((Math.max(0, v) / top) * 1000) / 10
 
   const ticks: string[] = []
   for (let v = 0; v <= top + step / 2; v += step) {
-    const y = round(yOf(v))
-    ticks.push(`<line x1="${PLOT.left}" x2="${W - PLOT.right}" y1="${y}" y2="${y}"/>`
-      + `<text x="${PLOT.left - 6}" y="${y + 4}" text-anchor="end">${esc(tickLabel(v, compact, unit))}</text>`)
+    ticks.push(`<div class="prerender__chart-tick" style="bottom:${height(v)}%"><span>${esc(tickLabel(v, compact, unit))}</span></div>`)
   }
 
-  // Every label when they fit, else every fifth year and the last
-  const labelled = (i: number) => bars.length <= 12 || i === bars.length - 1 || (Number(bars[i].label) % 5 === 0 && i < bars.length - 3)
-  const marks = bars.map((b, i) => {
-    const x = PLOT.left + i * band
-    const h = Math.max(0, yOf(0) - yOf(Math.max(0, b.value)))
-    const tip = `${b.title ?? b.label}: ${format(b.value)}`
-    return `<g><title>${esc(tip)}</title><rect x="${round(x)}" y="${PLOT.top}" width="${round(band)}" height="${plotH}" fill="transparent"/>`
-      + (h > 0 ? `<path d="${barPath(round(x + (band - barW) / 2), round(yOf(0) - h), round(barW), round(h))}" style="fill:${esc(colour)}"${b.partial ? ' fill-opacity="0.45"' : ''}/>` : '')
-      + (labelled(i) ? `<text x="${round(x + band / 2)}" y="${H - 8}" text-anchor="middle">${esc(b.label)}</text>` : '')
-      + '</g>'
+  const columns = bars.map((b) => {
+    const tip: ChartTip = {
+      title: b.title ?? b.label,
+      rows: [
+        { name, value: format(b.value), swatch: b.partial ? 'part' : 'bar' },
+        ...(b.mark === undefined ? [] : [{ name: markName ?? '', value: format(b.mark), swatch: 'mark' as const }]),
+        ...(b.more ?? []).map(([n, v]) => ({ name: n, value: v })),
+      ],
+    }
+    return `<div class="prerender__chart-column" data-tip="${esc(JSON.stringify(tip))}">`
+      + (b.value > 0 ? `<div class="prerender__chart-bar${b.partial ? ' prerender__chart-bar--part' : ''}" style="height:${height(b.value)}%"></div>` : '')
+      + (b.mark !== undefined && b.mark > 0 ? `<div class="prerender__chart-mark" style="bottom:${height(b.mark)}%"></div>` : '')
+      + '</div>'
   }).join('')
 
-  // It scrolls sideways on a phone rather than shrink its text out of reach
-  return `<div class="prerender__chart-scroll"><svg class="prerender__chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${ticks.join('')}${marks}</svg></div>`
+  // Every year's label when they fit, else every fifth year's and the last's
+  const labelled = (i: number) => bars.length <= 12 || i === bars.length - 1 || (Number(bars[i].label) % 5 === 0 && i < bars.length - 3)
+  const years = bars.map((b, i) => `<span>${labelled(i) ? esc(b.label) : ''}</span>`).join('')
+
+  // A percentage's ticks say so themselves
+  return `<div class="prerender__chart" role="img" aria-label="${esc(label)}" style="--chart-colour:${esc(colour)}">`
+    + (unit === '%' ? '' : `<span class="prerender__chart-unit">${esc(unit)}</span>`)
+    + `<div class="prerender__chart-ticks">${ticks.join('')}</div>`
+    + `<div class="prerender__chart-columns">${columns}</div>`
+    + `<div class="prerender__chart-years">${years}</div>`
+    + '</div>'
 }

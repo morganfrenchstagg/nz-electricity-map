@@ -10,6 +10,9 @@ import { isCharging, isDecommissioned, isRetired } from './generators'
 export const SITE_NAME = 'NZ Electricity Map'
 export const HOME_TITLE = `${SITE_NAME} – Live NZ Power Generation, Prices & Grid`
 export const HVDC_PATH = '/hvdc'
+// The pages about the grid's years by fuel, operator and island, and its
+// renewable share, each under this one (see build/topics.ts)
+export const ANALYSIS_PATH = '/analysis'
 export const HVDC_TITLE = `HVDC Inter-Island Link – Live Flows | ${SITE_NAME}`
 export const PIPELINE_TITLE = `NZ Generation Pipeline – New Power Stations Being Built | ${SITE_NAME}`
 
