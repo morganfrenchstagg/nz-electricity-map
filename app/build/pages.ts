@@ -8,7 +8,7 @@ import {
   PIPELINE_TITLE, SITE_NAME, stationKind, substationPath, substationTitle,
 } from '../src/utils/stationPaths'
 import {
-  API_URL, article, breadcrumbs, capitalise, CC_BY, CREATOR, CREDIT, esc, fuelsText, graph, gwh, island,
+  API_URL, article, breadcrumbs, capitalise, CC_BY, CREATOR, CREDIT, esc, fitDescription, fuelsText, graph, gwh, island,
   kindPhrase, link, linkList, MCP_URL, mw, nzDate, nzYear, ordinal, ORIGIN, pct, primaryFuel, sortByName, SOURCES, webPage,
 } from './html'
 import type { Definitions, Page } from './html'
@@ -108,9 +108,10 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
   const heading = `${g.name} ${kind}`
   // Some, such as an aggregated fleet of home batteries, have no capacity of their own
   const sized = capacity > 0 ? `${article(capacity)} ${mw(capacity)} ${kindPhrase(g)}` : `a ${kindPhrase(g)}`
-  const description = retired
-    ? `${g.name} was ${sized} in the ${island(g.island)}, operated by ${operator}${decommissioned ? ` until ${nzYear(decommissioned)}` : ''}. See its historical generation.`
-    : `${g.name} is ${sized} in the ${island(g.island)}, operated by ${operator}. See its live and historical generation, offers and prices.`
+  const [about, more] = retired
+    ? [`${g.name} was ${sized} in the ${island(g.island)}, operated by ${operator}${decommissioned ? ` until ${nzYear(decommissioned)}` : ''}.`, 'See its historical generation.']
+    : [`${g.name} is ${sized} in the ${island(g.island)}, operated by ${operator}.`, 'See its live and historical generation, offers and prices.']
+  const description = fitDescription(about, more)
   const fuel = primaryFuel(g)
   const topic = fuelTopic(fuel)
   const others = sortByName(defs.generators.filter((o) => o !== g && primaryFuel(o) === fuel), (o) => o.name)
@@ -135,7 +136,7 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(description)} ${retired ? '' : 'The live map shows its output every five minutes, as dispatched on the national grid, with the price at its node and its offers for each trading period.'}</p>
+<p>${esc(`${about} ${more}`)} ${retired ? '' : 'The live map shows its output every five minutes, as dispatched on the national grid, with the price at its node and its offers for each trading period.'}</p>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 ${generatorStats(g, ctx, figures)}
 <p>${link(generatorHistoricPath(g, defs.generators), `${g.name}'s historical generation and records`)}</p>
@@ -246,12 +247,13 @@ function substationPage(s: Substation, ctx: Context): Page {
   const { defs } = ctx
   const path = substationPath(s, defs.substations)
   const heading = `${s.description} Substation`
-  const description = `Live electricity demand and nodal prices at ${s.description} substation (${s.siteId}) on New Zealand's national grid, in the ${island(s.island)}. Updated every five minutes, with history.`
+  const intro = `Live electricity demand and nodal prices at ${s.description} substation (${s.siteId}) on New Zealand's national grid, in the ${island(s.island)}. Updated every five minutes, with history.`
+  const description = fitDescription(`${s.description} substation (${s.siteId}), ${island(s.island)}: live electricity demand and nodal prices on New Zealand's national grid.`, 'Updated every five minutes, with history.')
   const generators = sortByName(defs.generators.filter((g) => g.units.some((u) => u.node.slice(0, 3) === s.siteId)), (g) => g.name)
   const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(description)} The live map charts the power drawn from the grid at ${esc(s.description)}, the generation connected there and the price at its nodes.</p>
+<p>${esc(intro)} The live map charts the power drawn from the grid at ${esc(s.description)}, the generation connected there and the price at its nodes.</p>
 <dl class="prerender__facts"><dt>Site code</dt><dd>${esc(s.siteId)}</dd><dt>Island</dt><dd>${island(s.island)}</dd><dt>Type</dt><dd>${s.type === 'TEE' ? 'Tee point' : 'Substation'}</dd></dl>
 ${substationStats(s, ctx)}
 ${generators.length ? `<h2>Generation connected here</h2>${linkList(generators.map((g) => ({ href: generatorPath(g, defs.generators), text: g.name })))}` : ''}
@@ -299,7 +301,7 @@ function pipelinePage(projects: UnderConstructionNode[]): Page {
   const path = '/pipeline'
   const heading = 'New Zealand Generation Pipeline'
   const total = projects.reduce((sum, n) => sum + projectCapacity(n), 0)
-  const description = `${projects.length} new electricity generation projects being built or committed in New Zealand, ${mw(Math.round(total))} in all: their fuel, capacity, operator, status and when they're due to open.`
+  const description = `${projects.length} new generation projects being built or committed in New Zealand, ${mw(Math.round(total))} in all: their fuel, capacity, operator, status and when they're due to open.`
   const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
   const rows = sortByName(projects, (n) => n.name).map((n) => `<tr><td>${esc(n.name)}${n.locationDescription ? ` (${esc(n.locationDescription)})` : ''}</td><td>${esc(n.fuel)}</td><td>${projectCapacity(n) ? esc(n.capacityMW ? mw(n.capacityMW) : `${mw(projectCapacity(n))}p`) : '–'}</td><td>${esc(n.operator)}</td><td>${esc(n.status)}</td><td>${n.openBy ? esc(n.openBy.slice(0, 7)) : '–'}</td></tr>`).join('')
   const body = `${crumbs.html}
@@ -320,7 +322,7 @@ function renewableLead(ctx: Context): string {
 
 function homePage(ctx: Context): Page {
   const { defs } = ctx
-  const description = 'Live map of New Zealand\'s electricity grid: every power station\'s generation, the generation mix, nodal prices, offers, HVDC flows and outages, every five minutes.'
+  const description = 'Live map of New Zealand\'s electricity grid: every power station\'s output, the generation mix, nodal prices, offers, HVDC flows and outages, every five minutes.'
   const byFuel = new Map<string, Generator[]>()
   for (const g of defs.generators) byFuel.set(primaryFuel(g), [...(byFuel.get(primaryFuel(g)) ?? []), g])
   const order = FUEL_TOPICS.map((t) => t.fuel)
