@@ -8,14 +8,14 @@ import {
   PIPELINE_TITLE, SITE_NAME, stationKind, substationPath, substationTitle,
 } from '../src/utils/stationPaths'
 import {
-  API_URL, article, breadcrumbs, capitalise, CC_BY, CREATOR, CREDIT, esc, fitDescription, fuelsText, graph, gwh, island,
-  kindPhrase, link, linkList, MCP_URL, mw, nzDate, nzYear, ordinal, ORIGIN, pct, primaryFuel, sortByName, SOURCES, webPage,
+  API_URL, article, breadcrumbs, capitalise, CC_BY, CREATOR, esc, fitDescription, fuelsText, graph, gwh, island,
+  FOOTER, header, kindPhrase, link, linkList, MCP_URL, mw, nzDate, nzYear, ordinal, ORIGIN, pct, primaryFuel, sortByName, webPage,
 } from './html'
 import type { Definitions, Page } from './html'
 import { generationNodes, hoursIn, parseStats, RENEWABLE_FUELS, substationDemand, sumNodes } from './stats'
 import type { AnnualAggregates, Stats } from './stats'
 import { FUEL_TOPICS, fuelPath, fuelTopic, islandPath, operatorPath, operatorsWithPages, RENEWABLE_PATH, topicNav, topicPages } from './topics'
-import { buildContext, firstYear, yearlyChart, yearlyTable } from './yearly'
+import { buildContext, firstYear, gridShare, yearlyChart, yearlyTable } from './yearly'
 import type { Context } from './yearly'
 
 // The pages the build writes from index.html, each with its own title,
@@ -81,8 +81,10 @@ function generatorStats(g: Generator, ctx: Context, figures: StationFigures): st
   if (!retired && current >= 0 && values[current] > 0) sentences.push(`So far in ${stats.years[current]}, it's generated ${gwh(values[current])}.`)
   return `<h2>Generation by year</h2>
 ${sentences.length ? `<p>${esc(sentences.join(' '))}</p>` : ''}
-${yearlyChart(stats, values, from, { colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh })}
-${yearlyTable(stats, [{ head: 'Generation', values, format: gwh }], from)}`
+${yearlyChart(stats, values, from, {
+    colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh, name: 'Generation', more: [gridShare(ctx, values)],
+  })}
+${yearlyTable(stats, [{ head: 'Generation', values }], from)}`
 }
 
 // Links to the pages about its fuel, operator and island
@@ -136,7 +138,7 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(`${about} ${more}`)} ${retired ? '' : 'The live map shows its output every five minutes, as dispatched on the national grid, with the price at its node and its offers for each trading period.'}</p>
+<p>${esc(`${about} ${more}`)}</p>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 ${generatorStats(g, ctx, figures)}
 <p>${link(generatorHistoricPath(g, defs.generators), `${g.name}'s historical generation and records`)}</p>
@@ -144,8 +146,7 @@ ${generatorStats(g, ctx, figures)}
 <table><thead><tr><th>Unit</th><th>Fuel</th><th>Capacity</th><th>Commissioned</th><th>Status</th></tr></thead><tbody>${unitRows}</tbody></table>
 ${substation ? `<p>Connected to the grid at ${link(substationPath(substation, defs.substations), `${substation.description} substation`)}.</p>` : ''}
 ${seeAlso(ctx, g)}
-${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} stations</h2>${linkList(others.map((o) => ({ href: generatorPath(o, defs.generators), text: o.name })))}` : ''}
-${SOURCES}`
+${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} stations</h2>${linkList(others.map((o) => ({ href: generatorPath(o, defs.generators), text: o.name })))}` : ''}`
 
   const place = generatorPlace(g, defs)
   return {
@@ -210,18 +211,19 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(intro)} The live map charts it by year, quarter or month back to August 1997, with when it first generated and its best year and month.</p>
+<p>${esc(intro)}</p>
 ${facts.length ? `<h2>Records</h2>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
 ${yearly ? `<h2>Generation by year</h2>
-${yearlyChart(yearly.stats, yearly.values, from, { colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh })}
+${yearlyChart(yearly.stats, yearly.values, from, {
+    colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh, name: 'Generation', more: [gridShare(ctx, yearly.values)],
+  })}
 ${yearlyTable(yearly.stats, [
-    { head: 'Generation', values: yearly.values, format: gwh },
-    { head: "Share of the grid's generation", values: yearly.values.map((v, i) => total[i] > 0 ? v / total[i] : 0), format: pct },
+    { head: 'Generation', values: yearly.values },
+    { head: "Share of the grid's generation", values: yearly.values.map((v, i) => total[i] > 0 ? v / total[i] : 0), share: true },
   ], from)}` : ''}
 <p>${link(stationPath, station)}: its units, capacity, and ${isRetired(g) ? 'when it was retired' : 'live generation, offers and prices'}.</p>
-${seeAlso(ctx, g)}
-${SOURCES}`
+${seeAlso(ctx, g)}`
 
   const place = generatorPlace(g, defs)
   return {
@@ -241,9 +243,11 @@ function substationStats(s: Substation, ctx: Context): string {
   const sentence = `In ${stats.years[full]}, ${gwh(values[full])} was taken from the grid at ${s.description}`
     + (before < 0 ? '' : Math.abs(change) < 0.005 ? `, about the same as in ${stats.years[before]}` : `, ${change > 0 ? 'up' : 'down'} ${pct(Math.abs(change))} on ${stats.years[before]}`) + '.'
   return `<h2>Demand by year</h2>
-<p>${esc(sentence)} That's what its buses drew from the grid, net of any generation embedded in the networks behind them.</p>
-${yearlyChart(stats, values, from, { colour: ACCENT, unit: 'GWh', label: `Electricity taken from the grid at ${s.description} each year, in GWh`, format: gwh })}
-${yearlyTable(stats, [{ head: 'Taken from the grid', values, format: gwh }], from)}`
+<p>${esc(sentence)}</p>
+${yearlyChart(stats, values, from, {
+    colour: ACCENT, unit: 'GWh', label: `Electricity taken from the grid at ${s.description} each year, in GWh`, format: gwh, name: 'Taken from the grid',
+  })}
+${yearlyTable(stats, [{ head: 'Taken from the grid', values }], from)}`
 }
 
 function substationPage(s: Substation, ctx: Context): Page {
@@ -256,12 +260,11 @@ function substationPage(s: Substation, ctx: Context): Page {
   const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(intro)} The live map charts the power drawn from the grid at ${esc(s.description)}, the generation connected there and the price at its nodes.</p>
+<p>${esc(intro)}</p>
 <dl class="prerender__facts"><dt>Site code</dt><dd>${esc(s.siteId)}</dd><dt>Island</dt><dd>${island(s.island)}</dd><dt>Type</dt><dd>${s.type === 'TEE' ? 'Tee point' : 'Substation'}</dd></dl>
 ${substationStats(s, ctx)}
 ${generators.length ? `<h2>Generation connected here</h2>${linkList(generators.map((g) => ({ href: generatorPath(g, defs.generators), text: g.name })))}` : ''}
-<p>See also: ${link(islandPath(s.island === 'north' ? 'NI' : 'SI'), `Electricity in the ${island(s.island)}`)}</p>
-${SOURCES}`
+<p>See also: ${link(islandPath(s.island === 'north' ? 'NI' : 'SI'), `Electricity in the ${island(s.island)}`)}</p>`
   const place = {
     '@type': 'Place', '@id': `${ORIGIN}${path}#substation`, name: heading,
     geo: { '@type': 'GeoCoordinates', latitude: s.lat, longitude: s.long },
@@ -279,7 +282,7 @@ function hvdcStats(ctx: Context): string {
   if (!stats || !hvdc || full < 0) return ''
   return `<h2>Flows by year</h2>
 <p>In ${stats.years[full]}, the link sent ${esc(gwh(hvdc.north[full]))} north and ${esc(gwh(hvdc.south[full]))} south.</p>
-${yearlyTable(stats, [{ head: 'Sent north', values: hvdc.north, format: gwh }, { head: 'Sent south', values: hvdc.south, format: gwh }])}`
+${yearlyTable(stats, [{ head: 'Sent north', values: hvdc.north }, { head: 'Sent south', values: hvdc.south }])}`
 }
 
 function hvdcPage(ctx: Context): Page {
@@ -289,7 +292,7 @@ function hvdcPage(ctx: Context): Page {
   const body = `${crumbs.html}
 <h1>${heading}</h1>
 <p>${esc(description)}</p>
-<p>The high-voltage direct current (HVDC) link joins the South Island's grid at Benmore to the North Island's at Haywards, crossing Cook Strait by submarine cable. The live map charts the power it sends each way every half hour, and how much it could send.</p>
+<p>The high-voltage direct current (HVDC) link joins the South Island's grid at Benmore to the North Island's at Haywards, crossing Cook Strait by submarine cable.</p>
 ${hvdcStats(ctx)}
 <p>Flows from EMI's metered HVDC data, and from <a href="https://www.em6.co.nz">em6</a> for the days since EMI's latest month. Transfer limits from em6.</p>
 <p>See also: ${link(islandPath('NI'), 'Electricity in the North Island')} · ${link(islandPath('SI'), 'Electricity in the South Island')}</p>`
@@ -345,9 +348,7 @@ ${renewableLead(ctx)}
 <li>Flows across the <a href="${HVDC_PATH}">HVDC Inter-Island link</a>, planned outages, and the <a href="/pipeline">pipeline of new generation</a> being built.</li>
 <li>Today, the last few days, or any day or range back to 2009, and totals over 90 days to all years.</li>
 </ul>
-${topicNav(ctx)}
-<h2>Data</h2>
-${SOURCES}
+${topicNav(ctx, 'Analysis')}
 <h2>For developers and AI agents</h2>
 <p>The data behind the map is available as JSON from <a href="${API_URL}/definitions">${API_URL}</a>, and to AI agents through an MCP server at ${MCP_URL}. See <a href="/llms.txt">llms.txt</a>.</p>
 <h2>Power stations</h2>
@@ -405,7 +406,9 @@ function fillBlock(html: string, marker: string, content: string): string {
   return html.replace(block, () => content)
 }
 
-export function renderPage(template: string, page: Page): string {
+// A page from the built index.html. A page of its own with a chart loads
+// `chartScript`, the charts' tooltips (see src/chartTooltip.ts), in place of the app.
+export function renderPage(template: string, page: Page, chartScript?: string): string {
   const url = ORIGIN + page.path
   const head = [
     `<title>${esc(page.title)}</title>`,
@@ -416,10 +419,14 @@ export function renderPage(template: string, page: Page): string {
     `<meta property="og:url" content="${esc(url)}" />`,
     `<script type="application/ld+json">${JSON.stringify(page.jsonLd).replace(/</g, '\\u003c')}</script>`,
   ].join('\n    ')
-  const body = `<main class="prerender">\n${page.body}\n${CREDIT}\n</main>`
+  const body = `<div class="prerender">\n${header(page.live ?? '/', page.path)}\n<main class="prerender__main">\n${page.body}\n</main>\n${FOOTER}\n</div>`
   const html = fillBlock(fillBlock(template, 'page-head', head), 'page-body', body)
+  if (!page.standalone) return html
   // A page of its own keeps the stylesheet but not the app, which would replace its content
-  return page.standalone ? html.replace(/\s*<script type="module"[^>]*><\/script>/g, '').replace(/\s*<link rel="modulepreload"[^>]*>/g, '') : html
+  const own = html.replace(/\s*<script type="module"[^>]*><\/script>/g, '').replace(/\s*<link rel="modulepreload"[^>]*>/g, '')
+  return chartScript && page.body.includes('class="prerender__chart"')
+    ? own.replace('</head>', `  <script type="module" src="${esc(chartScript)}"></script>\n  </head>`)
+    : own
 }
 
 export function sitemap(pages: Page[]): string {
@@ -479,10 +486,13 @@ export function stationPages(apiBase?: string): Plugin {
         .catch((error: Error) => { throw new Error(`station-pages: ${error.message}`) })
       if (!defs.generators?.length || !defs.substations?.length) throw new Error('station-pages: the definitions have no generators or substations')
 
+      const tooltips = Object.values(bundle).find((file) => file.type === 'chunk' && file.isEntry && file.name === 'chartTooltip')
+      if (!tooltips) throw new Error('station-pages: no chartTooltip entry in the bundle (see vite.config.ts)')
+
       const template = String(index.source)
       const pages = buildPages(defs, underConstruction, stats)
       for (const page of pages) {
-        const html = renderPage(template, page)
+        const html = renderPage(template, page, `/${tooltips.fileName}`)
         if (page.path === '/') index.source = html
         else this.emitFile({ type: 'asset', fileName: pageFile(page.path), source: html })
       }

@@ -24,6 +24,7 @@ import DateControls from './DateControls'
 import ChartSettingsMenu from './ChartSettingsMenu'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
+import { ANALYSIS_PATH } from '../utils/stationPaths'
 
 type Island = 'all' | 'NI' | 'SI'
 
@@ -495,7 +496,7 @@ export default function GridOverviewPanel({ dateMode, onDateModeChange, onNodeSe
   )
 
   return (
-    <Panel {...panel} visible={visible} header={header} actions={[{ label: 'Generation Pipeline ↗', onClick: () => onPipelineOpenChange(true) }]}>
+    <Panel {...panel} visible={visible} header={header} actions={[{ label: 'Analysis ↗', href: ANALYSIS_PATH }, { label: 'Generation Pipeline ↗', onClick: () => onPipelineOpenChange(true) }]}>
       <Suspense fallback={null}>
         {pickerOpen && (
           <NodePickerModal

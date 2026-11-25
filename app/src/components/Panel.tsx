@@ -7,13 +7,11 @@ const InfoModal = lazy(() => import('./InfoModal'))
 
 // Narrowest panel with room for the grid panel's title beside all of the header's
 // buttons. Narrower panels, and mobile, gather all but Close into a menu.
-const MENU_BELOW_PX = 595
+const MENU_BELOW_PX = 680
 
-// One of a panel's own header buttons
-export interface PanelAction {
-  label: string
-  onClick: () => void
-}
+// One of a panel's own header buttons: one that does something, or a link to
+// a page of the site's own outside the app, e.g. the Analysis section's
+export type PanelAction = { label: string } & ({ onClick: () => void; href?: never } | { href: string; onClick?: never })
 
 // Whether the panel's header gathers its buttons into a menu, as it does on
 // mobile and on panels too narrow for them (see MENU_BELOW_PX)
@@ -65,7 +63,7 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
             <Popover placement="bottom end" offset={4} className="popover">
               <Menu aria-label="More" className="menu">
                 {actions.map(a => (
-                  <MenuItem key={a.label} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
+                  <MenuItem key={a.label} href={a.href} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
                 ))}
                 <MenuItem onAction={() => setTheme(otherTheme)} className="menu-item">{themeLabel}</MenuItem>
                 <MenuItem onAction={() => setInfoOpen(true)} className="menu-item">About this site</MenuItem>
@@ -75,7 +73,11 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
           </MenuTrigger>
         ) : (
           <>
-            {actions.map(a => (
+            {actions.map(a => a.href ? (
+              <a key={a.label} href={a.href} className="button-secondary">
+                {a.label}
+              </a>
+            ) : (
               <button key={a.label} onClick={a.onClick} className="button-secondary">
                 {a.label}
               </button>

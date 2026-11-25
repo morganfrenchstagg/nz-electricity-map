@@ -1,5 +1,6 @@
 import { barChart } from './charts'
-import { esc, table } from './html'
+import type { ChartOptions } from './charts'
+import { esc, figures, list, shareCell, shareText, table } from './html'
 import type { Definitions } from './html'
 import { currentYear, lastFullYear, totalGeneration } from './stats'
 import type { Stats } from './stats'
@@ -26,7 +27,7 @@ export function buildContext(defs: Definitions, stats: Stats | null): Context {
 }
 
 // "2025", "2026 so far", "1997 (Aug–Dec)"
-export function yearLabel(stats: Stats, i: number): string {
+function yearLabel(stats: Stats, i: number): string {
   const year = stats.years[i]
   if (!stats.partial.has(year)) return String(year)
   return i === 0 ? `${year} (Aug–Dec)` : `${year} so far`
@@ -38,23 +39,63 @@ export function firstYear(values: number[]): number {
   return i === -1 ? values.length : i
 }
 
+// A column of GWh a year, or of shares of something (fractions)
 export interface Column {
   head: string
+  values: number[]
+  share?: boolean
+}
+
+// The years a table shows before its toggle for the rest
+const RECENT_YEARS = 10
+
+// A row a year from `from`, newest first. Past a dozen, the years before the
+// latest ten wait behind a toggle.
+export function yearlyTable(stats: Stats, columns: Column[], from = 0): string {
+  const cells = columns.map((c) => c.share ? c.values.map(shareCell) : figures(c.values.slice(from)))
+  const rows: string[][] = []
+  for (let i = stats.years.length - 1; i >= from; i--) {
+    // A year on one line, even on a phone
+    const year = esc(yearLabel(stats, i)).replace(/ /g, '&nbsp;')
+    rows.push([year, ...columns.map((c, j) => c.share ? cells[j][i] : cells[j][i - from])])
+  }
+  const head = ['Year', ...columns.map((c) => c.share ? c.head : `${c.head} (GWh)`)]
+  if (rows.length <= RECENT_YEARS + 2) return table(head, rows, 1)
+  const earlier = rows.slice(RECENT_YEARS)
+  return table(head, rows.slice(0, RECENT_YEARS), 1, {
+    label: `Earlier years, ${stats.years[from]}–${stats.years[stats.years.length - 1 - RECENT_YEARS]}`,
+    rows: earlier,
+  })
+}
+
+// A series of figures a year that a chart's tooltips give beside its bars'
+export interface TipSeries {
+  name: string
   values: number[]
   format: (v: number) => string
 }
 
-// A row a year from `from`, newest first
-export function yearlyTable(stats: Stats, columns: Column[], from = 0): string {
-  const rows: string[][] = []
-  for (let i = stats.years.length - 1; i >= from; i--) {
-    rows.push([esc(yearLabel(stats, i)), ...columns.map((c) => esc(c.format(c.values[i])))])
-  }
-  return table(['Year', ...columns.map((c) => c.head)], rows)
+// GWh a year as shares of the grid's generation, for a chart's tooltips
+export function gridShare(ctx: Context, values: number[]): TipSeries {
+  return { name: 'Share of grid', values: values.map((v, i) => ctx.total[i] > 0 ? v / ctx.total[i] : 0), format: shareText }
 }
 
-export function yearlyChart(stats: Stats, values: number[], from: number, opts: { colour: string; unit: string; label: string; format: (v: number) => string }): string {
-  return barChart(stats.years.slice(from).map((year, j) => ({
+// A bar a year from `from`, with a second series, if `marks`, across them, any
+// `more` in their tooltips, and a key to what's what when there's more than one
+// kind of bar or mark
+export function yearlyChart(stats: Stats, values: number[], from: number, opts: ChartOptions & { marks?: number[]; more?: TipSeries[] }): string {
+  const { marks, more = [], ...chart } = opts
+  const svg = barChart(stats.years.slice(from).map((year, j) => ({
     label: String(year), value: values[from + j], partial: stats.partial.has(year), title: yearLabel(stats, from + j),
-  })), opts)
+    mark: marks?.[from + j],
+    more: more.map((m): [string, string] => [m.name, m.format(m.values[from + j])]),
+  })), chart)
+  const partial = stats.years.map((_, i) => i).filter((i) => i >= from && stats.partial.has(stats.years[i]))
+  const swatch = (style: string, cls = '') => `<span class="prerender__swatch${cls}" style="${esc(style)}"></span>`
+  const items = [
+    marks ? `${swatch(`background:${opts.colour}`)}${esc(opts.name)}` : '',
+    marks ? `${swatch('', ' prerender__swatch--mark')}${esc(opts.markName ?? '')}` : '',
+    partial.length ? `${swatch(`background:${opts.colour};opacity:0.45`)}Part ${partial.length > 1 ? 'years' : 'year'}: ${esc(list(partial.map((i) => yearLabel(stats, i))))}` : '',
+  ].filter(Boolean)
+  return `${svg}${items.length ? `<p class="prerender__key">${items.map((item) => `<span>${item}</span>`).join('')}</p>` : ''}`
 }

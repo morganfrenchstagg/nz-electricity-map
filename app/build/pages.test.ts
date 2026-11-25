@@ -3,9 +3,11 @@ import type { Generator, Substation, Unit } from '../src/types'
 import { buildPages, esc, pageFile, renderPage, sitemap } from './pages'
 import type { Definitions } from './pages'
 import { barChart } from './charts'
-import { fitDescription } from './html'
+import { figures, fitDescription, shareCell } from './html'
 import { parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
 import type { AnnualAggregates } from './stats'
+import type { ChartTip } from '../src/utils/chartTip'
+import { yearlyTable } from './yearly'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
   return { name: 'Huntly 5', unitCode: 'HLY5', node: 'HLY2201 HLY5', capacity: 400, fuel: 'Gas', fuelCode: 'GAS', commissioned: '2007-06-01T12:00:00.000Z', ...overrides }
@@ -31,6 +33,12 @@ const otahuhu: Generator = {
 }
 const hly: Substation = { siteId: 'HLY', description: 'Huntly', lat: -37.5, long: 175.1, type: 'ACSTN', gridZone: 1, island: 'north' }
 const defs: Definitions = { generators: [huntly, otahuhu], substations: [hly] }
+// The tooltip of each bar of the charts in some HTML, as its data-tip holds it
+function tips(html: string): ChartTip[] {
+  return [...html.matchAll(/data-tip="([^"]*)"/g)]
+    .map((m) => JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')))
+}
+
 const TEMPLATE = '<head><!--page-head--><title>x</title><!--/page-head--></head><body><div id="root"><!--page-body--><!--/page-body--></div></body>'
 
 describe('buildPages', () => {
@@ -40,7 +48,7 @@ describe('buildPages', () => {
   it("writes the home, HVDC, pipeline, topic and every station page, and each generator's history", () => {
     expect(pages.map((p) => p.path)).toEqual([
       '/', '/hvdc', '/pipeline',
-      '/fuel/gas', '/fuel/coal', '/fuel/batteries', '/island/north-island', '/island/south-island',
+      '/analysis', '/analysis/fuel/gas', '/analysis/fuel/coal', '/analysis/fuel/batteries', '/analysis/island/north-island', '/analysis/island/south-island',
       '/generator/huntly', '/generator/huntly/historic', '/generator/otahuhu', '/generator/otahuhu/historic', '/substation/huntly',
     ])
   })
@@ -99,7 +107,9 @@ describe('renderPage', () => {
     const html = renderPage(TEMPLATE, home)
     expect(html).toContain('<link rel="canonical" href="https://electricitymap.frenchsta.gg/" />')
     expect(html).toContain('<script type="application/ld+json">')
-    expect(html).toContain('<div id="root"><main class="prerender">')
+    expect(html).toContain('<div id="root"><div class="prerender">')
+    expect(html).toContain('<a class="prerender__cta" href="/">Open live map</a>')
+    expect(html).toContain('<footer class="prerender__footer">')
     expect(html).not.toContain('<title>x</title>')
   })
 
@@ -124,7 +134,7 @@ describe('files', () => {
     const xml = sitemap(buildPages(defs, []))
     expect(xml).toContain('<loc>https://electricitymap.frenchsta.gg/generator/huntly</loc>')
     expect(xml).toContain('<loc>https://electricitymap.frenchsta.gg/generator/huntly/historic</loc>')
-    expect(xml.match(/<url>/g)).toHaveLength(13)
+    expect(xml.match(/<url>/g)).toHaveLength(14)
   })
 
   it('escapes text for HTML', () => {
@@ -183,10 +193,12 @@ describe('pages with yearly figures', () => {
     expect(body).toContain('In 2025, Manapōuri generated 4,552 GWh, 64.5% of New Zealand&#39;s grid generation, the most of any station, at a capacity factor of 65%.'.replace('&#39;', "'"))
     expect(body).toContain('Its best year was 2015, with 5,000 GWh.')
     expect(body).toContain('So far in 2026, it&#39;s generated 4,000 GWh.'.replace('&#39;', "'"))
-    expect(body).toContain('<td>2026 so far</td><td>4,000 GWh</td>')
-    expect(body).toContain('<td>1997 (Aug–Dec)</td><td>2,000 GWh</td>')
-    expect(body).toContain('<title>1997 (Aug–Dec): 2,000 GWh</title>')
-    expect(body).toContain('<title>2026 so far: 4,000 GWh</title>')
+    expect(body).toContain('<th class="num">Generation (GWh)</th>')
+    expect(body).toContain('<td>2026&nbsp;so&nbsp;far</td><td class="num">4,000</td>')
+    expect(body).toContain('<td>1997&nbsp;(Aug–Dec)</td><td class="num">2,000</td>')
+    expect(tips(body)[0]).toEqual({ title: '1997 (Aug–Dec)', rows: [{ name: 'Generation', value: '2,000 GWh', swatch: 'part' }, { name: 'Share of grid', value: '50.0%' }] })
+    expect(tips(body).at(-1)?.title).toBe('2026 so far')
+    expect(body).toContain('Part years: 1997 (Aug–Dec) and 2026 so far')
   })
 
   it("gives a generator's history its records, and its share of the grid's generation each year", () => {
@@ -195,7 +207,7 @@ describe('pages with yearly figures', () => {
     // Of 2015's 8,100 GWh: Huntly's 3,000 + Ōtāhuhu's 100 + Manapōuri's 5,000
     expect(body).toContain('<dt>Best year</dt><dd>2015, with 5,000 GWh (61.7% of the grid&#39;s generation)</dd>'.replace('&#39;', "'"))
     expect(body).toContain('<dt>Generated on record</dt><dd>20,052 GWh</dd>')
-    expect(body).toContain('<td>2025</td><td>4,552 GWh</td><td>64.5%</td>')
+    expect(body).toContain('<td>2025</td><td class="num">4,552</td><td class="num">64.5%</td>')
     expect(body).not.toContain('Last generated')
   })
 
@@ -208,7 +220,7 @@ describe('pages with yearly figures', () => {
   })
 
   it('counts a retired station\'s years before it was retired, the combined units\' among them', () => {
-    expect(page('/generator/huntly').body).toContain('<td>1997 (Aug–Dec)</td><td>1,500 GWh</td>')
+    expect(page('/generator/huntly').body).toContain('<td>1997&nbsp;(Aug–Dec)</td><td class="num">1,500</td>')
     expect(page('/generator/otahuhu').body).toContain('Its best year was 2015, with 100 GWh.')
   })
 
@@ -221,28 +233,71 @@ describe('pages with yearly figures', () => {
   })
 
   it('writes a fuel\'s page from its units, a station with several fuels on each of theirs', () => {
-    const gas = page('/fuel/gas')
+    const gas = page('/analysis/fuel/gas')
     expect(gas.standalone).toBe(true)
     expect(gas.body).toContain('In 2025, gas-fired units generated 2,000 GWh, 28.3% of the electricity generated on New Zealand&#39;s national grid.'.replace('&#39;', "'"))
-    expect(gas.body).toContain('<a href="/generator/huntly">Huntly</a></td><td>Genesis Energy</td><td>North Island</td><td>449 MW</td><td>2,000 GWh</td>')
+    expect(gas.live).toBe('/?fuels=GAS')
+    expect(gas.body).toContain('There is 1 station with gas-fired units in service, with 449 MW of capacity: Huntly.')
+    expect(gas.body).toContain('<a href="/generator/huntly">Huntly</a></td><td>Genesis Energy</td><td>North Island</td><td class="num">449</td><td class="num">2,000</td>')
     expect(gas.body).toContain('<h3>Retired</h3><ul class="prerender__links"><li><a href="/generator/otahuhu">Ōtāhuhu</a></li></ul>')
-    expect(page('/fuel/batteries').body).toContain('grid batteries generated 10 GWh, 0.1%')
+    expect(page('/analysis/fuel/batteries').body).toContain('grid batteries generated 10 GWh, 0.1%')
   })
 
   it('writes the renewable share every year', () => {
-    const body = page('/renewable-energy').body
+    const body = page('/analysis/renewable-energy').body
     expect(body).toContain('In 2025, 64.5% of the electricity generated on New Zealand&#39;s national grid came from renewable sources: hydro 64.5%.'.replace('&#39;', "'"))
-    expect(body).toContain('<td>2025</td><td>64.5%</td><td>4,552 GWh</td>')
+    expect(body).toContain('<td>2025</td><td class="num">64.5%</td><td class="num">4,552</td>')
   })
 
   it('writes each island\'s generation, demand and HVDC flows', () => {
-    const body = page('/island/south-island').body
+    const body = page('/analysis/island/south-island').body
     expect(body).toContain('In 2025, they generated 4,552 GWh, 64.5% of New Zealand&#39;s grid generation'.replace('&#39;', "'"))
-    expect(body).toContain('sent 2,065 GWh north and 592 GWh south')
+    expect(body).toContain('It imported 592 GWh from the North Island over the HVDC link, and exported 2,065 GWh to it.')
+  })
+
+  it("marks an island's demand across its generation each year", () => {
+    // Huntly's 2,000 + 400 + 10 discharged, and Huntly substation's 320
+    const body = page('/analysis/island/north-island').body
+    expect(tips(body).find((t) => t.title === '2025')).toEqual({
+      title: '2025',
+      rows: [
+        { name: 'Generation', value: '2,410 GWh', swatch: 'bar' },
+        { name: 'Taken from the grid', value: '320 GWh', swatch: 'mark' },
+        { name: 'Imported via HVDC', value: '2,065 GWh' },
+        { name: 'Exported via HVDC', value: '592 GWh' },
+      ],
+    })
+    expect(body).toContain('class="prerender__chart-mark"')
+    expect(body).toContain('<td>2025</td><td class="num">2,410</td><td class="num">320</td><td class="num">2,065</td><td class="num">592</td>')
   })
 
   it('links a station to its fuel, operator and island pages', () => {
-    expect(page('/generator/manapouri').body).toContain('See also: <a href="/fuel/hydro">Hydro power in New Zealand</a> · <a href="/island/south-island">Electricity in the South Island</a>')
+    expect(page('/generator/manapouri').body).toContain('See also: <a href="/analysis/fuel/hydro">Hydro power in New Zealand</a> · <a href="/analysis/island/south-island">Electricity in the South Island</a>')
+  })
+
+  it('puts each Analysis page under Analysis in its breadcrumbs, and marks the section in its header', () => {
+    const hydro = page('/analysis/fuel/hydro')
+    expect(hydro.body).toContain('<a href="/">NZ Electricity Map</a> › <a href="/analysis">Analysis</a> › Hydro power in New Zealand')
+    expect(JSON.stringify(hydro.jsonLd)).toContain('"name":"Analysis","item":"https://electricitymap.frenchsta.gg/analysis"')
+    expect(renderPage(TEMPLATE, hydro)).toContain('<a href="/analysis" aria-current="true">Analysis</a>')
+    expect(renderPage(TEMPLATE, page('/generator/manapouri'))).toContain('<a href="/analysis">Analysis</a></nav>')
+  })
+
+  it("sums up the renewable share, and each fuel's, island's and operator's figures, on the Analysis page", () => {
+    const analysis = page('/analysis')
+    expect(analysis.standalone).toBe(true)
+    expect(renderPage(TEMPLATE, analysis)).toContain('<a href="/analysis" aria-current="page">Analysis</a>')
+    // Huntly's 2,000 + 400 + 10 discharged, Manapōuri's 4,552 and the unknown node's 100
+    expect(analysis.body).toContain('In 2025, the grid generated 7,062 GWh, 64.5% of it from renewable sources: hydro 64.5%.')
+    expect(analysis.body).toContain('<a href="/analysis/renewable-energy">How renewable is New Zealand\'s electricity?</a>')
+    // Hydro, Manapōuri's 800 MW, generated the most in 2025, so it comes first
+    expect(analysis.body).toContain('<tbody><tr><td><a href="/analysis/fuel/hydro">Hydro</a></td><td class="num">1</td><td class="num">800</td><td class="num">4,552</td><td class="num">64.5%</td></tr>')
+  })
+
+  it("names the page it's on among the links at its foot, without linking it to itself", () => {
+    const body = page('/analysis/fuel/hydro').body
+    expect(body).toContain('<li><span aria-current="page">Hydro</span></li>')
+    expect(body).toContain('<li><a href="/analysis/fuel/gas">Gas</a></li>')
   })
 
   it('leads the home page with the renewable share', () => {
@@ -251,11 +306,42 @@ describe('pages with yearly figures', () => {
 
   it('writes a topic page without the app, keeping its stylesheet', () => {
     const template = '<head><!--page-head--><!--/page-head--><script type="module" crossorigin src="/assets/index.js"></script>\n<link rel="modulepreload" crossorigin href="/assets/react.js">\n<link rel="stylesheet" href="/assets/index.css"></head><body><div id="root"><!--page-body--><!--/page-body--></div></body>'
-    const topic = renderPage(template, page('/fuel/hydro'))
+    const topic = renderPage(template, page('/analysis/fuel/hydro'))
     expect(topic).not.toContain('script type="module"')
     expect(topic).not.toContain('modulepreload')
     expect(topic).toContain('<link rel="stylesheet" href="/assets/index.css">')
     expect(renderPage(template, page('/generator/manapouri'))).toContain('script type="module"')
+  })
+
+  it("loads the charts' tooltips on a page of its own with a chart, in place of the app", () => {
+    const template = '<head><!--page-head--><!--/page-head--><script type="module" crossorigin src="/assets/index.js"></script>\n</head><body><div id="root"><!--page-body--><!--/page-body--></div></body>'
+    const script = '<script type="module" src="/assets/chartTooltip.js"></script>'
+    expect(renderPage(template, page('/analysis/fuel/hydro'), '/assets/chartTooltip.js')).toContain(script)
+    expect(renderPage(template, page('/analysis/fuel/hydro'), '/assets/chartTooltip.js')).not.toContain('/assets/index.js')
+    expect(renderPage(template, page('/analysis'), '/assets/chartTooltip.js')).not.toContain(script)
+    expect(renderPage(template, page('/generator/manapouri'), '/assets/chartTooltip.js')).not.toContain(script)
+  })
+})
+
+describe('tables', () => {
+  it('gives a column of figures one precision, with none as a dash', () => {
+    expect(figures([1234.4, 93.8, 0, 0.3])).toEqual(['1,234', '94', '–', '&lt;1'])
+    expect(figures([93.8, 1.14])).toEqual(['93.8', '1.1'])
+  })
+
+  it('gives a share a decimal place, with none as a dash', () => {
+    expect(shareCell(0.05)).toBe('5.0%')
+    expect(shareCell(0)).toBe('–')
+    expect(shareCell(0.0001)).toBe('&lt;0.1%')
+  })
+
+  it('shows the latest ten years, and the rest behind a toggle', () => {
+    const years = Array.from({ length: 20 }, (_, i) => 2007 + i)
+    const many = parseStats({ series: ['MAN2201 MAN0'], data: years.map((y) => [`${y}-01-01`, 1000000]) }, 2026)
+    const html = yearlyTable(many, [{ head: 'Generation', values: years.map(() => 1000) }])
+    expect(html).toContain('<summary>Earlier years, 2007–2016</summary>')
+    expect(html.indexOf('<td>2017</td>')).toBeLessThan(html.indexOf('prerender__more-rows'))
+    expect(html.indexOf('<td>2016</td>')).toBeGreaterThan(html.indexOf('prerender__more-rows'))
   })
 })
 
@@ -278,24 +364,30 @@ describe('descriptions', () => {
 })
 
 describe('barChart', () => {
-  const svg = barChart([{ label: '2024', value: 12000 }, { label: '2025', value: 0 }, { label: '2026', value: 6000, partial: true, title: '2026 so far' }], {
-    colour: 'red', unit: 'GWh', label: 'Generation each year', format: (v) => `${v} GWh`,
+  const html = barChart([{ label: '2024', value: 12000 }, { label: '2025', value: 0 }, { label: '2026', value: 6000, partial: true, title: '2026 so far' }], {
+    colour: 'red', unit: 'GWh', label: 'Generation each year', format: (v) => `${v} GWh`, name: 'Generation',
   })
 
-  it('draws a bar for each value above zero, the partial year faded', () => {
-    expect(svg.match(/<path /g)).toHaveLength(2)
-    expect(svg).toContain('fill-opacity="0.45"')
+  it('draws a bar for each value above zero, as tall as its share of the axis, the partial year faded', () => {
+    expect(html.match(/class="prerender__chart-bar/g)).toHaveLength(2)
+    // 12,000 of an axis up to 15,000
+    expect(html).toContain('<div class="prerender__chart-bar" style="height:80%"></div>')
+    expect(html).toContain('<div class="prerender__chart-bar prerender__chart-bar--part" style="height:40%"></div>')
   })
 
-  it('gives each bar its value as a tooltip, and the chart a label', () => {
-    expect(svg).toContain('<title>2024: 12000 GWh</title>')
-    expect(svg).toContain('<title>2026 so far: 6000 GWh</title>')
-    expect(svg).toContain('role="img" aria-label="Generation each year"')
+  it('gives each bar its year and value for its tooltip, and the chart a label', () => {
+    expect(tips(html).map((t) => t.title)).toEqual(['2024', '2025', '2026 so far'])
+    expect(tips(html)[2].rows).toEqual([{ name: 'Generation', value: '6000 GWh', swatch: 'part' }])
+    expect(html).toContain('role="img" aria-label="Generation each year" style="--chart-colour:red"')
+  })
+
+  it('names its unit over the axis', () => {
+    expect(html).toContain('<span class="prerender__chart-unit">GWh</span>')
   })
 
   it('labels a large axis compactly, in clean steps from zero', () => {
-    expect(svg).toContain('>0</text>')
-    expect(svg).toContain('>5K</text>')
-    expect(svg).toContain('>15K</text>')
+    expect(html).toContain('<div class="prerender__chart-tick" style="bottom:0%"><span>0</span></div>')
+    expect(html).toContain('<div class="prerender__chart-tick" style="bottom:33.3%"><span>5K</span></div>')
+    expect(html).toContain('<div class="prerender__chart-tick" style="bottom:100%"><span>15K</span></div>')
   })
 })
