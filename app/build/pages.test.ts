@@ -37,12 +37,20 @@ describe('buildPages', () => {
   const pages = buildPages(defs, [])
   const page = (path: string) => pages.find((p) => p.path === path)!
 
-  it('writes the home, HVDC, pipeline, topic and every station page', () => {
+  it("writes the home, HVDC, pipeline, topic and every station page, and each generator's history", () => {
     expect(pages.map((p) => p.path)).toEqual([
       '/', '/hvdc', '/pipeline',
       '/fuel/gas', '/fuel/coal', '/fuel/batteries', '/island/north-island', '/island/south-island',
-      '/generator/huntly', '/generator/otahuhu', '/substation/huntly',
+      '/generator/huntly', '/generator/huntly/historic', '/generator/otahuhu', '/generator/otahuhu/historic', '/substation/huntly',
     ])
+  })
+
+  it("gives a generator's history its own title, and links it from the station's page", () => {
+    const p = page('/generator/huntly/historic')
+    expect(p.title).toBe('Huntly Power Station – Historical Generation & Records | NZ Electricity Map')
+    expect(p.body).toContain('<h1>Huntly Power Station: Historical Generation</h1>')
+    expect(p.body).toContain('<a href="/generator/huntly">Huntly Power Station</a> › Historical generation')
+    expect(page('/generator/huntly').body).toContain('<a href="/generator/huntly/historic">Huntly&#39;s historical generation and records</a>'.replace('&#39;', "'"))
   })
 
   it('describes a generator from its definition', () => {
@@ -109,12 +117,14 @@ describe('files', () => {
   it('names each page file as Pages serves it', () => {
     expect(pageFile('/')).toBe('index.html')
     expect(pageFile('/generator/huntly')).toBe('generator/huntly.html')
+    expect(pageFile('/generator/huntly/historic')).toBe('generator/huntly/historic.html')
   })
 
   it('lists every page in the sitemap', () => {
     const xml = sitemap(buildPages(defs, []))
     expect(xml).toContain('<loc>https://electricitymap.frenchsta.gg/generator/huntly</loc>')
-    expect(xml.match(/<url>/g)).toHaveLength(11)
+    expect(xml).toContain('<loc>https://electricitymap.frenchsta.gg/generator/huntly/historic</loc>')
+    expect(xml.match(/<url>/g)).toHaveLength(13)
   })
 
   it('escapes text for HTML', () => {
@@ -177,6 +187,20 @@ describe('pages with yearly figures', () => {
     expect(body).toContain('<td>1997 (Aug–Dec)</td><td>2,000 GWh</td>')
     expect(body).toContain('<title>1997 (Aug–Dec): 2,000 GWh</title>')
     expect(body).toContain('<title>2026 so far: 4,000 GWh</title>')
+  })
+
+  it("gives a generator's history its records, and its share of the grid's generation each year", () => {
+    const body = page('/generator/manapouri/historic').body
+    expect(body).toContain('<dt>On record since</dt><dd>August 1997, when the records begin</dd>')
+    // Of 2015's 8,100 GWh: Huntly's 3,000 + Ōtāhuhu's 100 + Manapōuri's 5,000
+    expect(body).toContain('<dt>Best year</dt><dd>2015, with 5,000 GWh (61.7% of the grid&#39;s generation)</dd>'.replace('&#39;', "'"))
+    expect(body).toContain('<dt>Generated on record</dt><dd>20,052 GWh</dd>')
+    expect(body).toContain('<td>2025</td><td>4,552 GWh</td><td>64.5%</td>')
+    expect(body).not.toContain('Last generated')
+  })
+
+  it("gives a retired generator's history the last year it generated", () => {
+    expect(page('/generator/otahuhu/historic').body).toContain('<dt>Last generated</dt><dd>2015</dd>')
   })
 
   it('leaves out a capacity factor when its capacity changed during the year', () => {

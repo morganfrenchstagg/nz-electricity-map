@@ -4,7 +4,7 @@ import { underConstruction } from '../src/data/underConstruction'
 import { fuelColour } from '../src/utils/colours'
 import { isCharging, isCommissioning, isDecommissioned, isRetired } from '../src/utils/generators'
 import {
-  generatorCapacity, generatorPath, generatorTitle, HOME_TITLE, HVDC_PATH, HVDC_TITLE,
+  generatorCapacity, generatorHistoricPath, generatorHistoricTitle, generatorPath, generatorTitle, HOME_TITLE, HVDC_PATH, HVDC_TITLE,
   PIPELINE_TITLE, SITE_NAME, stationKind, substationPath, substationTitle,
 } from '../src/utils/stationPaths'
 import {
@@ -139,6 +139,7 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
 <p>${esc(`${about} ${more}`)} ${retired ? '' : 'The live map shows its output every five minutes, as dispatched on the national grid, with the price at its node and its offers for each trading period.'}</p>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 ${generatorStats(g, ctx, figures)}
+<p>${link(generatorHistoricPath(g, defs.generators), `${g.name}'s historical generation and records`)}</p>
 <h2>Units</h2>
 <table><thead><tr><th>Unit</th><th>Fuel</th><th>Capacity</th><th>Commissioned</th><th>Status</th></tr></thead><tbody>${unitRows}</tbody></table>
 ${substation ? `<p>Connected to the grid at ${link(substationPath(substation, defs.substations), `${substation.description} substation`)}.</p>` : ''}
@@ -146,18 +147,85 @@ ${seeAlso(ctx, g)}
 ${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} stations</h2>${linkList(others.map((o) => ({ href: generatorPath(o, defs.generators), text: o.name })))}` : ''}
 ${SOURCES}`
 
-  const place = {
-    '@type': 'Place', '@id': `${ORIGIN}${path}#station`, name: heading,
+  const place = generatorPlace(g, defs)
+  return {
+    path, title: generatorTitle(g), description, body,
+    jsonLd: graph(webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }), place),
+  }
+}
+
+// The station its page and its history's page are about
+function generatorPlace(g: Generator, defs: Definitions) {
+  return {
+    '@type': 'Place', '@id': `${ORIGIN}${generatorPath(g, defs.generators)}#station`, name: `${g.name} ${stationKind(g)}`,
     geo: { '@type': 'GeoCoordinates', latitude: g.location.lat, longitude: g.location.long },
     address: { '@type': 'PostalAddress', addressCountry: 'NZ' },
     additionalProperty: [
-      { '@type': 'PropertyValue', name: 'Capacity', value: capacity, unitText: 'MW' },
+      { '@type': 'PropertyValue', name: 'Capacity', value: generatorCapacity(g), unitText: 'MW' },
       { '@type': 'PropertyValue', name: 'Fuel', value: fuelsText(g) },
-      { '@type': 'PropertyValue', name: 'Operator', value: operator },
+      { '@type': 'PropertyValue', name: 'Operator', value: g.secondaryOperator ? `${g.operator} and ${g.secondaryOperator}` : g.operator },
     ],
   }
+}
+
+// What a history's page says of the years: when it's on record from, its
+// best full year, its total, and for a retired station the last year it generated
+function historicRecords(g: Generator, ctx: Context, values: number[], from: number): [string, string][] {
+  const { stats, total } = ctx
+  if (!stats) return []
+  const records: [string, string][] = []
+  const first = stats.years[from]
+  records.push(['On record since', from === 0 && stats.partial.has(first) ? `August ${first}, when the records begin` : String(first)])
+  const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
+  if (fullYears.length > 0) {
+    const best = fullYears.reduce((b, i) => values[i] > values[b] ? i : b, fullYears[0])
+    records.push(['Best year', `${stats.years[best]}, with ${gwh(values[best])} (${pct(values[best] / total[best])} of the grid's generation)`])
+  }
+  records.push(['Generated on record', gwh(values.slice(from).reduce((sum, v) => sum + v, 0))])
+  const last = values.findLastIndex((v) => Math.abs(v) >= 0.05)
+  if (isRetired(g) && last >= from) records.push(['Last generated', String(stats.years[last])])
+  return records
+}
+
+// A generator's history: its records and its generation and share of the grid's
+// every year. The app opens it at All, with the records it finds by month and day.
+function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigures): Page {
+  const { defs, stats, total } = ctx
+  const stationPath = generatorPath(g, defs.generators)
+  const path = generatorHistoricPath(g, defs.generators)
+  const station = `${g.name} ${stationKind(g)}`
+  const heading = `${station}: Historical Generation`
+  const values = figures.yearly.get(g)
+  const from = values ? firstYear(values) : 0
+  // Left out for a station with nothing on record yet
+  const yearly = stats && values && from < values.length ? { stats, values } : null
+  const since = yearly ? ` every year since ${yearly.stats.years[from]}` : ' by year, quarter and month'
+  const records = ' and its records, from its best year to when it first generated'
+  // Shorter than the page's intro, to stay within 160 characters (see fitDescription)
+  // for the longest name, Te Puna Mauri ō Omaru's
+  const description = `${g.name}'s generation${since}${yearly ? ", its share of New Zealand's grid" : ','}${records}.`
+  const intro = `${g.name}'s electricity generation${since}${yearly ? ", its share of New Zealand's grid generation," : ','}${records}.`
+  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: station, path: stationPath }, { name: 'Historical generation', path }])
+  const facts = yearly ? historicRecords(g, ctx, yearly.values, from) : []
+
+  const body = `${crumbs.html}
+<h1>${esc(heading)}</h1>
+<p>${esc(intro)} The live map charts it by year, quarter or month back to August 1997, with when it first generated and its best year and month.</p>
+${facts.length ? `<h2>Records</h2>
+<dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+${yearly ? `<h2>Generation by year</h2>
+${yearlyChart(yearly.stats, yearly.values, from, { colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh })}
+${yearlyTable(yearly.stats, [
+    { head: 'Generation', values: yearly.values, format: gwh },
+    { head: "Share of the grid's generation", values: yearly.values.map((v, i) => total[i] > 0 ? v / total[i] : 0), format: pct },
+  ], from)}` : ''}
+<p>${link(stationPath, station)}: its units, capacity, and ${isRetired(g) ? 'when it was retired' : 'live generation, offers and prices'}.</p>
+${seeAlso(ctx, g)}
+${SOURCES}`
+
+  const place = generatorPlace(g, defs)
   return {
-    path, title: generatorTitle(g), description, body,
+    path, title: generatorHistoricTitle(g), description, body,
     jsonLd: graph(webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }), place),
   }
 }
@@ -321,7 +389,7 @@ export function buildPages(defs: Definitions, projects: UnderConstructionNode[] 
     hvdcPage(ctx),
     pipelinePage(projects),
     ...topicPages(ctx),
-    ...defs.generators.map((g) => generatorPage(g, ctx, figures)),
+    ...defs.generators.flatMap((g) => [generatorPage(g, ctx, figures), generatorHistoricPage(g, ctx, figures)]),
     ...defs.substations.map((s) => substationPage(s, ctx)),
   ]
 }

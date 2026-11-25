@@ -15,7 +15,7 @@ export const FIRST_DAY = '2009-01-01'
 // The first day the aggregates API has totals for. It starts a month, so All's
 // months start here, but its quarter and year would only be partly covered,
 // so All's quarters and years start with the first complete ones.
-const AGGREGATES_FIRST_DAY = '1997-08-01'
+export const AGGREGATES_FIRST_DAY = '1997-08-01'
 const FIRST_COMPLETE_QUARTER = '1997-10-01'
 const FIRST_COMPLETE_YEAR = '1998-01-01'
 const DAY_MS = 86400000
