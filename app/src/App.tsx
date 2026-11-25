@@ -11,7 +11,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
 import { viewBesideNz } from './utils/mapView'
 import { substationsOf, substationsTitle } from './utils/substations'
-import { generatorTitle, HOME_TITLE, HVDC_TITLE, nodeParamOfPath, PIPELINE_TITLE, SITE_NAME, substationTitle } from './utils/stationPaths'
+import { generatorHistoricTitle, generatorTitle, HOME_TITLE, HVDC_TITLE, nodeParamOfPath, PIPELINE_TITLE, SITE_NAME, substationTitle } from './utils/stationPaths'
 
 // maplibre is the largest library by far, so the panel doesn't wait for it
 const loadMap = () => import('./components/Map')
@@ -24,7 +24,7 @@ export default function App() {
   const { generators, substations } = useDefinitions()
   const isMobile = useIsMobile()
   const {
-    selectedNode, selectNode,
+    selectedNode, selectNode, openedGenerator,
     dateMode, setDateMode,
     viewMode, setViewMode,
     tradingPeriod, setTradingPeriod,
@@ -63,15 +63,17 @@ export default function App() {
   const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6))
 
   // Keep the document/tab title in sync with whichever panel is open, titling a
-  // station as its own page is (see stationPaths). A station page keeps its title
-  // while its station is being found. The pipeline, open over the grid panel, has its own.
+  // station as its own page is (see stationPaths), and a generator at All as its
+  // history's page. A station page keeps its title while its station is being
+  // found. The pipeline, open over the grid panel, has its own.
+  const historic = dateMode.kind === 'all'
   useEffect(() => {
     if (pipelineOpen && selectedNode === null && gridPanelVisible) {
       document.title = PIPELINE_TITLE
     } else if (selectedNode === null) {
       if (!nodeParamOfPath(window.location.pathname)) document.title = HOME_TITLE
     } else if (selectedNode.kind === 'generator') {
-      document.title = generatorTitle(selectedNode.generator)
+      document.title = historic ? generatorHistoricTitle(selectedNode.generator) : generatorTitle(selectedNode.generator)
     } else if (selectedNode.kind === 'substation') {
       document.title = substationTitle(selectedNode.substation)
     } else if (selectedNode.kind === 'hvdc') {
@@ -84,7 +86,7 @@ export default function App() {
         : substationsTitle(substationsOf(selectedNode))
       document.title = `${names} | ${SITE_NAME}`
     }
-  }, [selectedNode, pipelineOpen, gridPanelVisible])
+  }, [selectedNode, pipelineOpen, gridPanelVisible, historic])
 
   // Single source of dispatch data for the date-driven panels, so the node
   // panels and GridOverviewPanel share one fetch instead of each running
@@ -128,7 +130,7 @@ export default function App() {
     <>
       {mapWanted ? (
         <Suspense fallback={mapPlaceholder}>
-          <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
+          <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} openedGenerator={openedGenerator} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
         </Suspense>
       ) : mapPlaceholder}
       {selectedNode && (selectedNode.kind === 'substation' || selectedNode.kind === 'substations'

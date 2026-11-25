@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Generator, SelectedNode, Substation } from '../types'
+import type { Generator, GeneratorNode, SelectedNode, Substation } from '../types'
 import { periodMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { FIRST_DAY } from './useAggregates'
 import { CHART_SETTING_PARAMS, readChartSettings, writeChartSettings } from '../utils/chartSettings'
 import type { ChartSettings } from '../utils/chartSettings'
-import { generatorSlug, nodeParamOfPath, stationPath, substationSlug } from '../utils/stationPaths'
+import { generatorSlug, isHistoricPath, nodeParamOfPath, stationPath, substationSlug } from '../utils/stationPaths'
 
 export type ViewMode = 'generation' | 'offers'
 
 // Everything a link carries, in the order it's written:
 //   /generator/huntly, /substation/otahuhu or /hvdc
-//                   the open panel, when it's a single station (see stationPaths), or
+//                   the open panel, when it's a single station (see stationPaths),
+//                   or /generator/huntly/historic, a generator at All, or
 //   ?node=          several stations: generators:HLY,TCC or substations:OTA,PEN, or
 //                   any node while the pipeline is open. A single station's
 //                   ?node=generator:HLY, substation:OTA or hvdc, from older links,
 //                   opens its page.
 //   ?mode=          today | recent | last90 | lastYear | 5y | all (today by
-//                   default, or recent, the last 3 days, on a station's page), with
+//                   default, recent, the last 3 days, on a station's page, and
+//                   all on a generator's history's, which leaves it out), with
 //   ?aggregation=   a view's totals when they aren't its default: weekly for
 //                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
 //                   for All, or instead
@@ -56,9 +58,11 @@ function readUrl(): UrlState {
   const from = day('from'), to = day('to'), date = day('date')
   // The 30d view was dropped for 90d, which its old links open instead
   const mode = p.get('mode') === 'last30' ? 'last90' : p.get('mode')
-  // A station's page opens at its last 3 days, and the rest of the site at today
+  // A station's page opens at its last 3 days, a generator's history at All, and
+  // the rest of the site at today
   const pathNode = nodeParamOfPath(window.location.pathname)
-  const period = PERIOD_MODES.find(m => m === mode) ?? (pathNode ? 'recent' : 'today')
+  const period = PERIOD_MODES.find(m => m === mode)
+    ?? (isHistoricPath(window.location.pathname) ? 'all' : pathNode ? 'recent' : 'today')
   const viewMode = p.get('view') === 'offers' ? 'offers' : 'generation'
   const tp = parseInt(p.get('tp') ?? '', 10)
   const fuels = p.get('fuels')
@@ -81,10 +85,12 @@ function writeUrl(state: UrlState) {
   const p = new URLSearchParams()
   if (state.node && (state.pipelineOpen || !state.nodePath)) p.set('node', state.node)
   const { dateMode } = state
+  // A generator's history is All, so its path says so
+  const historicPath = !state.pipelineOpen && state.nodePath !== null && isHistoricPath(state.nodePath)
   if (dateMode.kind === 'date') p.set('date', dateMode.date)
   else if (dateMode.kind === 'range') { p.set('from', dateMode.from); p.set('to', dateMode.to) }
   else {
-    p.set('mode', dateMode.kind)
+    if (!(historicPath && dateMode.kind === 'all')) p.set('mode', dateMode.kind)
     const defaultMode = periodMode(dateMode.kind)
     if ('aggregation' in dateMode && 'aggregation' in defaultMode && dateMode.aggregation !== defaultMode.aggregation) {
       p.set('aggregation', dateMode.aggregation)
@@ -163,6 +169,10 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   const [chartSettings, setChartSettings] = useState(initial.chartSettings)
   const [expanded, setExpanded] = useState(initial.expanded)
   const [pipelineOpen, setPipelineOpen] = useState(initial.pipelineOpen)
+  // The generator the URL opened at, once it's found, which the map zooms in on
+  // (see Map). Picking another node does away with it, but closing the panel
+  // doesn't, as on mobile that's the way to the map.
+  const [openedGenerator, setOpenedGenerator] = useState<GeneratorNode | null>(null)
 
   // Offers opens at the first trading period, unless a link gave one
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -175,12 +185,15 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     setLinkedNode(null)
     setLinkedPath(null)
     setSelectedNode(node)
+    if (node !== null) setOpenedGenerator(null)
     if (node === null || node.kind === 'substation' || node.kind === 'substations' || node.kind === 'hvdc') setViewMode('generation')
   }, [setViewMode])
 
   useEffect(() => {
     if (linkedNode === null || (generators.length === 0 && substations.length === 0)) return
-    selectNode(resolveNode(linkedNode, generators, substations))
+    const node = resolveNode(linkedNode, generators, substations)
+    selectNode(node)
+    if (node?.kind === 'generator') setOpenedGenerator(node)
   }, [linkedNode, generators, substations, selectNode])
 
   // Back from /pipeline closes the pipeline modal
@@ -191,13 +204,13 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   }, [])
 
   const node = linkedNode ?? (selectedNode && nodeParam(selectedNode))
-  const nodePath = linkedNode !== null ? linkedPath : selectedNode && stationPath(selectedNode, generators, substations)
+  const nodePath = linkedNode !== null ? linkedPath : selectedNode && stationPath(selectedNode, generators, substations, dateMode.kind === 'all')
   useEffect(() => {
     writeUrl({ node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen })
   }, [node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
 
   return {
-    selectedNode, selectNode,
+    selectedNode, selectNode, openedGenerator,
     dateMode, setDateMode,
     viewMode, setViewMode,
     tradingPeriod, setTradingPeriod,

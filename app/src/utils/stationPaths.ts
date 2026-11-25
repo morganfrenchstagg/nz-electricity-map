@@ -1,9 +1,10 @@
 import type { Generator, SelectedNode, Substation, Unit } from '../types'
 import { isCharging, isDecommissioned, isRetired } from './generators'
 
-// A single station's own page: /generator/huntly, /substation/otahuhu or /hvdc.
-// The build writes each as a static page for search engines (see build/pages.ts),
-// and the app opens that station's panel there. Several stations picked together
+// A single station's own page: /generator/huntly, /substation/otahuhu or /hvdc,
+// and a generator's history, /generator/huntly/historic. The build writes each as
+// a static page for search engines (see build/pages.ts), and the app opens that
+// station's panel there, its history at All. Several stations picked together
 // have no page, so stay in ?node= (see useUrlState).
 
 export const SITE_NAME = 'NZ Electricity Map'
@@ -41,13 +42,25 @@ export function generatorPath(g: Generator, generators: Generator[]): string {
   return `/generator/${generatorSlug(g, generators)}`
 }
 
+const HISTORIC = '/historic'
+
+export function generatorHistoricPath(g: Generator, generators: Generator[]): string {
+  return generatorPath(g, generators) + HISTORIC
+}
+
+// /generator/huntly/historic, which opens at All
+export function isHistoricPath(pathname: string): boolean {
+  return /^\/generator\/[^/]+\/historic$/.test(pathname.replace(/\/+$/, ''))
+}
+
 export function substationPath(s: Substation, substations: Substation[]): string {
   return `/substation/${substationSlug(s, substations)}`
 }
 
-// The page of the station a node is, or null for several stations
-export function stationPath(node: NonNullable<SelectedNode>, generators: Generator[], substations: Substation[]): string | null {
-  if (node.kind === 'generator') return generatorPath(node.generator, generators)
+// The page of the station a node is, or null for several stations. A generator
+// shown at All (`historic`) is on its history's page.
+export function stationPath(node: NonNullable<SelectedNode>, generators: Generator[], substations: Substation[], historic = false): string | null {
+  if (node.kind === 'generator') return historic ? generatorHistoricPath(node.generator, generators) : generatorPath(node.generator, generators)
   if (node.kind === 'substation') return substationPath(node.substation, substations)
   if (node.kind === 'hvdc') return HVDC_PATH
   return null
@@ -58,7 +71,7 @@ export function stationPath(node: NonNullable<SelectedNode>, generators: Generat
 export function nodeParamOfPath(pathname: string): string | null {
   const path = pathname.replace(/\/+$/, '')
   if (path === HVDC_PATH) return 'hvdc'
-  const match = /^\/(generator|substation)\/([^/]+)$/.exec(path)
+  const match = /^\/(generator|substation)\/([^/]+)$/.exec(isHistoricPath(path) ? path.slice(0, -HISTORIC.length) : path)
   if (!match) return null
   let slug: string
   try { slug = decodeURIComponent(match[2]).toLowerCase() } catch { return null }
@@ -90,6 +103,10 @@ export function stationKind(g: Generator, atMs?: number): string {
 
 export function generatorTitle(g: Generator, atMs?: number): string {
   return `${g.name} ${stationKind(g, atMs)} – Live Generation | ${SITE_NAME}`
+}
+
+export function generatorHistoricTitle(g: Generator, atMs?: number): string {
+  return `${g.name} ${stationKind(g, atMs)} – Historical Generation & Records | ${SITE_NAME}`
 }
 
 export function substationTitle(s: Substation): string {

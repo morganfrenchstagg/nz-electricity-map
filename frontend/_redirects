@@ -1,5 +1,6 @@
 # Every other page is a file the build writes: index.html, hvdc.html,
-# pipeline.html and a page for each station (see app/build/pages.ts). Anything
+# pipeline.html, a page for each station and one for each generator's history,
+# generator/<name>/historic.html (see app/build/pages.ts). Anything
 # else gets 404.html. A station added to the API since the last build has no
 # page until the next, which runs daily (see pages-deployment.yaml). A rewrite
 # can't fall back to the app for it: Pages applies rewrites before its files,

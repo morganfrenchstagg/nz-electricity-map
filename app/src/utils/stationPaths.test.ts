@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Generator, Substation, Unit } from '../types'
 import {
-  generatorCapacity, generatorPath, generatorTitle, nodeParamOfPath, slugify, stationKind, stationPath, substationPath,
+  generatorCapacity, generatorHistoricPath, generatorPath, generatorTitle, isHistoricPath, nodeParamOfPath, slugify, stationKind, stationPath, substationPath,
 } from './stationPaths'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
@@ -58,6 +58,23 @@ describe('station paths', () => {
     expect(nodeParamOfPath('/pipeline')).toBeNull()
     expect(nodeParamOfPath('/generator/a/b')).toBeNull()
     expect(nodeParamOfPath('/generator/%E0%A4%A')).toBeNull()
+  })
+
+  it("paths a generator at All to its history's page, and only a single generator", () => {
+    expect(generatorHistoricPath(ati, generators)).toBe('/generator/atiamuri/historic')
+    expect(stationPath({ kind: 'generator', generator: huntly }, generators, substations, true)).toBe('/generator/huntly/historic')
+    expect(stationPath({ kind: 'substation', substation: ota }, generators, substations, true)).toBe('/substation/otahuhu')
+    expect(stationPath({ kind: 'generators', generators }, generators, substations, true)).toBeNull()
+  })
+
+  it("reads a generator's history's path as its node", () => {
+    expect(nodeParamOfPath('/generator/huntly/historic')).toBe('generator:huntly')
+    expect(nodeParamOfPath('/generator/huntly/historic/')).toBe('generator:huntly')
+    expect(isHistoricPath('/generator/huntly/historic')).toBe(true)
+    expect(isHistoricPath('/generator/huntly')).toBe(false)
+    expect(nodeParamOfPath('/substation/otahuhu/historic')).toBeNull()
+    expect(isHistoricPath('/substation/otahuhu/historic')).toBe(false)
+    expect(nodeParamOfPath('/generator/historic')).toBe('generator:historic')
   })
 })
 
