@@ -123,7 +123,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "name": "Puna Komaru",
         "fuel": "Solar",
         "operator": "Northpower",
-        "status": "Pre-Commissioning",
+        "status": "Commissioning",
         "capacityMW": 18,
         "capacityMWp": 20,
         "openBy": "2026-11-30",
@@ -186,7 +186,7 @@ export const underConstruction: UnderConstructionNode[] = [
         "link": "https://www.meridianenergy.co.nz/new-projects/te-rere-hau"
     },
     {
-        "name": "Central Hawke's Bay",
+        "name": "Maruata",
         "fuel": "Solar",
         "operator": "Lodestone Energy / Centralines",
         "status": "Committed",
