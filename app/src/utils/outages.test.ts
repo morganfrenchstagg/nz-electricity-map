@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutageRecord } from '../api'
 import type { Unit } from '../types'
-import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt, unitCapacityAt, unitOutageMWAt } from './outages'
+import { capacityLeftAfter, maxOutageMWOf, mergeOutageDays, mergeOutageSegments, outageEasesAt, unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs } from './time'
 
 afterEach(() => { vi.useRealTimers() })
@@ -164,5 +164,29 @@ describe('maxOutageMWOf', () => {
       { start: at('08:00'), end: at('10:00'), mw: 60 },
       { start: at('10:00'), end: at('12:00'), mw: 100 },
     ])
+  })
+})
+
+describe('mergeOutageDays', () => {
+  it("keeps an outage going on over several days once, beside each day's own", () => {
+    const longRunning = outage('08:00', '23:00', 40, 'ATI_1')
+    const firstDay = { 'ATI2201 ATI0': [longRunning, outage('09:00', '10:00', 5, 'ATI_2')] }
+    const secondDay = { 'ATI2201 ATI0': [{ ...longRunning }], 'HLY2201 HLY5': [outage('11:00', '12:00', 400, 'HLY_5')] }
+
+    expect(mergeOutageDays([firstDay, secondDay])).toEqual({
+      'ATI2201 ATI0': [longRunning, outage('09:00', '10:00', 5, 'ATI_2')],
+      'HLY2201 HLY5': [outage('11:00', '12:00', 400, 'HLY_5')],
+    })
+  })
+
+  it('keeps records on the same block that differ in time or MW', () => {
+    const records = [outage('08:00', '12:00', 40, 'ATI_1'), outage('08:00', '12:00', 20, 'ATI_1'), outage('08:00', '13:00', 40, 'ATI_1')]
+
+    expect(mergeOutageDays([{ 'ATI2201 ATI0': records }, { 'ATI2201 ATI0': records }])).toEqual({ 'ATI2201 ATI0': records })
+  })
+
+  it("hands back a single day's outages as they are", () => {
+    const day = { 'ATI2201 ATI0': [outage('08:00', '12:00', 40)] }
+    expect(mergeOutageDays([day])).toBe(day)
   })
 })

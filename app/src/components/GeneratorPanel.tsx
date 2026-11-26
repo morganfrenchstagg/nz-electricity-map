@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import type Highcharts from 'highcharts'
 import type { GeneratorNode, Unit } from '../types'
-import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
+import { isAggregateMode, isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
+import type { DateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
@@ -13,7 +14,7 @@ import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT, PERCENT_UNIT } from '../utils/format'
 import type { ChartSettings } from '../utils/chartSettings'
-import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { nzLocalMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -31,18 +32,30 @@ import GenerationRecords from './GenerationRecords'
 import { isCharging } from '../utils/generators'
 
 const OutageModal = lazy(() => import('./OutageModal'))
+
+// The outages a view lists: those that hadn't ended by its end, where capacity is
+// read (see periodOf), which is now outside a past day or range. A past day or
+// range lists every one going on in it.
+function outagesListedFrom(mode: DateMode): number {
+  const period = periodOf(mode)
+  return isPastMode(mode) ? period.from : period.to
+}
+
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
 // (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
 // to get the raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
+// A date in another year than this one in NZ says which, as the outage modal's do.
 function formatOutageEnd(date: Date): string {
   const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'UTC' })
-  if (endNZ === todayNZ()) {
+  const today = todayNZ()
+  if (endNZ === today) {
     return date.toLocaleTimeString('en-NZ', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
   }
-  return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
+  const year = endNZ.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric'
+  return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short', year })
 }
 
 interface Props extends NodePanelProps {
@@ -60,7 +73,7 @@ interface Props extends NodePanelProps {
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
 export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, chartSettings, onChartSettingsChange, ...panel }: Props) {
-  const outages = useOutages(isLiveMode(dateMode))
+  const outages = useOutages(dateMode)
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
@@ -162,30 +175,30 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     return null
   }, [node])
 
-  // Each unit's outages that haven't ended yet
+  // Each unit's outages listed (see outagesListedFrom)
   const unitOutages = useMemo(() => {
     if (!outages) return []
-    const nowMs = nzNowMs()
+    const fromMs = outagesListedFrom(dateMode)
     const result: { code: string; unit: Unit; segments: OutageSegment[] }[] = []
     for (const code of capacityCodes) {
       const unit = findUnit(code)
-      if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], nowMs, maxOutageMWOf(unit)) })
+      if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], fromMs, maxOutageMWOf(unit)) })
     }
     return result
-  }, [outages, capacityCodes, findUnit])
+  }, [outages, capacityCodes, findUnit, dateMode])
 
-  // The soonest any current outage starts to ease, rather than the soonest any
-  // record ends: a record that hasn't started yet, or overlaps another on the
-  // same block, doesn't end anything
+  // The soonest any outage under way where capacity is read starts to ease, rather
+  // than the soonest any record ends: a record that hasn't started yet, or overlaps
+  // another on the same block, doesn't end anything
   const soonestOutageEnd = useMemo(() => {
-    const nowMs = nzNowMs()
+    const atMs = periodOf(dateMode).to
     let soonest: number | null = null
     for (const { segments } of unitOutages) {
-      const endMs = outageEasesAt(segments, nowMs)
+      const endMs = outageEasesAt(segments, atMs)
       if (endMs !== null && (soonest === null || endMs < soonest)) soonest = endMs
     }
     return soonest === null ? null : new Date(soonest)
-  }, [unitOutages])
+  }, [unitOutages, dateMode])
 
   const outageDetails = useMemo(() => {
     const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
@@ -207,16 +220,16 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
   const outageBlockPrefixes = useMemo(() => {
     if (!outages) return []
-    const nowMs = nzNowMs()
+    const fromMs = outagesListedFrom(dateMode)
     const prefixes = new Set<string>()
     for (const code of capacityCodes) {
       for (const rec of (outages[code] ?? [])) {
-        if (outageMs(rec.timeEnd) <= nowMs) continue
+        if (outageMs(rec.timeEnd) <= fromMs) continue
         prefixes.add(rec.outageBlock.split('_')[0])
       }
     }
     return [...prefixes]
-  }, [outages, capacityCodes])
+  }, [outages, capacityCodes, dateMode])
 
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
@@ -549,6 +562,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           <OutageModal
             outages={outageDetails}
             outageBlockPrefixes={outageBlockPrefixes}
+            atMs={periodOf(dateMode).to}
+            days={dateMode.kind === 'date' ? { from: dateMode.date, to: dateMode.date } : dateMode.kind === 'range' ? dateMode : undefined}
             onClose={() => setOutageModalOpen(false)}
           />
         )}
