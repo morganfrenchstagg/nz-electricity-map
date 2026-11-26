@@ -20,9 +20,9 @@ beforeEach(async () => {
   requested = []
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn((url: string) => {
       requested.push(new URL(url))
-      return Response.json(responses.shift(), { headers: { 'Cache-Control': 'max-age=30' } })
+      return Promise.resolve(Response.json(responses.shift(), { headers: { 'Cache-Control': 'max-age=30' } }))
     }),
   )
   // a fresh copy of the module each time, so nothing is cached from the last test
@@ -110,12 +110,14 @@ describe('fetchDispatch("recent")', () => {
 function stubSolarApi(files: Record<string, unknown>) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn((url: string) => {
       requested.push(new URL(url))
       const path = new URL(url).pathname.slice(1)
-      return path in files
-        ? Response.json({ result: files[path] }, { headers: { 'Cache-Control': 'max-age=30' } })
-        : new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+      return Promise.resolve(
+        path in files
+          ? Response.json({ result: files[path] }, { headers: { 'Cache-Control': 'max-age=30' } })
+          : new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } }),
+      )
     }),
   )
 }

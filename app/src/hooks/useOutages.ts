@@ -18,7 +18,7 @@ function outageDays(mode: DateMode): string[] {
 function peekDays(days: string[]): OutageData | null {
   if (days.length === 0) return peekOutages() ?? null
   const held = days.map((day) => peekOutages(day))
-  return held.every((d) => d !== undefined) ? mergeOutageDays(held as OutageData[]) : null
+  return held.every((d) => d !== undefined) ? mergeOutageDays(held) : null
 }
 
 // A past day's or range's outages are the ones going on in its days, so its

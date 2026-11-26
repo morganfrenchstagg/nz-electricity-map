@@ -96,7 +96,7 @@ export const FUEL_CODE_ORDER = [
 // Sort index keyed by unit.fuel name — derived from FUEL_CODE_ORDER so both use the same ordering
 export const FUEL_NAME_SORT_INDEX: Record<string, number> = Object.fromEntries(
   FUELS.flatMap((f) => {
-    const idx = FUEL_CODE_ORDER.indexOf(f.code as (typeof FUEL_CODE_ORDER)[number])
+    const idx = FUEL_CODE_ORDER.indexOf(f.code)
     return f.fuelNames.map((name) => [name, idx === -1 ? 99 : idx])
   }),
 )

@@ -165,7 +165,7 @@ export function tooltipRow(
   const code = codes[point.series.index]
   const price = code !== undefined && prices ? prices[code] : undefined
   const priceStr = price != null ? `$${price.toFixed(2)}/MWh` : ''
-  return `<tr><td><span style="color:${String(point.color)}">●</span> ${showName ? point.series.name : ''}</td><td>${formatted}${after}</td><td>${priceStr}</td></tr>`
+  return `<tr><td><span style="color:${point.color as string}">●</span> ${showName ? point.series.name : ''}</td><td>${formatted}${after}</td><td>${priceStr}</td></tr>`
 }
 
 // The tooltip's last row, totalling its points when it lists more than one

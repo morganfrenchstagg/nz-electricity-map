@@ -7,6 +7,7 @@ import { useOutages } from '../hooks/useOutages'
 import { isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
+import type { UnderConstructionUnit } from '../utils/geo'
 import { underConstruction } from '../data/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import { unitsByNode } from '../utils/generators'
@@ -451,7 +452,10 @@ export default function Map({
             : null
         }
         if (feature.layer.id === 'under-construction-layer') {
-          return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
+          return underConstructionPopupHtml(
+            String(p.name ?? ''),
+            JSON.parse(String(p.units ?? '[]')) as UnderConstructionUnit[],
+          )
         }
         // None on past days, as their dispatch has no HVDC
         if (HVDC_HOVER_LAYERS.includes(feature.layer.id)) {
@@ -503,8 +507,8 @@ export default function Map({
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
-      const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
-      src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
+      const src = map.getSource<maplibregl.GeoJSONSource>('generators')
+      void src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
     }
     whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
@@ -513,8 +517,8 @@ export default function Map({
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
-      const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
-      src?.setData(underConstructionToGeoJson(pipelineFor(dateMode), generators, periodOf(dateMode), dispatching))
+      const src = map.getSource<maplibregl.GeoJSONSource>('under-construction')
+      void src?.setData(underConstructionToGeoJson(pipelineFor(dateMode), generators, periodOf(dateMode), dispatching))
     }
     whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
@@ -539,8 +543,8 @@ export default function Map({
     const map = mapRef.current
     if (!map || substations.length === 0) return
     const update = () => {
-      const src = map.getSource('substations') as maplibregl.GeoJSONSource | undefined
-      src?.setData(substationsToGeoJson(substations))
+      const src = map.getSource<maplibregl.GeoJSONSource>('substations')
+      void src?.setData(substationsToGeoJson(substations))
     }
     whenLoaded(map, update)
   }, [substations])
@@ -549,17 +553,17 @@ export default function Map({
     const map = mapRef.current
     if (!map) return
     const update = () => {
-      const src = map.getSource('selected-node') as maplibregl.GeoJSONSource | undefined
+      const src = map.getSource<maplibregl.GeoJSONSource>('selected-node')
       if (!src) return
       // The HVDC is picked out in the selection's blue rather than circled
       const hvdcColour = selectedNode?.kind === 'hvdc' ? SELECTED_COLOUR : HVDC_COLOUR
       for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer'])
         map.setPaintProperty(layer, 'line-color', hvdcColour)
       if (!selectedNode || selectedNode.kind === 'hvdc') {
-        src.setData({ type: 'FeatureCollection', features: [] })
+        void src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      src.setData({
+      void src.setData({
         type: 'FeatureCollection',
         features: selectionPoints(selectedNode).map((coords) => ({
           type: 'Feature',

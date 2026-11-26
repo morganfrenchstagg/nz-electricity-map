@@ -129,12 +129,12 @@ export interface GeneratorAdapter {
   // Dispatch data charts the units in service during the view's period (and in the
   // live views, any still being commissioned that are dispatching); the aggregate
   // views pass includeRetired to chart every unit's history.
-  getCodes(recent: RecentData, includeRetired?: boolean): string[]
+  getCodes: (recent: RecentData, includeRetired?: boolean) => string[]
   // Every unit's code in chart order, retired and moved units' included, for
   // the Offers view to pick out the units with offers
   unitCodes: string[]
-  labelFor(code: string): string
-  colourFor(code: string): string
+  labelFor: (code: string) => string
+  colourFor: (code: string) => string
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
   // Several generators' units are named in a legend
   showLegend: boolean
@@ -287,7 +287,7 @@ export function createGeneratorAdapter(
             i === lastIndex
               ? {
                   enabled: true,
-                  format: `${capacityLabel(units)}: ${formatMW(point[1] as number)}`,
+                  format: `${capacityLabel(units)}: ${formatMW(point[1])}`,
                   align: 'right',
                   style: {
                     color: 'var(--color-reference)',
@@ -310,7 +310,7 @@ export function createGeneratorAdapter(
         enableMouseTracking: false,
         showInLegend: false,
         zIndex: 3,
-      } as Highcharts.SeriesLineOptions
+      }
     },
   }
 }
@@ -427,7 +427,7 @@ export function createMultiGeneratorAdapter(
             i === lastIndex
               ? {
                   enabled: true,
-                  format: `Capacity: ${formatMW(point[1] as number)}`,
+                  format: `Capacity: ${formatMW(point[1])}`,
                   align: 'right',
                   style: {
                     color: 'var(--color-reference)',
@@ -450,7 +450,7 @@ export function createMultiGeneratorAdapter(
         enableMouseTracking: false,
         showInLegend: false,
         zIndex: 3,
-      } as Highcharts.SeriesLineOptions
+      }
     },
   }
 }

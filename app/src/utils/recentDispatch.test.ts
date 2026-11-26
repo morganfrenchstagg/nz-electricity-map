@@ -87,7 +87,7 @@ describe('appendRecent', () => {
   })
 
   it('gives back the held data itself when nothing has changed, so it is not re-charted', () => {
-    const added = { series, data: [[...held.data[1]]], pricing: [[...held.pricing![1]]] }
+    const added = { series, data: [[...held.data[1]]], pricing: [[...held.pricing[1]]] }
     expect(appendRecent(held, added, since)).toBe(held)
     expect(appendRecent(held, { series, data: [], pricing: [] }, '2026-10-14T22:00:00')).toBe(held)
   })
@@ -96,12 +96,12 @@ describe('appendRecent', () => {
     const added = {
       series,
       data: [['2026-10-14T21:55:00', 0, 0], held.data[1], ['2026-10-14T22:05:00', 52, -22]],
-      pricing: [['2026-10-14T21:55:00', 0, 0], held.pricing![1], ['2026-10-14T22:05:00', 118, 124]],
+      pricing: [['2026-10-14T21:55:00', 0, 0], held.pricing[1], ['2026-10-14T22:05:00', 118, 124]],
     }
     expect(appendRecent(held, added, since)).toEqual({
       series,
       data: [...held.data, ['2026-10-14T22:05:00', 52, -22]],
-      pricing: [...held.pricing!, ['2026-10-14T22:05:00', 118, 124]],
+      pricing: [...held.pricing, ['2026-10-14T22:05:00', 118, 124]],
     })
     expect(appendRecent(held, held, since)).toBe(held)
   })
@@ -139,7 +139,7 @@ describe('appendRecent', () => {
     const added = {
       series,
       data: [held.data[1], ['2026-10-20T00:00:00', 60, -30]],
-      pricing: [held.pricing![1], ['2026-10-20T00:00:00', 90, 95]],
+      pricing: [held.pricing[1], ['2026-10-20T00:00:00', 90, 95]],
     }
     expect(appendRecent(held, added, since)?.data.map((row) => row[0])).toEqual([
       '2026-10-14T21:55:00',
@@ -153,13 +153,13 @@ describe('appendRecent', () => {
     const hvdc = { series: hvdcSeries, data: [['2026-10-14T21:30:00', 600, 0, 1200, -650]] }
     const newerHvdc = { series: hvdcSeries, data: [...hvdc.data, ['2026-10-14T22:00:00', 550, 0, 1200, -650]] }
     const heldWithHvdc = { ...held, hvdc }
-    const unchanged = { series, data: [held.data[1]], pricing: [held.pricing![1]] }
+    const unchanged = { series, data: [held.data[1]], pricing: [held.pricing[1]] }
 
     it('replaces the HVDC held with the last day sent alongside new intervals', () => {
       const added = {
         series,
         data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]],
-        pricing: [held.pricing![1], ['2026-10-14T22:05:00', 118, 124]],
+        pricing: [held.pricing[1], ['2026-10-14T22:05:00', 118, 124]],
         hvdc: newerHvdc,
       }
       expect(appendRecent(heldWithHvdc, added, since)?.hvdc).toBe(newerHvdc)
@@ -178,7 +178,7 @@ describe('appendRecent', () => {
       const added = {
         series,
         data: [held.data[1], ['2026-10-14T22:05:00', 52, -22]],
-        pricing: [held.pricing![1], ['2026-10-14T22:05:00', 118, 124]],
+        pricing: [held.pricing[1], ['2026-10-14T22:05:00', 118, 124]],
       }
       expect(appendRecent(heldWithHvdc, added, since)?.hvdc).toBe(hvdc)
       expect(appendRecent(held, added, since)).not.toHaveProperty('hvdc')

@@ -120,14 +120,15 @@ const hly: Substation = {
 const defs: Definitions = { generators: [huntly, otahuhu], substations: [hly] }
 // The tooltip of each bar of the charts in some HTML, as its data-tip holds it
 function tips(html: string): ChartTip[] {
-  return [...html.matchAll(/data-tip="([^"]*)"/g)].map((m) =>
-    JSON.parse(
-      m[1]
-        .replace(/&quot;/g, '"')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&'),
-    ),
+  return [...html.matchAll(/data-tip="([^"]*)"/g)].map(
+    (m) =>
+      JSON.parse(
+        m[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&'),
+      ) as ChartTip,
   )
 }
 

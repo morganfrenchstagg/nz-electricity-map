@@ -35,7 +35,7 @@ const TCC = generator('TCC', [unit('SFD2201 SPL0', 350, { decomissioned: '2025-0
 
 const day = (date: string) => ({ from: nzLocalMs(`${date}T00:00:00`), to: nzLocalMs(`${date}T23:59:59`) })
 const sites = (collection: GeoJSON.FeatureCollection) =>
-  collection.features.map((f) => [f.properties!.site, f.properties!.totalCapacityMW])
+  collection.features.map((f): unknown[] => [f.properties!.site, f.properties!.totalCapacityMW])
 
 describe('generatorsToGeoJson', () => {
   it('maps the generators in service during the period, counting the capacity of their units in service', () => {
@@ -82,7 +82,7 @@ describe('substationsToGeoJson', () => {
       substation('HAY', 'ACSTN'),
       substation('TEE2', 'TEE'),
     ])
-    expect(collection.features.map((f) => f.properties!.siteId)).toEqual(['TEE1', 'TEE2', 'OTA', 'HAY'])
+    expect(collection.features.map((f): unknown => f.properties!.siteId)).toEqual(['TEE1', 'TEE2', 'OTA', 'HAY'])
   })
 })
 

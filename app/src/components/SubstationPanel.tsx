@@ -398,7 +398,7 @@ export default function SubstationPanel({
         const formatValue = unit.format
         const context = {
           codes: chartData.codes,
-          prices: prices.get(this.x as number),
+          prices: prices.get(this.x),
           formatValue,
           showName: points.length > 1,
         }
@@ -433,7 +433,7 @@ export default function SubstationPanel({
           const note = solarPeriodNote(solarEstimate?.periods[solarPoints[0].index])
           if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
-        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${title} load`,

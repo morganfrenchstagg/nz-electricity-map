@@ -65,8 +65,8 @@ export function useDistributedSolar(mode: DateMode, enabled: boolean): { days: S
       setFetched((prev) => (prev?.key === key && sameDays(prev.days, days) ? prev : { key, days }))
     }
 
-    load()
-    const stopPolling = isLiveMode(mode) ? pollWhileVisible(load, POLL_MS) : undefined
+    void load()
+    const stopPolling = isLiveMode(mode) ? pollWhileVisible(() => void load(), POLL_MS) : undefined
 
     return () => {
       cancelled = true
@@ -135,11 +135,13 @@ export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean): { f
     if (!modeKey || !isAggregateMode(mode)) return
     let cancelled = false
     // A file that fails is left out, as with the daily estimates
-    Promise.all(aggregateWindow(mode).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then((fetched) => {
-      if (cancelled) return
-      const files = fetched.filter((file): file is SolarEnergy => file !== null)
-      setResult({ modeKey, files: mode.aggregation === 'quarterly' ? [solarEnergyQuarters(files)] : files })
-    })
+    void Promise.all(aggregateWindow(mode).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then(
+      (fetched) => {
+        if (cancelled) return
+        const files = fetched.filter((file): file is SolarEnergy => file !== null)
+        setResult({ modeKey, files: mode.aggregation === 'quarterly' ? [solarEnergyQuarters(files)] : files })
+      },
+    )
     return () => {
       cancelled = true
     }

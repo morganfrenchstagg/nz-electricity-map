@@ -306,7 +306,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
             .map((p) => {
               const custom = trancheOf(p)
               if (!custom) return null
-              return `<span style="color:${String(p.color)}">●</span> ${trancheText(custom)}`
+              return `<span style="color:${p.color as string}">●</span> ${trancheText(custom)}`
             })
             .filter(Boolean)
           return rows.length ? rows.join('<br/>') : false

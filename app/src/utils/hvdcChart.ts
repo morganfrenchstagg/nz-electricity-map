@@ -114,7 +114,7 @@ export function hvdcChartOptions(
       shared: true,
       useHTML: true,
       formatter: function () {
-        const point = byMs.get(this.x as number)
+        const point = byMs.get(this.x)
         if (!point) return false
         const mw = Math.round(point.north)
         const transfer = mw === 0 ? 'No transfer' : `<b>${formatMW(Math.abs(mw))}</b> ${mw > 0 ? 'north' : 'south'}`
@@ -214,7 +214,7 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod):
       shared: true,
       useHTML: true,
       formatter: function () {
-        const energy = byMs.get(this.x as number)
+        const energy = byMs.get(this.x)
         if (!energy) return false
         const row = (name: string, mwh: number) => {
           const value = unit.format(mwh / unit.size)

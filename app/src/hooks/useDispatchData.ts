@@ -192,7 +192,7 @@ export function useDispatchData(mode: DateMode): {
 
     async function load() {
       const cached = keys.map((k) => peekDispatch(k))
-      if (cached.every((d) => d !== undefined)) show(cached as RecentData[])
+      if (cached.every((d) => d !== undefined)) show(cached)
       else {
         setLoading(true)
         setError(null)
@@ -208,8 +208,8 @@ export function useDispatchData(mode: DateMode): {
       }
     }
 
-    load()
-    const stopPolling = live ? pollWhileVisible(load, POLL_MS) : undefined
+    void load()
+    const stopPolling = live ? pollWhileVisible(() => void load(), POLL_MS) : undefined
 
     return () => {
       cancelled = true

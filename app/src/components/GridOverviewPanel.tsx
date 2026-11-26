@@ -510,7 +510,7 @@ export default function GridOverviewPanel({
         useHTML: true,
         formatter: function () {
           const points = this.points ?? []
-          const x = this.x as number
+          const x = this.x
           const time = tooltipTime(x, aggregatePeriod)
           const formatValue = unit.format
           // Each fuel of each point's series, with its generation. That's looked
@@ -583,13 +583,13 @@ export default function GridOverviewPanel({
             })
             .join('')
 
-          const prices = refPricingByMs.get(this.x as number)
+          const prices = refPricingByMs.get(this.x)
           const priceParts = [
-            prices?.ota != null ? `Ōtāhuhu price: <b>$${(prices.ota as number).toFixed(2)}/MWh</b>` : null,
-            prices?.ben != null ? `Benmore price: <b>$${(prices.ben as number).toFixed(2)}/MWh</b>` : null,
+            prices?.ota != null ? `Ōtāhuhu price: <b>$${prices.ota.toFixed(2)}/MWh</b>` : null,
+            prices?.ben != null ? `Benmore price: <b>$${prices.ben.toFixed(2)}/MWh</b>` : null,
           ].filter(Boolean)
           const priceRow = priceParts.length > 0 ? `<br/><br/><span>${priceParts.join('<br/>')}</span>` : ''
-          const renewablePct = renewablePctByMs.get(this.x as number)
+          const renewablePct = renewablePctByMs.get(this.x)
           const renewableRow =
             renewablePct != null ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>` : ''
           const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'

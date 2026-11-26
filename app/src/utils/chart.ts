@@ -21,7 +21,7 @@ export function extractChartData(recent: RecentData, requestedCodes: string[]): 
   const rows: ChartRow[] = recent.data.map((row) => {
     const point: ChartRow = { time: row[0] as string }
     codes.forEach((code, i) => {
-      point[code] = row[indices[i]] as number
+      point[code] = row[indices[i]]
     })
     return point
   })

@@ -155,7 +155,8 @@ export default function GeneratorPanel({
   const buttonSelection = viewMode === 'offers' ? offerSelection : generationSelection
   // Fetch the chart code alongside the offers data rather than after it arrives
   useEffect(() => {
-    if (viewMode === 'offers') loadOfferChart()
+    // A failed fetch shows when OfferChart itself loads it
+    if (viewMode === 'offers') loadOfferChart().catch(() => {})
   }, [viewMode])
 
   const maxTradingPeriod = offersData ? Math.max(...Object.keys(offersData.data).map(Number)) : 48
@@ -395,19 +396,19 @@ export default function GeneratorPanel({
       tooltipFormatter: function () {
         const points = this.points ?? []
         const formatValue = unit.format
-        const row = rowByMs.get(this.x as number)
+        const row = rowByMs.get(this.x)
         const valueFor = proportion
           ? (p: Highcharts.Point) => ((row?.[chartData.codes[p.series.index]] as number) || 0) / unit.size
           : undefined
         const context = {
           codes: chartData.codes,
-          prices: prices.get(this.x as number),
+          prices: prices.get(this.x),
           formatValue,
           showName: points.length > 1,
           valueFor,
         }
         // No capacity comparison for aggregate totals, or shares
-        const cap = isAggregate || proportion ? null : capacityAt(this.x as number)
+        const cap = isAggregate || proportion ? null : capacityAt(this.x)
 
         let rows = points
           .map((p) =>
@@ -430,7 +431,7 @@ export default function GeneratorPanel({
             cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round((total / cap) * 100) : 0}%)` : '',
           )
         }
-        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${adapter.title} generation`,
