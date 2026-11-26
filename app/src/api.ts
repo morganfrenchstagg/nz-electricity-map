@@ -167,12 +167,18 @@ export function peekOffers(date: string): OffersData | undefined {
   return lastJson(`offers/${date}`)
 }
 
-export function fetchOutages(): Promise<OutageData> {
-  return cachedJson('outages')
+// The outages going on now and over the next few days, or with `date` ("YYYY-MM-DD"),
+// those going on at any time in that NZ day, from POCP's history of them
+function outagesPath(date?: string): string {
+  return date ? `outages/${date}` : 'outages'
 }
 
-export function peekOutages(): OutageData | undefined {
-  return lastJson('outages')
+export function fetchOutages(date?: string): Promise<OutageData> {
+  return cachedJson(outagesPath(date))
+}
+
+export function peekOutages(date?: string): OutageData | undefined {
+  return lastJson(outagesPath(date))
 }
 
 // Every day from estimatedFrom to estimatedTo is estimated and in the energy

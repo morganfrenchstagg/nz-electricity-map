@@ -1,16 +1,29 @@
 import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
-import { nzNowMs, outageMs } from '../utils/time'
+import { nzMidnightMs, outageMs, todayNZ } from '../utils/time'
 import { ExternalLink } from './icons'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
   outageBlockPrefixes: string[]
+  // Where the panel reads capacity: now, or the end of a past day or range (see
+  // periodOf). An outage under way then is marked Ongoing.
+  atMs: number
+  // A past day's or range's first and last NZ dates, which POCP is opened at,
+  // rather than the next 4 weeks
+  days?: { from: string; to: string }
   onClose: () => void
 }
 
-function pocpUrl(prefixes: string[]): string {
-  const filter = { dateOption: 'relative', nextUnit: 'weeks', nextCount: 4, q: prefixes.join(',') }
+function dayAfter(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function pocpUrl(prefixes: string[], days?: Props['days']): string {
+  const when = days
+    ? { dateOption: 'absolute', outageAtFrom: new Date(nzMidnightMs(days.from)).toISOString(), outageAtTo: new Date(nzMidnightMs(dayAfter(days.to))).toISOString() }
+    : { dateOption: 'relative', nextUnit: 'weeks', nextCount: 4 }
+  const filter = { ...when, q: prefixes.join(',') }
   const params = new URLSearchParams({
     displayedFilters: '{}',
     filter: JSON.stringify(filter),
@@ -23,12 +36,15 @@ function pocpUrl(prefixes: string[]): string {
 }
 
 // `ms` is in the "local time as UTC" convention (see outageMs), so format with timeZone 'UTC' to
-// get the API's values back; 'Pacific/Auckland' would shift them again.
+// get the API's values back; 'Pacific/Auckland' would shift them again. A date in another year
+// than this one in NZ says which.
 function formatDateTime(ms: number): string {
-  return new Date(ms).toLocaleString('en-NZ', {
+  const date = new Date(ms)
+  return date.toLocaleString('en-NZ', {
     timeZone: 'UTC',
     day: 'numeric',
     month: 'short',
+    year: String(date.getUTCFullYear()) === todayNZ().slice(0, 4) ? undefined : 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   })
@@ -48,8 +64,7 @@ const tdStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-export default function OutageModal({ outages, outageBlockPrefixes, onClose }: Props) {
-  const now = nzNowMs()
+export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, onClose }: Props) {
   const sorted = outages
     .slice()
     .sort((a, b) => outageMs(a.record.timeStart) - outageMs(b.record.timeStart))
@@ -62,7 +77,7 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {outageBlockPrefixes.length > 0 && (
               <a
-                href={pocpUrl(outageBlockPrefixes)}
+                href={pocpUrl(outageBlockPrefixes, days)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="link"
@@ -95,7 +110,7 @@ export default function OutageModal({ outages, outageBlockPrefixes, onClose }: P
                 {sorted.map(({ code, label, record, capacityRemaining }, i) => {
                   const start = outageMs(record.timeStart)
                   const end = outageMs(record.timeEnd)
-                  const isCurrent = start <= now && now <= end
+                  const isCurrent = start <= atMs && atMs <= end
                   return (
                     <tr key={`${code}-${record.outageBlock}-${i}`}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{label}</td>
