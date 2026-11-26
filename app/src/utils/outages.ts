@@ -58,6 +58,26 @@ export function unitCapacityAt(unit: UnitCapacity, outages: OutageData | null, a
   return capacityLeftAfter(unit, lost)
 }
 
+// A range's outages, from each of its days'. An outage going on over several days
+// is in each of theirs, so it's kept once. Identical records within a day are
+// too, which changes nothing, as a block's records don't stack (see outageMWAt).
+export function mergeOutageDays(days: OutageData[]): OutageData {
+  if (days.length === 1) return days[0]
+  const merged: OutageData = {}
+  const seen = new Set<string>()
+  for (const day of days) {
+    for (const [node, records] of Object.entries(day)) {
+      for (const r of records) {
+        const key = `${node}|${r.outageBlock}|${r.timeStart}|${r.timeEnd}|${r.mwattLost}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        ;(merged[node] ??= []).push(r)
+      }
+    }
+  }
+  return merged
+}
+
 // Collapses a unit's outage records into a timeline of distinct MW-loss
 // segments, counted as outageMWAt does (e.g. a 66 MW unit outage with a 198 MW
 // station outage in the middle becomes 66, then 264 capped to `maxMW`, then 66

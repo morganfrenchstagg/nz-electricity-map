@@ -95,8 +95,7 @@ interface Props {
   // Where the map opens beside the panel, in place of INITIAL_CENTER and INITIAL_ZOOM
   initialView?: Pick<InitialView, 'center' | 'zoom'> | null
   recentData: RecentData | null
-  // The generators in service during it are on the map, and Today and 3d keep
-  // outages up to date (see useOutages)
+  // The generators in service during it are on the map, with its outages (see useOutages)
   dateMode: DateMode
   isMobile?: boolean
 }
@@ -134,7 +133,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     recentDataRef.current = recentData
     refreshHoverRef.current()
   }, [recentData])
-  const outages = useOutages(isLiveMode(dateMode))
+  const outages = useOutages(dateMode)
   // The nodes dispatching in the live views, where units still being commissioned are shown once they are
   const dispatching = useMemo(
     () => isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined,
