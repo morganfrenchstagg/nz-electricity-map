@@ -43,6 +43,9 @@ jobs:
         with:
           name: frontend
           path: frontend
+          # .well-known/ (the MCP server card) is a hidden folder, which the
+          # upload leaves out by default
+          include-hidden-files: true
           retention-days: 7
 
   preview:
