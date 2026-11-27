@@ -88,7 +88,7 @@ export function estimateLineFlows(network: GridNetwork, data: RecentData): LineF
     const p = component.nodes.map((node) => injections.get(node) ?? 0)
     const mismatch = p.reduce((sum, mw) => sum + mw, 0)
     const load = -p.reduce((sum, mw) => sum + Math.min(mw, 0), 0)
-    const balanced = p.map((mw) => load > 0 ? mw + Math.min(mw, 0) * (mismatch / load) : mw - mismatch / p.length)
+    const balanced = p.map((mw) => (load > 0 ? mw + Math.min(mw, 0) * (mismatch / load) : mw - mismatch / p.length))
 
     // The susceptance matrix, with the first node's angle held at zero
     const n = component.nodes.length
@@ -102,7 +102,13 @@ export function estimateLineFlows(network: GridNetwork, data: RecentData): LineF
       b[f][t] -= y
       b[t][f] -= y
     }
-    const angles = [0, ...solve(b.slice(1).map((row) => row.slice(1)), balanced.slice(1))]
+    const angles = [
+      0,
+      ...solve(
+        b.slice(1).map((row) => row.slice(1)),
+        balanced.slice(1),
+      ),
+    ]
     for (const i of component.sections) {
       const s = network.sections[i]
       flows[i] = (angles[index.get(s.from)!] - angles[index.get(s.to)!]) / s.reactance
@@ -116,12 +122,18 @@ export function estimateLineFlows(network: GridNetwork, data: RecentData): LineF
 export function lineSectionsToGeoJson(network: GridNetwork): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: network.sections.flatMap((section, i) => section.parts.length === 0 ? [] : [{
-      type: 'Feature',
-      id: i,
-      geometry: { type: 'MultiLineString', coordinates: section.parts },
-      properties: { designvolt: section.line.designKv },
-    }]),
+    features: network.sections.flatMap((section, i) =>
+      section.parts.length === 0
+        ? []
+        : [
+            {
+              type: 'Feature',
+              id: i,
+              geometry: { type: 'MultiLineString', coordinates: section.parts },
+              properties: { designvolt: section.line.designKv },
+            },
+          ],
+    ),
   }
 }
 
@@ -134,12 +146,14 @@ export function flowArrowsToGeoJson(network: GridNetwork, flows: number[]): GeoJ
       const mw = Math.abs(flows[i])
       if (Math.round(mw) === 0) return []
       const { at, bearing } = section.arrow
-      return [{
-        type: 'Feature',
-        id: i,
-        geometry: { type: 'Point', coordinates: at },
-        properties: { mw, bearing: flows[i] > 0 ? bearing : (bearing + 180) % 360 },
-      }]
+      return [
+        {
+          type: 'Feature',
+          id: i,
+          geometry: { type: 'Point', coordinates: at },
+          properties: { mw, bearing: flows[i] > 0 ? bearing : (bearing + 180) % 360 },
+        },
+      ]
     }),
   }
 }

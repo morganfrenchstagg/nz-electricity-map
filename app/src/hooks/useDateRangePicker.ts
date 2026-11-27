@@ -5,8 +5,12 @@ import { FIRST_DAY, yesterdayNZ } from './useAggregates'
 import type { Period } from '../components/ToggleGroup'
 
 // e.g. "1 January 2009", read in UTC so it isn't the day before west of UTC
-const FIRST_DAY_LABEL = new Date(`${FIRST_DAY}T00:00:00Z`)
-  .toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' })
+const FIRST_DAY_LABEL = new Date(`${FIRST_DAY}T00:00:00Z`).toLocaleDateString('en-NZ', {
+  timeZone: 'UTC',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
 
 // The from/to dates for a dateMode: a date or range fills them, a period clears them
 function inputDates(m: DateMode): [string, string] {
@@ -58,7 +62,7 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   // The range picker's value, where a single day starts and ends on it
   const pickerRange = useMemo(
-    () => fromDate ? { start: fromDate, end: toDate || fromDate } : null,
+    () => (fromDate ? { start: fromDate, end: toDate || fromDate } : null),
     [fromDate, toDate],
   )
 
@@ -66,38 +70,50 @@ export function useDateRangePicker(dateMode: DateMode, onDateModeChange: (m: Dat
 
   // A range from the range picker. When it can't be charted, rangeError says
   // why and the chart is left as it is.
-  const handleRangeChange = useCallback((range: { start: string; end: string }) => {
-    const from = range.start
-    const to = range.end !== range.start ? range.end : ''
-    setFromDate(from)
-    setToDate(to)
-    if (dateRangeError(from, to)) return
-    onDateModeChange(to ? { kind: 'range', from, to } : { kind: 'date', date: from })
-  }, [onDateModeChange])
+  const handleRangeChange = useCallback(
+    (range: { start: string; end: string }) => {
+      const from = range.start
+      const to = range.end !== range.start ? range.end : ''
+      setFromDate(from)
+      setToDate(to)
+      if (dateRangeError(from, to)) return
+      onDateModeChange(to ? { kind: 'range', from, to } : { kind: 'date', date: from })
+    },
+    [onDateModeChange],
+  )
 
   // A date from GeneratorPanel's Offers date picker, which starts the range
   // when there is one
-  const handleFromChange = useCallback((val: string | null) => {
-    setFromDate(val ?? '')
-    if (!val) return
-    const to = toDate && toDate > val ? toDate : ''
-    if (!to) setToDate('')
-    if (dateRangeError(val, to)) return
-    onDateModeChange(to ? { kind: 'range', from: val, to } : { kind: 'date', date: val })
-  }, [toDate, onDateModeChange])
+  const handleFromChange = useCallback(
+    (val: string | null) => {
+      setFromDate(val ?? '')
+      if (!val) return
+      const to = toDate && toDate > val ? toDate : ''
+      if (!to) setToDate('')
+      if (dateRangeError(val, to)) return
+      onDateModeChange(to ? { kind: 'range', from: val, to } : { kind: 'date', date: val })
+    },
+    [toDate, onDateModeChange],
+  )
 
-  const handlePeriodClick = useCallback((period: Period) => {
-    setFromDate('')
-    setToDate('')
-    setCustomRequested(false)
-    // 1y, 5y and All start on their default totals, or keep the ones picked if
-    // clicked again. A new object either way, so Today or 3d clicked again reloads.
-    onDateModeChange(dateMode.kind === period ? { ...dateMode } : periodMode(period))
-  }, [dateMode, onDateModeChange])
+  const handlePeriodClick = useCallback(
+    (period: Period) => {
+      setFromDate('')
+      setToDate('')
+      setCustomRequested(false)
+      // 1y, 5y and All start on their default totals, or keep the ones picked if
+      // clicked again. A new object either way, so Today or 3d clicked again reloads.
+      onDateModeChange(dateMode.kind === period ? { ...dateMode } : periodMode(period))
+    },
+    [dateMode, onDateModeChange],
+  )
 
-  const handleAggregationClick = useCallback((mode: AggregateMode) => {
-    onDateModeChange(mode)
-  }, [onDateModeChange])
+  const handleAggregationClick = useCallback(
+    (mode: AggregateMode) => {
+      onDateModeChange(mode)
+    },
+    [onDateModeChange],
+  )
 
   const handleCustomClick = useCallback(() => {
     setCustomRequested(true)

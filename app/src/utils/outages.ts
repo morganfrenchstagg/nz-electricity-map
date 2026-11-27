@@ -58,6 +58,26 @@ export function unitCapacityAt(unit: UnitCapacity, outages: OutageData | null, a
   return capacityLeftAfter(unit, lost)
 }
 
+// A range's outages, from each of its days'. An outage going on over several days
+// is in each of theirs, so it's kept once. Identical records within a day are
+// too, which changes nothing, as a block's records don't stack (see outageMWAt).
+export function mergeOutageDays(days: OutageData[]): OutageData {
+  if (days.length === 1) return days[0]
+  const merged: OutageData = {}
+  const seen = new Set<string>()
+  for (const day of days) {
+    for (const [node, records] of Object.entries(day)) {
+      for (const r of records) {
+        const key = `${node}|${r.outageBlock}|${r.timeStart}|${r.timeEnd}|${r.mwattLost}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        ;(merged[node] ??= []).push(r)
+      }
+    }
+  }
+  return merged
+}
+
 // Collapses a unit's outage records into a timeline of distinct MW-loss
 // segments, counted as outageMWAt does (e.g. a 66 MW unit outage with a 198 MW
 // station outage in the middle becomes 66, then 264 capped to `maxMW`, then 66
@@ -65,8 +85,9 @@ export function unitCapacityAt(unit: UnitCapacity, outages: OutageData | null, a
 // start is its real start — never clipped to "now" — so an ongoing outage still
 // shows when it actually began. Times are outageMs's, so `nowMs` must be nzNowMs().
 export function mergeOutageSegments(records: OutageRecord[], nowMs: number, maxMW = Infinity): OutageSegment[] {
-  const events = [...new Set(records.flatMap((r) => [outageMs(r.timeStart), outageMs(r.timeEnd)]))]
-    .sort((a, b) => a - b)
+  const events = [...new Set(records.flatMap((r) => [outageMs(r.timeStart), outageMs(r.timeEnd)]))].sort(
+    (a, b) => a - b,
+  )
   const segments: OutageSegment[] = []
   for (let i = 0; i < events.length - 1; i++) {
     const mw = outageMWAt(records, events[i], maxMW)
@@ -84,7 +105,11 @@ export function outageEasesAt(segments: OutageSegment[], atMs: number): number |
   const i = segments.findIndex((s) => s.start <= atMs && atMs < s.end)
   if (i < 0) return null
   let end = segments[i].end
-  for (let j = i + 1; j < segments.length && segments[j].start === end && segments[j].mw >= segments[i].mw - 0.001; j++) {
+  for (
+    let j = i + 1;
+    j < segments.length && segments[j].start === end && segments[j].mw >= segments[i].mw - 0.001;
+    j++
+  ) {
     end = segments[j].end
   }
   return end

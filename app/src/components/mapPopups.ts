@@ -1,9 +1,25 @@
 import { ucUnitsForSite } from '../utils/geo'
 import type { UnderConstructionUnit } from '../utils/geo'
-import { fuelCodeColour, fuelColour, fuelFamilies, statusColour, voltageColour, HVDC_IMPORT_CODE } from '../utils/colours'
+import {
+  fuelCodeColour,
+  fuelColour,
+  fuelFamilies,
+  statusColour,
+  voltageColour,
+  HVDC_IMPORT_CODE,
+} from '../utils/colours'
 import { formatMW, formatMonthYear } from '../utils/format'
 import { busLabel, isGeneratorCode } from '../utils/chart'
-import { inServiceAt, inServiceDuring, isCharging, isCombinedOver, isCommissioning, isDecommissioned, shortUnitName, unitNotes } from '../utils/generators'
+import {
+  inServiceAt,
+  inServiceDuring,
+  isCharging,
+  isCombinedOver,
+  isCommissioning,
+  isDecommissioned,
+  shortUnitName,
+  unitNotes,
+} from '../utils/generators'
 import { installedCapacityOf, unitCapacityAt, unitOutageMWAt } from '../utils/outages'
 import { hvdcDirection, HVDC_CAPACITY_MW } from '../utils/hvdc'
 import type { HvdcTransfer } from '../utils/hvdc'
@@ -15,17 +31,33 @@ import type { Generator, Substation, RecentData, UnderConstructionNode, Unit } f
 
 // HTML for the map's hover popups, which MapLibre takes as a string rather than React
 
-function renderUnitStats(u: { capacityMW: number | null; capacityMWp: number | null; capacityMWh: number | null; yearlyGenerationGWh: number | null; openBy: string | null }): string {
+function renderUnitStats(u: {
+  capacityMW: number | null
+  capacityMWp: number | null
+  capacityMWh: number | null
+  yearlyGenerationGWh: number | null
+  openBy: string | null
+}): string {
   const capacityParts = [
     u.capacityMW ? `${u.capacityMW} MW` : null,
     u.capacityMWp ? `${u.capacityMWp} MWp` : null,
     u.capacityMWh ? `${u.capacityMWh} MWh` : null,
-  ].filter(Boolean).join(' / ')
+  ]
+    .filter(Boolean)
+    .join(' / ')
   return [
-    capacityParts ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Capacity</span><span>${capacityParts}</span></div>` : '',
-    u.yearlyGenerationGWh ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>` : '',
-    u.openBy ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Expected open</span><span>${formatMonthYear(u.openBy)}</span></div>` : '',
-  ].filter(Boolean).join('')
+    capacityParts
+      ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Capacity</span><span>${capacityParts}</span></div>`
+      : '',
+    u.yearlyGenerationGWh
+      ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Annual generation</span><span>${u.yearlyGenerationGWh} GWh</span></div>`
+      : '',
+    u.openBy
+      ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:var(--color-text-muted)">Expected open</span><span>${formatMonthYear(u.openBy)}</span></div>`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('')
 }
 
 function renderStatusPill(status: string): string {
@@ -36,7 +68,8 @@ function renderStatusPill(status: string): string {
 }
 
 // The generator panel's capacity bar stripes, in red to stand out on a 3px bar
-const OUTAGE_STRIPES = 'repeating-linear-gradient(45deg, var(--color-danger) 0, var(--color-danger) 2px, transparent 2px, transparent 5px)'
+const OUTAGE_STRIPES =
+  'repeating-linear-gradient(45deg, var(--color-danger) 0, var(--color-danger) 2px, transparent 2px, transparent 5px)'
 
 type PopupUnit = Unit & { outageMW: number; available: number }
 
@@ -55,7 +88,8 @@ function barHtml(fillPct: number, colour: string, reversed = false, stripesPct =
 }
 
 // Marks zero between the two halves of a bar out from the middle
-const ZERO_TICK = '<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>'
+const ZERO_TICK =
+  '<div style="width:1px;height:7px;margin:-2px 1px;background:var(--color-text-faint);flex-shrink:0"></div>'
 
 // A unit's bar: its generation from the start, and any outage at the far end.
 // An outage leaves what's left of installed capacity (see unitCapacityAt), so the
@@ -76,66 +110,104 @@ function unitBarHtml(u: PopupUnit, genMW: number | null, reversed = false): stri
 // combines others (see Unit.combines) is listed with their capacity, and in their
 // place while they've no generation of their own; any of them at other sites are
 // found in `unitsByNode`. Any of the `pipeline` being built at its site are listed under them.
-export function generatorPopupHtml(generator: Generator, data: RecentData | null, outages: OutageData | null, period: Period, live: boolean, pipeline: UnderConstructionNode[], unitsByNode?: Map<string, Unit>): string {
+export function generatorPopupHtml(
+  generator: Generator,
+  data: RecentData | null,
+  outages: OutageData | null,
+  period: Period,
+  live: boolean,
+  pipeline: UnderConstructionNode[],
+  unitsByNode?: Map<string, Unit>,
+): string {
   const lastRow = data?.data[data.data.length - 1]
   const atMs = period.to
   const genOf = (u: Unit): number | null => {
     const idx = data ? data.series.indexOf(u.node) : -1
-    return (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
+    return idx !== -1 && lastRow ? (lastRow[idx + 1] as number) || 0 : null
   }
   const commissioning = (u: Unit) => live && isCommissioning(u, atMs) && genOf(u) !== null
   const retired = (u: Unit) => isDecommissioned(u, atMs)
-  const movedOn = (u: Unit) => retired(u) && generator.units.some(s => s.unitCode === u.unitCode && inServiceAt(s, atMs))
-  const inService = (u: Unit): PopupUnit => ({ ...u, outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0, available: unitCapacityAt(u, outages, atMs) })
+  const movedOn = (u: Unit) =>
+    retired(u) && generator.units.some((s) => s.unitCode === u.unitCode && inServiceAt(s, atMs))
+  const inService = (u: Unit): PopupUnit => ({
+    ...u,
+    outageMW: outages ? unitOutageMWAt(u, outages, atMs) : 0,
+    available: unitCapacityAt(u, outages, atMs),
+  })
   // A combined unit's capacity is that of the units it combines in service
   const combinedUnit = (u: Unit): PopupUnit => {
     const parts = (u.combines ?? [])
-      .map(node => generator.units.find(c => c.node === node) ?? unitsByNode?.get(node))
+      .map((node) => generator.units.find((c) => c.node === node) ?? unitsByNode?.get(node))
       .filter((c): c is Unit => !!c && inServiceAt(c, atMs))
       .map(inService)
     const sum = (f: (c: PopupUnit) => number) => parts.reduce((total, c) => total + f(c), 0)
-    return { ...u, capacity: sum(c => c.capacity), installedCapacity: sum(installedCapacityOf), outageMW: sum(c => c.outageMW), available: sum(c => c.available) }
+    return {
+      ...u,
+      capacity: sum((c) => c.capacity),
+      installedCapacity: sum(installedCapacityOf),
+      outageMW: sum((c) => c.outageMW),
+      available: sum((c) => c.available),
+    }
   }
   const activeUnits: PopupUnit[] = generator.units
-    .filter(u => ((inServiceDuring(u, period) && !movedOn(u)) || commissioning(u)) && !isCombinedOver(u, generator.units, period))
+    .filter(
+      (u) =>
+        ((inServiceDuring(u, period) && !movedOn(u)) || commissioning(u)) &&
+        !isCombinedOver(u, generator.units, period),
+    )
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map(u => commissioning(u)
-      ? { ...u, outageMW: Math.abs(installedCapacityOf(u)), available: 0 }
-      : retired(u) ? { ...u, capacity: 0, outageMW: 0, available: 0 }
-        : u.combines ? combinedUnit(u) : inService(u))
+    .map((u) =>
+      commissioning(u)
+        ? { ...u, outageMW: Math.abs(installedCapacityOf(u)), available: 0 }
+        : retired(u)
+          ? { ...u, capacity: 0, outageMW: 0, available: 0 }
+          : u.combines
+            ? combinedUnit(u)
+            : inService(u),
+    )
   // A battery's charging unit goes by its discharging unit's name, and shares its row:
   // one bar out from zero in the middle, charging to the left and discharging to the right
-  const chargingUnitOf = (u: PopupUnit) => isCharging(u) ? undefined : activeUnits.find(c => isCharging(c) && c.name === u.name)
+  const chargingUnitOf = (u: PopupUnit) =>
+    isCharging(u) ? undefined : activeUnits.find((c) => isCharging(c) && c.name === u.name)
   const pairedCharging = new Set(activeUnits.map(chargingUnitOf))
   // The popup's heading already names the generator, so unit names drop it, and a
   // unit named just as its generator goes unnamed, unless others are named beside it
-  const shortNames = activeUnits.filter(u => !pairedCharging.has(u)).map(u => ({ u, name: shortUnitName(u.name, generator.name) }))
-  const anyNamed = shortNames.some(r => r.name)
+  const shortNames = activeUnits
+    .filter((u) => !pairedCharging.has(u))
+    .map((u) => ({ u, name: shortUnitName(u.name, generator.name) }))
+  const anyNamed = shortNames.some((r) => r.name)
   const rows = shortNames.map(({ u, name }) => ({ u, name: name || (anyNamed ? u.name : '') }))
   // With one row, or none named, the fuel goes under the heading as in the generator
   // panel, in place of a dot on each row
   const fuelInHeading = rows.length === 1 || !anyNamed
-  const unitRows = rows.map(({ u, name }) => {
-    const charging = chargingUnitOf(u)
-    const chargeMW = charging ? genOf(charging) : null
-    const dischargeMW = genOf(u)
-    const genMW = chargeMW === null ? dischargeMW : (dischargeMW ?? 0) + chargeMW
-    // A charging battery is measured against what it can draw rather than what it can give
-    const capUnit = charging && (genMW ?? 0) < 0 ? charging : u
-    const { outageMW, available } = capUnit
-    const pct = genMW !== null && available !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(available)) * 100)) : 0
-    const colour = fuelColour(u.fuel)
-    const genStr = genMW !== null ? formatMW(genMW) : '—'
-    // An outage strikes out the usual capacity for what's left, in red
-    const capStr = capUnit.capacity === 0 ? null
-      : outageMW > 0 ? `<s style="color:var(--color-text-faint)">${formatMW(capUnit.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
-        : formatMW(available)
-    const isGenerating = (genMW ?? 0) !== 0
-    const notes = [unitNotes(u), retired(u) && 'retired'].filter(Boolean).join(', ')
-    const label = !notes ? name
-      : name ? `${name} <span style="color:var(--color-text-muted)">(${notes})</span>`
-        : `<span style="color:var(--color-text-muted)">${notes[0].toUpperCase()}${notes.slice(1)}</span>`
-    return `<div>
+  const unitRows = rows
+    .map(({ u, name }) => {
+      const charging = chargingUnitOf(u)
+      const chargeMW = charging ? genOf(charging) : null
+      const dischargeMW = genOf(u)
+      const genMW = chargeMW === null ? dischargeMW : (dischargeMW ?? 0) + chargeMW
+      // A charging battery is measured against what it can draw rather than what it can give
+      const capUnit = charging && (genMW ?? 0) < 0 ? charging : u
+      const { outageMW, available } = capUnit
+      const pct =
+        genMW !== null && available !== 0 ? Math.min(100, Math.round((Math.abs(genMW) / Math.abs(available)) * 100)) : 0
+      const colour = fuelColour(u.fuel)
+      const genStr = genMW !== null ? formatMW(genMW) : '—'
+      // An outage strikes out the usual capacity for what's left, in red
+      const capStr =
+        capUnit.capacity === 0
+          ? null
+          : outageMW > 0
+            ? `<s style="color:var(--color-text-faint)">${formatMW(capUnit.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(available)}</span>`
+            : formatMW(available)
+      const isGenerating = (genMW ?? 0) !== 0
+      const notes = [unitNotes(u), retired(u) && 'retired'].filter(Boolean).join(', ')
+      const label = !notes
+        ? name
+        : name
+          ? `${name} <span style="color:var(--color-text-muted)">(${notes})</span>`
+          : `<span style="color:var(--color-text-muted)">${notes[0].toUpperCase()}${notes.slice(1)}</span>`
+      return `<div>
       <div style="display:flex;align-items:center;gap:6px">
         ${fuelInHeading ? '' : dotHtml(colour)}
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${isGenerating ? 'var(--color-text-strong)' : 'var(--color-text-faint)'}">${label}</span>
@@ -146,42 +218,56 @@ export function generatorPopupHtml(generator: Generator, data: RecentData | null
         ${unitBarHtml(u, dischargeMW)}
       </div>
     </div>`
-  }).join('')
+    })
+    .join('')
   const totalGen = activeUnits.reduce((sum, u) => sum + (genOf(u) ?? 0), 0)
-  const generatingUnits = activeUnits.filter(u => !isCharging(u))
+  const generatingUnits = activeUnits.filter((u) => !isCharging(u))
   const totalCap = generatingUnits.reduce((sum, u) => sum + u.available, 0)
   const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalGen / totalCap) * 100)) : 0
-  const hasOutage = activeUnits.some(u => u.outageMW > 0)
+  const hasOutage = activeUnits.some((u) => u.outageMW > 0)
   // As in the generator panel, an outage strikes out the usual capacity
   const totalCapStr = hasOutage
     ? `<s style="color:var(--color-text-faint)">${formatMW(generatingUnits.reduce((sum, u) => sum + u.capacity, 0))}</s> ${formatMW(totalCap)}`
     : formatMW(totalCap)
   // A single row would only repeat itself as the total, and rows all retired would total nothing
-  const totalRow = rows.length > 1 && !activeUnits.every(retired) ? `
+  const totalRow =
+    rows.length > 1 && !activeUnits.every(retired)
+      ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:var(--space-md)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span style="color:var(--color-text-muted)">Total</span>
         <span style="font-weight:600">${formatMW(totalGen)} <span style="font-weight:400;color:var(--color-text-muted)">/ ${totalCapStr} (${totalPct}%)</span></span>
       </div>
-    </div>` : ''
+    </div>`
+      : ''
   const fuels = fuelInHeading
-    ? fuelFamilies(activeUnits.map(u => u.fuel)).map(f => `<span style="display:flex;align-items:center;gap:3px"><span style="margin-right:3px">|</span>${dotHtml(f.colour)}${f.label}</span>`).join('')
+    ? fuelFamilies(activeUnits.map((u) => u.fuel))
+        .map(
+          (f) =>
+            `<span style="display:flex;align-items:center;gap:3px"><span style="margin-right:3px">|</span>${dotHtml(f.colour)}${f.label}</span>`,
+        )
+        .join('')
     : ''
   const ucUnits = generator.site ? ucUnitsForSite(pipeline, generator.site) : []
-  const ucSection = ucUnits.length > 0 ? `
+  const ucSection =
+    ucUnits.length > 0
+      ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:${totalRow ? '2px' : 'var(--space-md)'}">
       <div class="eyebrow" style="margin-bottom:4px">Under Construction</div>
-      ${ucUnits.map((u, i) => {
-        const label = u.locationDescription ?? `Unit ${i + 1}`
-        const stats = renderUnitStats(u)
-        return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider-subtle);padding-top:var(--space-sm)' : ''}">
+      ${ucUnits
+        .map((u, i) => {
+          const label = u.locationDescription ?? `Unit ${i + 1}`
+          const stats = renderUnitStats(u)
+          return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider-subtle);padding-top:var(--space-sm)' : ''}">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}
           </div>
           ${stats}
         </div>`
-      }).join('')}
-    </div>` : ''
+        })
+        .join('')}
+    </div>`
+      : ''
   // As wide as its content, so the operator line and unit names fit without running
   // under the site code or being cut short. The operator line sits in the name's
   // column, leaving the site code a column of its own.
@@ -222,8 +308,10 @@ export function hvdcPopupHtml(transfer: HvdcTransfer): string {
     return barHtml(fillPct, colour, way === 'south', Math.min(100 - fillPct, ((capacity - limit) / capacity) * 100))
   }
   const way = direction && ways[direction]
-  const capStr = !way ? ''
-    : way.limit < way.capacity ? `<s style="color:var(--color-text-faint)">${formatMW(way.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(way.limit)}</span>`
+  const capStr = !way
+    ? ''
+    : way.limit < way.capacity
+      ? `<s style="color:var(--color-text-faint)">${formatMW(way.capacity)}</s> <span style="color:var(--color-danger)">${formatMW(way.limit)}</span>`
       : formatMW(way.limit)
   const pctStr = way && way.limit > 0 ? ` (${Math.round(Math.min(100, (flowMW / way.limit) * 100))}%)` : ''
   const limitStr = way ? ` <span style="font-weight:400;color:var(--color-text-muted)">/ ${capStr}${pctStr}</span>` : ''
@@ -253,7 +341,9 @@ export function hvdcPopupHtml(transfer: HvdcTransfer): string {
 // where it's negative.
 function lineFlowHtml(network: GridNetwork, index: number, mw: number): string {
   const { line } = network.sections[index]
-  const [from, to] = (mw >= 0 ? ['from', 'to'] as const : ['to', 'from'] as const).map((end) => sectionEndName(network, index, end))
+  const [from, to] = (mw >= 0 ? (['from', 'to'] as const) : (['to', 'from'] as const)).map((end) =>
+    sectionEndName(network, index, end),
+  )
   const way = from && to ? `${from} → ${to}` : from ? `From ${from}` : to ? `To ${to}` : 'Flow'
   const flowMW = Math.round(Math.abs(mw))
   const colour = flowMW ? 'var(--color-text-strong)' : 'var(--color-text-faint)'
@@ -272,12 +362,20 @@ function lineFlowHtml(network: GridNetwork, index: number, mw: number): string {
 // The lines under the cursor, which can be several where they run close
 // together: the HVDC's flow, if it's one of them and has a `transfer`, then
 // each of the line `sections`' estimated flows, the most first. Null with none.
-export function linesPopupHtml(transfer: HvdcTransfer | null, network: GridNetwork | null, sections: { index: number; mw: number }[]): string | null {
-  const lines = network ? [...sections].sort((a, b) => Math.abs(b.mw) - Math.abs(a.mw)).map(({ index, mw }) => lineFlowHtml(network, index, mw)) : []
+export function linesPopupHtml(
+  transfer: HvdcTransfer | null,
+  network: GridNetwork | null,
+  sections: { index: number; mw: number }[],
+): string | null {
+  const lines = network
+    ? [...sections]
+        .sort((a, b) => Math.abs(b.mw) - Math.abs(a.mw))
+        .map(({ index, mw }) => lineFlowHtml(network, index, mw))
+    : []
   if (lines.length === 0) return transfer && hvdcPopupHtml(transfer)
   const blocks = [...(transfer ? [hvdcPopupHtml(transfer)] : []), ...lines]
   return `<div style="font-size:var(--font-size-sm);line-height:1.5;min-width:240px">
-    ${blocks.map((block, i) => i === 0 ? block : `<div style="border-top:1px solid var(--color-divider);margin-top:var(--space-sm);padding-top:var(--space-sm)">${block}</div>`).join('')}
+    ${blocks.map((block, i) => (i === 0 ? block : `<div style="border-top:1px solid var(--color-divider);margin-top:var(--space-sm);padding-top:var(--space-sm)">${block}</div>`)).join('')}
     <div style="margin-top:var(--space-xs);font-size:var(--font-size-2xs);color:var(--color-text-muted)">${lines.length > 1 ? 'Flows' : 'Flow'} estimated from each substation's generation and load</div>
   </div>`
 }
@@ -285,7 +383,9 @@ export function linesPopupHtml(transfer: HvdcTransfer | null, network: GridNetwo
 export function underConstructionPopupHtml(name: string, units: UnderConstructionUnit[]): string {
   if (units.length === 1) {
     const u = units[0]
-    const label = u.locationDescription ? `${name} <span style="font-weight:400;color:var(--color-text-muted)">(${u.locationDescription})</span>` : name
+    const label = u.locationDescription
+      ? `${name} <span style="font-weight:400;color:var(--color-text-muted)">(${u.locationDescription})</span>`
+      : name
     const stats = renderUnitStats(u)
     return `<div style="font-size:var(--font-size-sm);line-height:1.6;width:260px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px"><span style="font-weight:600">${label}</span>${renderStatusPill(u.status)}</div>
@@ -293,14 +393,16 @@ export function underConstructionPopupHtml(name: string, units: UnderConstructio
       ${stats ? `<div style="margin-top:4px;border-top:1px solid var(--color-divider);padding-top:var(--space-xs)">${stats}</div>` : ''}
     </div>`
   }
-  const unitRows = units.map((u, i) => {
-    const label = u.locationDescription ?? `Unit ${i + 1}`
-    const stats = renderUnitStats(u)
-    return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider);padding-top:var(--space-sm)' : ''}">
+  const unitRows = units
+    .map((u, i) => {
+      const label = u.locationDescription ?? `Unit ${i + 1}`
+      const stats = renderUnitStats(u)
+      return `<div style="${i > 0 ? 'margin-top:6px;border-top:1px solid var(--color-divider);padding-top:var(--space-sm)' : ''}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:500">${label}</span>${renderStatusPill(u.status)}</div>
       ${stats}
     </div>`
-  }).join('')
+    })
+    .join('')
   return `<div style="font-size:var(--font-size-sm);line-height:1.6;width:260px">
     <div style="font-weight:600;margin-bottom:2px">${name}</div>
     <div style="color:var(--color-text-muted);margin-bottom:6px">${units[0].operator}</div>
@@ -308,10 +410,14 @@ export function underConstructionPopupHtml(name: string, units: UnderConstructio
   </div>`
 }
 
-export function substationPopupHtml(substation: Substation, data: RecentData | null, unitsByNode: Map<string, Unit>): string {
+export function substationPopupHtml(
+  substation: Substation,
+  data: RecentData | null,
+  unitsByNode: Map<string, Unit>,
+): string {
   const lastRow = data?.data[data.data.length - 1]
-  const codes = data ? data.series.filter(s => s.startsWith(substation.siteId)) : []
-  const busCodes = codes.filter(c => !isGeneratorCode(c))
+  const codes = data ? data.series.filter((s) => s.startsWith(substation.siteId)) : []
+  const busCodes = codes.filter((c) => !isGeneratorCode(c))
   const genCodes = codes.filter(isGeneratorCode)
   const renderRow = (label: string, colour: string, loadMW: number | null) => {
     const isActive = (loadMW ?? 0) !== 0
@@ -322,29 +428,36 @@ export function substationPopupHtml(substation: Substation, data: RecentData | n
       <span style="color:${isActive ? 'var(--color-text-strong)' : 'var(--color-text-faint)'};font-weight:${isActive ? '600' : '400'};white-space:nowrap">${loadStr}</span>
     </div>`
   }
-  const busRows = busCodes.map(code => {
-    const idx = data ? data.series.indexOf(code) : -1
-    const loadMW = (idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : null
-    const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
-    return renderRow(busLabel(code, busCodes), voltageColour(kv), loadMW)
-  }).join('')
+  const busRows = busCodes
+    .map((code) => {
+      const idx = data ? data.series.indexOf(code) : -1
+      const loadMW = idx !== -1 && lastRow ? -((lastRow[idx + 1] as number) || 0) : null
+      const kv = code.length >= 4 ? parseInt(code.slice(-4, -1), 10) : NaN
+      return renderRow(busLabel(code, busCodes), voltageColour(kv), loadMW)
+    })
+    .join('')
   const genRows = genCodes
-    .map(code => ({ code, unit: unitsByNode.get(code) }))
+    .map((code) => ({ code, unit: unitsByNode.get(code) }))
     .sort((a, b) => (a.unit?.name ?? a.code).localeCompare(b.unit?.name ?? b.code))
     .map(({ code, unit }) => {
       const idx = data ? data.series.indexOf(code) : -1
-      const genMW = (idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : null
-      const label = unit ? (isCharging(unit) ? `${unit.name} <span style="color:var(--color-text-muted)">(charging)</span>` : unit.name) : code
+      const genMW = idx !== -1 && lastRow ? (lastRow[idx + 1] as number) || 0 : null
+      const label = unit
+        ? isCharging(unit)
+          ? `${unit.name} <span style="color:var(--color-text-muted)">(charging)</span>`
+          : unit.name
+        : code
       const colour = unit ? fuelColour(unit.fuel) : 'var(--color-text-muted)'
       return renderRow(label, colour, genMW)
-    }).join('')
+    })
+    .join('')
   const totalLoad = busCodes.reduce((sum, code) => {
     const idx = data ? data.series.indexOf(code) : -1
-    return sum + ((idx !== -1 && lastRow) ? -((lastRow[idx + 1] as number) || 0) : 0)
+    return sum + (idx !== -1 && lastRow ? -((lastRow[idx + 1] as number) || 0) : 0)
   }, 0)
   const totalGen = genCodes.reduce((sum, code) => {
     const idx = data ? data.series.indexOf(code) : -1
-    return sum + ((idx !== -1 && lastRow) ? ((lastRow[idx + 1] as number) || 0) : 0)
+    return sum + (idx !== -1 && lastRow ? (lastRow[idx + 1] as number) || 0 : 0)
   }, 0)
   const netLoad = totalLoad - totalGen
   return `<div style="font-size:var(--font-size-sm);line-height:1.5;width:240px">
@@ -352,15 +465,23 @@ export function substationPopupHtml(substation: Substation, data: RecentData | n
       <span style="font-weight:600">${substation.description} Substation</span>
       <span style="background:var(--color-surface-muted);color:var(--color-text);border-radius:4px;padding:1px var(--space-sm);font-size:var(--font-size-2xs);font-weight:600;flex-shrink:0">${substation.siteId}</span>
     </div>
-    ${codes.length > 0 ? `
+    ${
+      codes.length > 0
+        ? `
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:6px">${busRows}</div>
-    ${genRows ? `<div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
+    ${
+      genRows
+        ? `<div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px">
       <div class="eyebrow" style="margin-bottom:4px">Generation</div>
       ${genRows}
-    </div>` : ''}
+    </div>`
+        : ''
+    }
     <div style="border-top:1px solid var(--color-divider);padding-top:var(--space-sm);margin-top:2px;display:flex;justify-content:space-between;align-items:center">
       <span style="color:var(--color-text-muted)">Net load</span>
       <span style="font-weight:600">${formatMW(netLoad)}</span>
-    </div>` : '<div style="color:var(--color-text-faint);margin-top:4px">No data</div>'}
+    </div>`
+        : '<div style="color:var(--color-text-faint);margin-top:4px">No data</div>'
+    }
   </div>`
 }

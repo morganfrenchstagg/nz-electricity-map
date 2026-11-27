@@ -130,7 +130,10 @@ function minBy<T>(items: T[], value: (item: T) => number): T | undefined {
   let min = Infinity
   for (const item of items) {
     const v = value(item)
-    if (v < min) { min = v; best = item }
+    if (v < min) {
+      min = v
+      best = item
+    }
   }
   return best
 }
@@ -142,24 +145,29 @@ function readLines(collection: GeoJSON.FeatureCollection): GridLine[] {
     const g = feature.geometry
     // The HVDC links the islands' networks rather than being part of one (see lineFlows)
     if (!designKv || designKv === HVDC_DESIGN_KV) return []
-    const parts = (g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [])
-      .filter((part) => part.length > 0) as LngLat[][]
+    const parts = (
+      g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : []
+    ).filter((part) => part.length > 0) as LngLat[][]
     if (parts.length === 0) return []
     const points = parts.flat()
     const bbox: GridLine['bbox'] = [
-      Math.min(...points.map((pt) => pt[0])), Math.min(...points.map((pt) => pt[1])),
-      Math.max(...points.map((pt) => pt[0])), Math.max(...points.map((pt) => pt[1])),
+      Math.min(...points.map((pt) => pt[0])),
+      Math.min(...points.map((pt) => pt[1])),
+      Math.max(...points.map((pt) => pt[0])),
+      Math.max(...points.map((pt) => pt[1])),
     ]
-    return [{
-      id: Number(p.OBJECTID),
-      code: String(p.MXLOCATION ?? ''),
-      description: String(p.description ?? p.MXLOCATION ?? ''),
-      designKv,
-      kv: designKv === 400 ? 220 : designKv,
-      cable: p.type === 'CABLE',
-      parts,
-      bbox,
-    }]
+    return [
+      {
+        id: Number(p.OBJECTID),
+        code: String(p.MXLOCATION ?? ''),
+        description: String(p.description ?? p.MXLOCATION ?? ''),
+        designKv,
+        kv: designKv === 400 ? 220 : designKv,
+        cable: p.type === 'CABLE',
+        parts,
+        bbox,
+      },
+    ]
   })
 }
 
@@ -194,7 +202,10 @@ function sectionsOf(line: GridLine, stops: Set<string>, nodes: Map<string, LngLa
     for (const a of reached) {
       for (const b of left) {
         const m = metresBetween(nodes.get(a)!, nodes.get(b)!)
-        if (m < min) { min = m; best = [a, b] }
+        if (m < min) {
+          min = m
+          best = [a, b]
+        }
       }
     }
     pairs.push(best!)
@@ -203,9 +214,16 @@ function sectionsOf(line: GridLine, stops: Set<string>, nodes: Map<string, LngLa
   }
 
   const partsOf: LngLat[][][] = pairs.map(() => [])
-  const nearestPair = (p: LngLat) => minBy(pairs.map((_, i) => i), (i) => metresToSegment(p, nodes.get(pairs[i][0])!, nodes.get(pairs[i][1])!))!
+  const nearestPair = (p: LngLat) =>
+    minBy(
+      pairs.map((_, i) => i),
+      (i) => metresToSegment(p, nodes.get(pairs[i][0])!, nodes.get(pairs[i][1])!),
+    )!
   for (const part of line.parts) {
-    if (part.length === 1) { partsOf[nearestPair(part[0])].push(part); continue }
+    if (part.length === 1) {
+      partsOf[nearestPair(part[0])].push(part)
+      continue
+    }
     let stretch = [part[0]]
     let current = -1
     for (let k = 1; k < part.length; k++) {
@@ -224,7 +242,9 @@ function sectionsOf(line: GridLine, stops: Set<string>, nodes: Map<string, LngLa
     const km = Math.max(metresBetween(nodes.get(from)!, nodes.get(to)!) / 1000, MIN_SECTION_KM)
     const ohms = (line.cable ? OHMS_PER_KM.cable : OHMS_PER_KM.overhead) * km
     return {
-      line, from, to,
+      line,
+      from,
+      to,
       reactance: (ohms * BASE_MVA) / (line.kv * line.kv),
       parts: partsOf[i],
       arrow: arrowOf(partsOf[i], nodes.get(from)!, nodes.get(to)!),
@@ -266,7 +286,10 @@ function componentsOf(sections: LineSection[]): GridNetwork['components'] {
       for (const i of neighbours.get(nodes[k])!) {
         found.add(i)
         for (const next of [sections[i].from, sections[i].to]) {
-          if (!seen.has(next)) { seen.add(next); nodes.push(next) }
+          if (!seen.has(next)) {
+            seen.add(next)
+            nodes.push(next)
+          }
         }
       }
     }
@@ -289,14 +312,17 @@ export function buildGridNetwork(collection: GeoJSON.FeatureCollection, substati
     line.parts.forEach((part, i) => {
       for (const end of [part[0], part[part.length - 1]]) {
         const nearest = nearestSubstation(end)
-        if (nearest && metresBetween(end, nodes.get(nearest.siteId)!) <= END_RADIUS_M) stops.get(line)!.add(nearest.siteId)
-        else if (line.parts.every((other, j) => j === i || metresToPart(end, other) > FREE_END_RADIUS_M)) loose.push(end)
+        if (nearest && metresBetween(end, nodes.get(nearest.siteId)!) <= END_RADIUS_M)
+          stops.get(line)!.add(nearest.siteId)
+        else if (line.parts.every((other, j) => j === i || metresToPart(end, other) > FREE_END_RADIUS_M))
+          loose.push(end)
       }
     })
     const ends = line.parts.flatMap((part) => [part[0], part[part.length - 1]])
     for (const siteId of routeOf(line).ends) {
       const at = substations.has(siteId) && nodes.get(siteId)
-      if (at && Math.min(...ends.map((end) => metresBetween(end, at))) <= NAMED_END_RADIUS_M) stops.get(line)!.add(siteId)
+      if (at && Math.min(...ends.map((end) => metresBetween(end, at))) <= NAMED_END_RADIUS_M)
+        stops.get(line)!.add(siteId)
     }
     looseEnds.set(line, loose)
   }
@@ -307,7 +333,9 @@ export function buildGridNetwork(collection: GeoJSON.FeatureCollection, substati
   for (const s of substationList) {
     if (s.type !== 'TEE' && ended.has(s.siteId)) continue
     const at = nodes.get(s.siteId)!
-    const passing = lines.map((line) => ({ line, m: metresToLine(at, line, TEE_RADIUS_M) })).filter(({ m }) => m <= TEE_RADIUS_M)
+    const passing = lines
+      .map((line) => ({ line, m: metresToLine(at, line, TEE_RADIUS_M) }))
+      .filter(({ m }) => m <= TEE_RADIUS_M)
     const kv = minBy(passing, ({ m }) => m)?.line.kv
     for (const { line } of passing) if (line.kv === kv) stops.get(line)!.add(s.siteId)
   }
@@ -318,7 +346,10 @@ export function buildGridNetwork(collection: GeoJSON.FeatureCollection, substati
     const radius = stops.get(line)!.size >= 2 ? JOIN_RADIUS_M : LONE_JOIN_RADIUS_M
     const others = lines.filter((other) => other !== line && other.kv === line.kv && !isOtherCircuit(line, other))
     for (const end of ends) {
-      const nearest = minBy(others.map((other) => ({ other, m: metresToLine(end, other, radius) })), ({ m }) => m)
+      const nearest = minBy(
+        others.map((other) => ({ other, m: metresToLine(end, other, radius) })),
+        ({ m }) => m,
+      )
       if (!nearest || nearest.m > radius) continue
       const junction = junctions.find((j) => metresBetween(j.at, end) <= JUNCTION_RADIUS_M)
       if (junction) junction.lines.push(line, nearest.other)
@@ -349,8 +380,11 @@ export function buildGridNetwork(collection: GeoJSON.FeatureCollection, substati
       const mainland = island && main.get(island)
       if (!mainland || mainland === component) continue
       const mainLines = [...new Set(mainland.sections.map((i) => sections[i].line))]
-      const candidates = component.nodes.filter((n) => substations.has(n)).flatMap((siteId) =>
-        mainLines.map((line) => ({ siteId, line, m: metresToLine(nodes.get(siteId)!, line, ISLAND_JOIN_RADIUS_M) })))
+      const candidates = component.nodes
+        .filter((n) => substations.has(n))
+        .flatMap((siteId) =>
+          mainLines.map((line) => ({ siteId, line, m: metresToLine(nodes.get(siteId)!, line, ISLAND_JOIN_RADIUS_M) })),
+        )
       const nearest = minBy(candidates, ({ m }) => m)
       if (!nearest || nearest.m > ISLAND_JOIN_RADIUS_M) continue
       stops.get(nearest.line)!.add(nearest.siteId)
@@ -368,7 +402,8 @@ export function buildGridNetwork(collection: GeoJSON.FeatureCollection, substati
     const at = nodes.get(s.siteId)!
     const candidates = substationList.filter((other) => other.island === s.island && onNetwork.has(other.siteId))
     const nearest = minBy(candidates, (other) => metresBetween(at, nodes.get(other.siteId)!))
-    if (nearest && metresBetween(at, nodes.get(nearest.siteId)!) <= ATTACH_RADIUS_M) attachedTo.set(s.siteId, nearest.siteId)
+    if (nearest && metresBetween(at, nodes.get(nearest.siteId)!) <= ATTACH_RADIUS_M)
+      attachedTo.set(s.siteId, nearest.siteId)
   }
 
   return { sections, components, nodes, substations, attachedTo }
@@ -381,7 +416,9 @@ export function sectionEndName(network: GridNetwork, index: number, end: 'from' 
   const start = section[end]
   const substation = network.substations.get(start)
   if (substation) return substation.description
-  const onLine = network.sections.map((_, i) => i).filter((i) => i !== index && network.sections[i].line === section.line)
+  const onLine = network.sections
+    .map((_, i) => i)
+    .filter((i) => i !== index && network.sections[i].line === section.line)
   const seen = new Set([start, section[end === 'from' ? 'to' : 'from']])
   const queue = [start]
   for (let k = 0; k < queue.length; k++) {
@@ -395,5 +432,8 @@ export function sectionEndName(network: GridNetwork, index: number, end: 'from' 
       queue.push(next)
     }
   }
-  return network.sections.find((s) => s.line !== section.line && (s.from === start || s.to === start))?.line.description ?? null
+  return (
+    network.sections.find((s) => s.line !== section.line && (s.from === start || s.to === start))?.line.description ??
+    null
+  )
 }

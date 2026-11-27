@@ -7,17 +7,21 @@ const InfoModal = lazy(() => import('./InfoModal'))
 
 // Narrowest panel with room for the grid panel's title beside all of the header's
 // buttons. Narrower panels, and mobile, gather all but Close into a menu.
-const MENU_BELOW_PX = 595
+const MENU_BELOW_PX = 680
 
-// One of a panel's own header buttons
-export interface PanelAction {
-  label: string
-  onClick: () => void
-}
+// One of a panel's own header buttons: one that does something, or a link to
+// a page of the site's own outside the app, e.g. the Analysis section's
+export type PanelAction = { label: string } & (
+  { onClick: () => void; href?: never } | { href: string; onClick?: never }
+)
 
 // Whether the panel's header gathers its buttons into a menu, as it does on
 // mobile and on panels too narrow for them (see MENU_BELOW_PX)
-export function hasHeaderMenu({ isMobile = false, expanded, panelWidth }: Pick<PanelProps, 'isMobile' | 'expanded' | 'panelWidth'>) {
+export function hasHeaderMenu({
+  isMobile = false,
+  expanded,
+  panelWidth,
+}: Pick<PanelProps, 'isMobile' | 'expanded' | 'panelWidth'>) {
   return isMobile || (!expanded && panelWidth < MENU_BELOW_PX)
 }
 
@@ -47,64 +51,117 @@ interface Props extends PanelProps {
 // GridOverviewPanel fill: a header ending in the panel's own buttons and those
 // to open About this site, expand the panel over the map or close it, then
 // whatever the panel puts below.
-export default function Panel({ header, actions = [], headerRef, visible = true, children, onClose, panelWidth, onResizeHandleMouseDown, expanded, onExpandedChange, isMobile = false }: Props) {
+export default function Panel({
+  header,
+  actions = [],
+  headerRef,
+  visible = true,
+  children,
+  onClose,
+  panelWidth,
+  onResizeHandleMouseDown,
+  expanded,
+  onExpandedChange,
+  isMobile = false,
+}: Props) {
   const [infoOpen, setInfoOpen] = useState(false)
   const theme = useTheme()
   const otherTheme = theme === 'dark' ? 'light' : 'dark'
   const themeLabel = otherTheme === 'dark' ? 'Dark mode' : 'Light mode'
 
   return (
-    <div className="side-panel" style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}>
-      <div ref={headerRef} className="section section--header" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+    <div
+      className="side-panel"
+      style={{ display: visible ? undefined : 'none', width: expanded ? '100vw' : panelWidth }}
+    >
+      <div
+        ref={headerRef}
+        className="section section--header"
+        style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}
+      >
         {header}
         {hasHeaderMenu({ isMobile, expanded, panelWidth }) ? (
           <MenuTrigger>
-            <Button className="button-secondary" style={isMobile ? { padding: 'var(--space-sm) var(--space-lg)' } : undefined} aria-label="More">
+            <Button
+              className="button-secondary"
+              style={isMobile ? { padding: 'var(--space-sm) var(--space-lg)' } : undefined}
+              aria-label="More"
+            >
               <DotsIcon />
             </Button>
             <Popover placement="bottom end" offset={4} className="popover">
               <Menu aria-label="More" className="menu">
-                {actions.map(a => (
-                  <MenuItem key={a.label} onAction={a.onClick} className="menu-item">{a.label}</MenuItem>
+                {actions.map((a) => (
+                  <MenuItem key={a.label} href={a.href} onAction={a.onClick} className="menu-item">
+                    {a.label}
+                  </MenuItem>
                 ))}
-                <MenuItem onAction={() => setTheme(otherTheme)} className="menu-item">{themeLabel}</MenuItem>
-                <MenuItem onAction={() => setInfoOpen(true)} className="menu-item">About this site</MenuItem>
-                {!isMobile && <MenuItem onAction={() => onExpandedChange(true)} className="menu-item">Expand</MenuItem>}
+                <MenuItem onAction={() => setTheme(otherTheme)} className="menu-item">
+                  {themeLabel}
+                </MenuItem>
+                <MenuItem onAction={() => setInfoOpen(true)} className="menu-item">
+                  About this site
+                </MenuItem>
+                {!isMobile && (
+                  <MenuItem onAction={() => onExpandedChange(true)} className="menu-item">
+                    Expand
+                  </MenuItem>
+                )}
               </Menu>
             </Popover>
           </MenuTrigger>
         ) : (
           <>
-            {actions.map(a => (
-              <button key={a.label} onClick={a.onClick} className="button-secondary">
-                {a.label}
-              </button>
-            ))}
-            <button onClick={() => setTheme(otherTheme)} className="button-secondary" aria-label={themeLabel} title={themeLabel}>
+            {actions.map((a) =>
+              a.href ? (
+                <a key={a.label} href={a.href} className="button-secondary">
+                  {a.label}
+                </a>
+              ) : (
+                <button key={a.label} onClick={a.onClick} className="button-secondary">
+                  {a.label}
+                </button>
+              ),
+            )}
+            <button
+              onClick={() => setTheme(otherTheme)}
+              className="button-secondary"
+              aria-label={themeLabel}
+              title={themeLabel}
+            >
               {otherTheme === 'dark' ? <MoonIcon /> : <SunIcon />}
             </button>
             <button onClick={() => setInfoOpen(true)} className="button-secondary" aria-label="About this site">
               About this site
             </button>
-            <button onClick={() => onExpandedChange(!expanded)} className="button-secondary" aria-label={expanded ? 'Collapse' : 'Expand'}>
+            <button
+              onClick={() => onExpandedChange(!expanded)}
+              className="button-secondary"
+              aria-label={expanded ? 'Collapse' : 'Expand'}
+            >
               {expanded ? 'Show map' : 'Expand'}
             </button>
           </>
         )}
         {/* On mobile the panel is always expanded (see App), so closing it is the way back to the map */}
         {isMobile ? (
-          <button onClick={onClose} className="button-secondary" style={{ padding: 'var(--space-sm) var(--space-lg)' }} aria-label="Show map">
+          <button
+            onClick={onClose}
+            className="button-secondary"
+            style={{ padding: 'var(--space-sm) var(--space-lg)' }}
+            aria-label="Show map"
+          >
             Show map
           </button>
-        ) : !expanded && (
-          <button onClick={onClose} className="button-secondary" aria-label="Close">
-            Close
-          </button>
+        ) : (
+          !expanded && (
+            <button onClick={onClose} className="button-secondary" aria-label="Close">
+              Close
+            </button>
+          )
         )}
       </div>
-      <Suspense fallback={null}>
-        {infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}
-      </Suspense>
+      <Suspense fallback={null}>{infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}</Suspense>
       {children}
       {!expanded && !isMobile && (
         <div
@@ -119,9 +176,21 @@ export default function Panel({ header, actions = [], headerRef, visible = true,
 // The row of controls under the header. When it's too narrow for one line
 // (see useCompactWhenOverflowing, which measures it through toolbarRef), the
 // panel switches its toggles to dropdowns and the row wraps.
-export function PanelToolbar({ toolbarRef, compact, children }: { toolbarRef: Ref<HTMLDivElement>; compact: boolean; children: ReactNode }) {
+export function PanelToolbar({
+  toolbarRef,
+  compact,
+  children,
+}: {
+  toolbarRef: Ref<HTMLDivElement>
+  compact: boolean
+  children: ReactNode
+}) {
   return (
-    <div ref={toolbarRef} className="section section--toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'wrap' : 'nowrap' }}>
+    <div
+      ref={toolbarRef}
+      className="section section--toolbar"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'wrap' : 'nowrap' }}
+    >
       {children}
     </div>
   )
@@ -138,7 +207,17 @@ function MoonIcon() {
 
 function SunIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      aria-hidden="true"
+      style={{ display: 'block' }}
+    >
       <circle cx="6.5" cy="6.5" r="2.3" fill="currentColor" stroke="none" />
       <path d="M6.5 0.9v1.3M6.5 10.8v1.3M0.9 6.5h1.3M10.8 6.5h1.3M2.54 2.54l.92.92M9.54 9.54l.92.92M2.54 10.46l.92-.92M9.54 3.46l.92-.92" />
     </svg>

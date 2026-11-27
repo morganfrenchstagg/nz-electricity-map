@@ -5,24 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Each page's title, description, canonical link and structured data, and
          its content in #root, are written by the build (see build/pages.ts) -->
-    <!--page-head--><title>NZ Electricity Map</title><!--/page-head-->
+    <!--page-head-->
+    <title>NZ Electricity Map</title>
+    <!--/page-head-->
+    <!-- Google Search Console's ownership check -->
+    <meta name="google-site-verification" content="3GuVYT3KqtkY-hpwDkh2NBI1h3FG5FijshWQRE6fcMw" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="NZ Electricity Map" />
     <meta property="og:locale" content="en_NZ" />
     <meta property="og:image" content="https://electricitymap.frenchsta.gg/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Map of New Zealand's power stations and grid beside a chart of the generation mix" />
+    <meta
+      property="og:image:alt"
+      content="Map of New Zealand's power stations and grid beside a chart of the generation mix"
+    />
     <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#1d4ed8" />
     <!-- The theme the viewer picked (light unless they picked dark) before first
          paint, so a dark page doesn't flash light. See src/theme.ts. -->
     <script>
-      (function () {
+      ;(function () {
         var theme = 'light'
-        try { if (localStorage.getItem('theme') === 'dark') theme = 'dark' } catch (e) {}
+        try {
+          if (localStorage.getItem('theme') === 'dark') theme = 'dark'
+        } catch (e) {}
         document.documentElement.dataset.theme = theme
         document.documentElement.classList.add('highcharts-' + theme)
       })()

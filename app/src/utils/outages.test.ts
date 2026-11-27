@@ -1,14 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { OutageRecord } from '../api'
 import type { Unit } from '../types'
-import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt, unitCapacityAt, unitOutageMWAt } from './outages'
+import {
+  capacityLeftAfter,
+  maxOutageMWOf,
+  mergeOutageDays,
+  mergeOutageSegments,
+  outageEasesAt,
+  unitCapacityAt,
+  unitOutageMWAt,
+} from './outages'
 import { nzLocalMs, nzNowMs } from './time'
 
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 // An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
 function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
-  return { outageBlock: block, timeStart: `2026-10-13T${from}:00+13:00`, timeEnd: `2026-10-13T${to}:00+13:00`, mwattLost: mw }
+  return {
+    outageBlock: block,
+    timeStart: `2026-10-13T${from}:00+13:00`,
+    timeEnd: `2026-10-13T${to}:00+13:00`,
+    mwattLost: mw,
+  }
 }
 
 // A time of day on 13 October 2026, as mergeOutageSegments reports it
@@ -36,9 +51,7 @@ describe('mergeOutageSegments', () => {
 
   it('joins back-to-back outages of the same size into one', () => {
     const records = [outage('08:00', '10:00', 3), outage('10:00', '12:00', 3)]
-    expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([
-      { start: at('08:00'), end: at('12:00'), mw: 3 },
-    ])
+    expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([{ start: at('08:00'), end: at('12:00'), mw: 3 }])
   })
 
   it('leaves out the time between separate outages', () => {
@@ -50,10 +63,12 @@ describe('mergeOutageSegments', () => {
   })
 
   it('counts overlapping outages on the same block once, at the largest', () => {
-    const records = [outage('08:00', '16:00', 66, 'OHA_5'), outage('09:00', '12:00', 66, 'OHA_5'), outage('10:00', '11:00', 50, 'OHA_5')]
-    expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([
-      { start: at('08:00'), end: at('16:00'), mw: 66 },
-    ])
+    const records = [
+      outage('08:00', '16:00', 66, 'OHA_5'),
+      outage('09:00', '12:00', 66, 'OHA_5'),
+      outage('10:00', '11:00', 50, 'OHA_5'),
+    ]
+    expect(mergeOutageSegments(records, BEFORE_ALL)).toEqual([{ start: at('08:00'), end: at('16:00'), mw: 66 }])
   })
 
   it('stacks blocks no higher than the most a unit can lose', () => {
@@ -99,13 +114,19 @@ describe('mergeOutageSegments', () => {
 
 describe('outageEasesAt', () => {
   it('is when the current outage starts to ease, past any time it gets worse', () => {
-    const segments = mergeOutageSegments([outage('08:00', '16:00', 66, 'OHA_5'), outage('10:00', '12:00', 198, 'OHA_STN')], BEFORE_ALL)
+    const segments = mergeOutageSegments(
+      [outage('08:00', '16:00', 66, 'OHA_5'), outage('10:00', '12:00', 198, 'OHA_STN')],
+      BEFORE_ALL,
+    )
     expect(outageEasesAt(segments, at('09:00'))).toBe(at('16:00'))
     expect(outageEasesAt(segments, at('11:00'))).toBe(at('12:00'))
   })
 
   it("ignores outages that haven't started", () => {
-    const segments = mergeOutageSegments([outage('08:00', '10:00', 3, 'ATI_1'), outage('12:00', '14:00', 5, 'ATI_2')], BEFORE_ALL)
+    const segments = mergeOutageSegments(
+      [outage('08:00', '10:00', 3, 'ATI_1'), outage('12:00', '14:00', 5, 'ATI_2')],
+      BEFORE_ALL,
+    )
     expect(outageEasesAt(segments, at('09:00'))).toBe(at('10:00'))
     expect(outageEasesAt(segments, at('11:00'))).toBeNull()
   })
@@ -114,7 +135,11 @@ describe('outageEasesAt', () => {
 // A battery's charging unit is listed with negative capacity, as the API sends it
 const CHARGING: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'HLY2201 HLY91', capacity: -100 }
 // 42 MW normally, 50 MW installed
-const HYDRO: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = { node: 'ATI2201 ATI0', capacity: 42, installedCapacity: 50 }
+const HYDRO: Pick<Unit, 'node' | 'capacity' | 'installedCapacity'> = {
+  node: 'ATI2201 ATI0',
+  capacity: 42,
+  installedCapacity: 50,
+}
 
 describe('unitOutageMWAt', () => {
   it('is nothing for a charging unit without outages', () => {
@@ -123,7 +148,9 @@ describe('unitOutageMWAt', () => {
   })
 
   it("stacks a charging unit's blocks up to the size of its capacity", () => {
-    const outages = { [CHARGING.node]: [outage('08:00', '12:00', 60, 'HLY_9'), outage('10:00', '12:00', 60, 'HLY_STN')] }
+    const outages = {
+      [CHARGING.node]: [outage('08:00', '12:00', 60, 'HLY_9'), outage('10:00', '12:00', 60, 'HLY_STN')],
+    }
     expect(unitOutageMWAt(CHARGING, outages, at('09:00'))).toBe(60)
     expect(unitOutageMWAt(CHARGING, outages, at('11:00'))).toBe(100)
   })
@@ -136,7 +163,9 @@ describe('unitCapacityAt', () => {
   })
 
   it('takes an outage off the size of what a charging unit can draw', () => {
-    const outages = { [CHARGING.node]: [outage('08:00', '12:00', 30, 'HLY_9'), outage('10:00', '12:00', 100, 'HLY_STN')] }
+    const outages = {
+      [CHARGING.node]: [outage('08:00', '12:00', 30, 'HLY_9'), outage('10:00', '12:00', 100, 'HLY_STN')],
+    }
     expect(unitCapacityAt(CHARGING, outages, at('09:00'))).toBe(-70)
     expect(unitCapacityAt(CHARGING, outages, at('11:00'))).toBe(0)
   })
@@ -164,5 +193,35 @@ describe('maxOutageMWOf', () => {
       { start: at('08:00'), end: at('10:00'), mw: 60 },
       { start: at('10:00'), end: at('12:00'), mw: 100 },
     ])
+  })
+})
+
+describe('mergeOutageDays', () => {
+  it("keeps an outage going on over several days once, beside each day's own", () => {
+    const longRunning = outage('08:00', '23:00', 40, 'ATI_1')
+    const firstDay = { 'ATI2201 ATI0': [longRunning, outage('09:00', '10:00', 5, 'ATI_2')] }
+    const secondDay = { 'ATI2201 ATI0': [{ ...longRunning }], 'HLY2201 HLY5': [outage('11:00', '12:00', 400, 'HLY_5')] }
+
+    expect(mergeOutageDays([firstDay, secondDay])).toEqual({
+      'ATI2201 ATI0': [longRunning, outage('09:00', '10:00', 5, 'ATI_2')],
+      'HLY2201 HLY5': [outage('11:00', '12:00', 400, 'HLY_5')],
+    })
+  })
+
+  it('keeps records on the same block that differ in time or MW', () => {
+    const records = [
+      outage('08:00', '12:00', 40, 'ATI_1'),
+      outage('08:00', '12:00', 20, 'ATI_1'),
+      outage('08:00', '13:00', 40, 'ATI_1'),
+    ]
+
+    expect(mergeOutageDays([{ 'ATI2201 ATI0': records }, { 'ATI2201 ATI0': records }])).toEqual({
+      'ATI2201 ATI0': records,
+    })
+  })
+
+  it("hands back a single day's outages as they are", () => {
+    const day = { 'ATI2201 ATI0': [outage('08:00', '12:00', 40)] }
+    expect(mergeOutageDays([day])).toBe(day)
   })
 })

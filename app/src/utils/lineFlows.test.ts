@@ -4,14 +4,33 @@ import type { GridNetwork } from './gridNetwork'
 import { estimateLineFlows, flowArrowsToGeoJson, siteInjections } from './lineFlows'
 import type { RecentData, Substation } from '../types'
 
-const site = (siteId: string, long: number, lat: number, island: Substation['island'] = 'north'): Substation =>
-  ({ siteId, description: siteId, long, lat, type: 'ACSTN', gridZone: 1, island })
+const site = (siteId: string, long: number, lat: number, island: Substation['island'] = 'north'): Substation => ({
+  siteId,
+  description: siteId,
+  long,
+  lat,
+  type: 'ACSTN',
+  gridZone: 1,
+  island,
+})
 
 let objectId = 0
 const line = (code: string, from: Substation, to: Substation): GeoJSON.Feature => ({
   type: 'Feature',
-  geometry: { type: 'LineString', coordinates: [[from.long, from.lat], [to.long, to.lat]] },
-  properties: { OBJECTID: ++objectId, MXLOCATION: code, designvolt: '220', type: code.endsWith('CBL') ? 'CABLE' : 'TRANSLINE', description: code },
+  geometry: {
+    type: 'LineString',
+    coordinates: [
+      [from.long, from.lat],
+      [to.long, to.lat],
+    ],
+  },
+  properties: {
+    OBJECTID: ++objectId,
+    MXLOCATION: code,
+    designvolt: '220',
+    type: code.endsWith('CBL') ? 'CABLE' : 'TRANSLINE',
+    description: code,
+  },
 })
 
 const network = (substations: Substation[], ...features: GeoJSON.Feature[]) =>
@@ -25,13 +44,18 @@ const dispatch = (mw: Record<string, number>, hvdcNorth?: number): RecentData =>
   data: [[TIME, ...Object.values(mw)]],
   pricing: [],
   ...(hvdcNorth !== undefined && {
-    hvdc: { series: ['northFlow', 'southFlow', 'northLimit', 'southLimit'], data: [[TIME, Math.max(hvdcNorth, 0), Math.max(-hvdcNorth, 0), 1200, -600]] },
+    hvdc: {
+      series: ['northFlow', 'southFlow', 'northLimit', 'southLimit'],
+      data: [[TIME, Math.max(hvdcNorth, 0), Math.max(-hvdcNorth, 0), 1200, -600]],
+    },
   }),
 })
 
 // The MW flowing from one substation to the other along a line
 const flowBetween = (net: GridNetwork, flows: number[], code: string, from: string, to: string) => {
-  const i = net.sections.findIndex((s) => s.line.code === code && [s.from, s.to].sort().join() === [from, to].sort().join())
+  const i = net.sections.findIndex(
+    (s) => s.line.code === code && [s.from, s.to].sort().join() === [from, to].sort().join(),
+  )
   return net.sections[i].from === from ? flows[i] : -flows[i]
 }
 
@@ -79,7 +103,10 @@ describe('estimateLineFlows', () => {
     const net = network([BEN, XXX, HAY, YYY], line('BEN-XXX-A', BEN, XXX), line('HAY-YYY-A', HAY, YYY))
 
     it('takes its flow out of the South Island at Benmore, and into the North Island at Haywards', () => {
-      const { sections: flows, hvdcNorth } = estimateLineFlows(net, dispatch({ 'XXX2201 GEN0': 500, YYY2201: -380 }, 400))
+      const { sections: flows, hvdcNorth } = estimateLineFlows(
+        net,
+        dispatch({ 'XXX2201 GEN0': 500, YYY2201: -380 }, 400),
+      )
       expect(hvdcNorth).toBe(400)
       // Each island's losses are taken up by its load
       expect(flowBetween(net, flows, 'BEN-XXX-A', 'XXX', 'BEN')).toBeCloseTo(500)
@@ -99,9 +126,11 @@ describe('flowArrowsToGeoJson', () => {
   it('points each arrow the way its section flows, and leaves out those with nothing to the MW', () => {
     const net = network([AAA, BBB, CCC], line('AAA-BBB-A', AAA, BBB), line('BBB-CCC-A', BBB, CCC))
     // AAA-BBB-A flows west, from BBB to AAA, and BBB-CCC-A has under half a MW
-    const flows = net.sections.map((s) => s.line.code === 'AAA-BBB-A' ? (s.from === 'BBB' ? 50 : -50) : 0.2)
+    const flows = net.sections.map((s) => (s.line.code === 'AAA-BBB-A' ? (s.from === 'BBB' ? 50 : -50) : 0.2))
     const arrows = flowArrowsToGeoJson(net, flows).features
     expect(arrows).toHaveLength(1)
-    expect(arrows[0].properties).toEqual({ mw: 50, bearing: expect.closeTo(270) })
+    const { mw, bearing } = arrows[0].properties as { mw: number; bearing: number }
+    expect(mw).toBe(50)
+    expect(bearing).toBeCloseTo(270)
   })
 })

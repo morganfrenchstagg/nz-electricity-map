@@ -25,7 +25,15 @@ interface Options {
 // What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
 // or for the 90d, 1y, 5y and All views the node's own MWh totals, narrowed to the
 // node's codes.
-export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes }: Options) {
+export function useNodeData({
+  dateMode,
+  recentData,
+  loading,
+  error,
+  queryNodes,
+  movedNodes = NO_MOVED_NODES,
+  getCodes,
+}: Options) {
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
   const aggregates = useAggregates(queryNodes, isAggregateMode(dateMode) ? dateMode : null)
@@ -35,10 +43,7 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
   )
   const data = isAggregate ? aggregateData : recentData
 
-  const allCodes = useMemo(
-    () => (data ? getCodes(data, isAggregate) : []),
-    [data, getCodes, isAggregate],
-  )
+  const allCodes = useMemo(() => (data ? getCodes(data, isAggregate) : []), [data, getCodes, isAggregate])
 
   const chartData = useMemo(() => {
     if (!data || allCodes.length === 0) return null
@@ -65,7 +70,9 @@ export function useCodeSelection(allCodes: string[], node: object) {
     [activeCodes, allCodes],
   )
 
-  useEffect(() => { setActiveCodes(null) }, [node])
+  useEffect(() => {
+    setActiveCodes(null)
+  }, [node])
 
   // Shows or hides a code. Hiding the only series showing shows every code
   // again; `othersShown` says another series still is, e.g. a substation's Total.

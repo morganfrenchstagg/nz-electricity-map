@@ -9,8 +9,12 @@ describe('biomass', () => {
   })
 
   it('sorts between coal/gas and geothermal', () => {
-    expect(fuelFamilies(['Geothermal', 'Biomass', 'Coal/Gas', 'Hydro']).map((f) => f.label))
-      .toEqual(['Hydro', 'Coal/Gas', 'Biomass', 'Geothermal'])
+    expect(fuelFamilies(['Geothermal', 'Biomass', 'Coal/Gas', 'Hydro']).map((f) => f.label)).toEqual([
+      'Hydro',
+      'Coal/Gas',
+      'Biomass',
+      'Geothermal',
+    ])
   })
 })
 

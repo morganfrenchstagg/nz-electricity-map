@@ -5,7 +5,16 @@ import type { OutageData } from '../api'
 import { isGeneratorCode, unitOfCode } from './chart'
 import { fuelColour, fuelFamilies, FUEL_NAME_SORT_INDEX } from './colours'
 import { formatMW } from './format'
-import { inServiceAt, inServiceDuring, isCharging, isCombinedOver, isCommissioning, isDecommissioned, serviceChangesBetween, unitLabel } from './generators'
+import {
+  inServiceAt,
+  inServiceDuring,
+  isCharging,
+  isCombinedOver,
+  isCommissioning,
+  isDecommissioned,
+  serviceChangesBetween,
+  unitLabel,
+} from './generators'
 import { unitCapacityAt, unitOutageMWAt } from './outages'
 import { nzLocalMs, nzNowMs, outageMs } from './time'
 import type { Period } from './time'
@@ -45,7 +54,7 @@ function chargeCapacityOf(units: Unit[], outages: OutageData | null, atMs: numbe
 function capacityChangesBetween(units: Unit[], outages: OutageData, from: number, to: number): number[] {
   const changes = serviceChangesBetween(units, from, to)
   for (const unit of units) {
-    for (const rec of (outages[unit.node] ?? [])) {
+    for (const rec of outages[unit.node] ?? []) {
       const s = outageMs(rec.timeStart)
       const e = outageMs(rec.timeEnd)
       if (s > from && s <= to) changes.push(s)
@@ -63,8 +72,11 @@ function peakCapacity(units: Unit[], outages: OutageData | null, rows?: ChartRow
   }
   const firstTime = nzLocalMs(rows[0].time)
   const lastTime = nzLocalMs(rows[rows.length - 1].time)
-  return Math.max(...[firstTime, ...capacityChangesBetween(units, outages, firstTime, lastTime)]
-    .map((t) => generatingCapacityAt(units, outages, t)))
+  return Math.max(
+    ...[firstTime, ...capacityChangesBetween(units, outages, firstTime, lastTime)].map((t) =>
+      generatingCapacityAt(units, outages, t),
+    ),
+  )
 }
 
 // The capacity line over the chart's rows, stepping wherever capacity changes
@@ -117,12 +129,12 @@ export interface GeneratorAdapter {
   // Dispatch data charts the units in service during the view's period (and in the
   // live views, any still being commissioned that are dispatching); the aggregate
   // views pass includeRetired to chart every unit's history.
-  getCodes(recent: RecentData, includeRetired?: boolean): string[]
+  getCodes: (recent: RecentData, includeRetired?: boolean) => string[]
   // Every unit's code in chart order, retired and moved units' included, for
   // the Offers view to pick out the units with offers
   unitCodes: string[]
-  labelFor(code: string): string
-  colourFor(code: string): string
+  labelFor: (code: string) => string
+  colourFor: (code: string) => string
   yAxisOptions(effectiveCodes?: Set<string>, rows?: ChartRow[]): Highcharts.YAxisOptions
   // Several generators' units are named in a legend
   showLegend: boolean
@@ -142,10 +154,17 @@ export interface GeneratorAdapter {
 // used by outageMs, so comparisons with outage timestamps are consistent. Capacity
 // is read at its end, beside the latest dispatch. `live` views (Today and 3d) also
 // chart units still being commissioned once they're dispatching, without their capacity.
-export function createGeneratorAdapter(generator: Generator, outages: OutageData | null, period = nowPeriod(), live = false): GeneratorAdapter {
+export function createGeneratorAdapter(
+  generator: Generator,
+  outages: OutageData | null,
+  period = nowPeriod(),
+  live = false,
+): GeneratorAdapter {
   const at = period.to
   const activeUnits = generator.units.filter((u) => inServiceDuring(u, period))
-  const shownUnits = live ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at)) : activeUnits
+  const shownUnits = live
+    ? generator.units.filter((u) => activeUnits.includes(u) || isCommissioning(u, at))
+    : activeUnits
   const movedNodes = movedNodesOf(generator.units)
   // Moved units are charted under their current node only, and units combined into
   // another (see isCombinedOver) under it, having none of their own
@@ -180,9 +199,7 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
     movedNodes,
 
     yAxisOptions(effectiveCodes, rows) {
-      const units = effectiveCodes
-        ? activeUnits.filter((u) => effectiveCodes.has(u.node))
-        : activeUnits
+      const units = effectiveCodes ? activeUnits.filter((u) => effectiveCodes.has(u.node)) : activeUnits
       const adjusted = generatingCapacityAt(units, outages, at)
 
       // softMax = maximum capacity the generator reaches over the chart period
@@ -234,7 +251,11 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
 
     showLegend: false,
     capacityMW(effectiveCodes) {
-      return generatingCapacityAt(activeUnits.filter((u) => effectiveCodes.has(u.node)), outages, at)
+      return generatingCapacityAt(
+        activeUnits.filter((u) => effectiveCodes.has(u.node)),
+        outages,
+        at,
+      )
     },
 
     normalCapacityMW(effectiveCodes) {
@@ -262,15 +283,23 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         data: data.map((point, i) => ({
           x: point[0],
           y: point[1],
-          dataLabels: i === lastIndex ? {
-            enabled: true,
-            format: `${capacityLabel(units)}: ${formatMW(point[1] as number)}`,
-            align: 'right',
-            style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
-            crop: false,
-            overflow: 'allow' as const,
-            x: -4,
-          } : { enabled: false },
+          dataLabels:
+            i === lastIndex
+              ? {
+                  enabled: true,
+                  format: `${capacityLabel(units)}: ${formatMW(point[1])}`,
+                  align: 'right',
+                  style: {
+                    color: 'var(--color-reference)',
+                    fontSize: 'var(--font-size-2xs)',
+                    fontWeight: 'normal',
+                    textOutline: 'none',
+                  },
+                  crop: false,
+                  overflow: 'allow' as const,
+                  x: -4,
+                }
+              : { enabled: false },
         })),
         color: 'var(--color-reference)',
         dashStyle: 'Solid',
@@ -281,49 +310,60 @@ export function createGeneratorAdapter(generator: Generator, outages: OutageData
         enableMouseTracking: false,
         showInLegend: false,
         zIndex: 3,
-      } as Highcharts.SeriesLineOptions
+      }
     },
   }
 }
 
-export function createMultiGeneratorAdapter(generators: Generator[], outages: OutageData | null, period = nowPeriod(), live = false): GeneratorAdapter {
+export function createMultiGeneratorAdapter(
+  generators: Generator[],
+  outages: OutageData | null,
+  period = nowPeriod(),
+  live = false,
+): GeneratorAdapter {
   const at = period.to
 
-  const allUnits = generators.flatMap(g => g.units)
-  const allActiveUnits = allUnits.filter(u => inServiceDuring(u, period))
-  const allShownUnits = live ? allUnits.filter(u => allActiveUnits.includes(u) || isCommissioning(u, at)) : allActiveUnits
-  const movedNodes = Object.assign({}, ...generators.map(g => movedNodesOf(g.units))) as Record<string, string>
+  const allUnits = generators.flatMap((g) => g.units)
+  const allActiveUnits = allUnits.filter((u) => inServiceDuring(u, period))
+  const allShownUnits = live
+    ? allUnits.filter((u) => allActiveUnits.includes(u) || isCommissioning(u, at))
+    : allActiveUnits
+  const movedNodes = Object.assign({}, ...generators.map((g) => movedNodesOf(g.units))) as Record<string, string>
 
   const genNameFor = (code: string) => {
     for (const generator of generators) {
-      if (generator.units.some(u => u.node === code)) return generator.name
+      if (generator.units.some((u) => u.node === code)) return generator.name
     }
     return null
   }
 
-  const subtitleFuels = fuelFamilies((allActiveUnits.length > 0 ? allActiveUnits : allUnits).map(u => u.fuel))
+  const subtitleFuels = fuelFamilies((allActiveUnits.length > 0 ? allActiveUnits : allUnits).map((u) => u.fuel))
 
-  const title = generators.length <= 2
-    ? generators.map(g => g.name).join(', ')
-    : `${generators[0].name} +${generators.length - 1} more`
+  const title =
+    generators.length <= 2
+      ? generators.map((g) => g.name).join(', ')
+      : `${generators[0].name} +${generators.length - 1} more`
 
   return {
     title,
-    subtitle: [...new Set(generators.map(g => g.operator))].join(', '),
+    subtitle: [...new Set(generators.map((g) => g.operator))].join(', '),
     subtitleFuels,
-    queryNodes: allUnits.map(u => u.node),
+    queryNodes: allUnits.map((u) => u.node),
     movedNodes,
 
     getCodes(recent, includeRetired = false) {
       // Moved units are charted under their current node only, and combined units' under them
-      return chartOrder(includeRetired ? allUnits.filter(u => !(u.node in movedNodes) && !isCombinedOver(u, allUnits)) : allShownUnits)
-        .filter(c => recent.series.includes(c))
+      return chartOrder(
+        includeRetired
+          ? allUnits.filter((u) => !(u.node in movedNodes) && !isCombinedOver(u, allUnits))
+          : allShownUnits,
+      ).filter((c) => recent.series.includes(c))
     },
 
     unitCodes: chartOrder(allUnits),
 
     labelFor(code) {
-      const unit = allUnits.find(u => u.node === code)
+      const unit = allUnits.find((u) => u.node === code)
       if (!unit) return code
       const suffix = unitLabel(unit)
       const prefix = genNameFor(code)
@@ -332,12 +372,12 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     },
 
     colourFor(code) {
-      const unit = allUnits.find(u => u.node === code)
+      const unit = allUnits.find((u) => u.node === code)
       return unit ? fuelColour(unit.fuel) : ''
     },
 
     yAxisOptions(effectiveCodes, rows) {
-      const units = effectiveCodes ? allActiveUnits.filter(u => effectiveCodes.has(u.node)) : allActiveUnits
+      const units = effectiveCodes ? allActiveUnits.filter((u) => effectiveCodes.has(u.node)) : allActiveUnits
       const adjusted = generatingCapacityAt(units, outages, at)
       const softMaxCap = peakCapacity(units, outages, rows)
       const chargeCapacity = chargeCapacityOf(units, outages, at)
@@ -353,38 +393,64 @@ export function createMultiGeneratorAdapter(generators: Generator[], outages: Ou
     showLegend: true,
 
     capacityMW(effectiveCodes) {
-      return generatingCapacityAt(allActiveUnits.filter(u => effectiveCodes.has(u.node)), outages, at)
+      return generatingCapacityAt(
+        allActiveUnits.filter((u) => effectiveCodes.has(u.node)),
+        outages,
+        at,
+      )
     },
 
     normalCapacityMW(effectiveCodes) {
       return allActiveUnits
-        .filter(u => effectiveCodes.has(u.node) && !isCharging(u) && inServiceAt(u, at))
+        .filter((u) => effectiveCodes.has(u.node) && !isCharging(u) && inServiceAt(u, at))
         .reduce((sum, u) => sum + u.capacity, 0)
     },
 
     unitOutageMW(code) {
-      const unit = allUnits.find(u => u.node === code)
+      const unit = allUnits.find((u) => u.node === code)
       return outages && unit && inServiceAt(unit, at) ? unitOutageMWAt(unit, outages, at) : 0
     },
 
     capacitySeries(rows, effectiveCodes) {
       if (!outages || rows.length === 0) return null
-      const units = allActiveUnits.filter(u => effectiveCodes.has(u.node))
+      const units = allActiveUnits.filter((u) => effectiveCodes.has(u.node))
       if (units.length === 0) return null
       const data = capacitySteps(units, outages, rows)
       const lastIndex = data.length - 1
       return {
-        type: 'line', name: 'Capacity',
+        type: 'line',
+        name: 'Capacity',
         data: data.map((point, i) => ({
-          x: point[0], y: point[1],
-          dataLabels: i === lastIndex
-            ? { enabled: true, format: `Capacity: ${formatMW(point[1] as number)}`, align: 'right', style: { color: 'var(--color-reference)', fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' }, crop: false, overflow: 'allow' as const, x: -4 }
-            : { enabled: false },
+          x: point[0],
+          y: point[1],
+          dataLabels:
+            i === lastIndex
+              ? {
+                  enabled: true,
+                  format: `Capacity: ${formatMW(point[1])}`,
+                  align: 'right',
+                  style: {
+                    color: 'var(--color-reference)',
+                    fontSize: 'var(--font-size-2xs)',
+                    fontWeight: 'normal',
+                    textOutline: 'none',
+                  },
+                  crop: false,
+                  overflow: 'allow' as const,
+                  x: -4,
+                }
+              : { enabled: false },
         })),
-        color: 'var(--color-reference)', dashStyle: 'Solid', lineWidth: 0.5, step: 'left',
-        marker: { enabled: false }, animation: false, enableMouseTracking: false,
-        showInLegend: false, zIndex: 3,
-      } as Highcharts.SeriesLineOptions
+        color: 'var(--color-reference)',
+        dashStyle: 'Solid',
+        lineWidth: 0.5,
+        step: 'left',
+        marker: { enabled: false },
+        animation: false,
+        enableMouseTracking: false,
+        showInLegend: false,
+        zIndex: 3,
+      }
     },
   }
 }

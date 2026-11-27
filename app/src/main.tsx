@@ -54,7 +54,7 @@ Highcharts.addEvent(Highcharts.Series, 'afterRender', function (this: Highcharts
   const { markerGroup } = this as Highcharts.Series & { markerGroup?: Highcharts.SVGElement }
   for (const point of this.points ?? []) {
     // A column's graphic is the column, in the series' own group, not a marker
-    const graphic = point.graphic as (Highcharts.SVGElement & { parentGroup?: Highcharts.SVGElement }) | undefined
+    const graphic: (Highcharts.SVGElement & { parentGroup?: Highcharts.SVGElement }) | undefined = point.graphic
     if (graphic && graphic.parentGroup === markerGroup && !point.options.marker) {
       graphic.destroy()
       point.graphic = undefined

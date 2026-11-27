@@ -18,6 +18,18 @@ VITE_API_BASE=http://localhost:8787/v1 npm run dev
 
 Or put it in `app/.env.local` (gitignored) to keep it set. A local `wrangler dev` starts with no dispatch data, so a branch's preview deployment, which reads the real data, is often more useful.
 
+### Checks
+
+CI runs these on every PR, and again before deploying `main`:
+
+```
+cd app
+npm run lint
+npm run format:check   # `npm run format` fixes it
+npm test
+npm run build          # type-checks too
+```
+
 ### Embedded solar
 
 The generation chart adds an estimate of embedded (rooftop and other undispatched, also called distributed) solar, as a fuel of its own, Embedded Solar (est.), from [nz-solar-stats-api](https://github.com/morganfrenchstagg/nz-solar-stats-api)'s `/solar-production/{date}`. It uses the production deployment by default. To use another, such as a local copy, set `VITE_SOLAR_API_BASE` to its root URL:
@@ -42,9 +54,11 @@ Nothing publishes the lines' flows, so they're estimated from what each substati
 
 ## Pages for search engines
 
-The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. It reads the definitions from the API repo's `src/data/generators.json` and `substations.json`, which `/definitions` serves as they are, because Cloudflare's bot protection blocks GitHub's runners from the API itself (with `VITE_API_BASE` set, from that API's `/definitions`). The build fails if it can't fetch them. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
+The build writes a static page for each station, from the API's `/definitions` (see `app/build/pages.ts`): `/generator/<name>`, each generator's history at `/generator/<name>/historic`, `/substation/<name>`, `/hvdc` and `/pipeline`, as well as the home page, each with its own title, description, canonical link and structured data, and its facts as plain HTML inside `#root`, which the app replaces when it starts. It reads the definitions from the API repo's `src/data/generators.json` and `substations.json`, which `/definitions` serves as they are, because Cloudflare's bot protection blocks GitHub's runners from the API itself (with `VITE_API_BASE` set, from that API's `/definitions`). The build fails if it can't fetch them. It also writes `sitemap.xml`. `robots.txt`, `llms.txt`, the icons and the link preview image are in `app/public`.
 
-The app opens a station's panel at its page, and writes a single station's page into the URL in place of `?node=`. A station added to the API has no page until the next deploy, which runs daily as well as on each push to main.
+Station, substation and HVDC pages also give their yearly generation, demand or flows, from the API's `/dispatch/aggregates/annual`, which the build fetches from the API's workers.dev address, outside the bot protection (with `VITE_API_BASE` set, from that API). There's also an Analysis section (`/analysis`), with pages about each fuel (`/analysis/fuel/hydro`), each operator with more than one station (`/analysis/operator/meridian-energy`), each island (`/analysis/island/north-island`) and the grid's renewable share (`/analysis/renewable-energy`). The grid panel links to it. Those are pages of their own, without the app, so search engines that run it still index their content (see `app/build/topics.ts`). The build fails if it can't fetch the yearly figures, as with the definitions, so a deploy never replaces the pages with ones that lack them.
+
+The app opens a station's panel at its page, and writes a single station's page into the URL in place of `?node=`. A generator's history opens its panel at All, with its records under the chart (see `app/src/utils/generationRecords.ts`), and a generator shown at All is at its history's path. Opened at a generator's page or its history's, the map starts zoomed in on the station; picking a station on the map or in the panel keeps the zoom. A station added to the API has no page until the next deploy, which runs daily as well as on each push to main.
 
 ## Data
 

@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import optimizeLocales from '@react-aria/optimize-locales-plugin'
 import { stationPages } from './build/pages'
 
+// An entry's absolute path, from this file's folder, whatever folder the build runs in
+const entry = (path: string) => decodeURIComponent(new URL(path, import.meta.url).pathname)
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
@@ -19,25 +22,39 @@ export default defineConfig(({ mode }) => ({
     outDir: '../frontend',
     emptyOutDir: false,
     rolldownOptions: {
+      input: {
+        index: entry('./index.html'),
+        // The tooltips of the charts on the pages that don't load the app,
+        // which the station-pages plugin adds to them (see build/pages.ts)
+        chartTooltip: entry('./src/chartTooltip.ts'),
+      },
       output: {
         // Split the large, rarely-changing vendor libraries into their own
         // chunks so an app change doesn't invalidate them in the browser cache.
         codeSplitting: {
-          groups: [{
-            name(id) {
-              if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
-              if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
-              // The date pickers. Their calendars and date fields are a chunk of
-              // their own, loaded with DatePickers (see LazyDatePickers), apart from
-              // the menus and popovers the panels need from the start. By name, so
-              // the date hooks' re-exports go with them, not with the menus.
-              if (/\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(id)) {
-                return /\/(use|Hidden)?(Range)?(Date|Time|Calendar|SpinButton)[^/]*(\/|$)/i.test(id) ? 'react-aria-dates' : 'react-aria'
-              }
-              if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
-              return null
+          groups: [
+            {
+              name(id) {
+                if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
+                if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
+                // The date pickers. Their calendars and date fields are a chunk of
+                // their own, loaded with DatePickers (see LazyDatePickers), apart from
+                // the menus and popovers the panels need from the start. By name, so
+                // the date hooks' re-exports go with them, not with the menus.
+                if (
+                  /\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(
+                    id,
+                  )
+                ) {
+                  return /\/(use|Hidden)?(Range)?(Date|Time|Calendar|SpinButton)[^/]*(\/|$)/i.test(id)
+                    ? 'react-aria-dates'
+                    : 'react-aria'
+                }
+                if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
+                return null
+              },
             },
-          }],
+          ],
         },
       },
     },

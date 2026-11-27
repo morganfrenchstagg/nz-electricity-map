@@ -9,7 +9,10 @@ import { appendRecent, refetchSince } from './utils/recentDispatch'
 const API_BASE = (import.meta.env.VITE_API_BASE || 'https://api.electricitymap.frenchsta.gg/v1').replace(/\/$/, '')
 // The distributed solar estimate comes from its own API (nz-solar-stats-api).
 // VITE_SOLAR_API_BASE points the app at another, e.g. a local `wrangler dev` (see README)
-const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-solar.electricitymap.frenchsta.gg').replace(/\/$/, '')
+const SOLAR_API_BASE = (import.meta.env.VITE_SOLAR_API_BASE || 'https://api-solar.electricitymap.frenchsta.gg').replace(
+  /\/$/,
+  '',
+)
 
 const DISPATCH_INTERVAL_MS = 5 * 60 * 1000
 const MINUTE_MS = 60 * 1000
@@ -91,7 +94,7 @@ async function getJson<T>(path: string, notFound?: T, base = API_BASE): Promise<
   if (res.status === 404 && notFound !== undefined) return { value: notFound, maxAgeMs: 0 }
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const maxAge = /\bmax-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')
-  return { value: await res.json() as T, maxAgeMs: maxAge ? Number(maxAge[1]) * 1000 : 0 }
+  return { value: (await res.json()) as T, maxAgeMs: maxAge ? Number(maxAge[1]) * 1000 : 0 }
 }
 
 function cachedJson<T>(path: string, { notFound, freshFor, load }: CacheOptions<T> = {}): Promise<T> {
@@ -158,7 +161,10 @@ async function loadRecentDispatch(held: RecentData | undefined): Promise<{ value
 
 // `day` is a "YYYY-MM-DD" date, or 'recent' for the rolling latest window.
 export function fetchDispatch(day: string): Promise<RecentData> {
-  return cachedJson(`dispatch/${day}`, day === 'recent' ? { freshFor: untilNextDispatch, load: loadRecentDispatch } : {})
+  return cachedJson(
+    `dispatch/${day}`,
+    day === 'recent' ? { freshFor: untilNextDispatch, load: loadRecentDispatch } : {},
+  )
 }
 
 export function peekDispatch(day: string): RecentData | undefined {
@@ -174,12 +180,18 @@ export function peekOffers(date: string): OffersData | undefined {
   return lastJson(`offers/${date}`)
 }
 
-export function fetchOutages(): Promise<OutageData> {
-  return cachedJson('outages')
+// The outages going on now and over the next few days, or with `date` ("YYYY-MM-DD"),
+// those going on at any time in that NZ day, from POCP's history of them
+function outagesPath(date?: string): string {
+  return date ? `outages/${date}` : 'outages'
 }
 
-export function peekOutages(): OutageData | undefined {
-  return lastJson('outages')
+export function fetchOutages(date?: string): Promise<OutageData> {
+  return cachedJson(outagesPath(date))
+}
+
+export function peekOutages(date?: string): OutageData | undefined {
+  return lastJson(outagesPath(date))
 }
 
 // How far the solar API's estimates reach: every day from estimatedFrom to

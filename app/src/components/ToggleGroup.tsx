@@ -24,16 +24,18 @@ interface ToggleGroupProps {
 export function ToggleGroup({ options, compact = false, ariaLabel, trail }: ToggleGroupProps) {
   // A single button stays a button: a one-option dropdown has nothing to choose from
   if (compact && options.length > 1) {
-    const active = options.find(o => o.active)
+    const active = options.find((o) => o.active)
     return (
       <select
         value={active?.key ?? ''}
-        onChange={e => options.find(o => o.key === e.target.value)?.onClick()}
+        onChange={(e) => options.find((o) => o.key === e.target.value)?.onClick()}
         aria-label={ariaLabel}
         className="toggle-select"
       >
-        {options.map(o => (
-          <option key={o.key} value={o.key} title={o.title}>{o.menuLabel ?? o.label}</option>
+        {options.map((o) => (
+          <option key={o.key} value={o.key} title={o.title}>
+            {o.menuLabel ?? o.label}
+          </option>
         ))}
       </select>
     )
@@ -41,7 +43,7 @@ export function ToggleGroup({ options, compact = false, ariaLabel, trail }: Togg
 
   return (
     <div role="group" aria-label={ariaLabel} className="toggle-group">
-      {options.map(o => (
+      {options.map((o) => (
         <button key={o.key} onClick={o.onClick} title={o.title} aria-pressed={o.active}>
           {o.label}
         </button>
@@ -75,8 +77,15 @@ interface PeriodToggleProps {
 }
 
 // The Today | 3d | 90d | 1y | 5y | All toggle shared by the node panels and GridOverviewPanel.
-export function PeriodToggle({ dateMode, onSelect, compact = false, customDates, onCustom, calendar }: PeriodToggleProps) {
-  const options: ToggleOption[] = PERIODS.map(p => ({
+export function PeriodToggle({
+  dateMode,
+  onSelect,
+  compact = false,
+  customDates,
+  onCustom,
+  calendar,
+}: PeriodToggleProps) {
+  const options: ToggleOption[] = PERIODS.map((p) => ({
     key: p.kind,
     label: p.label,
     menuLabel: p.menuLabel,
@@ -98,10 +107,7 @@ const WEEKLY: Aggregation<'weekly'> = { kind: 'weekly', label: 'Weekly', title: 
 
 // Each view's choice of totals, finest first. Each view starts on its default
 // (see periodMode).
-const DAILY_WEEKLY: Aggregation<'daily' | 'weekly'>[] = [
-  { kind: 'daily', label: 'Daily', title: 'Every day' },
-  WEEKLY,
-]
+const DAILY_WEEKLY: Aggregation<'daily' | 'weekly'>[] = [{ kind: 'daily', label: 'Daily', title: 'Every day' }, WEEKLY]
 
 const FIVE_YEAR_AGGREGATIONS: Aggregation<FiveYearAggregation>[] = [
   WEEKLY,
@@ -115,8 +121,12 @@ const ALL_AGGREGATIONS: Aggregation<AllAggregation>[] = [
 ]
 
 // A view's choice of totals as toggle options
-function aggregationOptions<A extends string>(aggregations: Aggregation<A>[], aggregation: A, onSelect: (aggregation: A) => void): ToggleOption[] {
-  return aggregations.map(a => ({
+function aggregationOptions<A extends string>(
+  aggregations: Aggregation<A>[],
+  aggregation: A,
+  onSelect: (aggregation: A) => void,
+): ToggleOption[] {
+  return aggregations.map((a) => ({
     key: a.kind,
     label: a.label,
     title: a.title,
@@ -127,10 +137,22 @@ function aggregationOptions<A extends string>(aggregations: Aggregation<A>[], ag
 
 function viewAggregationOptions(dateMode: AggregateMode, onSelect: (dateMode: AggregateMode) => void): ToggleOption[] {
   switch (dateMode.kind) {
-    case 'last90': return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, aggregation => onSelect({ kind: 'last90', aggregation }))
-    case 'lastYear': return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, aggregation => onSelect({ kind: 'lastYear', aggregation }))
-    case '5y': return aggregationOptions(FIVE_YEAR_AGGREGATIONS, dateMode.aggregation, aggregation => onSelect({ kind: '5y', aggregation }))
-    case 'all': return aggregationOptions(ALL_AGGREGATIONS, dateMode.aggregation, aggregation => onSelect({ kind: 'all', aggregation }))
+    case 'last90':
+      return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, (aggregation) =>
+        onSelect({ kind: 'last90', aggregation }),
+      )
+    case 'lastYear':
+      return aggregationOptions(DAILY_WEEKLY, dateMode.aggregation, (aggregation) =>
+        onSelect({ kind: 'lastYear', aggregation }),
+      )
+    case '5y':
+      return aggregationOptions(FIVE_YEAR_AGGREGATIONS, dateMode.aggregation, (aggregation) =>
+        onSelect({ kind: '5y', aggregation }),
+      )
+    case 'all':
+      return aggregationOptions(ALL_AGGREGATIONS, dateMode.aggregation, (aggregation) =>
+        onSelect({ kind: 'all', aggregation }),
+      )
   }
 }
 

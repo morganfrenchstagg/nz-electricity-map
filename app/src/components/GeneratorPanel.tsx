@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import type Highcharts from 'highcharts'
 import type { GeneratorNode, Unit } from '../types'
-import { isAggregateMode, isLiveMode, periodOf } from '../hooks/useDispatchData'
+import { isAggregateMode, isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
+import type { DateMode } from '../hooks/useDispatchData'
 import { yesterdayNZ } from '../hooks/useAggregates'
 import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
@@ -13,7 +14,7 @@ import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT, PERCENT_UNIT } from '../utils/format'
 import type { ChartSettings } from '../utils/chartSettings'
-import { nzLocalMs, nzNowMs, outageMs, todayNZ } from '../utils/time'
+import { nzLocalMs, outageMs, todayNZ } from '../utils/time'
 import SeriesButtonRow, { ClearButton, SeriesButton } from './SeriesButtonRow'
 import { ToggleGroup } from './ToggleGroup'
 import { useLastUpdated } from '../hooks/useLastUpdated'
@@ -27,20 +28,34 @@ import ChartSettingsMenu from './ChartSettingsMenu'
 import { DatePicker } from './LazyDatePickers'
 import { ChartMessage, NodeChart, NodeTitle } from './NodePanelParts'
 import type { NodePanelProps } from './NodePanelParts'
+import GenerationRecords from './GenerationRecords'
+import { isCharging } from '../utils/generators'
 
 const OutageModal = lazy(() => import('./OutageModal'))
+
+// The outages a view lists: those that hadn't ended by its end, where capacity is
+// read (see periodOf), which is now outside a past day or range. A past day or
+// range lists every one going on in it.
+function outagesListedFrom(mode: DateMode): number {
+  const period = periodOf(mode)
+  return isPastMode(mode) ? period.from : period.to
+}
+
 const loadOfferChart = () => import('./OfferChart')
 const OfferChart = lazy(loadOfferChart)
 
 // `date` is built from outage timestamps via the "local time as UTC" convention
 // (see outageMs in utils/time.ts), so it must be read back out with timeZone: 'UTC'
 // to get the raw values the API sent — reading with 'Pacific/Auckland' would shift them again.
+// A date in another year than this one in NZ says which, as the outage modal's do.
 function formatOutageEnd(date: Date): string {
   const endNZ = date.toLocaleDateString('en-CA', { timeZone: 'UTC' })
-  if (endNZ === todayNZ()) {
+  const today = todayNZ()
+  if (endNZ === today) {
     return date.toLocaleTimeString('en-NZ', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })
   }
-  return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short' })
+  const year = endNZ.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric'
+  return date.toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short', year })
 }
 
 interface Props extends NodePanelProps {
@@ -57,8 +72,24 @@ interface Props extends NodePanelProps {
 
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
-export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, chartSettings, onChartSettingsChange, ...panel }: Props) {
-  const outages = useOutages(isLiveMode(dateMode))
+export default function GeneratorPanel({
+  node,
+  onClear,
+  dateMode,
+  onDateModeChange,
+  recentData,
+  loading,
+  error,
+  onNodeChange,
+  viewMode,
+  onViewModeChange,
+  tradingPeriod,
+  onTradingPeriodChange,
+  chartSettings,
+  onChartSettingsChange,
+  ...panel
+}: Props) {
+  const outages = useOutages(dateMode)
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
@@ -68,15 +99,28 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
 
   // The period is read as the adapter's made, so live views' capacity keeps up with the outages polled
   const adapter = useMemo(
-    () => node.kind === 'generator'
-      ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode), isLiveMode(dateMode))
-      : createMultiGeneratorAdapter(node.generators, outages, periodOf(dateMode), isLiveMode(dateMode)),
+    () =>
+      node.kind === 'generator'
+        ? createGeneratorAdapter(node.generator, outages, periodOf(dateMode), isLiveMode(dateMode))
+        : createMultiGeneratorAdapter(node.generators, outages, periodOf(dateMode), isLiveMode(dateMode)),
     [node, outages, dateMode],
   )
 
-  const { aggregatePeriod, isAggregate, allCodes, chartData, loading: dataLoading, error: dataError } = useNodeData({
-    dateMode, recentData, loading, error,
-    queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes,
+  const {
+    aggregatePeriod,
+    isAggregate,
+    allCodes,
+    chartData,
+    loading: dataLoading,
+    error: dataError,
+  } = useNodeData({
+    dateMode,
+    recentData,
+    loading,
+    error,
+    queryNodes: adapter.queryNodes,
+    movedNodes: adapter.movedNodes,
+    getCodes: adapter.getCodes,
   })
   const generationSelection = useCodeSelection(allCodes, node)
   const { effectiveCodes } = generationSelection
@@ -84,16 +128,19 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // didn't dispatch, so they aren't charted or picked out, but while every unit
   // charted is shown, they're counted too (the adapter keeps to those in service).
   const capacityCodes = useMemo(
-    () => effectiveCodes.size === allCodes.length ? new Set(adapter.queryNodes) : effectiveCodes,
+    () => (effectiveCodes.size === allCodes.length ? new Set(adapter.queryNodes) : effectiveCodes),
     [effectiveCodes, allCodes, adapter],
   )
   const [outageModalOpen, setOutageModalOpen] = useState(false)
 
-  const offerDate = viewMode === 'offers'
-    ? (isLiveMode(dateMode) || isAggregateMode(dateMode) ? 'latest'
-      : dateMode.kind === 'date' ? dateMode.date
-        : dateMode.from)
-    : null
+  const offerDate =
+    viewMode === 'offers'
+      ? isLiveMode(dateMode) || isAggregateMode(dateMode)
+        ? 'latest'
+        : dateMode.kind === 'date'
+          ? dateMode.date
+          : dateMode.from
+      : null
   const { offersData, loading: offersLoading, error: offersError } = useOffers(offerDate)
   const offersDispatch = useOffersDispatch(offersData?.date ?? null)
   // The units with offers that day, which the Offers view's unit buttons pick
@@ -107,26 +154,36 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   const buttonCodes = viewMode === 'offers' ? offerCodes : allCodes
   const buttonSelection = viewMode === 'offers' ? offerSelection : generationSelection
   // Fetch the chart code alongside the offers data rather than after it arrives
-  useEffect(() => { if (viewMode === 'offers') loadOfferChart() }, [viewMode])
+  useEffect(() => {
+    // A failed fetch shows when OfferChart itself loads it
+    if (viewMode === 'offers') loadOfferChart().catch(() => {})
+  }, [viewMode])
 
-  const maxTradingPeriod = offersData
-    ? Math.max(...Object.keys(offersData.data).map(Number))
-    : 48
+  const maxTradingPeriod = offersData ? Math.max(...Object.keys(offersData.data).map(Number)) : 48
   // The trading period dropdown's options, each with its half hour once the
   // offers' date is known (Latest's isn't until they load)
   const periodDate = offersData?.date ?? (offerDate !== 'latest' ? offerDate : null)
   const tradingPeriodOptions = useMemo(
-    () => Array.from({ length: maxTradingPeriod }, (_, i) => {
-      const tp = i + 1
-      return { tp, label: periodDate ? `Period ${tp} · ${tradingPeriodLabel(tp, periodDate)}` : `Period ${tp}` }
-    }),
+    () =>
+      Array.from({ length: maxTradingPeriod }, (_, i) => {
+        const tp = i + 1
+        return { tp, label: periodDate ? `Period ${tp} · ${tradingPeriodLabel(tp, periodDate)}` : `Period ${tp}` }
+      }),
     [maxTradingPeriod, periodDate],
   )
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
   const {
-    fromDate, setFromDate, setCustomRequested, customDates, showDateInputs, pickerOpen, setPickerOpen,
-    handleFromChange, handlePeriodClick, handleCustomClick,
+    fromDate,
+    setFromDate,
+    setCustomRequested,
+    customDates,
+    showDateInputs,
+    pickerOpen,
+    setPickerOpen,
+    handleFromChange,
+    handlePeriodClick,
+    handleCustomClick,
   } = datePicker
 
   // When the latest offers load, reflect their actual date in the date picker
@@ -134,15 +191,18 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     if (offersData && offerDate === 'latest') setFromDate(offersIsoDate(offersData.date))
   }, [offersData, offerDate, setFromDate])
 
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    onViewModeChange(mode)
-    // A custom date asked for but not yet picked doesn't carry over to the other view
-    setCustomRequested(false)
-    // Nor does the latest offers' date, which Offers shows in the date input
-    if (mode === 'generation' && offerDate === 'latest') setFromDate('')
-  }, [offerDate, onViewModeChange, setCustomRequested, setFromDate])
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      onViewModeChange(mode)
+      // A custom date asked for but not yet picked doesn't carry over to the other view
+      setCustomRequested(false)
+      // Nor does the latest offers' date, which Offers shows in the date input
+      if (mode === 'generation' && offerDate === 'latest') setFromDate('')
+    },
+    [offerDate, onViewModeChange, setCustomRequested, setFromDate],
+  )
 
-  const nodeKey = node.kind === 'generator' ? node.generator.site : node.generators.map(g => g.site).join(',')
+  const nodeKey = node.kind === 'generator' ? node.generator.site : node.generators.map((g) => g.site).join(',')
 
   const capacity = adapter.capacityMW(capacityCodes)
   const normalCapacity = adapter.normalCapacityMW(capacityCodes)
@@ -151,39 +211,43 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     [capacityCodes, adapter],
   )
 
-  const findUnit = useCallback((code: string) => {
-    const generators = node.kind === 'generator' ? [node.generator] : node.generators
-    for (const g of generators) {
-      const unit = g.units.find((u) => u.node === code)
-      if (unit) return unit
-    }
-    return null
-  }, [node])
+  const findUnit = useCallback(
+    (code: string) => {
+      const generators = node.kind === 'generator' ? [node.generator] : node.generators
+      for (const g of generators) {
+        const unit = g.units.find((u) => u.node === code)
+        if (unit) return unit
+      }
+      return null
+    },
+    [node],
+  )
 
-  // Each unit's outages that haven't ended yet
+  // Each unit's outages listed (see outagesListedFrom)
   const unitOutages = useMemo(() => {
     if (!outages) return []
-    const nowMs = nzNowMs()
+    const fromMs = outagesListedFrom(dateMode)
     const result: { code: string; unit: Unit; segments: OutageSegment[] }[] = []
     for (const code of capacityCodes) {
       const unit = findUnit(code)
-      if (unit) result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], nowMs, maxOutageMWOf(unit)) })
+      if (unit)
+        result.push({ code, unit, segments: mergeOutageSegments(outages[code] ?? [], fromMs, maxOutageMWOf(unit)) })
     }
     return result
-  }, [outages, capacityCodes, findUnit])
+  }, [outages, capacityCodes, findUnit, dateMode])
 
-  // The soonest any current outage starts to ease, rather than the soonest any
-  // record ends: a record that hasn't started yet, or overlaps another on the
-  // same block, doesn't end anything
+  // The soonest any outage under way where capacity is read starts to ease, rather
+  // than the soonest any record ends: a record that hasn't started yet, or overlaps
+  // another on the same block, doesn't end anything
   const soonestOutageEnd = useMemo(() => {
-    const nowMs = nzNowMs()
+    const atMs = periodOf(dateMode).to
     let soonest: number | null = null
     for (const { segments } of unitOutages) {
-      const endMs = outageEasesAt(segments, nowMs)
+      const endMs = outageEasesAt(segments, atMs)
       if (endMs !== null && (soonest === null || endMs < soonest)) soonest = endMs
     }
     return soonest === null ? null : new Date(soonest)
-  }, [unitOutages])
+  }, [unitOutages, dateMode])
 
   const outageDetails = useMemo(() => {
     const details: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[] = []
@@ -195,7 +259,12 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           timeEnd: new Date(seg.end).toISOString(),
           mwattLost: seg.mw,
         }
-        details.push({ code, label: adapter.labelFor(code), record: rec, capacityRemaining: capacityLeftAfter(unit, seg.mw) })
+        details.push({
+          code,
+          label: adapter.labelFor(code),
+          record: rec,
+          capacityRemaining: capacityLeftAfter(unit, seg.mw),
+        })
       })
     }
     return details
@@ -205,29 +274,43 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   // plant in Transpower's POCP outage portal, used to build the "view in POCP" link.
   const outageBlockPrefixes = useMemo(() => {
     if (!outages) return []
-    const nowMs = nzNowMs()
+    const fromMs = outagesListedFrom(dateMode)
     const prefixes = new Set<string>()
     for (const code of capacityCodes) {
-      for (const rec of (outages[code] ?? [])) {
-        if (outageMs(rec.timeEnd) <= nowMs) continue
+      for (const rec of outages[code] ?? []) {
+        if (outageMs(rec.timeEnd) <= fromMs) continue
         prefixes.add(rec.outageBlock.split('_')[0])
       }
     }
     return [...prefixes]
-  }, [outages, capacityCodes])
+  }, [outages, capacityCodes, dateMode])
 
   const currentGeneration = useMemo(() => {
     if (!chartData || chartData.rows.length === 0) return null
     const lastRow = chartData.rows[chartData.rows.length - 1]
     return [...effectiveCodes]
-      .filter(code => chartData.codes.includes(code))
+      .filter((code) => chartData.codes.includes(code))
       .reduce((sum, code) => sum + ((lastRow[code] as number) ?? 0), 0)
   }, [chartData, effectiveCodes])
+
+  // The units shown that generate, which the records are found for: not a battery's charging unit
+  const recordCodes = useMemo(
+    () =>
+      allCodes.filter((code) => {
+        const unit = findUnit(code)
+        return effectiveCodes.has(code) && !(unit && isCharging(unit))
+      }),
+    [allCodes, effectiveCodes, findUnit],
+  )
 
   // MWh over the displayed period, for the units shown
   const totalGenerationMWh = useMemo(() => {
     if (!chartData) return null
-    return totalMWh(chartData.rows, [...effectiveCodes].filter(code => chartData.codes.includes(code)), isAggregate)
+    return totalMWh(
+      chartData.rows,
+      [...effectiveCodes].filter((code) => chartData.codes.includes(code)),
+      isAggregate,
+    )
   }, [chartData, effectiveCodes, isAggregate])
 
   // Clear deselects every unit, and once none are selected becomes Select all
@@ -268,16 +351,28 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     // Aggregate totals are MWh, charted in GWh unless the columns stay small.
     // As lines, every unit is charted from zero.
     const stacked = chartType !== 'line' && chartData.codes.length > 1
-    const shownCodes = chartData.codes.filter(code => effectiveCodes.has(code))
+    const shownCodes = chartData.codes.filter((code) => effectiveCodes.has(code))
     const unit = isAggregate
-      ? energyUnit(chartReach(chartData.rows.map(row => shownCodes.map(code => row[code] as number)), stacked))
+      ? energyUnit(
+          chartReach(
+            chartData.rows.map((row) => shownCodes.map((code) => row[code] as number)),
+            stacked,
+          ),
+        )
       : MW_UNIT
 
-    const shares = proportion ? chartData.rows.map((row) => {
-      const generation = (code: string) => Math.max((row[code] as number) || 0, 0)
-      const total = shownCodes.reduce((sum, code) => sum + generation(code), 0)
-      return { ...row, ...Object.fromEntries(chartData.codes.map(code => [code, total > 0 ? (generation(code) / total) * 100 : 0])) }
-    }) : null
+    const shares = proportion
+      ? chartData.rows.map((row) => {
+          const generation = (code: string) => Math.max((row[code] as number) || 0, 0)
+          const total = shownCodes.reduce((sum, code) => sum + generation(code), 0)
+          return {
+            ...row,
+            ...Object.fromEntries(
+              chartData.codes.map((code) => [code, total > 0 ? (generation(code) / total) * 100 : 0]),
+            ),
+          }
+        })
+      : null
     // Each time's row, for the tooltip's generation where the points are shares
     const rowByMs = new Map(chartData.rows.map((row) => [nzLocalMs(row.time), row]))
 
@@ -293,64 +388,147 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       extraSeries: capSeries ? [capSeries] : [],
       legend: adapter.showLegend,
       yAxis: proportion
-        // The shares' floating point sums can come out a hair over 100
-        ? { title: { text: PERCENT_UNIT.label }, softMin: 0, max: 100, gridLineDashStyle: 'Dash' }
+        ? // The shares' floating point sums can come out a hair over 100
+          { title: { text: PERCENT_UNIT.label }, softMin: 0, max: 100, gridLineDashStyle: 'Dash' }
         : isAggregate
           ? { title: { text: unit.label }, softMin: 0, gridLineDashStyle: 'Dash' }
           : adapter.yAxisOptions(capacityCodes, chartData.rows),
       tooltipFormatter: function () {
         const points = this.points ?? []
         const formatValue = unit.format
-        const row = rowByMs.get(this.x as number)
-        const valueFor = proportion ? (p: Highcharts.Point) => ((row?.[chartData.codes[p.series.index]] as number) || 0) / unit.size : undefined
-        const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1, valueFor }
-        // No capacity comparison for aggregate totals, or shares
-        const cap = isAggregate || proportion ? null : capacityAt(this.x as number)
-
-        let rows = points.map((p) => tooltipRow(p, context,
-          proportion ? ` (${PERCENT_UNIT.format(p.y ?? 0)})`
-            : points.length === 1 && cap !== null ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)` : '',
-        )).join('')
-        if (points.length > 1) {
-          const total = points.reduce((sum, p) => sum + (valueFor ? valueFor(p) : p.y ?? 0), 0)
-          rows += tooltipTotalRow(total, formatValue, cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round(total / cap * 100) : 0}%)` : '')
+        const row = rowByMs.get(this.x)
+        const valueFor = proportion
+          ? (p: Highcharts.Point) => ((row?.[chartData.codes[p.series.index]] as number) || 0) / unit.size
+          : undefined
+        const context = {
+          codes: chartData.codes,
+          prices: prices.get(this.x),
+          formatValue,
+          showName: points.length > 1,
+          valueFor,
         }
-        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        // No capacity comparison for aggregate totals, or shares
+        const cap = isAggregate || proportion ? null : capacityAt(this.x)
+
+        let rows = points
+          .map((p) =>
+            tooltipRow(
+              p,
+              context,
+              proportion
+                ? ` (${PERCENT_UNIT.format(p.y ?? 0)})`
+                : points.length === 1 && cap !== null
+                  ? ` / <b>${formatValue(cap)}</b> (${(cap > 0 ? ((p.y ?? 0) / cap) * 100 : 0).toFixed(1)}%)`
+                  : '',
+            ),
+          )
+          .join('')
+        if (points.length > 1) {
+          const total = points.reduce((sum, p) => sum + (valueFor ? valueFor(p) : (p.y ?? 0)), 0)
+          rows += tooltipTotalRow(
+            total,
+            formatValue,
+            cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round((total / cap) * 100) : 0}%)` : '',
+          )
+        }
+        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${adapter.title} generation`,
-        proportion ? "Each unit's share of the generation, stacked" : stacked ? 'Generation from each unit, stacked' : 'Generation',
+        proportion
+          ? "Each unit's share of the generation, stacked"
+          : stacked
+            ? 'Generation from each unit, stacked'
+            : 'Generation',
         aggregatePeriod,
         proportion ? PERCENT_UNIT : unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod, chartType, proportion])
+  }, [
+    chartData,
+    effectiveCodes,
+    capacityCodes,
+    adapter,
+    recentData,
+    isAggregate,
+    aggregatePeriod,
+    chartType,
+    proportion,
+  ])
 
   // A button per unit, when there's more than one
-  const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
-    <SeriesButton key={code} colour={adapter.colourFor(code)} active={buttonSelection.effectiveCodes.has(code)} onClick={() => buttonSelection.toggleCode(code)} onIsolate={() => buttonSelection.isolateCode(code)}>
-      {adapter.labelFor(code)}
-    </SeriesButton>
-  ))
+  const unitButtons =
+    buttonCodes.length < 2
+      ? []
+      : buttonCodes.map((code) => (
+          <SeriesButton
+            key={code}
+            colour={adapter.colourFor(code)}
+            active={buttonSelection.effectiveCodes.has(code)}
+            onClick={() => buttonSelection.toggleCode(code)}
+            onIsolate={() => buttonSelection.isolateCode(code)}
+          >
+            {adapter.labelFor(code)}
+          </SeriesButton>
+        ))
 
   const header = (
     <>
-      <NodeTitle node={node} title={adapter.title} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle={adapter.subtitle} fuels={adapter.subtitleFuels} />
+      <NodeTitle
+        node={node}
+        title={adapter.title}
+        compact={compactHeader}
+        onNodeChange={onNodeChange}
+        onClear={headerMenu ? undefined : onClear}
+        subtitle={adapter.subtitle}
+        fuels={adapter.subtitleFuels}
+      />
       {/* The aggregate views have no current reading to compare with capacity, so they only show the total */}
       {!compactHeader && isAggregate && totalGenerationMWh !== null && (
-        <div style={{ alignSelf: 'center', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <div
+          style={{
+            alignSelf: 'center',
+            fontSize: 'var(--font-size-xs)',
+            color: 'var(--color-text-secondary)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
           Total: {formatEnergy(totalGenerationMWh)}
         </div>
       )}
       {!compactHeader && !isAggregate && currentGeneration !== null && (
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignSelf: 'center', gap: 5, minWidth: 140, flexShrink: 0 }}>
-          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textAlign: 'right', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignSelf: 'center',
+            gap: 5,
+            minWidth: 140,
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 'var(--font-size-xs)',
+              color: 'var(--color-text-secondary)',
+              textAlign: 'right',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 4,
+            }}
+          >
             {totalOutageMW > 0 ? (
               <>
                 <span>{formatMW(currentGeneration)} /</span>
                 <s style={{ color: 'var(--color-text-faint)' }}>{normalCapacity.toFixed(0)} MW</s>
-                <span>{formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)</span>
+                <span>
+                  {formatMW(capacity)} ({capacity > 0 ? Math.round((currentGeneration / capacity) * 100) : 0}%)
+                </span>
                 <button
                   onClick={() => setOutageModalOpen(true)}
                   title="View outage details"
@@ -370,7 +548,8 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                     gap: 3,
                   }}
                 >
-                  {formatMW(totalOutageMW)} Outage{soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
+                  {formatMW(totalOutageMW)} Outage
+                  {soonestOutageEnd ? ` until ${formatOutageEnd(soonestOutageEnd)}` : ''}
                   <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
                     <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
                     <circle cx="8" cy="4.5" r="0.9" fill="currentColor" />
@@ -379,10 +558,15 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 </button>
               </>
             ) : (
-              <span>{formatMW(currentGeneration)} / {formatMW(capacity)} ({normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)</span>
+              <span>
+                {formatMW(currentGeneration)} / {formatMW(capacity)} (
+                {normalCapacity > 0 ? Math.round((Math.abs(currentGeneration) / normalCapacity) * 100) : 0}%)
+              </span>
             )}
           </div>
-          <div style={{ height: 6, background: 'var(--color-fill)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+          <div
+            style={{ height: 6, background: 'var(--color-fill)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}
+          >
             {allCodes.map((code) => {
               if (!effectiveCodes.has(code)) return null
               const lastRow = chartData?.rows[chartData.rows.length - 1]
@@ -396,17 +580,38 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 </span>
               )
             })}
-            {
-              totalOutageMW > 0 && (
-                <>
-                  <div id="empty-bar" style={{ height: '100%', width: `${(normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1) * 100}%`, flexShrink: 0, background: 'var(--color-fill)' }} />
-                  <div id="outage-bar" style={{ height: '100%', width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`, flexShrink: 0, background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)` }} />
-                </>
-              )
-            }
+            {totalOutageMW > 0 && (
+              <>
+                <div
+                  id="empty-bar"
+                  style={{
+                    height: '100%',
+                    width: `${((normalCapacity - totalOutageMW - (currentGeneration ?? 0)) / (normalCapacity ?? 1)) * 100}%`,
+                    flexShrink: 0,
+                    background: 'var(--color-fill)',
+                  }}
+                />
+                <div
+                  id="outage-bar"
+                  style={{
+                    height: '100%',
+                    width: `${(totalOutageMW / (normalCapacity ?? 1)) * 100}%`,
+                    flexShrink: 0,
+                    background: `repeating-linear-gradient(45deg, #aaa666 0, #aaa666 2px, transparent 2px, transparent 5px)`,
+                  }}
+                />
+              </>
+            )}
           </div>
           {totalGenerationMWh !== null && (
-            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+            <div
+              style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--color-text-faint)',
+                textAlign: 'right',
+                whiteSpace: 'nowrap',
+              }}
+            >
               Total: {formatMWh(totalGenerationMWh)}
             </div>
           )}
@@ -416,32 +621,59 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   )
 
   return (
-    <Panel {...panel} header={header} headerRef={headerRef} actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}>
+    <Panel
+      {...panel}
+      header={header}
+      headerRef={headerRef}
+      actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}
+    >
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
-        <ToggleGroup compact={compactToolbar} ariaLabel="View" options={[
-          { key: 'generation', label: 'Generation', active: viewMode === 'generation', onClick: () => handleViewModeChange('generation') },
-          { key: 'offers', label: 'Offers', active: viewMode === 'offers', onClick: () => handleViewModeChange('offers') },
-        ]} />
+        <ToggleGroup
+          compact={compactToolbar}
+          ariaLabel="View"
+          options={[
+            {
+              key: 'generation',
+              label: 'Generation',
+              active: viewMode === 'generation',
+              onClick: () => handleViewModeChange('generation'),
+            },
+            {
+              key: 'offers',
+              label: 'Offers',
+              active: viewMode === 'offers',
+              onClick: () => handleViewModeChange('offers'),
+            },
+          ]}
+        />
         {!compactToolbar && <div className="divider" />}
         {viewMode === 'offers' ? (
           <>
-            <ToggleGroup compact={compactToolbar} ariaLabel="Offers date" options={[
-              { key: 'latest', label: 'Latest', active: !customDates, onClick: () => handlePeriodClick('today') },
-              // The compact toolbar hides the date input, so its dropdown has an option to show it
-              ...(compactToolbar ? [{ key: 'custom', label: 'Custom date', active: customDates, onClick: handleCustomClick }] : []),
-            ]} />
+            <ToggleGroup
+              compact={compactToolbar}
+              ariaLabel="Offers date"
+              options={[
+                { key: 'latest', label: 'Latest', active: !customDates, onClick: () => handlePeriodClick('today') },
+                // The compact toolbar hides the date input, so its dropdown has an option to show it
+                ...(compactToolbar
+                  ? [{ key: 'custom', label: 'Custom date', active: customDates, onClick: handleCustomClick }]
+                  : []),
+              ]}
+            />
             {!compactToolbar && <div className="divider" />}
-            {showDateInputs && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <DatePicker
-                value={fromDate}
-                onChange={handleFromChange}
-                min="2020-09-11"
-                max={yesterdayNZ()}
-                isOpen={pickerOpen}
-                onOpenChange={setPickerOpen}
-                ariaLabel="Offers date"
-              />
-            </div>}
+            {showDateInputs && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <DatePicker
+                  value={fromDate}
+                  onChange={handleFromChange}
+                  min="2020-09-11"
+                  max={yesterdayNZ()}
+                  isOpen={pickerOpen}
+                  onOpenChange={setPickerOpen}
+                  ariaLabel="Offers date"
+                />
+              </div>
+            )}
 
             {/* Trading period stepper */}
             {!compactToolbar && <div className="divider" />}
@@ -460,7 +692,11 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
                 aria-label="Trading period"
                 className="toggle-select"
               >
-                {tradingPeriodOptions.map(({ tp, label }) => <option key={tp} value={tp}>{label}</option>)}
+                {tradingPeriodOptions.map(({ tp, label }) => (
+                  <option key={tp} value={tp}>
+                    {label}
+                  </option>
+                ))}
               </select>
               <button
                 onClick={() => onTradingPeriodChange(Math.min(maxTradingPeriod, tradingPeriod + 1))}
@@ -511,7 +747,14 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             <ChartMessage error>Failed to load offers</ChartMessage>
           ) : offersData ? (
             <Suspense fallback={<ChartMessage>Loading…</ChartMessage>}>
-              <OfferChart offersData={offersData} dispatch={offersDispatch} shownCodes={offerSelection.effectiveCodes} tradingPeriod={tradingPeriod} node={node} title={adapter.title} />
+              <OfferChart
+                offersData={offersData}
+                dispatch={offersDispatch}
+                shownCodes={offerSelection.effectiveCodes}
+                tradingPeriod={tradingPeriod}
+                node={node}
+                title={adapter.title}
+              />
             </Suspense>
           ) : null
         ) : (
@@ -524,11 +767,28 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           />
         )}
       </div>
+      {viewMode === 'generation' && dateMode.kind === 'all' && (dataLoading || allCodes.length > 0) && (
+        <GenerationRecords
+          queryNodes={adapter.queryNodes}
+          movedNodes={adapter.movedNodes}
+          codes={recordCodes}
+          someUnits={effectiveCodes.size < allCodes.length}
+          chartLoading={dataLoading}
+        />
+      )}
       <Suspense fallback={null}>
         {outageModalOpen && (
           <OutageModal
             outages={outageDetails}
             outageBlockPrefixes={outageBlockPrefixes}
+            atMs={periodOf(dateMode).to}
+            days={
+              dateMode.kind === 'date'
+                ? { from: dateMode.date, to: dateMode.date }
+                : dateMode.kind === 'range'
+                  ? dateMode
+                  : undefined
+            }
             onClose={() => setOutageModalOpen(false)}
           />
         )}

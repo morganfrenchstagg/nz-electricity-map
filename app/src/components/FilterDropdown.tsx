@@ -16,7 +16,16 @@ interface Props {
 }
 
 // A filter button that opens a popover of options to pick any number of
-export default function FilterDropdown({ label, countLabel = (n) => `${label}: ${n}`, options, active, onToggle, onClear, swatch, align = 'left' }: Props) {
+export default function FilterDropdown({
+  label,
+  countLabel = (n) => `${label}: ${n}`,
+  options,
+  active,
+  onToggle,
+  onClear,
+  swatch,
+  align = 'left',
+}: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -30,35 +39,48 @@ export default function FilterDropdown({ label, countLabel = (n) => `${label}: $
   }, [open])
 
   const isActive = active.size > 0
-  const summary = active.size === 0 ? label
-    : active.size === 1 ? [...active][0]
-      : countLabel(active.size)
+  const summary = active.size === 0 ? label : active.size === 1 ? [...active][0] : countLabel(active.size)
 
   return (
     // Stretches to the height of whatever shares its row, e.g. a search input
     <div ref={ref} style={{ position: 'relative', display: 'flex', alignSelf: 'stretch' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={isActive ? 'filter-button is-active' : 'filter-button'}
-      >
+      <button onClick={() => setOpen((o) => !o)} className={isActive ? 'filter-button is-active' : 'filter-button'}>
         {summary}
         {isActive && (
           <span
-            onClick={e => { e.stopPropagation(); onClear() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClear()
+            }}
             style={{ opacity: 0.5, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}
-          >✕</span>
+          >
+            ✕
+          </span>
         )}
         <span style={{ opacity: 0.4, fontSize: 'var(--font-size-xs)' }}>▾</span>
       </button>
       {open && (
-        <div className="popover" style={{ top: 'calc(100% + 4px)', [align]: 0, zIndex: 50, minWidth: 200, maxHeight: 260, overflowY: 'auto' }}>
-          {options.map(opt => {
+        <div
+          className="popover"
+          style={{ top: 'calc(100% + 4px)', [align]: 0, zIndex: 50, minWidth: 200, maxHeight: 260, overflowY: 'auto' }}
+        >
+          {options.map((opt) => {
             const checked = active.has(opt)
             const swatchStyle = swatch?.(opt)
             return (
               <div key={opt} onClick={() => onToggle(opt)} className={checked ? 'menu-item is-selected' : 'menu-item'}>
-                {swatchStyle && <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, ...swatchStyle }} />}
-                <span style={{ flex: 1, fontWeight: checked ? 600 : 400, color: checked ? 'var(--color-accent-text)' : 'var(--color-text)' }}>{opt}</span>
+                {swatchStyle && (
+                  <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, ...swatchStyle }} />
+                )}
+                <span
+                  style={{
+                    flex: 1,
+                    fontWeight: checked ? 600 : 400,
+                    color: checked ? 'var(--color-accent-text)' : 'var(--color-text)',
+                  }}
+                >
+                  {opt}
+                </span>
                 {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
               </div>
             )

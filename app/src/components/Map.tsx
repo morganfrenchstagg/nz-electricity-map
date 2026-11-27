@@ -7,10 +7,18 @@ import { useOutages } from '../hooks/useOutages'
 import { isLiveMode, isPastMode, periodOf } from '../hooks/useDispatchData'
 import type { DateMode } from '../hooks/useDispatchData'
 import { generatorsToGeoJson, substationsToGeoJson, underConstructionToGeoJson } from '../utils/geo'
+import type { UnderConstructionUnit } from '../utils/geo'
 import { underConstruction } from '../data/underConstruction'
 import { MAPLIBRE_COLOUR_EXPRESSION, MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION } from '../utils/colours'
 import { unitsByNode } from '../utils/generators'
-import { HVDC_CABLE, HVDC_CABLE_ANGLE, HVDC_CABLE_MIDDLE, HVDC_DESIGN_KV, hvdcDirection, latestHvdcNorth } from '../utils/hvdc'
+import {
+  HVDC_CABLE,
+  HVDC_CABLE_ANGLE,
+  HVDC_CABLE_MIDDLE,
+  HVDC_DESIGN_KV,
+  hvdcDirection,
+  latestHvdcNorth,
+} from '../utils/hvdc'
 import { buildGridNetwork } from '../utils/gridNetwork'
 import type { GridNetwork } from '../utils/gridNetwork'
 import { estimateLineFlows, flowArrowsToGeoJson, lineSectionsToGeoJson } from '../utils/lineFlows'
@@ -28,9 +36,12 @@ import { substationsOf } from '../utils/substations'
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
-const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
+const LINZ_AERIAL_URL =
+  'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
+// How far in the map opens on a generator's page, enough to see the station and what's around it
+const OPENED_GENERATOR_ZOOM = 11
 
 // The HVDC's hover areas, wider than its lines: its overhead line, and its cables across Cook Strait
 const HVDC_HOVER_LAYERS = ['hvdc-line-hover-layer', 'hvdc-cables-hover-layer']
@@ -51,13 +62,19 @@ const HOVER_LAYERS = ['generators-layer', 'under-construction-layer', 'substatio
 // so this names the features under the cursor and the popup is only rebuilt when they change.
 // The HVDC's popup is the same all along it, so it's one feature.
 const hoverKey = (features: maplibregl.MapGeoJSONFeature[]) =>
-  [...new Set(features.map((f) => HVDC_HOVER_LAYERS.includes(f.layer.id) ? 'hvdc' : `${f.layer.id}:${f.id}`))].sort().join()
+  [...new Set(features.map((f) => (HVDC_HOVER_LAYERS.includes(f.layer.id) ? 'hvdc' : `${f.layer.id}:${f.id}`)))]
+    .sort()
+    .join()
 
 // What the open panel is for: circled, or for the HVDC, its lines in this colour
 const SELECTED_COLOUR = '#3b82f6'
 
 // The HVDC's overhead line
-const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = ['==', ['to-number', ['get', 'designvolt']], HVDC_DESIGN_KV]
+const HVDC_LINE_FILTER: maplibregl.ExpressionSpecification = [
+  '==',
+  ['to-number', ['get', 'designvolt']],
+  HVDC_DESIGN_KV,
+]
 
 // The HVDC's lines, a touch darker than the grey of the voltages without a colour of
 // their own, and the chevrons on its cables for the way it's flowing, darker again to
@@ -75,12 +92,14 @@ const HVDC_CHEVRONS_MIN_ZOOM = 7.5
 
 // Three chevrons pointing east, each over a white halo to stand out on the cables and
 // the satellite map. They're lit in turn the way they point (see index.css).
-const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
-  [7, 18, 29].map((x) => {
+const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${[
+  7, 18, 29,
+]
+  .map((x) => {
     const d = `M${x} 4 L${x + 8} 10 L${x} 16`
     return `<g><path d="${d}" stroke="${HVDC_HALO}" stroke-width="7"/><path d="${d}" stroke="${HVDC_CHEVRON_COLOUR}" stroke-width="3.5"/></g>`
-  }).join('')
-}</svg>`
+  })
+  .join('')}</svg>`
 
 // The lines' estimated flows (see lineFlows), shown by the Power flow toggle: each
 // section of a line thicker the more it carries, a chevron partway along it the
@@ -88,9 +107,17 @@ const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill=
 // are as thick as the others' for its flow.
 const LINE_FLOW_LAYERS = ['line-flows-layer', 'line-flow-arrows-layer', LINE_FLOW_HOVER_LAYER]
 // Each line's width (px) at these MW, and in between
-const LINE_FLOW_WIDTHS: [number, number][] = [[0, 1.5], [100, 3], [400, 6], [1000, 9]]
+const LINE_FLOW_WIDTHS: [number, number][] = [
+  [0, 1.5],
+  [100, 3],
+  [400, 6],
+  [1000, 9],
+]
 const LINE_FLOW_WIDTH: maplibregl.ExpressionSpecification = [
-  'interpolate', ['linear'], ['coalesce', ['feature-state', 'mw'], 0], ...LINE_FLOW_WIDTHS.flat(),
+  'interpolate',
+  ['linear'],
+  ['coalesce', ['feature-state', 'mw'], 0],
+  ...LINE_FLOW_WIDTHS.flat(),
 ]
 function lineFlowWidth(mw: number): number {
   const above = LINE_FLOW_WIDTHS.findIndex(([at]) => mw < at)
@@ -102,10 +129,27 @@ function lineFlowWidth(mw: number): number {
 const LINE_FLOW_CHEVRON = 'line-flow-chevron'
 // A chevron's size, bigger for a bigger flow, and smaller the further out the map's
 // zoomed, where the lines' sections are shorter on screen, so they don't overlap
-const chevronSize = (scale: number): maplibregl.ExpressionSpecification =>
-  ['interpolate', ['linear'], ['get', 'mw'], 0, 0.8 * scale, 400, 1.1 * scale, 1000, 1.4 * scale]
+const chevronSize = (scale: number): maplibregl.ExpressionSpecification => [
+  'interpolate',
+  ['linear'],
+  ['get', 'mw'],
+  0,
+  0.8 * scale,
+  400,
+  1.1 * scale,
+  1000,
+  1.4 * scale,
+]
 const LINE_FLOW_CHEVRON_SIZE: maplibregl.ExpressionSpecification = [
-  'interpolate', ['linear'], ['zoom'], 6, chevronSize(0.45), 10, chevronSize(0.6), 13, chevronSize(1),
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  6,
+  chevronSize(0.45),
+  10,
+  chevronSize(0.6),
+  13,
+  chevronSize(1),
 ]
 const NO_FEATURES: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -118,7 +162,10 @@ function lineFlowChevron(): ImageData {
   ctx.scale(scale, scale)
   ctx.lineCap = ctx.lineJoin = 'round'
   const chevron = new Path2D('M4 14 L10 6 L16 14')
-  for (const [colour, width] of [[HVDC_HALO, 7], [HVDC_CHEVRON_COLOUR, 3.5]] as const) {
+  for (const [colour, width] of [
+    [HVDC_HALO, 7],
+    [HVDC_CHEVRON_COLOUR, 3.5],
+  ] as const) {
     ctx.strokeStyle = colour
     ctx.lineWidth = width
     ctx.stroke(chevron)
@@ -127,13 +174,13 @@ function lineFlowChevron(): ImageData {
 }
 
 // The generation pipeline is what's being built now, so past days and ranges leave it off the map
-const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
+const pipelineFor = (mode: DateMode) => (isPastMode(mode) ? [] : underConstruction)
 
 // Where each of the selected generators or substations is, as [lng, lat]
 function selectionPoints(node: GeneratorNode | SubstationNode): [number, number][] {
   if (node.kind === 'generator') return [[node.generator.location.long, node.generator.location.lat]]
-  if (node.kind === 'generators') return node.generators.map(g => [g.location.long, g.location.lat])
-  return substationsOf(node).map(s => [s.long, s.lat])
+  if (node.kind === 'generators') return node.generators.map((g) => [g.location.long, g.location.lat])
+  return substationsOf(node).map((s) => [s.long, s.lat])
 }
 
 interface Props {
@@ -142,20 +189,37 @@ interface Props {
   onHvdcClick: () => void
   onClear: () => void
   selectedNode: SelectedNode
+  // The generator the page was opened at (see useUrlState). The map zooms in on it,
+  // once: as the map's made, or as it's found. A node picked any other way keeps the zoom.
+  openedGenerator: GeneratorNode | null
   leftPanelOpen: boolean
   panelWidth: number
   // Where the map opens beside the panel, in place of INITIAL_CENTER and INITIAL_ZOOM
   initialView?: Pick<InitialView, 'center' | 'zoom'> | null
   recentData: RecentData | null
-  // The generators in service during it are on the map, and Today and 3d keep
-  // outages up to date (see useOutages)
+  // The generators in service during it are on the map, with its outages (see useOutages)
   dateMode: DateMode
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, onClear, selectedNode, leftPanelOpen, panelWidth, initialView, recentData, dateMode, isMobile = false }: Props) {
+export default function Map({
+  onGeneratorClick,
+  onSubstationClick,
+  onHvdcClick,
+  onClear,
+  selectedNode,
+  openedGenerator,
+  leftPanelOpen,
+  panelWidth,
+  initialView,
+  recentData,
+  dateMode,
+  isMobile = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  // Whether the map has zoomed in on openedGenerator
+  const zoomedInRef = useRef(false)
   const [showAerial, setShowAerial] = useState(false)
   const [showFlows, setShowFlows] = useState(false)
   // The network's pieced together once the flows are first shown (see gridNetwork)
@@ -176,24 +240,33 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   const hvdcFlowMarkerRef = useRef<maplibregl.Marker | null>(null)
   // Runs `update` once the sources are added. Not isStyleLoaded(), which is false again
   // while a source reloads after setData, and 'load' doesn't fire again to run it then.
-  const whenLoaded = (map: maplibregl.Map, update: () => void) => mapLoadedRef.current ? update() : map.once('load', update)
+  const whenLoaded = (map: maplibregl.Map, update: () => void) =>
+    mapLoadedRef.current ? update() : map.once('load', update)
   const leftPanelOpenRef = useRef(leftPanelOpen)
-  useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
+  useEffect(() => {
+    leftPanelOpenRef.current = leftPanelOpen
+  }, [leftPanelOpen])
   const panelWidthRef = useRef(panelWidth)
-  useEffect(() => { panelWidthRef.current = panelWidth }, [panelWidth])
+  useEffect(() => {
+    panelWidthRef.current = panelWidth
+  }, [panelWidth])
   const isMobileRef = useRef(isMobile)
-  useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
+  useEffect(() => {
+    isMobileRef.current = isMobile
+  }, [isMobile])
   // Ahead of recentData's, so a popup refreshed for a new day's data shows that day's units
   const dateModeRef = useRef(dateMode)
-  useEffect(() => { dateModeRef.current = dateMode }, [dateMode])
+  useEffect(() => {
+    dateModeRef.current = dateMode
+  }, [dateMode])
   useEffect(() => {
     recentDataRef.current = recentData
     refreshHoverRef.current()
   }, [recentData])
-  const outages = useOutages(isLiveMode(dateMode))
+  const outages = useOutages(dateMode)
   // The nodes dispatching in the live views, where units still being commissioned are shown once they are
   const dispatching = useMemo(
-    () => isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined,
+    () => (isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined),
     [dateMode, recentData],
   )
   const outagesRef = useRef<OutageData | null>(outages)
@@ -202,38 +275,60 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     refreshHoverRef.current()
   }, [outages])
 
-  useEffect(() => { generatorsRef.current = generators }, [generators])
-  useEffect(() => { substationsRef.current = substations }, [substations])
-  useEffect(() => { unitsByNodeRef.current = nodeUnits }, [nodeUnits])
+  useEffect(() => {
+    generatorsRef.current = generators
+  }, [generators])
+  useEffect(() => {
+    substationsRef.current = substations
+  }, [substations])
+  useEffect(() => {
+    unitsByNodeRef.current = nodeUnits
+  }, [nodeUnits])
 
   useEffect(() => {
-    fetchTransmissionLines().then(setLines).catch(() => {})
+    fetchTransmissionLines()
+      .then(setLines)
+      .catch(() => {})
   }, [])
   const network = useMemo(
-    () => flowsUsed && lines && substations.length > 0 ? buildGridNetwork(lines, substations) : null,
+    () => (flowsUsed && lines && substations.length > 0 ? buildGridNetwork(lines, substations) : null),
     [flowsUsed, lines, substations],
   )
   // At the newest of the data's intervals, as the popups show
-  const flows = useMemo(() => network && recentData ? estimateLineFlows(network, recentData) : null, [network, recentData])
+  const flows = useMemo(
+    () => (network && recentData ? estimateLineFlows(network, recentData) : null),
+    [network, recentData],
+  )
 
   // Keep callback refs so map event handlers always see the latest callbacks
   const onGeneratorClickRef = useRef(onGeneratorClick)
   const onSubstationClickRef = useRef(onSubstationClick)
   const onHvdcClickRef = useRef(onHvdcClick)
   const onClearRef = useRef(onClear)
-  useEffect(() => { onGeneratorClickRef.current = onGeneratorClick }, [onGeneratorClick])
-  useEffect(() => { onSubstationClickRef.current = onSubstationClick }, [onSubstationClick])
-  useEffect(() => { onHvdcClickRef.current = onHvdcClick }, [onHvdcClick])
-  useEffect(() => { onClearRef.current = onClear }, [onClear])
+  useEffect(() => {
+    onGeneratorClickRef.current = onGeneratorClick
+  }, [onGeneratorClick])
+  useEffect(() => {
+    onSubstationClickRef.current = onSubstationClick
+  }, [onSubstationClick])
+  useEffect(() => {
+    onHvdcClickRef.current = onHvdcClick
+  }, [onHvdcClick])
+  useEffect(() => {
+    onClearRef.current = onClear
+  }, [onClear])
 
   useEffect(() => {
     if (!containerRef.current) return
 
+    // On mobile the map's only made once the panel's closed, by when the generator's been found
+    const opened = openedGenerator && { center: selectionPoints(openedGenerator)[0], zoom: OPENED_GENERATOR_ZOOM }
+    zoomedInRef.current = !!opened
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: STYLE_URL,
-      center: initialView?.center ?? INITIAL_CENTER,
-      zoom: initialView?.zoom ?? INITIAL_ZOOM,
+      center: opened?.center ?? initialView?.center ?? INITIAL_CENTER,
+      zoom: opened?.zoom ?? initialView?.zoom ?? INITIAL_ZOOM,
       attributionControl: { compact: true, customAttribution: DATA_ATTRIBUTION_HTML },
     })
     // Compact attribution starts open until the map is first dragged; start on just its ⓘ button
@@ -247,7 +342,9 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const chevrons = document.createElement('div')
     chevrons.className = 'hvdc-flow'
     chevrons.innerHTML = HVDC_CHEVRONS_SVG
-    hvdcFlowMarkerRef.current = new maplibregl.Marker({ element: chevrons, rotationAlignment: 'map' }).setLngLat(HVDC_CABLE_MIDDLE)
+    hvdcFlowMarkerRef.current = new maplibregl.Marker({ element: chevrons, rotationAlignment: 'map' }).setLngLat(
+      HVDC_CABLE_MIDDLE,
+    )
     const showChevrons = () => chevrons.classList.toggle('is-hidden', map.getZoom() < HVDC_CHEVRONS_MIN_ZOOM)
     showChevrons()
     map.on('zoom', showChevrons)
@@ -284,9 +381,26 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: { type: 'Feature', geometry: { type: 'LineString', coordinates: HVDC_CABLE }, properties: {} },
       })
-      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#ffffff', 'line-width': HVDC_WIDTH + HVDC_OUTLINE_WIDTH, 'line-opacity': 0.5 }
-      map.addLayer({ id: 'hvdc-line-outline-layer', type: 'line', source: 'transmission-lines', filter: HVDC_LINE_FILTER, layout: { 'line-cap': 'round' }, paint: hvdcOutline })
-      map.addLayer({ id: 'hvdc-cables-outline-layer', type: 'line', source: 'hvdc-cables', layout: { 'line-cap': 'round' }, paint: hvdcOutline })
+      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = {
+        'line-color': '#ffffff',
+        'line-width': HVDC_WIDTH + HVDC_OUTLINE_WIDTH,
+        'line-opacity': 0.5,
+      }
+      map.addLayer({
+        id: 'hvdc-line-outline-layer',
+        type: 'line',
+        source: 'transmission-lines',
+        filter: HVDC_LINE_FILTER,
+        layout: { 'line-cap': 'round' },
+        paint: hvdcOutline,
+      })
+      map.addLayer({
+        id: 'hvdc-cables-outline-layer',
+        type: 'line',
+        source: 'hvdc-cables',
+        layout: { 'line-cap': 'round' },
+        paint: hvdcOutline,
+      })
       map.addLayer({
         id: 'hvdc-line-layer',
         type: 'line',
@@ -320,7 +434,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'line',
         source: 'line-flows',
         layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION, 'line-width': LINE_FLOW_WIDTH, 'line-opacity': 0.85 },
+        paint: {
+          'line-color': MAPLIBRE_VOLTAGE_COLOUR_EXPRESSION,
+          'line-width': LINE_FLOW_WIDTH,
+          'line-opacity': 0.85,
+        },
       })
       map.addImage(LINE_FLOW_CHEVRON, lineFlowChevron(), { pixelRatio: 2 })
       map.addSource('line-flow-arrows', { type: 'geojson', data: NO_FEATURES })
@@ -341,18 +459,32 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         },
         // Zoomed out, only the bigger flows' show, so they don't crowd the map
         paint: {
-          'icon-opacity': ['step', ['zoom'],
+          'icon-opacity': [
+            'step',
+            ['zoom'],
             ['case', ['>=', ['get', 'mw'], 150], 1, 0],
-            6.5, ['case', ['>=', ['get', 'mw'], 40], 1, 0],
-            7.5, 1,
+            6.5,
+            ['case', ['>=', ['get', 'mw'], 40], 1, 0],
+            7.5,
+            1,
           ],
         },
       })
       // Hovering anywhere along the HVDC shows its flow, and along a line its estimated
       // flow while they're shown. Unseen, and wider than the lines to be easier to find
       // (wider again on mobile, see LINE_HOVER_WIDTH).
-      const hoverPaint: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#000000', 'line-width': LINE_HOVER_WIDTH.mouse, 'line-opacity': 0 }
-      map.addLayer({ id: LINE_FLOW_HOVER_LAYER, type: 'line', source: 'line-flows', layout: { visibility: 'none' }, paint: hoverPaint })
+      const hoverPaint: maplibregl.LineLayerSpecification['paint'] = {
+        'line-color': '#000000',
+        'line-width': LINE_HOVER_WIDTH.mouse,
+        'line-opacity': 0,
+      }
+      map.addLayer({
+        id: LINE_FLOW_HOVER_LAYER,
+        type: 'line',
+        source: 'line-flows',
+        layout: { visibility: 'none' },
+        paint: hoverPaint,
+      })
       map.addLayer({
         id: 'hvdc-line-hover-layer',
         type: 'line',
@@ -443,7 +575,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         if (genFeatures.length > 0) {
           const site = genFeatures[0].properties?.site as string | undefined
           const generator = generatorsRef.current.find((g) => g.site === site)
-          if (generator) { onGeneratorClickRef.current(generator); return }
+          if (generator) {
+            onGeneratorClickRef.current(generator)
+            return
+          }
         }
 
         const subFeatures = map.queryRenderedFeatures(e.point, { layers: ['substations-layer'] })
@@ -463,7 +598,12 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         onClearRef.current()
       })
 
-      const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '380px' })
+      const hoverPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        maxWidth: '380px',
+      })
       // One feature, or the lines under the cursor where they run close together
       let hovered: maplibregl.MapGeoJSONFeature[] = []
 
@@ -472,23 +612,39 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         if (!feature) return null
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
-          const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current), pipelineFor(dateModeRef.current), unitsByNodeRef.current) : null
+          const generator = generatorsRef.current.find((g) => g.site === p.site)
+          return generator
+            ? generatorPopupHtml(
+                generator,
+                recentDataRef.current,
+                outagesRef.current,
+                periodOf(dateModeRef.current),
+                isLiveMode(dateModeRef.current),
+                pipelineFor(dateModeRef.current),
+                unitsByNodeRef.current,
+              )
+            : null
         }
         if (feature.layer.id === 'under-construction-layer') {
-          return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
+          return underConstructionPopupHtml(
+            String(p.name ?? ''),
+            JSON.parse(String(p.units ?? '[]')) as UnderConstructionUnit[],
+          )
         }
         if (LINE_HOVER_LAYERS.includes(feature.layer.id)) {
           // The HVDC has none on past days EMI hasn't published its flows for
-          const transfer = features.some(f => HVDC_HOVER_LAYERS.includes(f.layer.id)) ? latestHvdcNorth(recentDataRef.current) : null
+          const transfer = features.some((f) => HVDC_HOVER_LAYERS.includes(f.layer.id))
+            ? latestHvdcNorth(recentDataRef.current)
+            : null
           const lineFlows = lineFlowsRef.current
           const sections = lineFlows
-            ? [...new Set(features.filter(f => f.layer.id === LINE_FLOW_HOVER_LAYER).map(f => Number(f.id)))]
-              .map(index => ({ index, mw: lineFlows.flows.sections[index] }))
+            ? [...new Set(features.filter((f) => f.layer.id === LINE_FLOW_HOVER_LAYER).map((f) => Number(f.id)))].map(
+                (index) => ({ index, mw: lineFlows.flows.sections[index] }),
+              )
             : []
           return linesPopupHtml(transfer, lineFlows?.network ?? null, sections)
         }
-        const substation = substationsRef.current.find(s => s.siteId === p.siteId)
+        const substation = substationsRef.current.find((s) => s.siteId === p.siteId)
         return substation ? substationPopupHtml(substation, recentDataRef.current, unitsByNodeRef.current) : null
       }
 
@@ -496,21 +652,29 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       const renderHover = () => {
         const html = hoverHtml(hovered)
         // A line has no panel to open, but the HVDC and the rest do
-        map.getCanvas().style.cursor = html && hovered.some(f => f.layer.id !== LINE_FLOW_HOVER_LAYER) ? 'pointer' : ''
-        if (!html) { hoverPopup.remove(); return }
+        map.getCanvas().style.cursor =
+          html && hovered.some((f) => f.layer.id !== LINE_FLOW_HOVER_LAYER) ? 'pointer' : ''
+        if (!html) {
+          hoverPopup.remove()
+          return
+        }
         hoverPopup.setHTML(html)
         if (!hoverPopup.isOpen()) hoverPopup.addTo(map)
       }
-      refreshHoverRef.current = () => { if (hovered.length > 0) renderHover() }
+      refreshHoverRef.current = () => {
+        if (hovered.length > 0) renderHover()
+      }
 
       map.on('mousemove', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: HOVER_LAYERS })
-        const feature = HOVER_LAYERS.map(layer => features.find(f => f.layer.id === layer)).find(f => f)
+        const feature = HOVER_LAYERS.map((layer) => features.find((f) => f.layer.id === layer)).find((f) => f)
         // On a line, those within its hover area's width run close enough to it to share the popup
         const near = (isMobileRef.current ? LINE_HOVER_WIDTH.touch : LINE_HOVER_WIDTH.mouse) / 2
         const nearPoint = (dx: number, dy: number): [number, number] => [e.point.x + dx, e.point.y + dy]
-        const next = !feature ? []
-          : LINE_HOVER_LAYERS.includes(feature.layer.id) ? map.queryRenderedFeatures([nearPoint(-near, -near), nearPoint(near, near)], { layers: LINE_HOVER_LAYERS })
+        const next = !feature
+          ? []
+          : LINE_HOVER_LAYERS.includes(feature.layer.id)
+            ? map.queryRenderedFeatures([nearPoint(-near, -near), nearPoint(near, near)], { layers: LINE_HOVER_LAYERS })
             : [feature]
         // Following the cursor is cheap; the popup is rebuilt only when the cursor reaches other features
         hoverPopup.setLngLat(e.lngLat)
@@ -527,7 +691,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
 
     mapRef.current = map
     return () => map.remove()
-    // The map is built once; initialView is only where it starts
+    // The map is built once; initialView and openedGenerator are only where it starts
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -535,8 +699,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
-      const src = map.getSource('generators') as maplibregl.GeoJSONSource | undefined
-      src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
+      const src = map.getSource<maplibregl.GeoJSONSource>('generators')
+      void src?.setData(generatorsToGeoJson(generators, periodOf(dateMode), dispatching))
     }
     whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
@@ -545,8 +709,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map || generators.length === 0) return
     const update = () => {
-      const src = map.getSource('under-construction') as maplibregl.GeoJSONSource | undefined
-      src?.setData(underConstructionToGeoJson(pipelineFor(dateMode), generators, periodOf(dateMode), dispatching))
+      const src = map.getSource<maplibregl.GeoJSONSource>('under-construction')
+      void src?.setData(underConstructionToGeoJson(pipelineFor(dateMode), generators, periodOf(dateMode), dispatching))
     }
     whenLoaded(map, update)
   }, [generators, dateMode, dispatching])
@@ -559,7 +723,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     const marker = hvdcFlowMarkerRef.current
     if (!map || !marker) return
-    if (!hvdcFlow) { marker.remove(); return }
+    if (!hvdcFlow) {
+      marker.remove()
+      return
+    }
     // Marker rotation is clockwise, and the cables run anticlockwise of east
     marker.setRotation((hvdcFlow === 'north' ? 0 : 180) - HVDC_CABLE_ANGLE).addTo(map)
   }, [hvdcFlow])
@@ -568,8 +735,8 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map || substations.length === 0) return
     const update = () => {
-      const src = map.getSource('substations') as maplibregl.GeoJSONSource | undefined
-      src?.setData(substationsToGeoJson(substations))
+      const src = map.getSource<maplibregl.GeoJSONSource>('substations')
+      void src?.setData(substationsToGeoJson(substations))
     }
     whenLoaded(map, update)
   }, [substations])
@@ -578,16 +745,24 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map) return
     const update = () => {
-      const src = map.getSource('selected-node') as maplibregl.GeoJSONSource | undefined
+      const src = map.getSource<maplibregl.GeoJSONSource>('selected-node')
       if (!src) return
       // The HVDC is picked out in the selection's blue rather than circled
       const hvdcColour = selectedNode?.kind === 'hvdc' ? SELECTED_COLOUR : HVDC_COLOUR
-      for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer']) map.setPaintProperty(layer, 'line-color', hvdcColour)
+      for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer'])
+        map.setPaintProperty(layer, 'line-color', hvdcColour)
       if (!selectedNode || selectedNode.kind === 'hvdc') {
-        src.setData({ type: 'FeatureCollection', features: [] })
+        void src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      src.setData({ type: 'FeatureCollection', features: selectionPoints(selectedNode).map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
+      void src.setData({
+        type: 'FeatureCollection',
+        features: selectionPoints(selectedNode).map((coords) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: coords },
+          properties: {},
+        })),
+      })
     }
     whenLoaded(map, update)
   }, [selectedNode])
@@ -596,17 +771,25 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map) return
 
-    const panelPadding = isMobile ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: panelWidthRef.current, right: 0, top: 0, bottom: 0 }
+    const panelPadding = isMobile
+      ? { left: 0, right: 0, top: 0, bottom: 0 }
+      : { left: panelWidthRef.current, right: 0, top: 0, bottom: 0 }
     const zeroPadding = { left: 0, right: 0, top: 0, bottom: 0 }
 
     // The HVDC runs the length of the South Island, so the map stays where it was clicked
     if (selectedNode && selectedNode.kind !== 'hvdc') {
       // A selection of several is centred on the first
-      map.easeTo({ center: selectionPoints(selectedNode)[0], padding: panelPadding, duration: isMobile ? 0 : 400 })
+      const center = selectionPoints(selectedNode)[0]
+      if (selectedNode === openedGenerator && !zoomedInRef.current) {
+        zoomedInRef.current = true
+        map.jumpTo({ center, zoom: OPENED_GENERATOR_ZOOM, padding: panelPadding })
+      } else {
+        map.easeTo({ center, padding: panelPadding, duration: isMobile ? 0 : 400 })
+      }
     } else {
       map.easeTo({ padding: leftPanelOpen ? panelPadding : zeroPadding, duration: 300 })
     }
-  }, [selectedNode, leftPanelOpen, isMobile])
+  }, [selectedNode, openedGenerator, leftPanelOpen, isMobile])
 
   useEffect(() => {
     const map = mapRef.current
@@ -624,20 +807,25 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map) return
     whenLoaded(map, () => {
-      for (const layer of LINE_HOVER_LAYERS) map.setPaintProperty(layer, 'line-width', isMobile ? LINE_HOVER_WIDTH.touch : LINE_HOVER_WIDTH.mouse)
+      for (const layer of LINE_HOVER_LAYERS)
+        map.setPaintProperty(layer, 'line-width', isMobile ? LINE_HOVER_WIDTH.touch : LINE_HOVER_WIDTH.mouse)
     })
   }, [isMobile])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !lines) return
-    whenLoaded(map, () => (map.getSource('transmission-lines') as maplibregl.GeoJSONSource | undefined)?.setData(lines))
+    whenLoaded(map, () => {
+      void map.getSource<maplibregl.GeoJSONSource>('transmission-lines')?.setData(lines)
+    })
   }, [lines])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || !network) return
-    whenLoaded(map, () => (map.getSource('line-flows') as maplibregl.GeoJSONSource | undefined)?.setData(lineSectionsToGeoJson(network)))
+    whenLoaded(map, () => {
+      void map.getSource<maplibregl.GeoJSONSource>('line-flows')?.setData(lineSectionsToGeoJson(network))
+    })
   }, [network])
 
   useEffect(() => {
@@ -651,9 +839,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map || !network) return
     whenLoaded(map, () => {
-      network.sections.forEach((_, i) => map.setFeatureState({ source: 'line-flows', id: i }, { mw: flows ? Math.abs(flows.sections[i]) : 0 }))
-      const arrows = map.getSource('line-flow-arrows') as maplibregl.GeoJSONSource | undefined
-      arrows?.setData(flows ? flowArrowsToGeoJson(network, flows.sections) : NO_FEATURES)
+      network.sections.forEach((_, i) =>
+        map.setFeatureState({ source: 'line-flows', id: i }, { mw: flows ? Math.abs(flows.sections[i]) : 0 }),
+      )
+      const arrows = map.getSource<maplibregl.GeoJSONSource>('line-flow-arrows')
+      void arrows?.setData(flows ? flowArrowsToGeoJson(network, flows.sections) : NO_FEATURES)
     })
   }, [network, flows])
 
@@ -673,27 +863,53 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     if (!map) return
     whenLoaded(map, () => {
       for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer']) map.setPaintProperty(layer, 'line-width', hvdcWidth)
-      for (const layer of ['hvdc-line-outline-layer', 'hvdc-cables-outline-layer']) map.setPaintProperty(layer, 'line-width', hvdcWidth + HVDC_OUTLINE_WIDTH)
+      for (const layer of ['hvdc-line-outline-layer', 'hvdc-cables-outline-layer'])
+        map.setPaintProperty(layer, 'line-width', hvdcWidth + HVDC_OUTLINE_WIDTH)
     })
   }, [hvdcWidth])
 
   // How much of the map's left side the panel covers
-  const panelInset = (!isMobile && leftPanelOpen) ? panelWidth : 0
+  const panelInset = !isMobile && leftPanelOpen ? panelWidth : 0
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', '--map-panel-inset': `${panelInset}px` } as React.CSSProperties}>
+    <div
+      style={
+        {
+          position: 'relative',
+          width: '100%',
+          height: '100vh',
+          '--map-panel-inset': `${panelInset}px`,
+        } as React.CSSProperties
+      }
+    >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <div style={{ position: 'absolute', top: 10, left: panelInset + 10, zIndex: 10, display: 'flex', gap: 'var(--space-md)' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 10,
+          left: panelInset + 10,
+          zIndex: 10,
+          display: 'flex',
+          gap: 'var(--space-md)',
+        }}
+      >
         <div role="group" aria-label="Map style" className="toggle-group toggle-group--map">
           {(['street', 'aerial'] as const).map((mode) => (
-            <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>
+            <button
+              key={mode}
+              onClick={() => setShowAerial(mode === 'aerial')}
+              aria-pressed={(mode === 'aerial') === showAerial}
+            >
               {mode === 'street' ? 'Street' : 'Satellite'}
             </button>
           ))}
         </div>
         <div className="toggle-group toggle-group--map">
           <button
-            onClick={() => { setShowFlows(!showFlows); setFlowsUsed(true) }}
+            onClick={() => {
+              setShowFlows(!showFlows)
+              setFlowsUsed(true)
+            }}
             aria-pressed={showFlows}
             title="The estimated flow along each transmission line, from each substation's generation and load"
           >

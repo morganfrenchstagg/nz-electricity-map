@@ -7,9 +7,12 @@ export default tseslint.config(
   { ignores: ['node_modules', 'dist'] },
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, tseslint.configs.recommended],
+    extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     plugins: { 'react-hooks': reactHooks },
-    languageOptions: { globals: globals.browser },
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
       // Only the two classic hooks rules. The plugin's recommended preset also

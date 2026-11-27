@@ -7,6 +7,13 @@
       "runtimeArgs": ["-c", "npm run dev --prefix app -- --port \"${PORT:-5199}\" --strictPort"],
       "port": 5199,
       "autoPort": true
+    },
+    {
+      "name": "app-built",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd app && D=\"${TMPDIR:-/tmp}/nz-electricity-map-built\" && npx vite build --outDir \"$D\" --emptyOutDir && npx vite preview --outDir \"$D\" --port \"${PORT:-4199}\" --strictPort"],
+      "port": 4199,
+      "autoPort": true
     }
   ]
 }

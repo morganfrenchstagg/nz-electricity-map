@@ -21,7 +21,7 @@ export function extractChartData(recent: RecentData, requestedCodes: string[]): 
   const rows: ChartRow[] = recent.data.map((row) => {
     const point: ChartRow = { time: row[0] as string }
     codes.forEach((code, i) => {
-      point[code] = row[indices[i]] as number
+      point[code] = row[indices[i]]
     })
     return point
   })
@@ -144,7 +144,7 @@ export function chartReach(rows: (number | null)[][], stacked: boolean): number 
   for (const row of rows) {
     let up = 0
     let down = 0
-    for (const value of row.map(v => v ?? 0)) {
+    for (const value of row.map((v) => v ?? 0)) {
       if (!stacked) reach = Math.max(reach, Math.abs(value || 0))
       else if (value > 0) up += value
       else if (value < 0) down -= value
@@ -158,7 +158,9 @@ export function chartReach(rows: (number | null)[][], stacked: boolean): number 
 // strings still work. The object form would also merge in the default
 // day.boundary format, relabelling midnight on hourly axes with the date.
 export const DATETIME_LABEL_FORMATS = {
-  day: '%e %b', hour: '%l%P', minute: '%l:%M%P',
+  day: '%e %b',
+  hour: '%l%P',
+  minute: '%l:%M%P',
 } as Highcharts.AxisDateTimeLabelFormatsOptions
 
 // A line, labelled with the date, at each midnight in a run of dispatch timestamps
@@ -218,23 +220,31 @@ function periodEnd(ms: number, period: AggregatePeriod): number {
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   const soFar = period && periodEnd(ms, period) > nzLocalMs(`${todayNZ()}T00:00:00`) ? ' (so far)' : ''
   switch (period) {
-    case 'daily': return Highcharts.dateFormat('%a %e %b', ms) + soFar
-    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * DAY_MS)}${soFar}`
-    case 'monthly': return Highcharts.dateFormat('%B %Y', ms) + soFar
+    case 'daily':
+      return Highcharts.dateFormat('%a %e %b', ms) + soFar
+    case 'weekly':
+      return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * DAY_MS)}${soFar}`
+    case 'monthly':
+      return Highcharts.dateFormat('%B %Y', ms) + soFar
     case 'quarterly': {
       const start = new Date(ms)
       const lastMonth = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 2, 1)
       return `${Highcharts.dateFormat('%b', ms)} – ${Highcharts.dateFormat('%b %Y', lastMonth)}${soFar}`
     }
-    case 'annual': return Highcharts.dateFormat('%Y', ms) + soFar
-    default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
+    case 'annual':
+      return Highcharts.dateFormat('%Y', ms) + soFar
+    default:
+      return Highcharts.dateFormat('%e %b %I:%M %p', ms)
   }
 }
 
 // Screen reader options for a chart (Highcharts' accessibility module, loaded
 // in main.tsx). The charts have no titles of their own, their panels' headers
 // naming them instead, so without `title` every one would be read out as "Chart".
-export function chartAccessibility(title: string, accessibility: Highcharts.AccessibilityOptions): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
+export function chartAccessibility(
+  title: string,
+  accessibility: Highcharts.AccessibilityOptions,
+): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
   return { lang: { accessibility: { defaultChartTitle: title } }, accessibility }
 }
 
@@ -243,12 +253,18 @@ export function chartAccessibility(title: string, accessibility: Highcharts.Acce
 // quarter or year each of an aggregate view's totals covers
 function everyInterval(period: AggregatePeriod | null, intervalMs: number): string {
   switch (period) {
-    case 'daily': return 'each day'
-    case 'weekly': return 'each week'
-    case 'monthly': return 'each month'
-    case 'quarterly': return 'each quarter'
-    case 'annual': return 'each year'
-    default: return intervalMs >= TRADING_PERIOD_MS ? 'every half hour' : 'every 5 minutes'
+    case 'daily':
+      return 'each day'
+    case 'weekly':
+      return 'each week'
+    case 'monthly':
+      return 'each month'
+    case 'quarterly':
+      return 'each quarter'
+    case 'annual':
+      return 'each year'
+    default:
+      return intervalMs >= TRADING_PERIOD_MS ? 'every half hour' : 'every 5 minutes'
   }
 }
 
@@ -256,13 +272,20 @@ function everyInterval(period: AggregatePeriod | null, intervalMs: number): stri
 // `description` says what's charted, and is followed by the unit and how often.
 // Each point is read out with the time its tooltip is headed with, rather than
 // Highcharts' own US-style date, and its value in the unit.
-export function timeChartAccessibility(title: string, description: string, period: AggregatePeriod | null, unit: DisplayUnit, intervalMs = DISPATCH_INTERVAL_MS): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
+export function timeChartAccessibility(
+  title: string,
+  description: string,
+  period: AggregatePeriod | null,
+  unit: DisplayUnit,
+  intervalMs = DISPATCH_INTERVAL_MS,
+): Pick<Highcharts.Options, 'lang' | 'accessibility'> {
   return chartAccessibility(title, {
     description: `${description}, in ${unit.label} ${everyInterval(period, intervalMs)}.`,
     // An aggregate view's points are all at midnight, so its range needs no time
     screenReaderSection: { axisRangeDateFormat: period ? '%e %b %Y' : '%e %b %Y %I:%M %p' },
     point: {
-      descriptionFormatter: (point) => `${tooltipTime(point.x, period)}, ${unit.format(point.y ?? 0)}. ${point.series.name}.`,
+      descriptionFormatter: (point) =>
+        `${tooltipTime(point.x, period)}, ${unit.format(point.y ?? 0)}. ${point.series.name}.`,
     },
   })
 }
@@ -293,5 +316,9 @@ function fillColumns(series: Highcharts.Series, months: number) {
 export function columnFillEvents(period: AggregatePeriod | null): Highcharts.SeriesEventsOptionsObject | undefined {
   const months = monthsPer(period)
   if (!months) return undefined
-  return { afterColumnTranslate(this: Highcharts.Series) { fillColumns(this, months) } } as Highcharts.SeriesEventsOptionsObject
+  return {
+    afterColumnTranslate(this: Highcharts.Series) {
+      fillColumns(this, months)
+    },
+  } as Highcharts.SeriesEventsOptionsObject
 }
