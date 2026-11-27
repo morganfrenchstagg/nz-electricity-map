@@ -4,6 +4,7 @@ import { HighchartsReact } from 'highcharts-react-official'
 import Highcharts from 'highcharts'
 import type { RecentData, SelectedNode } from '../types'
 import type { DateMode } from '../hooks/useDispatchData'
+import type { Compare, PriorData } from '../utils/compare'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { CHART_CONTAINER_PROPS } from '../utils/chart'
 import type { PanelProps } from './Panel'
@@ -17,6 +18,10 @@ export interface NodePanelProps extends PanelProps {
   onClear: () => void
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
+  // The earlier period the view is compared with, and its data (see utils/compare)
+  compare: Compare | null
+  onCompareChange: (compare: Compare | null) => void
+  prior: PriorData | null
   recentData: RecentData | null
   loading: boolean
   error: string | null

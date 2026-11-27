@@ -153,16 +153,28 @@ export function mergeData(days: RecentData[]): RecentData {
   return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs), ...(hvdc && { hvdc }) }
 }
 
-export function useDispatchData(mode: DateMode): {
+// A view's dispatch data, or nothing for a null mode. `loadedFor` is the mode
+// recentData was loaded for, which is the last one's until the new one loads.
+export function useDispatchData(mode: DateMode | null): {
   recentData: RecentData | null
+  loadedFor: DateMode | null
   loading: boolean
   error: string | null
 } {
   const [recentData, setRecentData] = useState<RecentData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loadedFor, setLoadedFor] = useState<DateMode | null>(null)
+  const [loading, setLoading] = useState(mode !== null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!mode) {
+      setRecentData(null)
+      setLoadedFor(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+    const view = mode
     let cancelled = false
     let shown: RecentData[] | null = null
     const live = isLiveMode(mode)
@@ -175,7 +187,7 @@ export function useDispatchData(mode: DateMode): {
       if (prev && days.every((d, i) => d === prev[i])) return
       shown = days
       let merged = mergeData(days)
-      if (mode.kind === 'today') {
+      if (view.kind === 'today') {
         const today = todayNZ()
         const isToday = (row: (string | number | null)[]) => (row[0] as string).slice(0, 10) === today
         merged = {
@@ -186,6 +198,7 @@ export function useDispatchData(mode: DateMode): {
         }
       }
       setRecentData(merged)
+      setLoadedFor(view)
       setLoading(false)
       setError(null)
     }
@@ -217,5 +230,5 @@ export function useDispatchData(mode: DateMode): {
     }
   }, [mode])
 
-  return { recentData, loading, error }
+  return { recentData, loadedFor, loading, error }
 }
