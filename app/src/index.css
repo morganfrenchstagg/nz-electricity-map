@@ -1,7 +1,6 @@
-/* Design tokens. Each colour is light-dark(light, dark), following the theme:
-   light, unless the viewer picked dark (see theme.ts, which sets data-theme on
-   <html>). Highcharts takes them as var()s in its options; the map's layers
-   can't, so their colours stay in Map, and its basemap stays light. */
+/* Design tokens. Colours are light-dark(light, dark): light unless the viewer
+   picked dark (theme.ts sets data-theme on <html>). Highcharts takes them as
+   var()s; map layers can't, so their colours live in Map and the basemap stays light. */
 :root {
   color-scheme: light;
 
@@ -12,8 +11,10 @@
   --color-text-muted: light-dark(#888, #8f8f8f);
   --color-text-faint: light-dark(#999, #7c7c7c);
   --color-text-disabled: light-dark(#bbb, #5c5c5c);
-  /* On an accent or series colour */
+  /* On a series colour */
   --color-text-inverse: #fff;
+  /* On the accent, which is light in dark mode */
+  --color-text-on-accent: light-dark(#fff, #111);
 
   /* Inputs and checkboxes */
   --color-border-strong: light-dark(#ccc, #4c4c4f);
@@ -32,14 +33,15 @@
   /* Secondary buttons, empty meter track */
   --color-fill: light-dark(#e7e7e7, #38383b);
 
-  --color-accent: #3b82f6;
-  /* Filled behind white text, e.g. the pressed ToggleGroup button */
-  --color-accent-strong: light-dark(#1d4ed8, #2563eb);
-  --color-accent-muted: light-dark(#93c5fd, #2c4a85);
+  /* Ink, not a hue: map and chart colours all mean a fuel or voltage, so
+     pressed, selected and focused controls stay out of their way */
+  --color-accent: light-dark(#1f2328, #e6e6e6);
+  /* An active filter's border */
+  --color-accent-muted: light-dark(#8a8f96, #6b6f75);
   /* Selected rows and options */
-  --color-accent-subtle: light-dark(#f0f4ff, #1b2741);
-  /* Accent text, on the surface or accent-subtle */
-  --color-accent-text: light-dark(#1d4ed8, #93c5fd);
+  --color-accent-subtle: light-dark(#eceef0, #2c2e32);
+  /* Text on accent-subtle */
+  --color-accent-text: var(--color-text-strong);
 
   --color-danger: light-dark(#b91c1c, #f87171);
   --color-danger-subtle: light-dark(#fee2e2, #3d1c1c);
@@ -64,16 +66,16 @@
 
   /* Badges, chart axis labels */
   --font-size-2xs: 10px;
-  /* Captions, status text, uppercase headings, chart axis titles */
+  /* Captions, status text, chart axis titles */
   --font-size-xs: 11px;
-  /* Toolbar controls, secondary text, map popups and chart tooltips */
+  /* Toolbar controls, small headings, secondary text, map popups and chart tooltips */
   --font-size-sm: 12px;
   /* Body text and most controls */
   --font-size-base: 13px;
   /* Panel and modal titles */
   --font-size-lg: 15px;
 
-  /* Spacing scale, for padding. Sizes off the scale round to the nearest step. */
+  /* Spacing scale, for padding. Off-scale sizes round to the nearest step. */
   --space-2xs: 2px;
   --space-xs: 4px;
   --space-sm: 6px;
@@ -123,13 +125,11 @@ body {
   font-weight: 600;
 }
 
-/* Small uppercase heading over a group, table column or popup section */
-.eyebrow {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+/* Small heading over a group, table column or popup section */
+.heading-sm {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 /* A row of a panel or modal (header, toolbar, filters…), ruled off from the next */
@@ -146,8 +146,8 @@ body {
   padding-block: var(--space-sm);
 }
 
-/* The outer columns line up with the modal's gutter. :where() keeps these at
-   one class's specificity, so a cell's own class (e.g. .empty-state) wins. */
+/* Outer columns align with the modal's gutter. :where() keeps one-class
+   specificity, so a cell's own class (e.g. .empty-state) wins. */
 .data-table :where(th, td) {
   padding: var(--space-md) var(--space-lg);
 }
@@ -178,7 +178,7 @@ body {
   color: var(--color-danger);
 }
 
-/* Layout lives inline in the components; these are the shared looks and states. */
+/* Layout is inline in the components; these are shared looks and states. */
 
 /* Panel, which GeneratorPanel, SubstationPanel and GridOverviewPanel sit in */
 .side-panel {
@@ -251,7 +251,7 @@ a.button-secondary {
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
   font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
@@ -283,6 +283,7 @@ a.button-secondary {
 
 .icon-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 /* Segmented buttons (ToggleGroup) */
@@ -310,8 +311,8 @@ a.button-secondary {
 
 .toggle-group > button[aria-pressed='true'],
 .toggle-group > .calendar-button.is-active {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-weight: 600;
 }
 
@@ -361,11 +362,12 @@ a.button-secondary {
 
 .compare-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 .compare-chevron {
+  display: flex;
   color: var(--color-text-faint);
-  font-size: var(--font-size-xs);
 }
 
 .compare-dialog {
@@ -490,14 +492,12 @@ a.button-secondary {
   border: 1.5px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: transparent;
-  font-size: var(--font-size-xs);
-  line-height: 1;
 }
 
 .checkbox[data-selected] .checkbox-box {
   border: none;
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
 }
 
 .checkbox[data-focus-visible] .checkbox-box {
@@ -542,14 +542,14 @@ a.button-secondary {
   padding-left: var(--space-xl);
 }
 
-/* Wrap the map's attribution, once opened from its ⓘ button, beside the panel
-   (Map sets --map-panel-inset) rather than running it underneath */
+/* Wrap the opened map attribution beside the panel (Map sets
+   --map-panel-inset) rather than under it */
 .maplibregl-ctrl-bottom-right {
   max-width: calc(100% - var(--map-panel-inset, 0px));
 }
 
-/* maplibre's controls and popups, on the design tokens so they follow dark mode.
-   Under .maplibregl-map to outrank maplibre's own CSS, which loads after this. */
+/* maplibre's controls and popups on the design tokens, for dark mode. Scoped
+   under .maplibregl-map to outrank maplibre's CSS, which loads after this. */
 .maplibregl-map :is(.maplibregl-ctrl-group, .maplibregl-popup-content, .maplibregl-ctrl-attrib.maplibregl-compact) {
   background: var(--color-surface);
   color: var(--color-text);
@@ -610,10 +610,9 @@ a.button-secondary {
   font-weight: 500;
 }
 
-/* The chevrons on the HVDC's cables (see Map), lit one after another the way the
-   HVDC's flowing, each nudged that way as it lights. Only the grey fades, over
-   each one's halo, so an unlit chevron still stands out from the cables, paler.
-   Hovers and clicks go through them to the cables. */
+/* Chevrons on the HVDC cables (see Map), lit in turn in the flow direction and
+   nudged that way as they light. Only the grey fades, over each halo, so unlit
+   chevrons still stand out from the cables. Pointer events pass to the cables. */
 .hvdc-flow {
   pointer-events: none;
 }
@@ -622,8 +621,8 @@ a.button-secondary {
   visibility: hidden;
 }
 
-/* A block, so the marker is just as tall as the chevrons, without room below for
-   text, and centres them on the cables */
+/* A block, so the marker is exactly as tall as the chevrons (no room for text
+   below) and centres them on the cables */
 .hvdc-flow svg {
   display: block;
 }
@@ -677,35 +676,53 @@ a.button-secondary {
   }
 }
 
-/* A chart series toggle, filled with --series-colour while it's showing */
+/* A series toggle drawn as a legend entry: a --series-colour swatch, filled when
+   shown and hollow when hidden, then the name. Colour stays in the swatch so the
+   name reads on any fuel. */
 /* Narrow sides, so a row fits as many as it can before "+N more" */
 .series-button {
-  padding: var(--space-xs) var(--space-md);
-  border: 1.5px solid var(--series-colour);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--series-colour);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.series-button[aria-pressed='true'] {
-  background: var(--series-colour);
-  color: var(--color-text-inverse);
-}
-
-/* The substation's Total, in --color-reference, which is near white in dark mode */
-.series-button--reference[aria-pressed='true'] {
-  color: var(--color-surface);
-}
-
-/* Clear, "+N more" and the substation generators toggle */
-.series-button--neutral {
-  --series-colour: var(--color-border-strong);
+.series-button::before {
+  content: '';
   flex-shrink: 0;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--series-colour);
+  border-radius: 2px;
+}
+
+.series-button:hover {
+  background: var(--color-surface-hover);
+}
+
+.series-button[aria-pressed='true'] {
+  color: var(--color-text-strong);
+}
+
+.series-button[aria-pressed='true']::before {
+  background: var(--series-colour);
+}
+
+/* Clear, "+N more" and the substation generators toggle: no series, so no swatch */
+.series-button--neutral {
+  flex-shrink: 0;
+}
+
+.series-button--neutral::before {
+  display: none;
 }
 
 /* Not aria-pressed: the generators toggle's label already says Show or Hide */
@@ -754,7 +771,7 @@ a.button-secondary {
 
 .date-segment[data-focused] {
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-text-on-accent);
 }
 
 .date-field-dash {
@@ -779,6 +796,7 @@ a.button-secondary {
 
 .date-field-button[data-focus-visible] {
   outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 /* DateRangePicker's From and To dates, over its calendar */
@@ -832,13 +850,12 @@ a.button-secondary {
 }
 
 .calendar-nav {
-  padding: 0 var(--space-sm) var(--space-2xs);
+  display: flex;
+  padding: var(--space-xs);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
-  line-height: 1.2;
   cursor: pointer;
 }
 
@@ -912,8 +929,8 @@ a.button-secondary {
 }
 
 .calendar-cell[data-selected] {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-weight: 600;
 }
 
@@ -926,8 +943,8 @@ a.button-secondary {
 
 .calendar--range .calendar-cell[data-selection-start],
 .calendar--range .calendar-cell[data-selection-end] {
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
 }
 
 .calendar--range .calendar-cell[data-selection-start] {
@@ -945,9 +962,43 @@ a.button-secondary {
   outline-offset: -2px;
 }
 
+/* A selected day is filled with the ink the outline's drawn in, so its ring
+   sits inside a gap of surface instead */
+.calendar-cell[data-selected][data-focus-visible] {
+  box-shadow: inset 0 0 0 4px var(--color-surface);
+}
+
+/* A sortable column's arrow: the sorted column's, or faintly the one under the pointer */
+.sort-arrow {
+  opacity: 0;
+}
+
+th:hover > * > .sort-arrow {
+  opacity: 0.4;
+}
+
+.sort-arrow.is-active,
+th:hover > * > .sort-arrow.is-active {
+  opacity: 1;
+}
+
+/* A link in body text or a table: ink, picked out by its underline */
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
 /* The offers view's trading period arrows */
 .stepper-button {
-  padding: var(--space-2xs) var(--space-md);
+  display: flex;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -1059,14 +1110,14 @@ a.button-secondary {
 
 /* GeneratorPanel's and GridOverviewPanel's 90d, 1y, 5y and All column charts */
 
-/* Gapless columns: without this, anti-aliasing leaves a faint light seam
-   where neighbouring columns meet, even on whole-pixel edges. */
+/* Without this, anti-aliasing leaves a faint seam between neighbouring columns,
+   even on whole-pixel edges */
 .aggregate-columns .highcharts-column-series .highcharts-point {
   shape-rendering: crispEdges;
 }
 
-/* Match the area charts' fillOpacity (0.8). Faded as one group rather than
-   per column, so where column borders overlap they don't stack into darker lines. */
+/* Match the area charts' fillOpacity (0.8). Fading the group, not each column,
+   stops overlapping borders stacking into darker lines. */
 .aggregate-columns .highcharts-series-group {
   opacity: 0.8;
 }
@@ -1123,8 +1174,8 @@ a.button-secondary {
   flex-shrink: 0;
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-md);
-  background: var(--color-accent-strong);
-  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
@@ -1132,7 +1183,7 @@ a.button-secondary {
   transition: background-color 150ms;
 }
 .prerender__cta:hover {
-  background: color-mix(in oklch, var(--color-accent-strong) 85%, black);
+  background: color-mix(in oklch, var(--color-accent) 85%, black);
 }
 .prerender__nav {
   margin-left: auto;

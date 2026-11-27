@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronDown, Close } from './icons'
 
 interface Props {
   // Shown while nothing is picked
@@ -9,13 +10,12 @@ interface Props {
   active: Set<string>
   onToggle: (option: string) => void
   onClear: () => void
-  // Each option's swatch, when it has one
   swatch?: (option: string) => React.CSSProperties | undefined
   // The popover's edge to line up with the button's
   align?: 'left' | 'right'
 }
 
-// A filter button that opens a popover of options to pick any number of
+// Picks any number of options from a popover
 export default function FilterDropdown({
   label,
   countLabel = (n) => `${label}: ${n}`,
@@ -52,12 +52,15 @@ export default function FilterDropdown({
               e.stopPropagation()
               onClear()
             }}
-            style={{ opacity: 0.5, lineHeight: 1, fontSize: 'var(--font-size-xs)' }}
+            aria-label={`Clear ${label}`}
+            style={{ opacity: 0.6 }}
           >
-            ✕
+            <Close size={11} />
           </span>
         )}
-        <span style={{ opacity: 0.4, fontSize: 'var(--font-size-xs)' }}>▾</span>
+        <span style={{ opacity: 0.5 }}>
+          <ChevronDown size={12} />
+        </span>
       </button>
       {open && (
         <div
@@ -81,7 +84,7 @@ export default function FilterDropdown({
                 >
                   {opt}
                 </span>
-                {checked && <span style={{ color: 'var(--color-accent)', fontSize: 'var(--font-size-xs)' }}>✓</span>}
+                {checked && <Check size={12} />}
               </div>
             )
           })}

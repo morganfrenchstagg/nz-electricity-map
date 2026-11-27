@@ -21,10 +21,10 @@ function peekDays(days: string[]): OutageData | null {
   return held.every((d) => d !== undefined) ? mergeOutageDays(held) : null
 }
 
-// A past day's or range's outages are the ones going on in its days, so its
-// capacity is what it was then. Every other view has the current ones: Today and
-// 3d keep them up to date, and the 90d, 1y, 5y and All views, whose map shows live
-// data, load them once and don't refresh them until Today or 3d is picked again.
+// A past day's or range's outages are those going on in its days, so its capacity is
+// what it was then. Other views have the current ones: Today and 3d keep them up to
+// date, and 90d, 1y, 5y and All load them once, refreshing only when Today or 3d is
+// picked again.
 export function useOutages(mode: DateMode): OutageData | null {
   const key = outageDays(mode).join(',')
   const live = isLiveMode(mode)

@@ -25,7 +25,7 @@ beforeEach(async () => {
       return Promise.resolve(Response.json(responses.shift(), { headers: { 'Cache-Control': 'max-age=30' } }))
     }),
   )
-  // a fresh copy of the module each time, so nothing is cached from the last test
+  // Fresh module each test, so nothing stays cached from the last
   vi.resetModules()
   api = await import('./api')
 })
@@ -35,7 +35,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-// fetches dispatch/recent again, once what's cached has expired
+// After the cached copy expires
 async function refetchRecent() {
   vi.advanceTimersByTime(60 * 1000)
   return api.fetchDispatch('recent')
@@ -106,7 +106,7 @@ describe('fetchDispatch("recent")', () => {
   })
 })
 
-// Serves the solar API's files by path, as their results, and 404s any other
+// Serves the solar API's files by path; 404s anything else
 function stubSolarApi(files: Record<string, unknown>) {
   vi.stubGlobal(
     'fetch',

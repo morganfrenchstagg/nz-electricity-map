@@ -3,26 +3,22 @@ import { CHARGING_FUEL_CODE } from './colours'
 import { nzNowMs, nzWallClockMs } from './time'
 import type { Period } from './time'
 
-// Commissioning dates are real instants (e.g. "2021-07-21T02:00:00.000Z"), put in the
-// "local time as UTC" convention (see utils/time.ts) to compare with dispatch times.
-// The same few dozen dates come up on every render, so each is converted once.
+// Commissioning dates are real instants, put in the "local time as UTC" convention
+// (see utils/time.ts) to compare with dispatch times. Cached: the same few dozen recur every render.
 const instants = new Map<string, number>()
 function instantMs(iso: string): number {
   let ms = instants.get(iso)
   if (ms === undefined) {
     const instant = Date.parse(iso)
-    // nzWallClockMs goes by the second, so the milliseconds go back on (an end at 1:59:59.999pm
-    // must stay before a start at 2pm)
+    // nzWallClockMs drops the milliseconds; restore them so an end at 1:59:59.999pm stays before a 2pm start
     ms = nzWallClockMs(instant) + (((instant % 1000) + 1000) % 1000)
     instants.set(iso, ms)
   }
   return ms
 }
 
-// A unit is in service from its commissioning through its decommissioning, the
-// last instant it was (as when a unit moves node, e.g. Pātea's old nodes end at
-// 1:59:59.999pm as its new ones start at 2pm). One not yet given a commissioning
-// date is still being commissioned, so isn't in service yet.
+// In service from commissioning through decommissioning, its last instant (Pātea's old nodes
+// end at 1:59:59.999pm as its new ones start at 2pm). No commissioning date: not in service yet.
 function serviceStart(unit: Unit): number {
   return unit.commissioned ? instantMs(unit.commissioned) : Infinity
 }
@@ -35,7 +31,7 @@ export function inServiceAt(unit: Unit, atMs: number): boolean {
   return serviceStart(unit) <= atMs && atMs <= serviceEnd(unit)
 }
 
-// In service at any point in the period, so it has dispatch data to show there
+// At any point in the period, so it has dispatch data there
 export function inServiceDuring(unit: Unit, period: Period): boolean {
   return serviceStart(unit) <= period.to && period.from <= serviceEnd(unit)
 }
@@ -44,20 +40,18 @@ export function isDecommissioned(unit: Unit, atMs = nzNowMs()): boolean {
   return serviceEnd(unit) < atMs
 }
 
-// Not in service yet: still being commissioned, or due to be. The live views show
-// one once it's dispatching, though it doesn't count towards capacity until it's in service.
+// Not in service yet. Live views show it once it's dispatching, but it doesn't count
+// towards capacity until it's in service.
 export function isCommissioning(unit: Unit, atMs = nzNowMs()): boolean {
   return atMs < serviceStart(unit)
 }
 
-// Where any of the units come into or go out of service between `from` and `to`,
-// stepping their total capacity
+// Times in (from, to] where the units' total capacity steps
 export function serviceChangesBetween(units: Unit[], from: number, to: number): number[] {
   return units.flatMap((u) => [serviceStart(u), serviceEnd(u) + 1]).filter((ms) => ms > from && ms <= to)
 }
 
-// A generator is retired once all of its units are decommissioned. One whose units
-// are still being commissioned isn't.
+// All units decommissioned; units still being commissioned don't count as retired
 export function isRetired(g: Generator, atMs = nzNowMs()): boolean {
   return g.units.every((u) => isDecommissioned(u, atMs))
 }
@@ -66,8 +60,7 @@ export function isCharging(unit: Unit): boolean {
   return unit.fuelCode === CHARGING_FUEL_CODE
 }
 
-// What a unit's name is marked with: a battery's charging unit, to tell it apart
-// from its discharging one, and a unit still being commissioned
+// Marks a battery's charging unit apart from its discharging one, and a unit still being commissioned
 export function unitNotes(unit: Unit): string {
   return [isCharging(unit) && 'charging', isCommissioning(unit) && 'commissioning'].filter(Boolean).join(', ')
 }
@@ -77,10 +70,8 @@ export function unitLabel(unit: Unit): string {
   return notes ? `${unit.name} (${notes})` : unit.name
 }
 
-// A unit's name without its generator's leading it ("Huntly Unit 5" is "Unit 5"),
-// for where the generator is already named. A unit named just as its generator is ''.
-// What's left has to read as a name, so "Southdown & Southdown 5" and "Southdown 5"
-// keep theirs rather than becoming "& Southdown 5" and "5".
+// A unit's name without its generator's ("Huntly Unit 5" → "Unit 5"); '' if nothing's left.
+// Kept whole when the rest wouldn't read as a name, like "& Southdown 5" or "5".
 export function shortUnitName(unitName: string, generatorName: string): string {
   if (!unitName.startsWith(generatorName)) return unitName
   const rest = unitName.slice(generatorName.length)
@@ -96,10 +87,9 @@ export function combinedUnitOf(unit: Unit, units: Unit[]): Unit | undefined {
   return units.find((c) => c.combines?.includes(unit.node))
 }
 
-// A unit combined into another has no generation of its own while that one stands
-// in for it, so it's left out over a period it's only in service within that one's
-// (all of Southdown's two units' service, but not Huntly's Rankine units', which
-// outlasted theirs). Without a period, over all of its service.
+// A unit combined into another has no generation of its own while that one stands in.
+// It's left out over a period unless in service after that one ends (Huntly's Rankine
+// units outlasted theirs; Southdown's two didn't). No period means all of its service.
 export function isCombinedOver(unit: Unit, units: Unit[], period: Period = { from: -Infinity, to: Infinity }): boolean {
   const combined = combinedUnitOf(unit, units)
   if (!combined) return false

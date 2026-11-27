@@ -21,22 +21,20 @@ export type DateMode =
   | { kind: '5y'; aggregation: FiveYearAggregation }
   | { kind: 'all'; aggregation: AllAggregation }
 
-// The 90d view's totals: one for each day (the default), or each week
+// 90d view; daily by default
 export type NinetyDayAggregation = 'daily' | 'weekly'
 
-// The 1y view's totals: one for each day, or each week (the default)
+// 1y view; weekly by default
 export type YearAggregation = 'daily' | 'weekly'
 
-// The 5y view's totals: one for each week, or each month (the default)
+// 5y view; monthly by default
 export type FiveYearAggregation = 'weekly' | 'monthly'
 
-// The All view's totals: one for each month, calendar quarter, or year (the default)
+// All view; annual by default
 export type AllAggregation = 'monthly' | 'quarterly' | 'annual'
 
-// A period's view. 90d, 1y, 5y and All are on the totals given, when they're
-// one of that view's choices, or else on its default ones: daily for 90d, and
-// the coarsest for the rest. Switching to another view gives it its default,
-// rather than carrying over totals picked for the last one.
+// Uses the given totals if the view offers them, else its default, so switching view
+// doesn't carry over the last view's totals
 export function periodMode(kind: Exclude<DateMode['kind'], 'date' | 'range'>, aggregation?: string | null): DateMode {
   switch (kind) {
     case 'last90':
@@ -52,37 +50,32 @@ export function periodMode(kind: Exclude<DateMode['kind'], 'date' | 'range'>, ag
   }
 }
 
-// The views that chart aggregates (see isAggregateMode), each with a choice of
-// totals (see AggregationToggle)
+// Views that chart aggregates (see isAggregateMode), each with a choice of totals (see AggregationToggle)
 export type AggregateMode = Extract<DateMode, { kind: 'last90' | 'lastYear' | '5y' | 'all' }>
 
-// Today and 3d are the only views kept up to date. Past days and aggregates are
-// left alone until one of them is picked again.
+// Only Today and 3d are kept up to date; past days and aggregates refresh when picked again
 export function isLiveMode(mode: DateMode): mode is Extract<DateMode, { kind: 'recent' | 'today' }> {
   return mode.kind === 'recent' || mode.kind === 'today'
 }
 
-// The 90d, 1y, 5y and All views chart aggregates (useAggregates) in the node
-// panels and GridOverviewPanel; the map keeps showing live data underneath them,
-// as it was when the view was picked.
+// These chart aggregates (useAggregates) in the node panels and GridOverviewPanel; the map
+// underneath keeps the live data as of when the view was picked
 export function isAggregateMode(mode: DateMode): mode is AggregateMode {
   return 'aggregation' in mode
 }
 
-// A day or range picked from the date picker, which stops at yesterday. Every
-// other view reaches up to now.
+// From the date picker, which stops at yesterday. Other views reach up to now.
 export function isPastMode(mode: DateMode): mode is Extract<DateMode, { kind: 'date' | 'range' }> {
   return mode.kind === 'date' || mode.kind === 'range'
 }
 
-// How much the 3d view's rolling window holds
+// The 3d view's rolling window
 const RECENT_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
-// The span of time a view's data covers, to show the units in service then. The
-// 90d, 1y, 5y and All views cover their charts' days through to now, as the map shows
-// live data under them, so it has every generator they chart, retired ones too.
-// Their charts show every unit's history regardless (see GeneratorAdapter.getCodes).
+// Picks the units in service. Aggregate views run through to now, as the map shows live data
+// under them, so it has every generator they chart, retired ones too. Their charts show every
+// unit's history regardless (see GeneratorAdapter.getCodes).
 export function periodOf(mode: DateMode): Period {
   const now = nzNowMs()
   const dayStart = (date: string) => nzLocalMs(`${date}T00:00:00`)
@@ -111,8 +104,7 @@ export function datesBetween(from: string, to: string): string[] {
   return dates
 }
 
-// Inclusive day count between two ISO dates. Unlike datesBetween this isn't
-// capped at MAX_RANGE_DAYS, so it can tell when a range is too long.
+// Inclusive. Not capped at MAX_RANGE_DAYS like datesBetween, so it can tell when a range is too long.
 export function daysBetween(from: string, to: string): number {
   const ms = Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')
   return Math.round(ms / 86400000) + 1

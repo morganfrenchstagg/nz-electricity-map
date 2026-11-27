@@ -1,10 +1,10 @@
 import { lazy, startTransition, Suspense, useState } from 'react'
 import type { CompareCalendarProps, DatePickerProps, DateRangePickerProps } from './DatePickers'
-import { CalendarIcon, rangeLabel } from './dateLabels'
+import { rangeLabel } from './dateLabels'
+import { CalendarIcon } from './icons'
 
-// DatePickers, with React Aria's calendars and date fields (about a third of
-// it), loads once a picker is wanted rather than with the page. Until then each
-// picker has a stand-in that looks the same.
+// DatePickers, with React Aria's calendars and date fields (about a third of it), loads when a
+// picker is wanted, not with the page. Until then each picker has a look-alike stand-in.
 const loadPickers = () => import('./DatePickers')
 const LoadedRangePicker = lazy(() => loadPickers().then((m) => ({ default: m.DateRangePicker })))
 const LoadedDatePicker = lazy(() => loadPickers().then((m) => ({ default: m.DatePicker })))
@@ -25,8 +25,7 @@ export function CompareCalendar(props: CompareCalendarProps) {
   )
 }
 
-// PeriodToggle's calendar button, which is always there, so it loads when the
-// pointer comes over it, it takes focus or it's opened
+// PeriodToggle's calendar button is always shown, so it loads on hover, focus or open
 export function DateRangePicker(props: DateRangePickerProps) {
   const [wanted, setWanted] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -61,7 +60,7 @@ export function DateRangePicker(props: DateRangePickerProps) {
   )
 }
 
-// GeneratorPanel's Offers date, only there in its Offers view, so it loads with it
+// Only in GeneratorPanel's Offers view, so it loads with it
 export function DatePicker(props: DatePickerProps) {
   return (
     <Suspense fallback={<DateFieldStandIn value={props.value} />}>

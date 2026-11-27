@@ -21,11 +21,11 @@ import {
 } from 'react-aria-components'
 import { parseDate } from '@internationalized/date'
 import type { CalendarDate } from '@internationalized/date'
-import { CalendarIcon, LOCALE, rangeLabel } from './dateLabels'
+import { LOCALE, rangeLabel } from './dateLabels'
 import type { Range } from './dateLabels'
+import { CalendarIcon, ChevronLeft, ChevronRight } from './icons'
 
-// The pickers are built on React Aria's, the unstyled base of React Spectrum's.
-// Dates come and go as ISO "YYYY-MM-DD" strings, like DateMode's.
+// Built on React Aria, React Spectrum's unstyled base. Dates are ISO "YYYY-MM-DD", like DateMode's.
 
 const MONTHS = Array.from({ length: 12 }, (_, i) =>
   new Date(Date.UTC(2000, i, 1)).toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }),
@@ -39,20 +39,20 @@ interface CommonProps {
 }
 
 export interface DateRangePickerProps extends CommonProps {
-  // A single day is a range that starts and ends on it
+  // A single day starts and ends on it
   value: Range | null
   onChange: (range: Range) => void
-  // The most days a range may span, counting both ends
+  // Counting both ends
   maxDays: number
-  // Why value can't be charted, if it can't
+  // Why value can't be charted
   error: string | null
-  // Shown pressed, as a picked range is in place of the period buttons
+  // Shown pressed while a picked range stands in for the period buttons
   isActive: boolean
-  // Focus the button on mount, as when it takes over from LazyDatePickers' stand-in
+  // Set when it takes over from LazyDatePickers' stand-in
   autoFocus?: boolean
 }
 
-// The From and To fields' dates, either of which can be part typed or cleared
+// From and To; each null while part typed or cleared
 interface Draft {
   start: CalendarDate | null
   end: CalendarDate | null
@@ -62,8 +62,7 @@ function toDraft(value: Range | null): Draft {
   return value ? { start: parseDate(value.start), end: parseDate(value.end) } : { start: null, end: null }
 }
 
-// A calendar button, for the end of PeriodToggle, that opens typed From and To
-// dates over a calendar to pick the range from
+// A calendar button at the end of PeriodToggle, opening From and To fields over a range calendar
 export function DateRangePicker({
   value,
   onChange,
@@ -78,11 +77,11 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const [minValue, maxValue] = useBounds(min, max)
   const [draft, setDraft] = useState(() => toDraft(value))
-  // The calendar's month, which follows the dates as they're typed
+  // The calendar's month; follows the dates as they're typed
   const [focusedDate, setFocusedDate] = useState(() => draft.start ?? maxValue)
 
-  // Follow value when it changes from outside, e.g. a period button clearing
-  // it. Done while rendering, like useDateRangePicker's syncing from dateMode.
+  // Follow outside changes to value (a period button clearing it), during render like
+  // useDateRangePicker's sync from dateMode
   const valueKey = value ? `${value.start}/${value.end}` : ''
   const [syncedKey, setSyncedKey] = useState(valueKey)
   if (valueKey !== syncedKey) {
@@ -92,9 +91,8 @@ export function DateRangePicker({
     setFocusedDate(next.start ?? maxValue)
   }
 
-  // Charts the dates once From is whole, as a single day while To is empty.
-  // The fields already show the new value, so it isn't synced back into them,
-  // which would fill an emptied To with From's date.
+  // Charts once From is whole, as a single day while To is empty. Not synced back into the
+  // fields, which already show it: that would fill an emptied To with From's date.
   const commit = (start: CalendarDate | null, end: CalendarDate | null) => {
     setDraft({ start, end })
     if (!start) return
@@ -178,11 +176,10 @@ interface DateRangeFieldProps {
   isInvalid: boolean
 }
 
-// DateRangePicker's From or To date
 function DateRangeField({ label, ...props }: DateRangeFieldProps) {
   return (
     <DateField {...props} validationBehavior="aria" shouldForceLeadingZeros className="date-range-field">
-      <Label className="eyebrow">{label}</Label>
+      <Label className="heading-sm">{label}</Label>
       <DateInput className="date-field date-field-input">
         {(s) => <DateSegment segment={s} className="date-segment" />}
       </DateInput>
@@ -198,7 +195,6 @@ export interface DatePickerProps extends CommonProps {
   onChange: (date: string | null) => void
 }
 
-// A typed date, with a calendar to pick it from
 export function DatePicker({ value, onChange, min, max, isOpen, onOpenChange, isInvalid, ariaLabel }: DatePickerProps) {
   const date = useMemo(() => (value ? parseDate(value) : null), [value])
   const [minValue, maxValue] = useBounds(min, max)
@@ -279,7 +275,6 @@ function useBounds(min: string, max: string): [CalendarDate, CalendarDate] {
   return useMemo(() => [parseDate(min), parseDate(max)], [min, max])
 }
 
-// DatePicker's, inside its field
 function CalendarButton() {
   return (
     <Button className="date-field-button">
@@ -296,8 +291,7 @@ function CalendarPopover({ children }: { children: ReactNode }) {
   )
 }
 
-// Month and year dropdowns between the arrows: the data goes back years, which
-// is a lot of clicking a month at a time
+// Month and year dropdowns: the data goes back years, too far to click a month at a time
 function CalendarHeader() {
   const singleState = useContext(CalendarStateContext)
   const rangeState = useContext(RangeCalendarStateContext)
@@ -306,15 +300,14 @@ function CalendarHeader() {
   const { focusedDate, minValue, maxValue } = state
   const years: number[] = []
   for (let y = maxValue?.year ?? focusedDate.year; y >= (minValue?.year ?? focusedDate.year); y--) years.push(y)
-  // Months outside the bounds in the first and last years
   const monthOutOfBounds = (month: number) =>
     (minValue != null && focusedDate.year === minValue.year && month < minValue.month) ||
     (maxValue != null && focusedDate.year === maxValue.year && month > maxValue.month)
 
   return (
     <header className="calendar-header">
-      <Button slot="previous" className="calendar-nav">
-        ‹
+      <Button slot="previous" className="calendar-nav" aria-label="Previous month">
+        <ChevronLeft size={14} />
       </Button>
       <select
         aria-label="Month"
@@ -340,8 +333,8 @@ function CalendarHeader() {
           </option>
         ))}
       </select>
-      <Button slot="next" className="calendar-nav">
-        ›
+      <Button slot="next" className="calendar-nav" aria-label="Next month">
+        <ChevronRight size={14} />
       </Button>
     </header>
   )

@@ -142,7 +142,7 @@ export function priorTooltip(
   const row = ({ name, colour, before, now }: PriorTooltipEntry) =>
     `<tr><td><span style="color:${colour}">┅</span> ${name}</td><td><b>${format(before!)}</b></td>` +
     `<td style="color:var(--color-text-muted);padding-left:var(--space-md)">${now !== null ? changeText(now, before!, format) : ''}</td></tr>`
-  return `<table style="margin-top:var(--space-sm)"><tr><td colspan="3" class="eyebrow">${tooltipTime(priorMs, period)}</td></tr>${rows.map(row).join('')}</table>`
+  return `<table style="margin-top:var(--space-sm)"><tr><td colspan="3" class="heading-sm">${tooltipTime(priorMs, period)}</td></tr>${rows.map(row).join('')}</table>`
 }
 
 // The end of a chart's description for screen readers, when it's compared

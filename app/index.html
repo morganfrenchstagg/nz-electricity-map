@@ -3,8 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Each page's title, description, canonical link and structured data, and
-         its content in #root, are written by the build (see build/pages.ts) -->
+    <!-- The build writes each page's title, description, canonical link, structured data and #root content (see build/pages.ts) -->
     <!--page-head-->
     <title>NZ Electricity Map</title>
     <!--/page-head-->
@@ -25,8 +24,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#1d4ed8" />
-    <!-- The theme the viewer picked (light unless they picked dark) before first
-         paint, so a dark page doesn't flash light. See src/theme.ts. -->
+    <!-- Sets the picked theme before first paint, so a dark page doesn't flash light (see src/theme.ts) -->
     <script>
       ;(function () {
         var theme = 'light'

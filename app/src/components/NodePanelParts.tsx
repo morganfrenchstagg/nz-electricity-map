@@ -8,8 +8,9 @@ import type { Compare, PriorData } from '../utils/compare'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { CHART_CONTAINER_PROPS } from '../utils/chart'
 import type { PanelProps } from './Panel'
+import { ChevronDown } from './icons'
 
-// The pieces GeneratorPanel and SubstationPanel share
+// Shared by GeneratorPanel and SubstationPanel
 
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 
@@ -36,16 +37,13 @@ interface NodeTitleProps {
   onNodeChange: (node: NonNullable<SelectedNode>) => void
   // Left out where the panel's header menu has Clear instead (see hasHeaderMenu)
   onClear?: () => void
-  // The line under the title
   subtitle?: string
-  // After the subtitle, on its last line, where there's room for all of them there
+  // After the subtitle, on its last line, only if they all fit there
   fuels?: { label: string; colour: string }[]
 }
 
-// The node's name, which opens the node picker, and the line under it. Kept at
-// its full width until the header is compact, so a header too narrow for the
-// title and what's beside it (GeneratorPanel's capacity readout) hides that
-// rather than squeezing the title.
+// The title opens the node picker. Full width until compact, so a narrow header hides what's
+// beside it (GeneratorPanel's capacity readout) rather than squeezing it.
 export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitle, fuels = [] }: NodeTitleProps) {
   const { generators, substations } = useDefinitions()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -70,7 +68,9 @@ export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitl
           }}
         >
           {title}
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-faint)', fontWeight: 400 }}>▾</span>
+          <span style={{ color: 'var(--color-text-faint)' }}>
+            <ChevronDown size={12} />
+          </span>
         </button>
         {onClear && (
           <button onClick={onClear} className="button-secondary" aria-label="Clear">
@@ -78,7 +78,7 @@ export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitl
           </button>
         )}
       </div>
-      {/* Wraps to the title row's width rather than widening the title block, so a long subtitle doesn't hide the readout */}
+      {/* Wraps to the title row's width instead of widening the block, so a long subtitle can't hide the readout */}
       <div
         ref={lineRef}
         style={{
@@ -98,7 +98,7 @@ export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitl
           </span>
         )}
         {fuels.length > 0 && (
-          // Still laid out while left out, so it's measured for when there's room again
+          // Still laid out while hidden, so it's measured for when there's room again
           <span
             ref={fuelsRef}
             style={{
@@ -135,9 +135,8 @@ export function NodeTitle({ node, title, compact, onNodeChange, onClear, subtitl
   )
 }
 
-// Whether the fuels fit beside the subtitle on its line, rather than wrapping
-// onto lines of their own. Checked after every render, as the node can change,
-// and whenever the line is resized.
+// Whether the fuels fit beside the subtitle without wrapping. Checked after every render,
+// as the node can change, and on resize.
 function useFuelsFit() {
   const lineRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLSpanElement>(null)
@@ -168,7 +167,6 @@ function useFuelsFit() {
   return [lineRef, subtitleRef, fuelsRef, fit] as const
 }
 
-// What the chart area says in place of a chart
 export function ChartMessage({ error = false, children }: { error?: boolean; children: ReactNode }) {
   return (
     <div
@@ -195,7 +193,6 @@ interface NodeChartProps {
   empty: boolean
 }
 
-// The node's chart, or why there isn't one
 export function NodeChart({ chartKey, options, loading, error, empty }: NodeChartProps) {
   return (
     <>

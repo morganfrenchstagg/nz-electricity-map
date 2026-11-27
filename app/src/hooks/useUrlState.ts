@@ -11,33 +11,30 @@ import type { Compare } from '../utils/compare'
 
 export type ViewMode = 'generation' | 'offers'
 
-// Everything a link carries, in the order it's written:
+// What a link carries, in the order it's written:
 //   /generator/huntly, /substation/otahuhu or /hvdc
 //                   the open panel, when it's a single station (see stationPaths),
 //                   or /generator/huntly/historic, a generator at All, or
-//   ?node=          several stations: generators:HLY,TCC or substations:OTA,PEN, or
-//                   any node while the pipeline is open. A single station's
-//                   ?node=generator:HLY, substation:OTA or hvdc, from older links,
-//                   opens its page.
-//   ?mode=          today | recent | last90 | lastYear | 5y | all (today by
-//                   default, recent, the last 3 days, on a station's page, and
-//                   all on a generator's history's, which leaves it out), with
-//   ?aggregation=   a view's totals when they aren't its default: weekly for
-//                   90d, daily for 1y, weekly for 5y, or monthly or quarterly
-//                   for All, or instead
+//   ?node=          several stations (generators:HLY,TCC or substations:OTA,PEN), or
+//                   any node while the pipeline is open. Older links' single-station
+//                   ?node=generator:HLY, substation:OTA or hvdc open its page.
+//   ?mode=          today | recent | last90 | lastYear | 5y | all (today by default,
+//                   recent on a station's page, all and left out on a generator's
+//                   history), with
+//   ?aggregation=   non-default totals: weekly (90d), daily (1y), weekly (5y),
+//                   monthly or quarterly (All), or instead
 //   ?date=          a single day, or
 //   ?from=&to=      a custom range
 //   ?compare=       the earlier period the view is compared with: prev | week |
 //                   year, or the "YYYY-MM-DD" day it starts (see utils/compare)
 //   ?view=offers    the generator panel's Offers view, with
 //   ?tp=            its trading period
-//   ?fuels=         the grid overview's fuels, when not all of them
-//   ?chart=line     the charts' lines in place of stacks, and any other chart
-//                   setting that isn't its default under its own param (see chartSettings)
+//   ?fuels=         the grid overview's fuels, when not all
+//   ?chart=line     lines instead of stacks; other non-default chart settings
+//                   get their own params (see chartSettings)
 //   ?expanded=true  the panel is expanded
 //   /pipeline       the pipeline modal is open, in place of the station's path
-// Any other params the link had (e.g. utm_source, or a flag in featureFlags.ts)
-// are kept, after these.
+// Other params (e.g. utm_source, or a flag in featureFlags.ts) are kept, after these.
 const PARAMS = [
   'node',
   'mode',
@@ -188,9 +185,9 @@ function resolveNode(param: string, generators: Generator[], substations: Substa
   return null
 }
 
-// The state kept in the URL, read from it once on load and written back whole
-// whenever any of it changes, so the URL never depends on which part changed
-// first. The URL's ?node= is resolved against the definitions once they load.
+// Read from the URL once on load and written back whole on any change, so the
+// URL never depends on which part changed first. ?node= resolves once the
+// definitions load.
 export function useUrlState(generators: Generator[], substations: Substation[]) {
   const [initial] = useState(readUrl)
   // ?node= stays in the URL as it was until it's resolved

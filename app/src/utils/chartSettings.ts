@@ -1,8 +1,6 @@
-// How a chart shows its data, as picked from ChartSettingsMenu's gear. Each
-// setting is a choice of options, the first its default, and is kept in a
-// link under its param while it isn't the default (see useUrlState). To add
-// one, add it here, list it in the ChartSettingsMenu of each panel whose chart
-// follows it, and have those charts read it from ChartSettings.
+// Picked from ChartSettingsMenu's gear. Each setting's first option is its default, and it's kept
+// in the URL under its param only when not the default (see useUrlState). To add one, add it here,
+// list it in the ChartSettingsMenu of each panel it applies to, and read it from ChartSettings.
 
 interface ChartSettingOption {
   value: string
@@ -10,19 +8,17 @@ interface ChartSettingOption {
 }
 
 interface ChartSettingDefinition {
-  // The setting's heading in the menu, or its checkbox's label
+  // Menu heading, or the checkbox's label
   label: string
   param: string
   // The first is the default
   options: readonly ChartSettingOption[]
-  // A setting of two options shown as a checkbox, ticked for the second,
-  // rather than as a toggle of both
+  // Two options shown as a checkbox, ticked for the second, instead of a toggle
   checkbox?: true
 }
 
 export const CHART_SETTINGS = {
-  // Each series stacked on the ones below it, a line of its own from zero, or
-  // its share of their total, stacked up to 100%
+  // Stacked, a line each from zero, or each series' share stacked to 100%
   chartType: {
     label: 'Chart type',
     param: 'chart',
@@ -32,8 +28,7 @@ export const CHART_SETTINGS = {
       { value: 'proportion', label: 'Proportion' },
     ],
   },
-  // Embedded solar charted as a series of its own beside grid-scale solar, or
-  // the two as one Solar series
+  // Embedded solar beside grid-scale solar, or both as one Solar series
   solar: {
     label: 'Combine distributed and grid-scale solar',
     param: 'solar',
@@ -43,8 +38,7 @@ export const CHART_SETTINGS = {
       { value: 'combined', label: 'Combined' },
     ],
   },
-  // Gas, coal and diesel charted as series of their own, or as one Fossil
-  // fuels series
+  // Gas, coal and diesel apart, or as one Fossil fuels series
   fossil: {
     label: 'Combine fossil fuels',
     param: 'fossil',
@@ -68,8 +62,7 @@ export const DEFAULT_CHART_SETTINGS = Object.fromEntries(
   KEYS.map((key) => [key, CHART_SETTINGS[key].options[0].value]),
 ) as ChartSettings
 
-// The settings in a link's params. One it leaves out, or gives a value that
-// isn't one of the setting's options, is its default.
+// A missing or unknown value falls back to the default
 export function readChartSettings(params: URLSearchParams): ChartSettings {
   return Object.fromEntries(
     KEYS.map((key) => {
@@ -80,7 +73,6 @@ export function readChartSettings(params: URLSearchParams): ChartSettings {
   ) as ChartSettings
 }
 
-// Sets the param of each setting that isn't its default
 export function writeChartSettings(settings: ChartSettings, params: URLSearchParams) {
   for (const key of KEYS) {
     if (settings[key] !== DEFAULT_CHART_SETTINGS[key]) params.set(CHART_SETTINGS[key].param, settings[key])

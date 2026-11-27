@@ -21,8 +21,8 @@ const unit = (
   ...extra,
 })
 
-// A battery in service while the solar farm beside it is still being commissioned, as at Ruakākā
-// (under another site code, as the under-construction list also has Ruakākā's solar farm)
+// A battery in service beside a solar farm still being commissioned, as at Ruakākā (under
+// another site code, as the under-construction list also has Ruakākā's solar farm)
 const RUK: Generator = {
   site: 'TST',
   name: 'Ruakākā',
@@ -69,8 +69,8 @@ const PTA: Generator = {
     unit('OHG1101 PTA1', 'Pātea Unit 1', 'Hydro', 'HYD', 10, { commissioned: '2026-06-25T02:00:00.000Z' }),
   ],
 }
-// Southdown's two gas units were only metered together, as a combined unit, and all
-// three retired in January 2016. Its battery came after them.
+// Southdown's two gas units were metered only together, as a combined unit. All three retired
+// in January 2016, before its battery came.
 const SWN: Generator = {
   site: 'SWN',
   name: 'Southdown',
@@ -110,7 +110,7 @@ const latest = (node: string, mw: number): RecentData => ({
 describe('generatorPopupHtml', () => {
   it("lists a unit still being commissioned once it's dispatching in the live views, as though in full outage", () => {
     const html = generatorPopupHtml(RUK, DATA, null, NOW, true, [])
-    // Its capacity is struck out for none, as an outage would leave it
+    // Capacity struck out to none, as an outage would leave it
     expect(text(html)).toContain('Solar (commissioning) 60 MW / 130 MW 0 MW (0%)')
     expect(html).toContain('<s style="color:var(--color-text-faint)">130 MW</s>')
     // Its generation counts towards the total, but not its capacity
@@ -212,7 +212,7 @@ describe('hvdcPopupHtml', () => {
     expect(html).toContain(
       '<s style="color:var(--color-text-faint)">850 MW</s> <span style="color:var(--color-danger)">650 MW</span>',
     )
-    // Each half is scaled to its capacity, to fit the cut to it in beside the flow
+    // Each half scales to its capacity, so the cut fits beside the flow
     expect(fills(html).map(Math.round)).toEqual([38, 0])
     expect(stripes(html).map(Math.round)).toEqual([24, 17])
   })

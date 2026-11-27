@@ -4,6 +4,7 @@ import type { UnderConstructionNode } from '../types'
 import { fuelColour, statusColour } from '../utils/colours'
 import { formatMonthYear } from '../utils/format'
 import FilterDropdown from './FilterDropdown'
+import { ArrowDown, ArrowUp, ExternalLink } from './icons'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
 
@@ -91,17 +92,15 @@ export default function PipelineModal({ onClose }: Props) {
         className="modal"
         style={{ width: '100%', maxWidth: 1200, maxHeight: '90vh' }}
       >
-        {/* Header */}
         <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div className="title">Generation Pipeline</div>
+            <div className="title">Generation pipeline</div>
           </div>
           <button onClick={onClose} className="button-secondary">
             Close
           </button>
         </div>
 
-        {/* Filter bar */}
         <div className="section" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <FilterDropdown
             label="Fuel"
@@ -144,23 +143,13 @@ export default function PipelineModal({ onClose }: Props) {
                 setOperators(new Set())
                 setStatuses(new Set())
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-accent)',
-                fontSize: 'var(--font-size-sm)',
-                cursor: 'pointer',
-                padding: 'var(--space-2xs) var(--space-xs)',
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-              }}
+              className="button-secondary"
             >
               Clear all
             </button>
           )}
         </div>
 
-        {/* Table */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -202,7 +191,7 @@ export default function PipelineModal({ onClose }: Props) {
                   onSort={handleSort}
                   align="right"
                 />
-                <th className="eyebrow" style={th()}></th>
+                <th className="heading-sm" style={th()}></th>
               </tr>
             </thead>
             <tbody>
@@ -306,15 +295,11 @@ export default function PipelineModal({ onClose }: Props) {
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          style={{
-                            color: 'var(--color-accent)',
-                            fontSize: 'var(--font-size-sm)',
-                            textDecoration: 'none',
-                            opacity: 0.7,
-                          }}
+                          style={{ display: 'flex', color: 'var(--color-text-muted)' }}
                           title="Source"
+                          aria-label={`Source for ${n.name}`}
                         >
-                          ↗
+                          <ExternalLink size={12} />
                         </a>
                       ) : null}
                     </td>
@@ -348,7 +333,7 @@ function SortTh({
   return (
     <th
       onClick={() => onSort(col)}
-      className="eyebrow"
+      className="heading-sm"
       style={{
         ...th(),
         textAlign: align,
@@ -366,8 +351,8 @@ function SortTh({
         }}
       >
         {label}
-        <span style={{ fontSize: 'var(--font-size-2xs)', opacity: active ? 1 : 0.3 }}>
-          {active ? (sortDir === 'asc' ? '▲' : '▼') : '▲'}
+        <span className={active ? 'sort-arrow is-active' : 'sort-arrow'}>
+          {active && sortDir === 'desc' ? <ArrowDown size={11} /> : <ArrowUp size={11} />}
         </span>
       </span>
     </th>

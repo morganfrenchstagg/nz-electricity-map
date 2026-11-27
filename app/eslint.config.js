@@ -15,10 +15,9 @@ export default tseslint.config(
     },
     linterOptions: { reportUnusedDisableDirectives: 'error' },
     rules: {
-      // Only the two classic hooks rules. The plugin's recommended preset also
-      // enables the React Compiler rules (set-state-in-effect, refs, ...),
-      // which flag the fetch-in-effect hooks here; this app doesn't use the
-      // compiler.
+      // Only the two classic hooks rules: the recommended preset adds React
+      // Compiler rules, which flag the fetch-in-effect hooks, and this app
+      // doesn't use the compiler.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'error',
     },

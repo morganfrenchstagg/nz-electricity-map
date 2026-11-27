@@ -13,7 +13,7 @@ import {
 } from '../utils/compare'
 import type { Compare, CompareOption, PriorPeriod } from '../utils/compare'
 import { CompareCalendar } from './LazyDatePickers'
-import { CalendarIcon } from './dateLabels'
+import { CalendarIcon, ChevronDown, Compare as CompareIcon } from './icons'
 
 const OFF = 'off'
 
@@ -112,8 +112,8 @@ export default function CompareMenu({ dateMode, compare, onCompareChange, compac
       <Button className={period ? 'compare-button is-active' : 'compare-button'}>
         <CompareIcon />
         {compareButtonLabel(dateMode, period)}
-        <span aria-hidden="true" className="compare-chevron">
-          ▾
+        <span className="compare-chevron">
+          <ChevronDown size={12} />
         </span>
       </Button>
       <Popover placement="bottom start" offset={4} className="popover">
@@ -164,7 +164,7 @@ function CustomStart({
   const { min, max, days } = customStartBounds(dateMode)
   return (
     <div className="compare-custom">
-      <span className="eyebrow">Compare from</span>
+      <span className="heading-sm">Compare from</span>
       <CompareCalendar value={period.from} onChange={onChange} min={min} max={max} days={days} />
       <span className="status-text">{days > 1 ? `${period.label} · ${days} days, to match` : period.label}</span>
     </div>
@@ -186,23 +186,5 @@ export function CompareLegend({ dateMode, period, note }: { dateMode: DateMode; 
         {note ? ` · ${note}` : ''}
       </span>
     </div>
-  )
-}
-
-function CompareIcon() {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M2 5h10M9 2l3 3-3 3M14 11H4M7 8l-3 3 3 3" />
-    </svg>
   )
 }

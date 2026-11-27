@@ -19,8 +19,7 @@ interface Options {
   queryNodes: string[]
   // Old nodes of units that moved, mapped to their current node (see foldMovedNodes)
   movedNodes?: Record<string, string>
-  // The node's codes in the data, in chart order. The aggregate views pass
-  // includeRetired, as their totals cover units since retired.
+  // In chart order. Aggregate views pass includeRetired, as their totals cover units since retired.
   getCodes: (data: RecentData, includeRetired: boolean) => string[]
   // For an earlier period the view's compared with: how far back its totals
   // are (see useAggregates), and false while there's none, to fetch nothing
@@ -28,9 +27,8 @@ interface Options {
   enabled?: boolean
 }
 
-// What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
-// or for the 90d, 1y, 5y and All views the node's own MWh totals, narrowed to the
-// node's codes. Called again for an earlier period it's compared with.
+// For GeneratorPanel and SubstationPanel: App's 5-minute dispatch data, or on aggregate views
+// the node's own MWh totals, narrowed to the node's codes. Also called for a compared period.
 export function useNodeData({
   dateMode,
   recentData,
@@ -68,9 +66,8 @@ export function useNodeData({
   }
 }
 
-// The node's data for the earlier period the view is compared with (see
-// utils/compare): App's dispatch data for it, or the node's totals that far
-// back. Nothing while the view isn't compared.
+// The node's data for the earlier period compared with (see utils/compare): App's
+// dispatch data for it, or the node's totals that far back. Nothing when not comparing.
 export function usePriorNodeData(
   prior: PriorData | null,
   dateMode: DateMode,
@@ -88,9 +85,8 @@ export function usePriorNodeData(
   })
 }
 
-// Which of a node's codes are charted: all of them until the user picks, and
-// again whenever the node changes. With fewer than two codes there are no
-// buttons to pick with, so a pick made before, e.g. on another day, is set aside.
+// All codes until the user picks, and again when the node changes. With under two codes there
+// are no buttons, so an earlier pick (on another day, say) is set aside.
 export function useCodeSelection(allCodes: string[], node: object) {
   const [activeCodes, setActiveCodes] = useState<Set<string> | null>(null)
   const effectiveCodes = useMemo(
@@ -102,8 +98,7 @@ export function useCodeSelection(allCodes: string[], node: object) {
     setActiveCodes(null)
   }, [node])
 
-  // Shows or hides a code. Hiding the only series showing shows every code
-  // again; `othersShown` says another series still is, e.g. a substation's Total.
+  // Hiding the last shown code shows them all again, unless `othersShown` (a substation's Total, say)
   function toggleCode(code: string, othersShown = false) {
     const next = new Set(effectiveCodes)
     if (next.has(code)) next.delete(code)
@@ -111,7 +106,6 @@ export function useCodeSelection(allCodes: string[], node: object) {
     setActiveCodes(next.size === 0 && !othersShown ? null : next)
   }
 
-  // Shows a code alone, hiding every other
   function isolateCode(code: string) {
     setActiveCodes(new Set([code]))
   }

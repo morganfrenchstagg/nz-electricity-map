@@ -16,9 +16,8 @@ interface Props extends NodePanelProps {
   node: HvdcNode
 }
 
-// The HVDC's transfer between the islands over the view's period, flowing north
-// above zero and south below it, or on the 90d, 1y, 5y and All views the energy
-// it sent each way. The 3d view only has em6's last day of it (see HvdcData).
+// Flow north above zero, south below; on aggregate views, the energy sent each way.
+// The 3d view has only em6's last day of it (see HvdcData).
 export default function HvdcPanel({
   node,
   onClear,
@@ -39,8 +38,8 @@ export default function HvdcPanel({
   const lastUpdated = useLastUpdated(recentData, dateMode)
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
-  // Every node's totals, as GridOverviewPanel fetches, so a view it's been on is
-  // already cached. The HVDC's come with them.
+  // Every node's totals, as GridOverviewPanel fetches, so a view it's been on is already cached.
+  // The HVDC's come with them.
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const aggregates = useAggregates('all', isAggregateMode(dateMode) ? dateMode : null)
   const hvdc = (aggregatePeriod ? aggregates.aggregateData : recentData)?.hvdc
@@ -58,8 +57,7 @@ export default function HvdcPanel({
     if (!hvdc) return null
     const compared = prior && priorHvdc ? { hvdc: priorHvdc, period: prior.period } : undefined
     if (aggregatePeriod) return hvdcEnergyChartOptions(hvdc, aggregatePeriod, compared)
-    // The 3d view's HVDC is only em6's last day, so it spans just that, rather
-    // than leaving two of its days blank
+    // The 3d view's HVDC is only em6's last day, so span just that rather than leave two days blank
     const times = dateMode.kind === 'recent' ? [] : (recentData?.data.map((row) => row[0] as string) ?? [])
     return hvdcChartOptions(hvdc, times.length > 0 ? times : undefined, compared)
   }, [hvdc, aggregatePeriod, recentData, dateMode, prior, priorHvdc])
@@ -69,7 +67,7 @@ export default function HvdcPanel({
   const header = (
     <NodeTitle
       node={node}
-      title="HVDC Inter-Island Link"
+      title="HVDC inter-island link"
       compact={compactHeader}
       onNodeChange={onNodeChange}
       onClear={headerMenu ? undefined : onClear}
@@ -99,7 +97,6 @@ export default function HvdcPanel({
         />
       </PanelToolbar>
 
-      {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         {prior && priorHvdc && chartOptions && <CompareLegend dateMode={dateMode} period={prior.period} />}
         <NodeChart

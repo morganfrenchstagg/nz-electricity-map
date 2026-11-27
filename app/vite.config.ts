@@ -9,16 +9,16 @@ const entry = (path: string) => decodeURIComponent(new URL(path, import.meta.url
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    // Leave out the date pickers' strings in languages other than English
+    // Drop the date pickers' non-English strings
     { ...optimizeLocales.vite({ locales: ['en-US'] }), enforce: 'pre' },
     // A page for each station, and the sitemap, from the API's definitions
     stationPages(loadEnv(mode, '.', 'VITE_').VITE_API_BASE),
   ],
   base: '/',
   build: {
-    // frontend/ is the Cloudflare Pages publish root. The checked-in
-    // _redirects and _headers live here too, so emptyOutDir must stay false or
-    // the build would wipe them (including in CI).
+    // frontend/ is the Cloudflare Pages publish root and holds the checked-in
+    // _redirects and _headers, so emptyOutDir must stay false or builds (CI
+    // included) wipe them.
     outDir: '../frontend',
     emptyOutDir: false,
     rolldownOptions: {
@@ -29,18 +29,17 @@ export default defineConfig(({ mode }) => ({
         chartTooltip: entry('./src/chartTooltip.ts'),
       },
       output: {
-        // Split the large, rarely-changing vendor libraries into their own
-        // chunks so an app change doesn't invalidate them in the browser cache.
+        // Large, rarely-changing vendor libraries get their own chunks, so app
+        // changes don't invalidate them in the browser cache
         codeSplitting: {
           groups: [
             {
               name(id) {
                 if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
                 if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
-                // The date pickers. Their calendars and date fields are a chunk of
-                // their own, loaded with DatePickers (see LazyDatePickers), apart from
-                // the menus and popovers the panels need from the start. By name, so
-                // the date hooks' re-exports go with them, not with the menus.
+                // Calendars and date fields load later with DatePickers (see
+                // LazyDatePickers), apart from the menus and popovers needed at once.
+                // Matched by name so the date hooks' re-exports go with them.
                 if (
                   /\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(
                     id,

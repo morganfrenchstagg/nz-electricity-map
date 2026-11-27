@@ -1,6 +1,7 @@
 import type { OutageRecord } from '../api'
 import { formatMW } from '../utils/format'
 import { nzMidnightMs, outageMs, todayNZ } from '../utils/time'
+import { ExternalLink } from './icons'
 
 interface Props {
   outages: { code: string; label: string; record: OutageRecord; capacityRemaining: number | null }[]
@@ -38,10 +39,9 @@ function pocpUrl(prefixes: string[], days?: Props['days']): string {
   return `https://customerportal.transpower.co.nz/pocp/outages?${params.toString()}`
 }
 
-// `ms` is an outage timestamp in the "local time as UTC" convention (see outageMs
-// in utils/time.ts), so it must be read back out with timeZone: 'UTC' to get the
-// raw values the API sent — 'Pacific/Auckland' would shift them again. A date in
-// another year than this one in NZ says which.
+// `ms` is in the "local time as UTC" convention (see outageMs), so format with timeZone 'UTC' to
+// get the API's values back; 'Pacific/Auckland' would shift them again. A date in another year
+// than this one in NZ says which.
 function formatDateTime(ms: number): string {
   const date = new Date(ms)
   return date.toLocaleString('en-NZ', {
@@ -89,30 +89,19 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
                 href={pocpUrl(outageBlockPrefixes, days)}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="link"
                 style={{
                   fontSize: 'var(--font-size-sm)',
-                  color: 'var(--color-accent)',
-                  fontWeight: 600,
-                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-xs)',
                 }}
               >
-                View in POCP ↗
+                View in POCP <ExternalLink size={12} />
               </a>
             )}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              style={{
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-lg)',
-                color: 'var(--color-text-secondary)',
-                padding: 'var(--space-xs)',
-                lineHeight: 1,
-              }}
-            >
-              ✕
+            <button onClick={onClose} className="button-secondary">
+              Close
             </button>
           </div>
         </div>
@@ -123,22 +112,22 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     Unit
                   </th>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     Outage
                   </th>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     Capacity remaining
                   </th>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     Start
                   </th>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     End
                   </th>
-                  <th className="eyebrow" style={thStyle}>
+                  <th className="heading-sm" style={thStyle}>
                     Status
                   </th>
                 </tr>

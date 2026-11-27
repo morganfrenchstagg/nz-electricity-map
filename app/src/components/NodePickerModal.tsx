@@ -4,6 +4,7 @@ import { fuelColour, fuelFamilies, fuelFamily } from '../utils/colours'
 import { isRetired } from '../utils/generators'
 import { substationsOf } from '../utils/substations'
 import FilterDropdown from './FilterDropdown'
+import { Check, Minus } from './icons'
 
 interface Props {
   generators: Generator[]
@@ -32,7 +33,7 @@ const GRID_ZONE_NAMES: Record<number, string> = {
   14: 'Southland',
 }
 
-// A row's tick box: ticked, part-ticked (some of a group), or not
+// Part-ticked when some of a group is picked
 function CheckBox({ checked, partial = false, size }: { checked: boolean; partial?: boolean; size: 14 | 16 }) {
   return (
     <span
@@ -49,14 +50,8 @@ function CheckBox({ checked, partial = false, size }: { checked: boolean; partia
       }}
     >
       {(checked || partial) && (
-        <span
-          style={{
-            color: 'var(--color-text-inverse)',
-            fontSize: size === 16 ? 'var(--font-size-xs)' : 'var(--font-size-2xs)',
-            lineHeight: 1,
-          }}
-        >
-          ✓
+        <span style={{ color: 'var(--color-text-on-accent)' }}>
+          {checked ? <Check size={size - 4} /> : <Minus size={size - 4} />}
         </span>
       )}
     </span>
@@ -124,7 +119,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   const toggleSite = (site: string) => setSelectedSites((prev) => toggleAll(prev, [site]))
   const toggleSubstation = (siteId: string) => setSelectedSubstations((prev) => toggleAll(prev, [siteId]))
 
-  // The open tab's selection, which its footer counts, clears and views
   const picked = tab === 'generation' ? selectedSites : selectedSubstations
   const setPicked = tab === 'generation' ? setSelectedSites : setSelectedSubstations
   const pickedNoun = tab === 'generation' ? 'generator' : 'substation'
@@ -152,7 +146,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Reset search and filters when switching tabs
   const handleTabChange = (t: Tab) => {
     setTab(t)
     setQuery('')
@@ -180,7 +173,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
   return (
     <div onClick={onClose} className="modal-backdrop">
       <div onClick={(e) => e.stopPropagation()} className="modal" style={{ width: 560, maxHeight: '80vh' }}>
-        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--color-divider)', padding: '0 var(--space-md)' }}>
           <button className={tabClass('generation')} onClick={() => handleTabChange('generation')}>
             Generation
@@ -190,7 +182,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
           </button>
         </div>
 
-        {/* Search + filter dropdowns */}
         {(() => {
           const searchInput = (
             <input
@@ -235,7 +226,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
           )
         })()}
 
-        {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {tab === 'generation' &&
             (() => {
@@ -262,7 +252,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                   <div key={operator}>
                     <div
                       onClick={toggleOperator}
-                      className="eyebrow"
+                      className="heading-sm"
                       style={{
                         padding: 'var(--space-md) var(--space-xl) var(--space-xs)',
                         background: 'var(--color-surface-subtle)',
@@ -382,7 +372,7 @@ export default function NodePickerModal({ generators, substations, currentNode, 
                                 ),
                               )
                             }
-                            className="eyebrow"
+                            className="heading-sm"
                             style={{
                               position: 'sticky',
                               top: 28,
@@ -441,7 +431,6 @@ export default function NodePickerModal({ generators, substations, currentNode, 
             })()}
         </div>
 
-        {/* Selection footer */}
         <div
           style={{
             padding: 'var(--space-lg) var(--space-xl)',

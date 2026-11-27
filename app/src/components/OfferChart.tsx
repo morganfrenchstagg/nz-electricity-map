@@ -8,8 +8,7 @@ import { fuelColour } from '../utils/colours'
 import { formatMW } from '../utils/format'
 import { CHART_CONTAINER_PROPS, FIT_TO_CONTAINER, chartAccessibility } from '../utils/chart'
 
-// The lines marking where the offers were dispatched, labelled with a white
-// outline so they read over the offers
+// Dispatch lines; labels are outlined in the surface colour to read over the offers
 const DISPATCH_COLOUR = 'var(--color-text)'
 const DISPATCH_LABEL_STYLE = {
   color: DISPATCH_COLOUR,
@@ -21,17 +20,17 @@ const DISPATCH_LABEL_STYLE = {
 
 interface Props {
   offersData: OffersData
-  // The dispatch the day of the offers, to mark where they were dispatched
+  // Dispatch on the offers' day, to mark where they were dispatched
   dispatch: RecentData | null
-  // The units the unit buttons show
+  // Unit nodes switched on in the unit buttons
   shownCodes: Set<string>
   tradingPeriod: number
   node: GeneratorNode
-  // The generator or generators, as the panel's header names them
+  // As the panel's header names them
   title: string
 }
 
-// A tranche's snap point carries what its tooltip and screen reader description say
+// Carried on each snap point for its tooltip and screen reader description
 interface Tranche {
   mw: number
   label: string
@@ -39,13 +38,12 @@ interface Tranche {
   price: number
 }
 
-// e.g. "1 unit", "2 units"
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
 // log10(price + 0.01) + 2 maps $0→0, $0.01→0.30, $1→2.0, $100→4.0, $6000→5.78
-// The +0.01 offset and +2 shift give $0 vs $0.01 meaningful visual separation
+// The offset and shift put $0 at 0, visibly apart from $0.01
 function priceY(price: number): number {
   return Math.log10(price + 0.01) + 2
 }
@@ -58,8 +56,7 @@ function trancheOf(point: Highcharts.Point): Tranche | undefined {
   return (point as unknown as { custom?: Tranche }).custom
 }
 
-// A tranche's unit, size and price, for its tooltip row and, without the HTML,
-// its screen reader description
+// The tooltip row, and the screen reader description once its HTML is stripped
 function trancheText(custom: Tranche): string {
   const trancheStr = custom.tranche != null ? ` (tranche ${custom.tranche})` : ''
   return `${custom.label}${trancheStr}: <b>${formatMW(custom.mw)}</b> at <b>${formatPrice(custom.price)}</b>`
@@ -82,7 +79,6 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     const unitNodes = getUnitNodes(node).filter((u) => shownCodes.has(u.node))
     if (unitNodes.length === 0) return null
 
-    // Collect all tranches across all units
     const allTranches: { unit: (typeof unitNodes)[0]; price: number; mw: number; tranche: number }[] = []
     for (const unit of unitNodes) {
       const raw = periodData[unit.node]
@@ -93,10 +89,9 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     }
     if (allTranches.length === 0) return null
 
-    // Sort by price ascending (ties: stable by unit order)
+    // Stable sort, so equal prices keep unit order
     allTranches.sort((a, b) => a.price - b.price)
 
-    // Assign cumulative x positions across the merged curve
     let cumMW = 0
     const positioned = allTranches.map((t) => {
       const start = cumMW
@@ -104,7 +99,6 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
       return { ...t, start, end: cumMW }
     })
 
-    // Group segments by unit, preserving merged-curve order
     const segsByUnit = new Map<string, { start: number; end: number; price: number; mw: number; tranche: number }[]>()
     for (const p of positioned) {
       const key = p.unit.node
@@ -117,11 +111,9 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
       const segs = segsByUnit.get(unit.node)
       if (!segs || segs.length === 0) continue
 
-      // Visual series: start/end pairs draw the shape; no mouse tracking so
-      // the hover dot never snaps to start or end.
+      // Draws the steps; untracked so the hover dot never snaps to a step's ends
       const visualPoints: (Highcharts.PointOptionsObject | null)[] = []
-      // Snap series: single midpoint per tranche; invisible but tracked so
-      // the tooltip dot lands exactly in the centre of each tranche.
+      // One invisible, tracked midpoint per tranche, so the tooltip dot lands in its centre
       const snapPoints: (Highcharts.PointOptionsObject | null)[] = []
 
       for (let i = 0; i < segs.length; i++) {
@@ -152,7 +144,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
         lineWidth: 2,
       })
 
-      // linkedTo: ':prev' shares the legend entry with the visual series above
+      // linkedTo: ':prev' shares the visual series' legend entry
       series.push({
         type: 'area',
         name: unit.label,
@@ -181,12 +173,11 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     const minPrice = `$${allTranches[0].price.toFixed(2)}`
     const maxPrice = `$${allTranches[allTranches.length - 1].price.toFixed(2)}`
 
-    // Where the units offering were dispatched, if the dispatch has the period
+    // Null when the dispatch doesn't cover the period
     const dispatched =
       dispatch && tradingPeriodDispatch(dispatch, [...segsByUnit.keys()], offersData.date, tradingPeriod)
     const dispatchedPrice = dispatched?.price ?? null
-    // Past halfway across, the MW line's label goes on its left, and the price's
-    // label on the chart's left, clear of the MW line
+    // Past halfway, the MW label goes left of its line and the price label to the chart's left
     const dispatchedRight = dispatched !== null && dispatched.mw > Math.max(cumMW, dispatched.mw) / 2
 
     return {
@@ -199,14 +190,14 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
       },
       title: { text: undefined },
       ...chartAccessibility(`${title} offers, trading period ${tradingPeriod}`, {
-        // Rather than counting the drawn series, which screen readers don't get
+        // The default counts drawn series, two per unit
         typeDescription: `Offers from ${plural(segsByUnit.size, 'unit')}.`,
         description:
           "Each unit's offer tranches from cheapest to dearest, by the MW offered and its price in $/MWh, on a log scale." +
           (dispatched
             ? ` Averaged over the period, they were dispatched ${formatMW(dispatched.mw)}${dispatchedPrice !== null ? ` at ${formatPrice(dispatchedPrice)}` : ''}.`
             : ''),
-        // Rather than counting the nulls between its tranches as points
+        // The default counts the nulls between tranches as points
         series: { descriptionFormatter: (s) => `${s.name}, ${plural(s.points.filter(trancheOf).length, 'tranche')}.` },
       }),
       credits: { enabled: false },
@@ -249,11 +240,10 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
         type: 'linear',
         title: { text: '$/MWh' },
         min: 0,
-        // Tick positions use the same transform: log10(price + 0.01) + 2
         tickPositions: [0, 0.01, 0.1, 1, 10, 50, 100, 500, 1000, 3000, 6000, 10000].map(priceY),
         labels: {
           formatter: function () {
-            // Inverse: price = 10^(value - 2) - 0.01
+            // Inverse of priceY
             const price = Math.pow(10, (this.value as number) - 2) - 0.01
             if (price < 0.005) return '$0'
             if (price < 1) return `$${price.toFixed(2)}`
@@ -289,7 +279,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
               ]
             : []),
         ],
-        // The axis' values are the log-scaled prices, so describe the prices themselves
+        // Describe the prices, not the log-scaled axis values
         accessibility: {
           description: 'Price in $/MWh',
           rangeDescription:

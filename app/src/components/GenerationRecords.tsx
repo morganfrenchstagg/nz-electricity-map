@@ -97,7 +97,7 @@ export default function GenerationRecords({ queryNodes, movedNodes, codes, someU
       className="section"
       style={{ flexShrink: 0, borderTop: '1px solid var(--color-divider)', borderBottom: 'none' }}
     >
-      <h2 id={headingId} className="eyebrow" style={{ margin: 0 }}>
+      <h2 id={headingId} className="heading-sm" style={{ margin: 0 }}>
         Records{someUnits ? ' · Units shown' : ''}
       </h2>
       {message !== null || records === null ? (

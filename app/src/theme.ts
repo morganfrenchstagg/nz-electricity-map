@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react'
 
 export type Theme = 'light' | 'dark'
 
-// Where the theme the viewer picked is kept. Without one, the page is light.
-// index.html's inline script reads it too, to set the theme before first paint.
+// Without a stored pick the page is light. index.html's inline script reads it too, to set the
+// theme before first paint.
 const STORAGE_KEY = 'theme'
 
 const listeners = new Set<() => void>()
@@ -16,8 +16,7 @@ function storedTheme(): Theme {
   }
 }
 
-// The theme on the page: index.css's colours follow data-theme, and Highcharts'
-// follow its highcharts-light or highcharts-dark class
+// index.css's colours follow data-theme; Highcharts' follow the highcharts-light/dark class
 function apply(theme: Theme) {
   const root = document.documentElement
   root.dataset.theme = theme
@@ -30,7 +29,7 @@ export function currentTheme(): Theme {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
 }
 
-// Picked by the viewer, so kept for their next visit
+// Kept for the viewer's next visit
 export function setTheme(theme: Theme) {
   try {
     localStorage.setItem(STORAGE_KEY, theme)

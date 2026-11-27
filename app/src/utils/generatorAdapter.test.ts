@@ -16,7 +16,7 @@ const FUEL_CODES: Record<string, string> = {
   'Battery (Charging)': 'BESS-C',
 }
 
-// In service since EMI's register began, as most units are, unless given other dates
+// In service since EMI's register began, as most units are, unless dates are given
 function unit(node: string, name: string, fuel: string, capacity: number, extra: Partial<Unit> = {}): Unit {
   return {
     node,
@@ -51,7 +51,7 @@ const ATI = generator('ATI', 'Ātiamuri', [
 const ATI_UNITS = new Set(['ATI2201 ATI0', 'ATI2201 ATI1'])
 const UNIT_1 = new Set(['ATI2201 ATI0'])
 const TAP = generator('TAP', 'Te Āpiti', [unit('WDV1101 TAP0', 'Te Āpiti', 'Wind', 90)], { operator: 'Meridian' })
-// A battery's charging unit is listed with negative capacity, as it draws power
+// A battery's charging unit has negative capacity, as it draws power
 const BAT = generator('BAT', 'Rotohiko', [
   unit('BAT0331 BAT0', 'Battery', 'Battery (Discharging)', 100),
   unit('BAT0331 BAT1', 'Battery', 'Battery (Charging)', -80),
@@ -78,7 +78,7 @@ function day(date: string): Period {
   return { from, to: from + 24 * 60 * 60 * 1000 - 1 }
 }
 
-// An outage on 13 October 2026 (NZDT) between two times of day, as the API sends it
+// An outage on 13 October 2026 (NZDT), shaped as the API sends it
 function outage(from: string, to: string, mw: number, block = 'ATI_STN'): OutageRecord {
   return {
     outageBlock: block,
@@ -127,7 +127,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-// The two adapters share these rules. Each adapter reads the time once, when it's created.
+// Shared by both adapters. Each reads the time once, when created.
 describe.each([
   ['createGeneratorAdapter', (outages: OutageData | null) => createGeneratorAdapter(ATI, outages)],
   ['createMultiGeneratorAdapter', (outages: OutageData | null) => createMultiGeneratorAdapter([ATI], outages)],
@@ -251,7 +251,7 @@ describe('createGeneratorAdapter', () => {
     expect(adapter.queryNodes).toEqual(['HWA1101 PTA0', 'HWA1101 PTA1', 'OHA0331 PTA0'])
     expect(adapter.getCodes(data)).toEqual(['OHA0331 PTA0'])
     expect(adapter.getCodes(data, true)).toEqual(['OHA0331 PTA0', 'HWA1101 PTA1'])
-    // Whose offers are under whichever node the unit had at the time
+    // Offers are under whichever node the unit had at the time
     expect(adapter.unitCodes).toEqual(['HWA1101 PTA0', 'OHA0331 PTA0', 'HWA1101 PTA1'])
   })
 
@@ -434,7 +434,7 @@ describe('createGeneratorAdapter', () => {
 
   it("counts no outage on a battery's charging unit when it has none", () => {
     expect(createGeneratorAdapter(BAT, {}).unitOutageMW('BAT0331 BAT1')).toBe(0)
-    // So it doesn't offset an outage on another unit, as GeneratorPanel adds them up
+    // So it doesn't offset another unit's outage when GeneratorPanel sums them
     const adapter = createGeneratorAdapter(BAT, { 'BAT0331 BAT0': [outage('12:00', '16:00', 40, 'BAT_0')] })
     expect([...BAT_UNITS].reduce((sum, code) => sum + adapter.unitOutageMW(code), 0)).toBe(40)
   })

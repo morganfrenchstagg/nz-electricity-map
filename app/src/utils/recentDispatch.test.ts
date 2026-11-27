@@ -53,7 +53,7 @@ describe('appendRecent', () => {
   })
 
   it('takes the values the API now has for the intervals held after since', () => {
-    // e.g. an interval first fetched with values that the API has since replaced
+    // An interval the API has since revised
     const added = {
       series,
       data: [
@@ -135,7 +135,7 @@ describe('appendRecent', () => {
   })
 
   it('keeps every interval while there are fewer than the API holds, even over 3 days apart', () => {
-    // the API holds a fixed number of intervals rather than 3 days' worth, so any it missed leave it reaching back further
+    // The API holds a fixed count of intervals, not 3 days' worth, so gaps let it reach further back
     const added = {
       series,
       data: [held.data[1], ['2026-10-20T00:00:00', 60, -30]],

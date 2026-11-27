@@ -1,10 +1,10 @@
 // Mainland NZ and Stewart Island as [west, south, east, north], leaving off the Chathams
 const NZ_BOUNDS = [166.4, -47.3, 178.6, -34.3] as const
-// How much of the window's height NZ takes up. Its sides touch the panel and the right of
-// the window, which only Fiordland and East Cape reach.
+// Share of the window's height NZ fills. Its sides touch the panel and the window's right edge,
+// which only Fiordland and East Cape reach.
 const HEIGHT_SHARE = 0.65
-// The narrowest the panel starts, and the furthest out the map zooms to fit NZ beside it.
-// A viewport without room for both keeps the default layout.
+// Narrowest starting panel, and furthest-out zoom that fits NZ beside it. Viewports without
+// room for both keep the default layout.
 const MIN_PANEL_PX = 480
 const MIN_ZOOM = 4
 // MapLibre's world is one 512px tile at zoom 0
@@ -21,9 +21,9 @@ export interface InitialView {
   zoom: number
 }
 
-// The widest the side panel can start with all of NZ in view on the map beside it, at the
-// zoom where NZ takes up HEIGHT_SHARE of the map's height (or fits the room beside the
-// narrowest panel, on a tall, narrow viewport). Null when the viewport is too small for both.
+// Widest starting panel with all of NZ in view beside it, at the zoom where NZ fills HEIGHT_SHARE
+// of the height (or the room beside the narrowest panel, on a tall, narrow viewport). Null when
+// the viewport is too small for both.
 export function viewBesideNz(viewportWidth: number, viewportHeight: number): InitialView | null {
   const [west, south, east, north] = NZ_BOUNDS
   const [southY, northY] = [mercatorY(south), mercatorY(north)]
@@ -35,7 +35,7 @@ export function viewBesideNz(viewportWidth: number, viewportHeight: number): Ini
     Math.log2((viewportHeight * HEIGHT_SHARE) / nzHeight),
     Math.log2((viewportWidth - MIN_PANEL_PX) / nzWidth),
   )
-  // NaN too, when there's no room at all
+  // Also catches NaN, when there's no room at all
   if (!(zoom >= MIN_ZOOM)) return null
 
   return {

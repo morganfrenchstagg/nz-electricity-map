@@ -61,11 +61,12 @@ import DateControls from './DateControls'
 import ChartSettingsMenu from './ChartSettingsMenu'
 import Panel, { PanelToolbar } from './Panel'
 import type { PanelProps } from './Panel'
+import { ChevronDown } from './icons'
 import { ANALYSIS_PATH } from '../utils/stationPaths'
 
 type Island = 'all' | 'NI' | 'SI'
 
-// A fuel's name in the chart. The HVDC's is the island at its other end.
+// The HVDC is named for the island at its other end.
 function fuelLabel(fuel: string, island: Island): string {
   const otherIsland = island === 'SI' ? 'North Island' : 'South Island'
   if (fuel === HVDC_IMPORT_CODE) return `Imported from ${otherIsland}`
@@ -73,9 +74,8 @@ function fuelLabel(fuel: string, island: Island): string {
   return fuelCodeLabel(fuel)
 }
 
-// The fuels a series charts, of those there are. With the solar combined,
-// grid-scale solar's has embedded solar's in it too, and the fossil fuels'
-// series, there only when they're combined, has each of them.
+// Combined solar puts embedded solar in grid-scale solar's series. The fossil
+// series exists only when combined, and holds every fossil fuel present.
 function fuelsOf(seriesFuel: string, fuels: string[], combineSolar: boolean): string[] {
   if (seriesFuel === FOSSIL_FUEL_CODE) return fuels.filter((f) => FOSSIL_FUEL_CODES.has(f))
   return combineSolar && seriesFuel === 'SOL' ? [DISTRIBUTED_SOLAR_FUEL_CODE, 'SOL'] : [seriesFuel]
@@ -86,10 +86,9 @@ const FUEL_ORDER: readonly string[] = FUEL_CODE_ORDER
 const NodePickerModal = lazy(() => import('./NodePickerModal'))
 const PipelineModal = lazy(() => import('./PipelineModal'))
 
-// Fuels the tooltip lists under one heading when two or more of them are in
-// it: the heading, its dot's fuel, whether it totals them, and what each
-// fuel's series (keyed by its name) is called under it, in order. A battery's
-// charging and discharging aren't totalled, as they're power going opposite ways.
+// Fuels the tooltip groups under one heading when two or more are present.
+// `parts` maps each series name to its label under the heading, in order.
+// Battery isn't totalled: charging and discharging flow opposite ways.
 const TOOLTIP_GROUPS: { label: string; colourFuel: string; totals: boolean; parts: [string, string][] }[] = [
   {
     label: 'Solar',
@@ -110,7 +109,7 @@ const TOOLTIP_GROUPS: { label: string; colourFuel: string; totals: boolean; part
     ],
   },
 ]
-// Listed with them while the fossil fuels are charted as one series
+// Added to TOOLTIP_GROUPS while the fossil fuels are combined
 const FOSSIL_TOOLTIP_GROUP: (typeof TOOLTIP_GROUPS)[number] = {
   label: fuelCodeLabel(FOSSIL_FUEL_CODE),
   colourFuel: FOSSIL_FUEL_CODE,
@@ -228,7 +227,7 @@ interface Props extends PanelProps {
   recentData: RecentData | null
   loading: boolean
   error: string | null
-  // The fuels charted, or null for all of them
+  // null means all fuels
   activeFuels: Set<string> | null
   onActiveFuelsChange: (fuels: Set<string> | null) => void
   chartSettings: ChartSettings
@@ -262,16 +261,16 @@ export default function GridOverviewPanel({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
-  // The 90d, 1y, 5y and All views chart every node's MWh totals instead of the
-  // 5-minute dispatch data. Not fetched while the panel is hidden.
+  // 90d, 1y, 5y and All chart MWh totals instead of 5-minute dispatch data.
+  // Not fetched while the panel is hidden.
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
   const aggregates = useAggregates('all', isAggregateMode(dateMode) && visible ? dateMode : null)
   const dataLoading = isAggregate ? aggregates.loading : loading
   const dataError = isAggregate ? aggregates.error : error
 
-  // The data is charted with its distributed solar estimate, rather than the
-  // estimate following it a moment later, unless it's slow (see useShownWithSolar)
+  // Shown together with its solar estimate rather than the estimate popping in
+  // later, unless the estimate is slow (see useShownWithSolar)
   const solar = useDistributedSolar(dateMode, visible)
   const solarEnergy = useDistributedSolarEnergy(dateMode, visible)
   const { shown, waiting: waitingForSolar } = useShownWithSolar(
@@ -292,7 +291,7 @@ export default function GridOverviewPanel({
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
-  // The GXPs on the island shown, for its distributed solar estimate
+  // GXPs on the shown island, for its distributed solar estimate
   const includeGxp = useMemo(() => {
     const islandOf = new Map(substations.map((s) => [s.siteId, s.island === 'north' ? 'NI' : 'SI']))
     return (gxp: string) => island === 'all' || islandOf.get(gxp) === island
@@ -350,7 +349,7 @@ export default function GridOverviewPanel({
           fuelToUnits.set(unit.fuelCode, [...(fuelToUnits.get(unit.fuelCode) ?? []), unit])
       }
     }
-    // Each way the HVDC flowed at some point
+    // Each HVDC direction with any flow
     const hvdcCodes = new Set<string>()
     if (hvdc?.some((t) => t && t.in > 0)) hvdcCodes.add(HVDC_IMPORT_CODE)
     if (hvdc?.some((t) => t && t.out > 0)) hvdcCodes.add(HVDC_EXPORT_CODE)
@@ -363,12 +362,10 @@ export default function GridOverviewPanel({
     return { fuels, fuelToIndices, fuelToUnits }
   }, [data, generators, island, isAggregate, dateMode, hvdc, distributedSolar])
 
-  // Memoised so the chart options below don't rebuild on every render
   const effectiveFuels = useMemo(() => activeFuels ?? new Set(fuels), [activeFuels, fuels])
 
-  // Each series' fuel, a button each. Combined, embedded solar is charted in
-  // grid-scale solar's series where there's both, and the fossil fuels in one
-  // series of their own (see fuelsOf).
+  // One series and button per entry. Combining merges embedded solar into
+  // grid-scale solar, and the fossil fuels into one series (see fuelsOf).
   const combineSolar =
     chartSettings.solar === 'combined' && fuels.includes(DISTRIBUTED_SOLAR_FUEL_CODE) && fuels.includes('SOL')
   const combineFossil = chartSettings.fossil === 'combined' && fuels.some((f) => FOSSIL_FUEL_CODES.has(f))
@@ -377,7 +374,7 @@ export default function GridOverviewPanel({
       (f) => !(combineSolar && f === DISTRIBUTED_SOLAR_FUEL_CODE) && !(combineFossil && FOSSIL_FUEL_CODES.has(f)),
     )
     if (!combineFossil) return series
-    // Before the first fuel after it in the order, or one that isn't in it
+    // Before the first fuel later in FUEL_ORDER, or missing from it
     const order = (f: string) => FUEL_ORDER.indexOf(f)
     const at = series.findIndex((f) => order(f) === -1 || order(f) > order(FOSSIL_FUEL_CODE))
     return at === -1 ? [...series, FOSSIL_FUEL_CODE] : [...series.slice(0, at), FOSSIL_FUEL_CODE, ...series.slice(at)]
@@ -399,14 +396,13 @@ export default function GridOverviewPanel({
     onActiveFuelsChange(next.size === 0 || next.size === fuels.length ? null : next)
   }
 
-  // Shows a series alone, hiding every other
   function isolateFuel(fuel: string) {
     const isolated = fuelsOf(fuel, fuels, combineSolar)
     onActiveFuelsChange(isolated.length === fuels.length ? null : new Set(isolated))
   }
 
-  // Stacked, the fuels are charted as their totals or, as proportions, as their
-  // shares of the total generation (the tooltip's), which add up to 100%
+  // Proportion stacks each fuel's share of total generation (as in the tooltip),
+  // adding to 100%
   const { chartType } = chartSettings
   const stacked = chartType !== 'line'
   const proportion = chartType === 'proportion'
@@ -414,16 +410,16 @@ export default function GridOverviewPanel({
   const chartOptions = useMemo((): Highcharts.Options | null => {
     if (!data || generators.length === 0 || fuels.length === 0 || effectiveFuels.size === 0) return null
 
-    // Each shown series' fuel, and the fuels it charts that are shown
+    // Shown series, and each one's shown fuels
     const shownFuels = seriesFuels.filter(isShown)
     const shownFuelsOf = (fuel: string) => fuelsOf(fuel, fuels, combineSolar).filter((f) => effectiveFuels.has(f))
-    // Distributed solar is left out of the tooltip where there's no estimate (see fuelTotalOf)
+    // Left out of the tooltip where there's no solar estimate (see fuelTotalOf)
     const solarValues = distributedSolar?.values ?? []
     const noSolarEstimateMs = new Set(
       data.data.filter((_, r) => solarValues[r] === null).map((row) => nzLocalMs(row[0] as string)),
     )
     const fuelTotal = fuelTotalOf(data, fuelToIndices, hvdc, solarValues, stacked)
-    // Each shown series' total at each time: its shown fuels', null where they're all null
+    // Per row, each shown series' total; null where all its shown fuels are null
     const seriesTotals = (total: typeof fuelTotal, rows: number) =>
       Array.from({ length: rows }, (_, r) =>
         shownFuels.map((fuel) => {
@@ -432,7 +428,7 @@ export default function GridOverviewPanel({
         }),
       )
     const fuelTotals = seriesTotals(fuelTotal, data.data.length)
-    // The earlier period's, by its own rows, and its rows' times on the view's axis
+    // The earlier period's, by its own rows, with their times on the view's axis
     const priorFuelTotal =
       priorFuels &&
       fuelTotalOf(priorFuels.data, priorFuels.fuelToIndices, priorFuels.hvdc, priorFuels.solarValues, stacked)
@@ -449,20 +445,19 @@ export default function GridOverviewPanel({
         : null
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
     const unit = isAggregate ? energyUnit(chartReach(fuelTotals, stacked)) : MW_UNIT
-    // Live MW reaching past 2 GW is labelled on the axis in GW, which keeps its
-    // numbers short. The data and the tooltip stay in MW, alongside the capacities.
+    // Live MW past 2 GW is labelled in GW on the axis to keep labels short. Data
+    // and tooltip stay in MW, matching the capacities.
     const axisInGW = !isAggregate && !proportion && chartReach(fuelTotals, stacked) > 2000
-    // The total generation at each time, as the tooltip gives it: what's stacked above zero
+    // Total generation per row, as in the tooltip: everything stacked above zero
     const generationOf = (totals: (number | null)[]) =>
       totals.reduce((sum: number, total) => sum + Math.max(total ?? 0, 0), 0)
     const generationTotals = fuelTotals.map(generationOf)
     const priorGeneration = priorTotals?.map(generationOf) ?? []
     const shareOf = (total: number, r: number) => (generationTotals[r] > 0 ? (total / generationTotals[r]) * 100 : 0)
 
-    // Aggregate totals: stacked areas become stacked columns, which already stack
-    // negative values (battery charging) separately. Stacked areas don't, so
-    // those below zero get a stack of their own. As lines, every fuel is charted
-    // from zero, whichever the view.
+    // Stacked aggregates are columns, which stack negatives (battery charging)
+    // separately. Areas don't, so fuels below zero get their own stack. Lines
+    // chart every fuel from zero.
     const columns = stacked && isAggregate
     const series: Highcharts.SeriesOptionsType[] = shownFuels.map((fuel, f) => {
       const points: [number, number | null][] = data.data.map((row, r) => {
@@ -500,9 +495,8 @@ export default function GridOverviewPanel({
       }
     })
 
-    // The earlier period's dotted lines: stacked, its total generation of the
-    // fuels shown, over the stack; as lines, each fuel's. Shares always add up
-    // to 100%, so the proportion chart only has it in the tooltip.
+    // The earlier period's dotted lines: its total over the stack, or each fuel's as
+    // lines. Shares always add to 100%, so proportion only has it in the tooltip.
     if (aligned && prior && priorTotals) {
       const label = prior.period.label
       if (stacked && !proportion) {
@@ -528,10 +522,9 @@ export default function GridOverviewPanel({
       }
     }
 
-    // Each time's row of the data, for the tooltip's fuel totals
+    // Row index per time, for the tooltip's fuel totals
     const rowByMs = new Map(data.data.map((row, r) => [nzLocalMs(row[0] as string), r]))
 
-    // Build per-timestamp renewable percentage
     const renewableIndices = [...fuelToIndices.entries()]
       .filter(([fuel]) => RENEWABLE_FUEL_CODES.has(fuel))
       .flatMap(([, indices]) => indices)
@@ -548,8 +541,7 @@ export default function GridOverviewPanel({
       renewablePctByMs.set(ms, totalMW > 0 ? (renewableMW / totalMW) * 100 : 0)
     })
 
-    // Build per-timestamp pricing lookup for Otahuhu (NI reference) and Benmore (SI reference).
-    // Aggregates have no pricing.
+    // Otahuhu and Benmore are the NI and SI reference prices. Aggregates have no pricing.
     const otaIdx = data.series.findIndex((s) => s.startsWith('OTA'))
     const benIdx = data.series.findIndex((s) => s.startsWith('BEN'))
     const refPricingByMs = new Map<number, { ota: number | null; ben: number | null }>()
@@ -561,15 +553,14 @@ export default function GridOverviewPanel({
       })
     }
 
-    // Each fuel's units, keyed by the series name shown in the tooltip (fuelLabel)
-    // so the shared formatter can look them up per point
+    // Keyed by series name (fuelLabel), which is what the shared tooltip has per point
     const unitsByName = new Map<string, Unit[]>()
     for (const fuel of fuels) {
       unitsByName.set(fuelLabel(fuel, island), fuelToUnits.get(fuel) ?? [])
     }
-    // A fuel's total installed capacity (MSGC) at a time: its units in service then.
-    // The HVDC's is its transfer limit the way it's flowing. Distributed solar has
-    // no units, so it's the installed capacity that day's estimate is from.
+    // Installed capacity (MSGC) of a fuel's units in service at a time. For the HVDC,
+    // its transfer limit in that direction; for distributed solar, the installed
+    // capacity behind that day's estimate.
     const hvdcByMs = new Map(hvdc ? data.data.map((row, r) => [nzLocalMs(row[0] as string), hvdc[r]]) : [])
     const capacityAt = (name: string, ms: number) => {
       if (name === fuelLabel(HVDC_IMPORT_CODE, island)) return hvdcByMs.get(ms)?.inLimit ?? 0
@@ -609,12 +600,12 @@ export default function GridOverviewPanel({
       },
       yAxis: {
         title: { text: axisInGW ? 'GW' : (proportion ? PERCENT_UNIT : unit).label },
-        // A tick at each whole GW, rather than at each half. The axis then stops
-        // at the lowest value, so a battery charging doesn't stretch it to -1 GW.
+        // A tick per whole GW, not per half. The axis then stops at the lowest value
+        // so battery charging doesn't stretch it to -1 GW.
         tickInterval: axisInGW ? 1000 : undefined,
         startOnTick: !axisInGW,
-        // The chart is updated in place, which keeps options that are left out,
-        // so the formatter is cleared outright when the axis goes back to MW
+        // Updating in place keeps omitted options, so the formatter must be cleared
+        // explicitly when the axis returns to MW
         labels: {
           formatter: axisInGW
             ? function () {
@@ -649,9 +640,8 @@ export default function GridOverviewPanel({
           const x = this.x
           const time = tooltipTime(x, aggregatePeriod)
           const formatValue = unit.format
-          // Each fuel of each point's series, with its generation. That's looked
-          // up from the fuel's total, as the proportion chart's points are shares
-          // of the total, and a combined series' point is its fuels' added up.
+          // Generation per fuel comes from fuelTotal, not the point: proportion
+          // points are shares, and a combined series' point sums its fuels.
           const r = rowByMs.get(x)
           // The earlier period's row at the same time, whose values take the
           // capacity column's place
@@ -676,14 +666,12 @@ export default function GridOverviewPanel({
                   ]
             }),
           )
-          // The total is what's stacked above zero: the generation, and in an
-          // island's views whatever the HVDC brings in. What's below it, a
-          // battery charging or the HVDC taking power out, is a share of that
-          // too, so the island's exports read as the part of its generation sent away.
+          // The total is what's stacked above zero: generation plus, for an island,
+          // HVDC imports. Battery charging and HVDC exports are shown as shares of
+          // it, so exports read as the part of generation sent away.
           const total = fuelPoints.reduce((sum, p) => sum + Math.max(p.y, 0), 0)
 
-          // A fuel's row: its generation, capacity and share of the total. A
-          // group's parts are indented, and not bold, to set its heading apart.
+          // Group parts are indented and not bold, to set the heading apart
           const row = (
             label: string,
             colour: string,
@@ -710,7 +698,7 @@ export default function GridOverviewPanel({
             return `<tr><td${labelStyle}><span style="color:${colour}">●</span> ${label}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
           }
 
-          // Each group's points, in its parts' order, where two or more are in the tooltip (see TOOLTIP_GROUPS)
+          // Groups with two or more points present, in parts order (see TOOLTIP_GROUPS)
           const groups = (combineFossil ? [...TOOLTIP_GROUPS, FOSSIL_TOOLTIP_GROUP] : TOOLTIP_GROUPS)
             .map((group) => ({
               group,
@@ -722,8 +710,8 @@ export default function GridOverviewPanel({
             .filter(({ points }) => points.length > 1)
           const groupOf = (p: (typeof fuelPoints)[number]) =>
             groups.find(({ points }) => points.some((part) => part.p === p))
-          // A group's heading and parts take the place of the last of its points
-          // in the series' order. That puts Battery at the bottom, where charging is.
+          // A group's rows replace its last point in series order, which puts
+          // Battery at the bottom, where charging is.
           const rows = fuelPoints
             .map((p) => {
               const grouped = groupOf(p)
@@ -765,13 +753,13 @@ export default function GridOverviewPanel({
             : isAggregate
               ? ''
               : '<th style="padding-left:var(--space-lg)">Capacity</th>'
-          // The earlier period's total generation of the same fuels, and how it's changed since
+          // The earlier period's total of the same fuels, and the change since
           const totalBefore = pr === undefined ? null : priorGeneration[pr] / unit.size
           const totalChange =
             totalBefore !== null
               ? ` <span style="color:var(--color-text-muted)">· ${changeText(total, totalBefore, formatValue)} on ${priorTime}</span>`
               : ''
-          // Kept to one line a row, as the longer labels would otherwise wrap the table on a narrow panel
+          // One line per row, or long labels wrap the table on a narrow panel
           return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${totalChange}${renewableRow}${priceRow}`
         },
       },
@@ -802,27 +790,25 @@ export default function GridOverviewPanel({
     priorFuels,
   ])
 
-  // On the narrowest panels the title is cut short to keep the picker's ▾ in view
+  // On the narrowest panels the title truncates to keep the picker's chevron in view
   const header = (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
       <span className="title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        NZ Grid Generation
+        NZ grid generation
       </span>
       <button
         onClick={() => setPickerOpen(true)}
+        aria-label="Pick a generator or substation"
         style={{
-          fontWeight: 400,
-          fontSize: 'var(--font-size-base)',
           border: 'none',
           background: 'none',
           padding: 0,
           cursor: 'pointer',
           color: 'var(--color-text-faint)',
-          lineHeight: 1,
           flexShrink: 0,
         }}
       >
-        ▾
+        <ChevronDown size={12} />
       </button>
     </div>
   )
@@ -833,8 +819,8 @@ export default function GridOverviewPanel({
       visible={visible}
       header={header}
       actions={[
-        { label: 'Analysis ↗', href: ANALYSIS_PATH },
-        { label: 'Generation Pipeline ↗', onClick: () => onPipelineOpenChange(true) },
+        { label: 'Analysis', href: ANALYSIS_PATH },
+        { label: 'Generation pipeline', onClick: () => onPipelineOpenChange(true) },
       ]}
     >
       <Suspense fallback={null}>
@@ -852,7 +838,6 @@ export default function GridOverviewPanel({
         {pipelineOpen && <PipelineModal onClose={() => onPipelineOpenChange(false)} />}
       </Suspense>
 
-      {/* Island + date picker toolbar */}
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <ToggleGroup
           compact={compactToolbar}
@@ -888,7 +873,6 @@ export default function GridOverviewPanel({
         </div>
       </PanelToolbar>
 
-      {/* Fuel pills */}
       {fuels.length > 0 && (
         <div className="section">
           <SeriesButtonRow
@@ -914,7 +898,6 @@ export default function GridOverviewPanel({
         </div>
       )}
 
-      {/* Chart area */}
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
         {prior && priorFuels && chartOptions && (
           <CompareLegend

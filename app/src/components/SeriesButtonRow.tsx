@@ -9,16 +9,14 @@ interface SeriesButtonProps {
   onClick: () => void
   // Shift-click: shows this series alone
   onIsolate?: () => void
-  // For colour var(--color-reference): dark text on it while it's showing, as it's near white in dark mode
-  reference?: boolean
   children: ReactNode
 }
 
-// A series toggle button: filled with the series colour when it's showing
-export function SeriesButton({ colour, active, onClick, onIsolate, reference = false, children }: SeriesButtonProps) {
+// A legend-style toggle; its swatch is filled while the series is showing
+export function SeriesButton({ colour, active, onClick, onIsolate, children }: SeriesButtonProps) {
   return (
     <button
-      className={reference ? 'series-button series-button--reference' : 'series-button'}
+      className="series-button"
       aria-pressed={active}
       // Stops shift-click extending the page's text selection
       onMouseDown={(e) => {
@@ -34,7 +32,6 @@ export function SeriesButton({ colour, active, onClick, onIsolate, reference = f
 
 const NEUTRAL_CLASS = 'series-button series-button--neutral'
 
-// Deselects every series in a row, or selects them all again once cleared
 export function ClearButton({ cleared, onClick }: { cleared: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className={NEUTRAL_CLASS}>
@@ -44,25 +41,24 @@ export function ClearButton({ cleared, onClick }: { cleared: boolean; onClick: (
 }
 
 interface Props {
-  // Always shown, at the start of the row
+  // Always shown, at the start
   lead?: ReactElement[]
   // As many as fit on one line after the lead; the rest collapse behind "+N more"
   items: ReactElement[]
-  // Always shown, at the end of the row (after "+N more")
+  // Always shown, at the end (after "+N more")
   trail?: ReactElement[]
 }
 
-// A row of series buttons that never overflows its width: whatever doesn't fit
-// on one line goes behind a "+N more" button, which expands the row to wrap.
+// Never overflows its width: what doesn't fit on one line goes behind "+N more", which
+// expands the row to wrap.
 export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props) {
   const rowRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   const [fitCount, setFitCount] = useState(items.length)
   const [expanded, setExpanded] = useState(false)
 
-  // Fits items against the hidden copy's natural widths, leaving room for
-  // "+N more" when some don't fit. Re-run after every render (labels change
-  // width, e.g. Hide/Show generators) and whenever the row resizes.
+  // Measures the hidden copy's natural widths, leaving room for "+N more" when needed. Runs after
+  // every render (labels change width, e.g. Hide/Show generators) and on resize.
   const updateFitRef = useRef(() => {})
   useLayoutEffect(() => {
     updateFitRef.current = () => {
@@ -107,7 +103,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
       {expanded || hiddenCount <= 0 ? items : items.slice(0, fitCount)}
       {hiddenCount > 0 && (
         <button onClick={() => setExpanded((v) => !v)} className={NEUTRAL_CLASS}>
-          {expanded ? 'Show fewer ▲' : `+${hiddenCount} more ▼`}
+          {expanded ? 'Show fewer' : `+${hiddenCount} more`}
         </button>
       )}
       {trail}
@@ -117,7 +113,7 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
           {lead}
           {items}
           {trail}
-          <button className={NEUTRAL_CLASS}>{`+${items.length} more ▼`}</button>
+          <button className={NEUTRAL_CLASS}>{`+${items.length} more`}</button>
         </div>
       </div>
     </div>
