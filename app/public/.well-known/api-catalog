@@ -28,6 +28,21 @@
       ]
     },
     {
+      "anchor": "https://api-solar.electricitymap.frenchsta.gg",
+      "service-desc": [
+        {
+          "href": "https://api-solar.electricitymap.frenchsta.gg/openapi.json",
+          "type": "application/json"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://api-solar.electricitymap.frenchsta.gg/",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
       "anchor": "https://api.electricitymap.frenchsta.gg/mcp",
       "service-desc": [
         {
