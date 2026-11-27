@@ -34,7 +34,7 @@ NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com
   - `get_generating_capacity`: capacity in service on a date, and what was commissioned or retired since another
   - `get_outages`: generating units' planned and unplanned outages
   - `get_offers`: generators' offers on a day, as a supply curve
-- JSON API, base https://api.electricitymap.frenchsta.gg/v1:
+- JSON API, base https://api.electricitymap.frenchsta.gg/v1, described in OpenAPI 3.1 at https://api.electricitymap.frenchsta.gg/openapi.json (docs at https://api.electricitymap.frenchsta.gg/docs):
   - `/definitions`: every generator (its units, fuel, capacity, operator, location and commissioning dates) and substation
   - `/dispatch/recent`: the latest days of five-minute generation by unit, and prices by node
   - `/dispatch/YYYY-MM-DD`: a past day's
