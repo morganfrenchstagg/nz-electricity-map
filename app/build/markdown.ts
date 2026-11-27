@@ -1,9 +1,10 @@
-import { FOOTER, ORIGIN } from './html'
+import { AGENT_DATA, FOOTER, ORIGIN } from './html'
 import type { Page } from './html'
 
 // Each page as Markdown, for AI agents that ask for it (see edge/markdown.ts):
-// its title, description and address as front matter, then its content and
-// footer, converted from the HTML the build writes for them. That HTML is the
+// its title, description and address as front matter, then its content, where
+// agents can get its data (see Page.agentData and AGENT_DATA), and its footer,
+// converted from the HTML the build writes for them. That HTML is the
 // build's own, from a few tags (see html.ts), so a converter for those does.
 // The site's header and the breadcrumbs are left out, as are the charts, whose
 // tables carry every figure, and their keys.
@@ -71,6 +72,11 @@ function escapeText(text: string): string {
   return text.replace(/[\\`*[\]]|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, '\\$&')
 }
 
+// Its text as it is, without escaping, e.g. for code
+function textContent(nodes: Node[]): string {
+  return nodes.map((node) => (isElement(node) ? textContent(node.children) : node)).join('')
+}
+
 function inline(nodes: Node[]): string {
   return nodes
     .map((node) => (isElement(node) ? inlineElement(node) : escapeText(node)))
@@ -93,6 +99,10 @@ function inlineElement(element: Element): string {
       return text && `**${text}**`
     case 'br':
       return ' '
+    case 'code': {
+      const code = textContent(element.children).replace(/\s+/g, ' ').trim()
+      return code && `\`${code}\``
+    }
     default:
       return inline(element.children)
   }
@@ -187,5 +197,8 @@ export function pageMarkdown(page: Page): string {
     `url: ${JSON.stringify(ORIGIN + page.path)}`,
     '---',
   ].join('\n')
-  return `${frontMatter}\n\n${htmlToMarkdown(`${page.body}\n${FOOTER}`)}\n`
+  // The home page has AGENT_DATA in its content already
+  const agents = page.body.includes(AGENT_DATA) ? '' : AGENT_DATA
+  const html = [page.body, page.agentData ?? '', agents, FOOTER].join('\n')
+  return `${frontMatter}\n\n${htmlToMarkdown(html)}\n`
 }

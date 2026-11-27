@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { htmlToMarkdown, pageMarkdown } from './markdown'
 import { barChart } from './charts'
-import { table } from './html'
+import { AGENT_DATA, table } from './html'
 
 describe('htmlToMarkdown', () => {
   it('writes headings, paragraphs and lists', () => {
@@ -64,6 +64,12 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown('<p>ō_ā _x x_</p>')).toBe('ō_ā \\_x x\\_')
   })
 
+  it('writes code as it is, without escaping it', () => {
+    expect(
+      htmlToMarkdown('<p>Call <code>get_energy</code> with <code>{&quot;station&quot;:[&quot;HLY&quot;]}</code></p>'),
+    ).toBe('Call `get_energy` with `{"station":["HLY"]}`')
+  })
+
   it('keeps bare text between blocks as a paragraph of its own', () => {
     expect(htmlToMarkdown('<div>Before<h2>Heading</h2>after <b>bold</b></div>')).toBe(
       'Before\n\n## Heading\n\nafter **bold**',
@@ -80,12 +86,27 @@ describe('pageMarkdown', () => {
     body: '<h1>HVDC Inter-Island Link</h1><p>Flows north and south.</p>',
   }
 
-  it('leads with front matter, and ends with the footer', () => {
+  it('leads with front matter, and ends with where agents get the data, then the footer', () => {
     const markdown = pageMarkdown(page)
     expect(markdown).toMatch(
-      /^---\ntitle: "HVDC: Inter-Island Link \| NZ Electricity Map"\ndescription: "Flows \\"north\\" and south."\nurl: "https:\/\/electricitymap.frenchsta.gg\/hvdc"\n---\n\n# HVDC Inter-Island Link\n\nFlows north and south.\n\nData from/,
+      /^---\ntitle: "HVDC: Inter-Island Link \| NZ Electricity Map"\ndescription: "Flows \\"north\\" and south."\nurl: "https:\/\/electricitymap.frenchsta.gg\/hvdc"\n---\n\n# HVDC Inter-Island Link\n\nFlows north and south.\n\n## For developers and AI agents\n\n- MCP server: https:\/\/api.electricitymap.frenchsta.gg\/mcp /,
+    )
+    expect(markdown).toContain('[server card](/.well-known/mcp/server-card.json)')
+    expect(markdown).toContain('[llms.txt](/llms.txt)')
+    expect(markdown).toContain(
+      '- JSON API: https://api.electricitymap.frenchsta.gg/v1, with [docs](https://api.electricitymap.frenchsta.gg/docs) and an [OpenAPI description](https://api.electricitymap.frenchsta.gg/openapi.json)\n\nData from',
     )
     expect(markdown).toContain('[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)')
     expect(markdown).toMatch(/LinkedIn\]\(https:\/\/www.linkedin.com\/in\/morganfrenchstagg\)\.\n$/)
+  })
+
+  it("puts a page's own data for agents before the site's, and the site's only once", () => {
+    const markdown = pageMarkdown({ ...page, agentData: '<h2>Daily and 5-minute data</h2>' })
+    expect(markdown).toContain(
+      'Flows north and south.\n\n## Daily and 5-minute data\n\n## For developers and AI agents',
+    )
+    const home = pageMarkdown({ ...page, body: `<h1>Home</h1>${AGENT_DATA}<h2>Power stations</h2>` })
+    expect(home.match(/For developers and AI agents/g)).toHaveLength(1)
+    expect(home).toContain('## Power stations\n\nData from')
   })
 })

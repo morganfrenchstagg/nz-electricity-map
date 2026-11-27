@@ -19,6 +19,7 @@ import {
   substationTitle,
 } from '../src/utils/stationPaths'
 import {
+  AGENT_DATA,
   API_URL,
   article,
   breadcrumbs,
@@ -36,7 +37,6 @@ import {
   kindPhrase,
   link,
   linkList,
-  MCP_URL,
   mw,
   nzDate,
   nzYear,
@@ -160,6 +160,45 @@ function seeAlso(ctx: Context, g: Generator): string {
   return `<p>See also: ${links.join(' · ')}</p>`
 }
 
+// The 5-minute dispatch begins on this day. Before it, back to August 1997, the
+// data is half-hourly metered generation.
+const FIVE_MINUTE_FROM = '2020-09-11'
+
+// For agents, in the Markdown of a station's pages: that its generation is
+// there every 5 minutes (or half hour) and day by day, and the MCP tools' and
+// API routes' calls that get it. The tools take its site code, which no other
+// station shares. The API's routes take its units' nodes, as other stations
+// share their buses.
+function stationData(g: Generator): string {
+  const dates = (key: 'commissioned' | 'decomissioned') =>
+    g.units
+      .map((u) => u[key]?.slice(0, 10))
+      .filter((d): d is string => !!d)
+      .sort()
+  const retiredOn = isRetired(g) ? dates('decomissioned').pop() : undefined
+  const fiveMinute = !retiredOn || retiredOn >= FIVE_MINUTE_FROM
+  const firstCommissioned = dates('commissioned')[0]
+  const coverage = !fiveMinute
+    ? 'every half hour while it ran, back to August 1997 (the 5-minute data starts on 11 September 2020, after it was retired)'
+    : firstCommissioned && firstCommissioned >= FIVE_MINUTE_FROM
+      ? 'every 5 minutes'
+      : 'every 5 minutes from 11 September 2020, and every half hour before that back to August 1997'
+  const nodes = generationNodes(g.units)
+  const code = (text: string) => `<code>${esc(text)}</code>`
+  const tool = (name: string, args: object) =>
+    `the MCP tool ${code(name)} with ${code(JSON.stringify({ station: [g.site], ...args }))}`
+  const day = { date: 'YYYY-MM-DD', resolution: fiveMinute ? '5min' : '30min', group_by: 'unit' }
+  const days = { resolution: 'daily', from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
+  const aggregates = `${API_URL}/dispatch/aggregates/YYYY/MM?nodes=${nodes.map(encodeURIComponent).join(',')}`
+  return `<h2>${fiveMinute ? 'Daily and 5-minute data' : 'Daily and half-hourly data'}</h2>
+<p>${esc(`The MCP server and the API have ${g.name}'s generation ${coverage}, unit by unit, and its daily totals.`)}</p>
+<ul>
+<li>Through a day: ${tool('get_day_profile', day)}, or every node's from the API's ${code(`${API_URL}/dispatch/YYYY-MM-DD`)}</li>
+<li>Day by day: ${tool('get_energy', days)}, or each day of a month, in MWh, from ${code(aggregates)}</li>
+${retiredOn ? '' : `<li>Right now: ${tool('get_current_state', { group_by: 'unit' })}, or the latest 5 minutes from ${code(`${API_URL}/dispatch/latest`)}</li>\n`}</ul>
+<p>Its units' nodes in the API's data: ${nodes.map(code).join(', ')}</p>`
+}
+
 function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Page {
   const { defs } = ctx
   const path = generatorPath(g, defs.generators)
@@ -238,6 +277,7 @@ ${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} station
     title: generatorTitle(g),
     description,
     body,
+    agentData: stationData(g),
     jsonLd: graph(
       webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
       place,
@@ -358,6 +398,7 @@ ${seeAlso(ctx, g)}`
     title: generatorHistoricTitle(g),
     description,
     body,
+    agentData: stationData(g),
     jsonLd: graph(
       webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
       place,
@@ -543,8 +584,7 @@ ${renewableLead(ctx)}
 <li>Today, the last few days, or any day or range back to 2009, and totals over 90 days to all years.</li>
 </ul>
 ${topicNav(ctx, 'Analysis')}
-<h2>For developers and AI agents</h2>
-<p>The data behind the map is available as JSON from <a href="${API_URL}/definitions">${API_URL}</a>, and to AI agents through an MCP server at ${MCP_URL}. See <a href="/llms.txt">llms.txt</a>.</p>
+${AGENT_DATA}
 <h2>Power stations</h2>
 ${fuels.map((f) => `<h3>${fuelHeading(f)}</h3>${linkList(sortByName(byFuel.get(f) ?? [], (g) => g.name).map((g) => ({ href: generatorPath(g, defs.generators), text: g.name })))}`).join('\n')}
 <h2>Substations</h2>

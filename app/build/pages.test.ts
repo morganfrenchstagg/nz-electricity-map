@@ -228,6 +228,66 @@ describe('buildPages', () => {
   })
 })
 
+describe("stations' data for agents", () => {
+  const pages = buildPages(defs, [])
+  const page = (path: string) => pages.find((p) => p.path === path)!
+
+  it("tells agents in a station's Markdown that its 5-minute and daily data are there, and how to get them", () => {
+    const markdown = pageMarkdown(page('/generator/huntly'))
+    expect(markdown).toContain(
+      "\n## Daily and 5-minute data\n\nThe MCP server and the API have Huntly's generation every 5 minutes from 11 September 2020, and every half hour before that back to August 1997, unit by unit, and its daily totals.\n",
+    )
+    expect(markdown).toContain(
+      '- Through a day: the MCP tool `get_day_profile` with `{"station":["HLY"],"date":"YYYY-MM-DD","resolution":"5min","group_by":"unit"}`, or every node\'s from the API\'s `https://api.electricitymap.frenchsta.gg/v1/dispatch/YYYY-MM-DD`',
+    )
+    expect(markdown).toContain(
+      '- Day by day: the MCP tool `get_energy` with `{"station":["HLY"],"resolution":"daily","from":"YYYY-MM-DD","to":"YYYY-MM-DD"}`, or each day of a month, in MWh, from `https://api.electricitymap.frenchsta.gg/v1/dispatch/aggregates/YYYY/MM?nodes=HLY2201%20HLY5,HLY2201%20HLY6,',
+    )
+    expect(markdown).toContain(
+      '- Right now: the MCP tool `get_current_state` with `{"station":["HLY"],"group_by":"unit"}`, or the latest 5 minutes from `https://api.electricitymap.frenchsta.gg/v1/dispatch/latest`',
+    )
+    expect(markdown).toContain("Its units' nodes in the API's data: `HLY2201 HLY5`, `HLY2201 HLY6`")
+    expect(pageMarkdown(page('/generator/huntly/historic'))).toContain('\n## Daily and 5-minute data\n')
+    // In the Markdown only
+    expect(page('/generator/huntly').body).not.toContain('get_day_profile')
+  })
+
+  it('gives a station retired before the 5-minute data began its half-hourly data, and nothing live', () => {
+    const markdown = pageMarkdown(page('/generator/otahuhu'))
+    expect(markdown).toContain(
+      "\n## Daily and half-hourly data\n\nThe MCP server and the API have Ōtāhuhu's generation every half hour while it ran, back to August 1997 (the 5-minute data starts on 11 September 2020, after it was retired), unit by unit, and its daily totals.\n",
+    )
+    expect(markdown).toContain('"resolution":"30min"')
+    expect(markdown).not.toContain('Right now')
+  })
+
+  it('gives a station commissioned since the 5-minute data began only that', () => {
+    const solar: Generator = {
+      ...otahuhu,
+      site: 'KHA',
+      name: 'Kōwhai Park',
+      units: [
+        unit({ name: 'Kōwhai Park', unitCode: 'KHA0', node: 'KHA0331 KHA0', commissioned: '2025-03-01T12:00:00.000Z' }),
+      ],
+    }
+    const [markdown] = buildPages({ generators: [solar], substations: [] }, [])
+      .filter((p) => p.path === '/generator/kowhai-park')
+      .map(pageMarkdown)
+    expect(markdown).toContain("have Kōwhai Park's generation every 5 minutes, unit by unit, and its daily totals.")
+    expect(markdown).toContain('- Right now:')
+  })
+
+  it("links the MCP server's and the API's docs once on every page's Markdown, the home page's in its content", () => {
+    for (const path of ['/', '/hvdc', '/generator/huntly', '/substation/huntly']) {
+      const markdown = pageMarkdown(page(path))
+      expect(markdown.match(/\n## For developers and AI agents\n/g)).toHaveLength(1)
+      expect(markdown).toContain('[docs](https://api.electricitymap.frenchsta.gg/docs)')
+      expect(markdown).toContain('[server card](/.well-known/mcp/server-card.json)')
+    }
+    expect(page('/').body).toContain('<h2>For developers and AI agents</h2>')
+  })
+})
+
 describe('renderPage', () => {
   const [home] = buildPages(defs, [])
 
