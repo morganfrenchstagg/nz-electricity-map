@@ -5,7 +5,9 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime('2026-10-14T01:00:00Z') // 2pm NZDT on the 14th
 })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('dateRangeError', () => {
   it('allows a day or range of complete days', () => {

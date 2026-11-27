@@ -3,13 +3,33 @@ import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
 import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
-import { chartKind, useDistributedSolar, useDistributedSolarEnergy, useShownWithSolar } from '../hooks/useDistributedSolar'
+import {
+  chartKind,
+  useDistributedSolar,
+  useDistributedSolarEnergy,
+  useShownWithSolar,
+} from '../hooks/useDistributedSolar'
 import { SUBSTATION_SOLAR } from '../featureFlags'
-import { busLabel, chartReach, dataInterval, isGeneratorCode, substationCodes, timeChartAccessibility, tooltipTime, unitOfCode } from '../utils/chart'
+import {
+  busLabel,
+  chartReach,
+  dataInterval,
+  isGeneratorCode,
+  substationCodes,
+  timeChartAccessibility,
+  tooltipTime,
+  unitOfCode,
+} from '../utils/chart'
 import type { ChartData } from '../utils/chart'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { DISTRIBUTED_SOLAR_FUEL_CODE, fuelCodeColour, fuelCodeLabel, fuelColour, voltageColour } from '../utils/colours'
-import { distributedSolarAt, distributedSolarEnergy, observedSolar, solarPeriodNote, solarSoFar } from '../utils/distributedSolar'
+import {
+  distributedSolarAt,
+  distributedSolarEnergy,
+  observedSolar,
+  solarPeriodNote,
+  solarSoFar,
+} from '../utils/distributedSolar'
 import { energyUnit, MW_UNIT } from '../utils/format'
 import { nzLocalMs, nzNowMs, todayNZ } from '../utils/time'
 import { unitLabel } from '../utils/generators'
@@ -49,7 +69,12 @@ function demandLoads({ rows, codes }: ChartData): number[] {
   return totalLoads({ rows, codes: codes.filter((code) => !isGeneratorCode(code)) })
 }
 
-function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, unitSize: number): Highcharts.SeriesLineOptions {
+function totalSeries(
+  { rows }: ChartData,
+  loads: number[],
+  visible: boolean,
+  unitSize: number,
+): Highcharts.SeriesLineOptions {
   return {
     type: 'line',
     name: TOTAL,
@@ -66,7 +91,13 @@ function totalSeries({ rows }: ChartData, loads: number[], visible: boolean, uni
 // The estimate charted above 0 (unlike generators, which are negative load), and
 // a dashed line adding it back onto demand (see demandLoads): the demand without
 // it. Both are left off where there's no estimate.
-function distributedSolarSeries({ rows }: ChartData, solar: (number | null)[], demand: number[], shown: { solar: boolean; demand: boolean }, unitSize: number): Highcharts.SeriesLineOptions[] {
+function distributedSolarSeries(
+  { rows }: ChartData,
+  solar: (number | null)[],
+  demand: number[],
+  shown: { solar: boolean; demand: boolean },
+  unitSize: number,
+): Highcharts.SeriesLineOptions[] {
   const points = (value: (estimate: number, i: number) => number) =>
     rows.map((row, i): [number, number | null] => {
       const estimate = solar[i]
@@ -103,7 +134,17 @@ interface Props extends NodePanelProps {
 
 // A substation's load by bus, and the generators connected there, or several
 // substations' together
-export default function SubstationPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, ...panel }: Props) {
+export default function SubstationPanel({
+  node,
+  onClear,
+  dateMode,
+  onDateModeChange,
+  recentData,
+  loading,
+  error,
+  onNodeChange,
+  ...panel
+}: Props) {
   const substations = useMemo(() => substationsOf(node), [node])
   const multiple = substations.length > 1
   const title = substationsTitle(substations)
@@ -118,45 +159,72 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const headerMenu = hasHeaderMenu(panel)
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
 
-  const unitFor = useCallback((code: string): Unit | null => {
-    if (!isGeneratorCode(code)) return null
-    for (const gen of generators) {
-      const unit = gen.units.find((u) => u.node === code)
-      if (unit) return unit
-    }
-    return null
-  }, [generators])
+  const unitFor = useCallback(
+    (code: string): Unit | null => {
+      if (!isGeneratorCode(code)) return null
+      for (const gen of generators) {
+        const unit = gen.units.find((u) => u.node === code)
+        if (unit) return unit
+      }
+      return null
+    },
+    [generators],
+  )
 
   // Buses first, by substation, then generators alphabetically by name
-  const getCodes = useCallback((recent: RecentData) => {
-    const codes = [...new Set(substations.flatMap((s) => substationCodes(recent, s.siteId)))]
-    const genName = (code: string) => { const unit = unitFor(code); return unit ? unitLabel(unit) : code }
-    return [
-      ...codes.filter((c) => !isGeneratorCode(c)),
-      ...codes.filter(isGeneratorCode).sort((a, b) => genName(a).localeCompare(genName(b))),
-    ]
-  }, [substations, unitFor])
+  const getCodes = useCallback(
+    (recent: RecentData) => {
+      const codes = [...new Set(substations.flatMap((s) => substationCodes(recent, s.siteId)))]
+      const genName = (code: string) => {
+        const unit = unitFor(code)
+        return unit ? unitLabel(unit) : code
+      }
+      return [
+        ...codes.filter((c) => !isGeneratorCode(c)),
+        ...codes.filter(isGeneratorCode).sort((a, b) => genName(a).localeCompare(genName(b))),
+      ]
+    },
+    [substations, unitFor],
+  )
 
-  const { aggregatePeriod, isAggregate, allCodes, chartData: loadedChartData, loading: dataLoading, error: dataError } = useNodeData({
-    dateMode, recentData, loading, error, queryNodes: siteIds, getCodes,
+  const {
+    aggregatePeriod,
+    isAggregate,
+    allCodes,
+    chartData: loadedChartData,
+    loading: dataLoading,
+    error: dataError,
+  } = useNodeData({
+    dateMode,
+    recentData,
+    loading,
+    error,
+    queryNodes: siteIds,
+    getCodes,
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
 
   // With several substations, buses are prefixed with their substation's name.
   // Generator units already carry theirs.
-  const labelFor = useCallback((code: string) => {
-    const unit = unitFor(code)
-    if (unit) return unitLabel(unit)
-    if (isGeneratorCode(code)) return unitOfCode(code)
-    const bus = busLabel(code, allCodes)
-    const site = multiple ? substations.find((s) => code.startsWith(s.siteId)) : undefined
-    return site ? `${site.description} ${bus}` : bus
-  }, [unitFor, allCodes, multiple, substations])
+  const labelFor = useCallback(
+    (code: string) => {
+      const unit = unitFor(code)
+      if (unit) return unitLabel(unit)
+      if (isGeneratorCode(code)) return unitOfCode(code)
+      const bus = busLabel(code, allCodes)
+      const site = multiple ? substations.find((s) => code.startsWith(s.siteId)) : undefined
+      return site ? `${site.description} ${bus}` : bus
+    },
+    [unitFor, allCodes, multiple, substations],
+  )
 
-  const colourFor = useCallback((code: string) => {
-    const unit = unitFor(code)
-    return unit ? fuelColour(unit.fuel) : busColour(code)
-  }, [unitFor])
+  const colourFor = useCallback(
+    (code: string) => {
+      const unit = unitFor(code)
+      return unit ? fuelColour(unit.fuel) : busColour(code)
+    },
+    [unitFor],
+  )
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
@@ -173,7 +241,11 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   const solarTotals = useDistributedSolarEnergy(dateMode, SUBSTATION_SOLAR)
   const { shown, waiting: waitingForSolar } = useShownWithSolar(
     { chartData: loadedChartData, solarDays: solarProduction.days, solarEnergy: solarTotals.files },
-    `${siteKey} ${JSON.stringify(dateMode)}`, chartKind(dateMode, siteKey), SUBSTATION_SOLAR, !dataLoading, solarProduction.loaded && solarTotals.loaded,
+    `${siteKey} ${JSON.stringify(dateMode)}`,
+    chartKind(dateMode, siteKey),
+    SUBSTATION_SOLAR,
+    !dataLoading,
+    solarProduction.loaded && solarTotals.loaded,
   )
   const chartData = shown?.chartData ?? null
   const solarDays = shown?.solarDays
@@ -184,7 +256,12 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     if (isAggregate) {
       if (!solarEnergy.some((file) => file.series.some(atSubstation))) return null
       const today = todayNZ()
-      const energy = distributedSolarEnergy(solarEnergy, atSubstation, today, solarSoFar(solarDays, today, nzNowMs(), atSubstation, true))
+      const energy = distributedSolarEnergy(
+        solarEnergy,
+        atSubstation,
+        today,
+        solarSoFar(solarDays, today, nzNowMs(), atSubstation, true),
+      )
       const periods = chartData.rows.map((row) => energy.get(row.time.slice(0, 10)))
       const values = periods.map((period) => period?.mwh ?? null)
       return values.some((v) => v !== null) ? { values, periods } : null
@@ -224,11 +301,11 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
   // If no buses are selected either, hiding falls back to all buses so the chart
   // isn't empty. Total includes the generators, so it switches with them.
   function toggleGenerators() {
-    const buses = [...effectiveCodes].filter(c => !isGeneratorCode(c))
+    const buses = [...effectiveCodes].filter((c) => !isGeneratorCode(c))
     if (!generatorsShown) {
       setActiveCodes(new Set([...buses, ...allCodes.filter(isGeneratorCode)]))
     } else {
-      const remaining = buses.length > 0 ? buses : allCodes.filter(c => !isGeneratorCode(c))
+      const remaining = buses.length > 0 ? buses : allCodes.filter((c) => !isGeneratorCode(c))
       if (remaining.length === 0) return
       setActiveCodes(new Set(remaining))
     }
@@ -276,12 +353,17 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
     const demand = demandLoads(chartData)
     const shownCodes = chartData.codes.filter((code) => effectiveCodes.has(code))
     const unit = isAggregate
-      ? energyUnit(chartReach(chartData.rows.map((row, i) => [
-          ...shownCodes.map((code) => row[code] as number),
-          ...(totalShown ? [totals[i]] : []),
-          ...(solarShown ? [solar[i] ?? 0] : []),
-          ...(solarDemandShown ? [demand[i] + (solar[i] ?? 0)] : []),
-        ]), false))
+      ? energyUnit(
+          chartReach(
+            chartData.rows.map((row, i) => [
+              ...shownCodes.map((code) => row[code] as number),
+              ...(totalShown ? [totals[i]] : []),
+              ...(solarShown ? [solar[i] ?? 0] : []),
+              ...(solarDemandShown ? [demand[i] + (solar[i] ?? 0)] : []),
+            ]),
+            false,
+          ),
+        )
       : MW_UNIT
 
     return nodeChartOptions({
@@ -294,7 +376,9 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       transformValue: (value) => toLoad(value) / unit.size,
       extraSeries: [
         ...(hasTotal ? [totalSeries(chartData, totals, totalShown, unit.size)] : []),
-        ...(solar ? distributedSolarSeries(chartData, solar, demand, { solar: solarShown, demand: solarDemandShown }, unit.size) : []),
+        ...(solar
+          ? distributedSolarSeries(chartData, solar, demand, { solar: solarShown, demand: solarDemandShown }, unit.size)
+          : []),
       ],
       yAxis: {
         title: { text: `Load (${unit.label})` },
@@ -304,91 +388,171 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
       tooltipFormatter: function () {
         const points = (this.points ?? []).filter((p) => !EXTRA_SERIES.includes(p.series.name))
         const formatValue = unit.format
-        const context = { codes: chartData.codes, prices: prices.get(this.x as number), formatValue, showName: points.length > 1 }
+        const context = {
+          codes: chartData.codes,
+          prices: prices.get(this.x),
+          formatValue,
+          showName: points.length > 1,
+        }
         const row = (p: Highcharts.Point) => tooltipRow(p, context)
 
         const isGenerator = (p: Highcharts.Point) => isGeneratorCode(chartData.codes[p.series.index] ?? '')
         const genPoints = points.filter(isGenerator)
-        let rows = points.filter((p) => !isGenerator(p)).map(row).join('')
+        let rows = points
+          .filter((p) => !isGenerator(p))
+          .map(row)
+          .join('')
         if (genPoints.length > 0) {
-          rows += `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Generation</td></tr>` + genPoints.map(row).join('')
+          rows +=
+            `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Generation</td></tr>` +
+            genPoints.map(row).join('')
         }
         if (points.length > 1) {
-          rows += tooltipTotalRow(points.reduce((sum, p) => sum + (p.y ?? 0), 0), formatValue)
+          rows += tooltipTotalRow(
+            points.reduce((sum, p) => sum + (p.y ?? 0), 0),
+            formatValue,
+          )
         }
         // The estimate isn't part of the substation's load, so it's listed after the total
-        const solarPoints = (this.points ?? []).filter((p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR)
+        const solarPoints = (this.points ?? []).filter(
+          (p) => p.series.name === SOLAR || p.series.name === DEMAND_WITH_SOLAR,
+        )
         if (solarPoints.length > 0) {
-          rows += `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Estimate</td></tr>` + solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
+          rows +=
+            `<tr><td colspan="3" class="heading-sm" style="padding-top:var(--space-sm)">Estimate</td></tr>` +
+            solarPoints.map((p) => tooltipRow(p, { ...context, showName: true })).join('')
           const note = solarPeriodNote(solarEstimate?.periods[solarPoints[0].index])
           if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
-        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>`
       },
       accessibility: timeChartAccessibility(
         `${title} load`,
-        (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus')
-          + (solar ? ', and embedded solar estimated from the weather, both on its own and added back onto the buses\' load' : ''),
+        (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus') +
+          (solar
+            ? ", and embedded solar estimated from the weather, both on its own and added back onto the buses' load"
+            : ''),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, labelFor, colourFor, recentData, hasTotal, totalShown, solar, solarEstimate, solarShown, solarDemandShown, isAggregate, aggregatePeriod, title, hasGenerators])
+  }, [
+    chartData,
+    effectiveCodes,
+    labelFor,
+    colourFor,
+    recentData,
+    hasTotal,
+    totalShown,
+    solar,
+    solarEstimate,
+    solarShown,
+    solarDemandShown,
+    isAggregate,
+    aggregatePeriod,
+    title,
+    hasGenerators,
+  ])
 
   const showUnitSelector = allCodes.length > 1
   const leadButtons = [
-    ...(hasGenerators ? [
-      <button
-        key="generators"
-        onClick={toggleGenerators}
-        className={`series-button series-button--neutral${generatorsShown ? ' is-active' : ''}`}
-      >
-        {generatorsShown ? 'Hide generators' : 'Show generators'}
-      </button>,
-    ] : []),
-    ...(hasTotal ? [
-      <SeriesButton key="total" colour={TOTAL_COLOUR} active={totalShown} onClick={() => toggleExtra(totalShown, setTotalToggled)} onIsolate={() => isolate(TOTAL)}>
-        {TOTAL}
-      </SeriesButton>,
-    ] : []),
+    ...(hasGenerators
+      ? [
+          <button
+            key="generators"
+            onClick={toggleGenerators}
+            className={`series-button series-button--neutral${generatorsShown ? ' is-active' : ''}`}
+          >
+            {generatorsShown ? 'Hide generators' : 'Show generators'}
+          </button>,
+        ]
+      : []),
+    ...(hasTotal
+      ? [
+          <SeriesButton
+            key="total"
+            colour={TOTAL_COLOUR}
+            active={totalShown}
+            onClick={() => toggleExtra(totalShown, setTotalToggled)}
+            onIsolate={() => isolate(TOTAL)}
+          >
+            {TOTAL}
+          </SeriesButton>,
+        ]
+      : []),
   ]
-  if (leadButtons.length > 0 && (showUnitSelector || hasSolar)) leadButtons.push(<div key="divider" className="divider" />)
+  if (leadButtons.length > 0 && (showUnitSelector || hasSolar))
+    leadButtons.push(<div key="divider" className="divider" />)
 
   // Lead the buttons that can go behind "+N more", as they're long
-  const solarButtons = !hasSolar ? [] : [
-    <SeriesButton key="solar-demand" colour={TOTAL_COLOUR} active={solarDemandShown} onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)} onIsolate={() => isolate(DEMAND_WITH_SOLAR)}>
-      {DEMAND_WITH_SOLAR}
-    </SeriesButton>,
-    <SeriesButton key="solar" colour={SOLAR_COLOUR} active={solarShown} onClick={() => toggleExtra(solarShown, setSolarToggled)} onIsolate={() => isolate(SOLAR)}>
-      {SOLAR}
-    </SeriesButton>,
-  ]
+  const solarButtons = !hasSolar
+    ? []
+    : [
+        <SeriesButton
+          key="solar-demand"
+          colour={TOTAL_COLOUR}
+          active={solarDemandShown}
+          onClick={() => toggleExtra(solarDemandShown, setSolarDemandToggled)}
+          onIsolate={() => isolate(DEMAND_WITH_SOLAR)}
+        >
+          {DEMAND_WITH_SOLAR}
+        </SeriesButton>,
+        <SeriesButton
+          key="solar"
+          colour={SOLAR_COLOUR}
+          active={solarShown}
+          onClick={() => toggleExtra(solarShown, setSolarToggled)}
+          onIsolate={() => isolate(SOLAR)}
+        >
+          {SOLAR}
+        </SeriesButton>,
+      ]
 
-  const unitButtons = !showUnitSelector ? [] : allCodes.map((code, i) => {
-    const button = (
-      <SeriesButton key={code} colour={colourFor(code)} active={effectiveCodes.has(code)} onClick={() => toggleUnit(code)} onIsolate={() => isolate(code)}>
-        {labelFor(code)}
-      </SeriesButton>
-    )
-    // A divider leads the first generator, and the first bus after the solar buttons
-    const afterSolar = i === 0 && solarButtons.length > 0
-    if (!afterSolar && !(i > 0 && isGeneratorCode(code) && !isGeneratorCode(allCodes[i - 1]))) return button
-    return (
-      <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div className="divider" />
-        {button}
-      </div>
-    )
-  })
+  const unitButtons = !showUnitSelector
+    ? []
+    : allCodes.map((code, i) => {
+        const button = (
+          <SeriesButton
+            key={code}
+            colour={colourFor(code)}
+            active={effectiveCodes.has(code)}
+            onClick={() => toggleUnit(code)}
+            onIsolate={() => isolate(code)}
+          >
+            {labelFor(code)}
+          </SeriesButton>
+        )
+        // A divider leads the first generator, and the first bus after the solar buttons
+        const afterSolar = i === 0 && solarButtons.length > 0
+        if (!afterSolar && !(i > 0 && isGeneratorCode(code) && !isGeneratorCode(allCodes[i - 1]))) return button
+        return (
+          <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="divider" />
+            {button}
+          </div>
+        )
+      })
 
   const header = (
     // Past two, the title names only the first, so the line under it names them all
-    <NodeTitle node={node} title={title} compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle={substations.length > 2 ? substations.map((s) => s.description).join(', ') : undefined} />
+    <NodeTitle
+      node={node}
+      title={title}
+      compact={compactHeader}
+      onNodeChange={onNodeChange}
+      onClear={headerMenu ? undefined : onClear}
+      subtitle={substations.length > 2 ? substations.map((s) => s.description).join(', ') : undefined}
+    />
   )
 
   return (
-    <Panel {...panel} header={header} headerRef={headerRef} actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}>
+    <Panel
+      {...panel}
+      header={header}
+      headerRef={headerRef}
+      actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}
+    >
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <DateControls
           dateMode={dateMode}
@@ -406,7 +570,11 @@ export default function SubstationPanel({ node, onClear, dateMode, onDateModeCha
           <SeriesButtonRow
             lead={leadButtons}
             items={[...solarButtons, ...unitButtons]}
-            trail={unitButtons.length > 0 ? [<ClearButton key="clear" cleared={nothingSelected} onClick={clearOrSelectAll} />] : []}
+            trail={
+              unitButtons.length > 0
+                ? [<ClearButton key="clear" cleared={nothingSelected} onClick={clearOrSelectAll} />]
+                : []
+            }
           />
         </div>
       )}

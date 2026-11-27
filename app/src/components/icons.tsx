@@ -2,9 +2,28 @@ import type { ReactNode } from 'react'
 
 // Lines in currentColor on a 16-unit grid, 13px unless sized. Hidden from screen readers, as each
 // button has its own label.
-function Icon({ size = 13, viewBox = '0 0 16 16', children }: { size?: number; viewBox?: string; children: ReactNode }) {
+function Icon({
+  size = 13,
+  viewBox = '0 0 16 16',
+  children,
+}: {
+  size?: number
+  viewBox?: string
+  children: ReactNode
+}) {
   return (
-    <svg width={size} height={size} viewBox={viewBox} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+    <svg
+      width={size}
+      height={size}
+      viewBox={viewBox}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: 'block', flexShrink: 0 }}
+    >
       {children}
     </svg>
   )
@@ -13,40 +32,76 @@ function Icon({ size = 13, viewBox = '0 0 16 16', children }: { size?: number; v
 type Props = { size?: number }
 
 export function ChevronDown({ size }: Props) {
-  return <Icon size={size}><path d="M4 6l4 4 4-4" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M4 6l4 4 4-4" />
+    </Icon>
+  )
 }
 
 export function ChevronLeft({ size }: Props) {
-  return <Icon size={size}><path d="M10 3.5L5.5 8l4.5 4.5" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M10 3.5L5.5 8l4.5 4.5" />
+    </Icon>
+  )
 }
 
 export function ChevronRight({ size }: Props) {
-  return <Icon size={size}><path d="M6 3.5L10.5 8 6 12.5" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M6 3.5L10.5 8 6 12.5" />
+    </Icon>
+  )
 }
 
 export function ArrowUp({ size }: Props) {
-  return <Icon size={size}><path d="M8 13V3M4 7l4-4 4 4" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M8 13V3M4 7l4-4 4 4" />
+    </Icon>
+  )
 }
 
 export function ArrowDown({ size }: Props) {
-  return <Icon size={size}><path d="M8 3v10M4 9l4 4 4-4" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M8 3v10M4 9l4 4 4-4" />
+    </Icon>
+  )
 }
 
 export function Close({ size }: Props) {
-  return <Icon size={size}><path d="M4 4l8 8M12 4l-8 8" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </Icon>
+  )
 }
 
 export function Check({ size }: Props) {
-  return <Icon size={size}><path d="M3.5 8.5l3 3 6-7" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M3.5 8.5l3 3 6-7" />
+    </Icon>
+  )
 }
 
 // A part-ticked box's mark
 export function Minus({ size }: Props) {
-  return <Icon size={size}><path d="M4 8h8" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M4 8h8" />
+    </Icon>
+  )
 }
 
 export function ExternalLink({ size }: Props) {
-  return <Icon size={size}><path d="M7 3H3.5v9.5H13V9M9.5 3H13v3.5M13 3L7.5 8.5" /></Icon>
+  return (
+    <Icon size={size}>
+      <path d="M7 3H3.5v9.5H13V9M9.5 3H13v3.5M13 3L7.5 8.5" />
+    </Icon>
+  )
 }
 
 export function CalendarIcon({ size }: Props) {
@@ -80,7 +135,10 @@ export function Sun({ size }: Props) {
   return (
     <Icon size={size} viewBox="0 0 13 13">
       <circle cx="6.5" cy="6.5" r="2.3" fill="currentColor" stroke="none" />
-      <path d="M6.5 0.9v1.3M6.5 10.8v1.3M0.9 6.5h1.3M10.8 6.5h1.3M2.54 2.54l.92.92M9.54 9.54l.92.92M2.54 10.46l.92-.92M9.54 3.46l.92-.92" strokeWidth="1.3" />
+      <path
+        d="M6.5 0.9v1.3M6.5 10.8v1.3M0.9 6.5h1.3M10.8 6.5h1.3M2.54 2.54l.92.92M9.54 9.54l.92.92M2.54 10.46l.92-.92M9.54 3.46l.92-.92"
+        strokeWidth="1.3"
+      />
     </Icon>
   )
 }

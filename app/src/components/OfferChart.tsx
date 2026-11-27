@@ -10,7 +10,13 @@ import { CHART_CONTAINER_PROPS, FIT_TO_CONTAINER, chartAccessibility } from '../
 
 // Dispatch lines; labels are outlined in the surface colour to read over the offers
 const DISPATCH_COLOUR = 'var(--color-text)'
-const DISPATCH_LABEL_STYLE = { color: DISPATCH_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: '600', textOutline: '3px var(--color-surface)', whiteSpace: 'nowrap' }
+const DISPATCH_LABEL_STYLE = {
+  color: DISPATCH_COLOUR,
+  fontSize: 'var(--font-size-2xs)',
+  fontWeight: '600',
+  textOutline: '3px var(--color-surface)',
+  whiteSpace: 'nowrap',
+}
 
 interface Props {
   offersData: OffersData
@@ -58,9 +64,11 @@ function trancheText(custom: Tranche): string {
 
 function getUnitNodes(node: GeneratorNode): { node: string; fuel: string; label: string }[] {
   if (node.kind === 'generator') {
-    return node.generator.units.map(u => ({ node: u.node, fuel: u.fuel, label: u.name }))
+    return node.generator.units.map((u) => ({ node: u.node, fuel: u.fuel, label: u.name }))
   }
-  return node.generators.flatMap(g => g.units.map(u => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })))
+  return node.generators.flatMap((g) =>
+    g.units.map((u) => ({ node: u.node, fuel: u.fuel, label: `${g.name} — ${u.name}` })),
+  )
 }
 
 export default function OfferChart({ offersData, dispatch, shownCodes, tradingPeriod, node, title }: Props) {
@@ -68,10 +76,10 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     const periodData = offersData.data[String(tradingPeriod)]
     if (!periodData) return null
 
-    const unitNodes = getUnitNodes(node).filter(u => shownCodes.has(u.node))
+    const unitNodes = getUnitNodes(node).filter((u) => shownCodes.has(u.node))
     if (unitNodes.length === 0) return null
 
-    const allTranches: { unit: typeof unitNodes[0]; price: number; mw: number; tranche: number }[] = []
+    const allTranches: { unit: (typeof unitNodes)[0]; price: number; mw: number; tranche: number }[] = []
     for (const unit of unitNodes) {
       const raw = periodData[unit.node]
       if (!raw) continue
@@ -85,7 +93,7 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     allTranches.sort((a, b) => a.price - b.price)
 
     let cumMW = 0
-    const positioned = allTranches.map(t => {
+    const positioned = allTranches.map((t) => {
       const start = cumMW
       cumMW += t.mw
       return { ...t, start, end: cumMW }
@@ -112,7 +120,10 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
         const seg = segs[i]
         const custom: Tranche = { mw: seg.mw, label: unit.label, tranche: seg.tranche, price: seg.price }
         const displayY = priceY(seg.price)
-        if (i > 0) { visualPoints.push(null); snapPoints.push(null) }
+        if (i > 0) {
+          visualPoints.push(null)
+          snapPoints.push(null)
+        }
         visualPoints.push({ x: seg.start, y: displayY })
         visualPoints.push({ x: seg.end, y: displayY })
         snapPoints.push({ x: seg.start + seg.mw / 2, y: displayY, custom })
@@ -146,7 +157,12 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
         lineWidth: 0,
         linkedTo: ':prev',
         accessibility: {
-          point: { descriptionFormatter: (point) => { const custom = trancheOf(point); return custom ? trancheText(custom) : '' } },
+          point: {
+            descriptionFormatter: (point) => {
+              const custom = trancheOf(point)
+              return custom ? trancheText(custom) : ''
+            },
+          },
         },
       })
     }
@@ -158,19 +174,27 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
     const maxPrice = `$${allTranches[allTranches.length - 1].price.toFixed(2)}`
 
     // Null when the dispatch doesn't cover the period
-    const dispatched = dispatch && tradingPeriodDispatch(dispatch, [...segsByUnit.keys()], offersData.date, tradingPeriod)
+    const dispatched =
+      dispatch && tradingPeriodDispatch(dispatch, [...segsByUnit.keys()], offersData.date, tradingPeriod)
     const dispatchedPrice = dispatched?.price ?? null
     // Past halfway, the MW label goes left of its line and the price label to the chart's left
     const dispatchedRight = dispatched !== null && dispatched.mw > Math.max(cumMW, dispatched.mw) / 2
 
     return {
-      chart: { ...FIT_TO_CONTAINER, type: 'area', height: null, animation: false, backgroundColor: 'var(--color-surface)' },
+      chart: {
+        ...FIT_TO_CONTAINER,
+        type: 'area',
+        height: null,
+        animation: false,
+        backgroundColor: 'var(--color-surface)',
+      },
       title: { text: undefined },
       ...chartAccessibility(`${title} offers, trading period ${tradingPeriod}`, {
         // The default counts drawn series, two per unit
         typeDescription: `Offers from ${plural(segsByUnit.size, 'unit')}.`,
-        description: 'Each unit\'s offer tranches from cheapest to dearest, by the MW offered and its price in $/MWh, on a log scale.'
-          + (dispatched
+        description:
+          "Each unit's offer tranches from cheapest to dearest, by the MW offered and its price in $/MWh, on a log scale." +
+          (dispatched
             ? ` Averaged over the period, they were dispatched ${formatMW(dispatched.mw)}${dispatchedPrice !== null ? ` at ${formatPrice(dispatchedPrice)}` : ''}.`
             : ''),
         // The default counts the nulls between tranches as points
@@ -180,25 +204,33 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
       legend: { enabled: false },
       xAxis: {
         title: { text: 'MW' },
-        labels: { formatter: function () { return formatMW(this.value as number) } },
+        labels: {
+          formatter: function () {
+            return formatMW(this.value as number)
+          },
+        },
         min: 0,
         // So the dispatch line shows even past the offers
         softMax: dispatched?.mw,
-        plotLines: dispatched ? [{
-          value: dispatched.mw,
-          width: 2,
-          color: DISPATCH_COLOUR,
-          dashStyle: 'Dash',
-          zIndex: 5,
-          label: {
-            text: `Dispatched ${formatMW(dispatched.mw)}`,
-            rotation: 0,
-            align: dispatchedRight ? 'right' : 'left',
-            x: dispatchedRight ? -5 : 5,
-            y: 14,
-            style: DISPATCH_LABEL_STYLE,
-          },
-        }] : [],
+        plotLines: dispatched
+          ? [
+              {
+                value: dispatched.mw,
+                width: 2,
+                color: DISPATCH_COLOUR,
+                dashStyle: 'Dash',
+                zIndex: 5,
+                label: {
+                  text: `Dispatched ${formatMW(dispatched.mw)}`,
+                  rotation: 0,
+                  align: dispatchedRight ? 'right' : 'left',
+                  x: dispatchedRight ? -5 : 5,
+                  y: 14,
+                  style: DISPATCH_LABEL_STYLE,
+                },
+              },
+            ]
+          : [],
         accessibility: {
           description: 'MW offered, cumulatively',
           rangeDescription: `Offers total ${formatMW(cumMW)}.`,
@@ -220,43 +252,53 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
           },
         },
         gridLineDashStyle: 'Dash',
-        plotLines: [{
-          value: 0,
-          width: 1,
-          color: 'var(--color-text-faint)',
-          zIndex: 3,
-        }, ...(dispatchedPrice !== null ? [{
-          // A negative price is drawn at $0, the axis' foot
-          value: priceY(Math.max(0, dispatchedPrice)),
-          width: 2,
-          color: DISPATCH_COLOUR,
-          dashStyle: 'Dash' as const,
-          zIndex: 5,
-          label: {
-            text: formatPrice(dispatchedPrice),
-            align: dispatchedRight ? 'left' as const : 'right' as const,
-            x: dispatchedRight ? 4 : -4,
-            y: -6,
-            style: DISPATCH_LABEL_STYLE,
+        plotLines: [
+          {
+            value: 0,
+            width: 1,
+            color: 'var(--color-text-faint)',
+            zIndex: 3,
           },
-        }] : [])],
+          ...(dispatchedPrice !== null
+            ? [
+                {
+                  // A negative price is drawn at $0, the axis' foot
+                  value: priceY(Math.max(0, dispatchedPrice)),
+                  width: 2,
+                  color: DISPATCH_COLOUR,
+                  dashStyle: 'Dash' as const,
+                  zIndex: 5,
+                  label: {
+                    text: formatPrice(dispatchedPrice),
+                    align: dispatchedRight ? ('left' as const) : ('right' as const),
+                    x: dispatchedRight ? 4 : -4,
+                    y: -6,
+                    style: DISPATCH_LABEL_STYLE,
+                  },
+                },
+              ]
+            : []),
+        ],
         // Describe the prices, not the log-scaled axis values
         accessibility: {
           description: 'Price in $/MWh',
-          rangeDescription: minPrice === maxPrice
-            ? `All offered at ${minPrice}/MWh.`
-            : `Prices range from ${minPrice} to ${maxPrice}/MWh.`,
+          rangeDescription:
+            minPrice === maxPrice
+              ? `All offered at ${minPrice}/MWh.`
+              : `Prices range from ${minPrice} to ${maxPrice}/MWh.`,
         },
       },
       tooltip: {
         useHTML: true,
         formatter: function () {
           const pts = this.points ?? [this]
-          const rows = pts.map(p => {
-            const custom = trancheOf(p)
-            if (!custom) return null
-            return `<span style="color:${String(p.color)}">●</span> ${trancheText(custom)}`
-          }).filter(Boolean)
+          const rows = pts
+            .map((p) => {
+              const custom = trancheOf(p)
+              if (!custom) return null
+              return `<span style="color:${p.color as string}">●</span> ${trancheText(custom)}`
+            })
+            .filter(Boolean)
           return rows.length ? rows.join('<br/>') : false
         },
         shared: true,
@@ -271,7 +313,15 @@ export default function OfferChart({ offersData, dispatch, shownCodes, tradingPe
 
   if (!chartOptions) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          color: 'var(--color-text-muted)',
+        }}
+      >
         {shownCodes.size === 0 ? 'No units selected' : 'No offers found for this trading period'}
       </div>
     )

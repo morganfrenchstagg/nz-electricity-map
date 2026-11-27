@@ -11,7 +11,7 @@ function instantMs(iso: string): number {
   if (ms === undefined) {
     const instant = Date.parse(iso)
     // nzWallClockMs drops the milliseconds; restore them so an end at 1:59:59.999pm stays before a 2pm start
-    ms = nzWallClockMs(instant) + ((instant % 1000) + 1000) % 1000
+    ms = nzWallClockMs(instant) + (((instant % 1000) + 1000) % 1000)
     instants.set(iso, ms)
   }
   return ms
@@ -48,9 +48,7 @@ export function isCommissioning(unit: Unit, atMs = nzNowMs()): boolean {
 
 // Times in (from, to] where the units' total capacity steps
 export function serviceChangesBetween(units: Unit[], from: number, to: number): number[] {
-  return units
-    .flatMap((u) => [serviceStart(u), serviceEnd(u) + 1])
-    .filter((ms) => ms > from && ms <= to)
+  return units.flatMap((u) => [serviceStart(u), serviceEnd(u) + 1]).filter((ms) => ms > from && ms <= to)
 }
 
 // All units decommissioned; units still being commissioned don't count as retired

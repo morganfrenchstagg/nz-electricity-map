@@ -16,9 +16,13 @@ export function offersIsoDate(date: string): string {
 export function tradingPeriodLabel(tp: number, date: string): string {
   const startMs = nzMidnightMs(offersIsoDate(date)) + (tp - 1) * PERIOD_MS
   const endMs = startMs + PERIOD_MS
-  const fmt = (ms: number) => new Date(ms).toLocaleTimeString('en-NZ', {
-    timeZone: 'Pacific/Auckland', hour: 'numeric', minute: '2-digit', hour12: true,
-  })
+  const fmt = (ms: number) =>
+    new Date(ms).toLocaleTimeString('en-NZ', {
+      timeZone: 'Pacific/Auckland',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
   return `${fmt(startMs)}–${fmt(endMs)}`
 }
 
@@ -31,7 +35,12 @@ export interface PeriodDispatch {
 // The MW `codes` generated and their nodes' price, averaged over the period's 5-minute intervals
 // (a period's final price is the average of its dispatch prices), prices weighted by generation.
 // Null when the dispatch has none of the period's intervals.
-export function tradingPeriodDispatch(dispatch: RecentData, codes: string[], date: string, tp: number): PeriodDispatch | null {
+export function tradingPeriodDispatch(
+  dispatch: RecentData,
+  codes: string[],
+  date: string,
+  tp: number,
+): PeriodDispatch | null {
   // Dispatch timestamps are NZ wall-clock time. The day the clocks go back,
   // the repeated hour's two periods share their wall-clock intervals.
   const from = nzWallClockMs(nzMidnightMs(offersIsoDate(date)) + (tp - 1) * PERIOD_MS)
@@ -56,7 +65,7 @@ export function tradingPeriodDispatch(dispatch: RecentData, codes: string[], dat
     // A unit's price is its bus's (ATI2201 of ATI2201 ATI0), there when the unit isn't
     const priceIndex = i || dispatch.series.indexOf(code.split(' ')[0]) + 1
     if (priceIndex === 0) continue
-    const codePrices = pricing.map(row => row[priceIndex]).filter((p): p is number => p != null)
+    const codePrices = pricing.map((row) => row[priceIndex]).filter((p): p is number => p != null)
     if (codePrices.length === 0) continue
     const codePrice = codePrices.reduce((sum, p) => sum + p, 0) / codePrices.length
     prices.push(codePrice)
@@ -64,32 +73,54 @@ export function tradingPeriodDispatch(dispatch: RecentData, codes: string[], dat
     weightedPrice += codePrice * codeMW
   }
   // Units that generated nothing still have their nodes' prices, averaged evenly
-  const price = prices.length === 0 ? null
-    : pricedMW > 0 ? weightedPrice / pricedMW
-      : prices.reduce((sum, p) => sum + p, 0) / prices.length
+  const price =
+    prices.length === 0
+      ? null
+      : pricedMW > 0
+        ? weightedPrice / pricedMW
+        : prices.reduce((sum, p) => sum + p, 0) / prices.length
   return { mw, price }
 }
 
-export function useOffers(date: string | null): { offersData: OffersData | null; loading: boolean; error: string | null } {
+export function useOffers(date: string | null): {
+  offersData: OffersData | null
+  loading: boolean
+  error: string | null
+} {
   const [offersData, setOffersData] = useState<OffersData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!date) { setOffersData(null); setLoading(false); setError(null); return }
+    if (!date) {
+      setOffersData(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
     let cancelled = false
 
     const cached = peekOffers(date)
     if (cached) setOffersData(cached)
     setLoading(!cached)
     setError(null)
-    fetchOffers(date).then(data => {
-      if (!cancelled) { setOffersData(data); setLoading(false) }
-    }).catch(err => {
-      if (!cancelled) { setError(String(err)); setLoading(false) }
-    })
+    fetchOffers(date)
+      .then((data) => {
+        if (!cancelled) {
+          setOffersData(data)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(String(err))
+          setLoading(false)
+        }
+      })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [date])
 
   return { offersData, loading, error }
@@ -101,15 +132,22 @@ export function useOffersDispatch(offersDate: string | null): RecentData | null 
   const [dispatch, setDispatch] = useState<RecentData | null>(null)
 
   useEffect(() => {
-    if (!day) { setDispatch(null); return }
+    if (!day) {
+      setDispatch(null)
+      return
+    }
     let cancelled = false
     setDispatch(peekDispatch(day) ?? null)
-    fetchDispatch(day).then(data => {
-      if (!cancelled) setDispatch(data)
-    }).catch(() => {
-      if (!cancelled) setDispatch(null)
-    })
-    return () => { cancelled = true }
+    fetchDispatch(day)
+      .then((data) => {
+        if (!cancelled) setDispatch(data)
+      })
+      .catch(() => {
+        if (!cancelled) setDispatch(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [day])
 
   return dispatch

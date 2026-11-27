@@ -39,7 +39,8 @@ export function parseStats(aggregates: AnnualAggregates, thisYear: number): Stat
   let hvdc: Stats['hvdc'] = null
   if (aggregates.hvdc) {
     const { series, data } = aggregates.hvdc
-    const north = series.indexOf('northFlow') + 1, south = series.indexOf('southFlow') + 1
+    const north = series.indexOf('northFlow') + 1,
+      south = series.indexOf('southFlow') + 1
     const byYear = new Map(data.map((row) => [Number(String(row[0]).slice(0, 4)), row]))
     const flow = (col: number) => years.map((y) => (Number(byYear.get(y)?.[col]) || 0) / 1000)
     if (north && south) hvdc = { north: flow(north), south: flow(south) }
@@ -50,7 +51,10 @@ export function parseStats(aggregates: AnnualAggregates, thisYear: number): Stat
 // The GWh in each year at these nodes, each counted once
 export function sumNodes(stats: Stats, nodes: Iterable<string>): number[] {
   const total = stats.years.map(() => 0)
-  for (const node of new Set(nodes)) stats.mwh.get(node)?.forEach((v, i) => { total[i] += v })
+  for (const node of new Set(nodes))
+    stats.mwh.get(node)?.forEach((v, i) => {
+      total[i] += v
+    })
   return total.map((v) => v / 1000)
 }
 
@@ -62,12 +66,19 @@ export function generationNodes(units: Unit[]): string[] {
 // The grid's generation in each year: every generating node, even one the definitions don't have
 export function totalGeneration(stats: Stats, defs: Definitions): number[] {
   const charging = new Set(defs.generators.flatMap((g) => g.units.filter(isCharging).map((u) => u.node)))
-  return sumNodes(stats, [...stats.mwh.keys()].filter((code) => code.includes(' ') && !charging.has(code)))
+  return sumNodes(
+    stats,
+    [...stats.mwh.keys()].filter((code) => code.includes(' ') && !charging.has(code)),
+  )
 }
 
 // Generation in each year grouped by `key`, from each node's first unit, e.g.
 // by fuel. A unit `key` gives null for is left out.
-export function generationBy(stats: Stats, defs: Definitions, key: (g: Generator, u: Unit) => string | null): Map<string, number[]> {
+export function generationBy(
+  stats: Stats,
+  defs: Definitions,
+  key: (g: Generator, u: Unit) => string | null,
+): Map<string, number[]> {
   const nodes = new Map<string, string[]>()
   const seen = new Set<string>()
   for (const g of defs.generators) {
@@ -88,7 +99,10 @@ export function generationByFuel(stats: Stats, defs: Definitions): Map<string, n
 // What was taken from the grid at a substation in each year: its buses' load,
 // net of any generation embedded behind them
 export function substationDemand(stats: Stats, siteId: string): number[] {
-  return sumNodes(stats, [...stats.mwh.keys()].filter((code) => !code.includes(' ') && code.slice(0, 3) === siteId)).map((v) => -v)
+  return sumNodes(
+    stats,
+    [...stats.mwh.keys()].filter((code) => !code.includes(' ') && code.slice(0, 3) === siteId),
+  ).map((v) => -v)
 }
 
 // The latest year wholly covered, or -1

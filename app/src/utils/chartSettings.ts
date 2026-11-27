@@ -56,19 +56,21 @@ export type ChartSettings = { [K in ChartSettingKey]: (typeof CHART_SETTINGS)[K]
 
 const KEYS = Object.keys(CHART_SETTINGS) as ChartSettingKey[]
 
-export const CHART_SETTING_PARAMS = KEYS.map(key => CHART_SETTINGS[key].param)
+export const CHART_SETTING_PARAMS = KEYS.map((key) => CHART_SETTINGS[key].param)
 
 export const DEFAULT_CHART_SETTINGS = Object.fromEntries(
-  KEYS.map(key => [key, CHART_SETTINGS[key].options[0].value]),
+  KEYS.map((key) => [key, CHART_SETTINGS[key].options[0].value]),
 ) as ChartSettings
 
 // A missing or unknown value falls back to the default
 export function readChartSettings(params: URLSearchParams): ChartSettings {
-  return Object.fromEntries(KEYS.map(key => {
-    const { param, options } = CHART_SETTINGS[key]
-    const value = params.get(param)
-    return [key, (options.find(o => o.value === value) ?? options[0]).value]
-  })) as ChartSettings
+  return Object.fromEntries(
+    KEYS.map((key) => {
+      const { param, options } = CHART_SETTINGS[key]
+      const value = params.get(param)
+      return [key, (options.find((o) => o.value === value) ?? options[0]).value]
+    }),
+  ) as ChartSettings
 }
 
 export function writeChartSettings(settings: ChartSettings, params: URLSearchParams) {

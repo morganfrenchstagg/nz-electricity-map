@@ -11,7 +11,16 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { useUrlState } from './hooks/useUrlState'
 import { viewBesideNz } from './utils/mapView'
 import { substationsOf, substationsTitle } from './utils/substations'
-import { generatorHistoricTitle, generatorTitle, HOME_TITLE, HVDC_TITLE, nodeParamOfPath, PIPELINE_TITLE, SITE_NAME, substationTitle } from './utils/stationPaths'
+import {
+  generatorHistoricTitle,
+  generatorTitle,
+  HOME_TITLE,
+  HVDC_TITLE,
+  nodeParamOfPath,
+  PIPELINE_TITLE,
+  SITE_NAME,
+  substationTitle,
+} from './utils/stationPaths'
 
 // maplibre is the largest library by far, so the panel doesn't wait for it
 const loadMap = () => import('./components/Map')
@@ -24,14 +33,23 @@ export default function App() {
   const { generators, substations } = useDefinitions()
   const isMobile = useIsMobile()
   const {
-    selectedNode, selectNode, openedGenerator,
-    dateMode, setDateMode,
-    viewMode, setViewMode,
-    tradingPeriod, setTradingPeriod,
-    activeFuels, setActiveFuels,
-    chartSettings, setChartSettings,
-    expanded, setExpanded,
-    pipelineOpen, setPipelineOpen,
+    selectedNode,
+    selectNode,
+    openedGenerator,
+    dateMode,
+    setDateMode,
+    viewMode,
+    setViewMode,
+    tradingPeriod,
+    setTradingPeriod,
+    activeFuels,
+    setActiveFuels,
+    chartSettings,
+    setChartSettings,
+    expanded,
+    setExpanded,
+    pipelineOpen,
+    setPipelineOpen,
   } = useUrlState(generators, substations)
   const [gridPanelVisible, setGridPanelVisible] = useState(true)
   const leftPanelOpen = selectedNode !== null || gridPanelVisible
@@ -45,10 +63,15 @@ export default function App() {
   useEffect(() => {
     if (mapWanted) return
     let timer: number | undefined
-    const prefetch = () => { timer = window.setTimeout(loadMap, 1000) }
+    const prefetch = () => {
+      timer = window.setTimeout(loadMap, 1000)
+    }
     if (document.readyState === 'complete') prefetch()
     else window.addEventListener('load', prefetch, { once: true })
-    return () => { window.removeEventListener('load', prefetch); window.clearTimeout(timer) }
+    return () => {
+      window.removeEventListener('load', prefetch)
+      window.clearTimeout(timer)
+    }
   }, [mapWanted])
 
   const closeNode = useCallback(() => {
@@ -57,8 +80,10 @@ export default function App() {
 
   // On desktop the panel starts as wide as fits with all of NZ in view beside it. Mobile
   // (where it covers the map) and viewports too small for both start it at 60%.
-  const [initialView] = useState(() => isMobile ? null : viewBesideNz(window.innerWidth, window.innerHeight))
-  const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6))
+  const [initialView] = useState(() => (isMobile ? null : viewBesideNz(window.innerWidth, window.innerHeight)))
+  const { width: panelWidth, onMouseDown: onResizeHandleMouseDown } = useResizableWidth(
+    initialView?.panelWidth ?? Math.round(window.innerWidth * 0.6),
+  )
 
   // A station is titled as its own page is (see stationPaths), and a generator at All as its
   // history's page; either keeps that title while it's being found. The pipeline, open over
@@ -70,17 +95,20 @@ export default function App() {
     } else if (selectedNode === null) {
       if (!nodeParamOfPath(window.location.pathname)) document.title = HOME_TITLE
     } else if (selectedNode.kind === 'generator') {
-      document.title = historic ? generatorHistoricTitle(selectedNode.generator) : generatorTitle(selectedNode.generator)
+      document.title = historic
+        ? generatorHistoricTitle(selectedNode.generator)
+        : generatorTitle(selectedNode.generator)
     } else if (selectedNode.kind === 'substation') {
       document.title = substationTitle(selectedNode.substation)
     } else if (selectedNode.kind === 'hvdc') {
       document.title = HVDC_TITLE
     } else {
-      const names = selectedNode.kind === 'generators'
-        ? (selectedNode.generators.length <= 2
-          ? selectedNode.generators.map(g => g.name).join(', ')
-          : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`)
-        : substationsTitle(substationsOf(selectedNode))
+      const names =
+        selectedNode.kind === 'generators'
+          ? selectedNode.generators.length <= 2
+            ? selectedNode.generators.map((g) => g.name).join(', ')
+            : `${selectedNode.generators[0].name} +${selectedNode.generators.length - 1} more`
+          : substationsTitle(substationsOf(selectedNode))
       document.title = `${names} | ${SITE_NAME}`
     }
   }, [selectedNode, pipelineOpen, gridPanelVisible, historic])
@@ -88,15 +116,21 @@ export default function App() {
   // One fetch shared by the node panels and GridOverviewPanel, not duplicate requests from each
   const { recentData, loading, error } = useDispatchData(dateMode)
 
-  const handleGeneratorClick = useCallback((generator: Generator) => {
-    selectNode({ kind: 'generator', generator })
-    setGridPanelVisible(false)
-  }, [selectNode])
+  const handleGeneratorClick = useCallback(
+    (generator: Generator) => {
+      selectNode({ kind: 'generator', generator })
+      setGridPanelVisible(false)
+    },
+    [selectNode],
+  )
 
-  const handleSubstationClick = useCallback((substation: Substation) => {
-    selectNode({ kind: 'substation', substation })
-    setGridPanelVisible(false)
-  }, [selectNode])
+  const handleSubstationClick = useCallback(
+    (substation: Substation) => {
+      selectNode({ kind: 'substation', substation })
+      setGridPanelVisible(false)
+    },
+    [selectNode],
+  )
 
   const handleHvdcClick = useCallback(() => {
     selectNode({ kind: 'hvdc' })
@@ -107,7 +141,10 @@ export default function App() {
 
   const nodePanelProps = {
     onClose: closeNode,
-    onClear: () => { selectNode(null); setGridPanelVisible(true) },
+    onClear: () => {
+      selectNode(null)
+      setGridPanelVisible(true)
+    },
     dateMode,
     onDateModeChange: setDateMode,
     recentData,
@@ -125,14 +162,36 @@ export default function App() {
     <>
       {mapWanted ? (
         <Suspense fallback={mapPlaceholder}>
-          <Map onGeneratorClick={handleGeneratorClick} onSubstationClick={handleSubstationClick} onHvdcClick={handleHvdcClick} onClear={() => { if (leftPanelOpen) { selectNode(null); setGridPanelVisible(true) } }} selectedNode={selectedNode} openedGenerator={openedGenerator} leftPanelOpen={leftPanelOpen} panelWidth={effectivePanelWidth} initialView={initialView} recentData={recentData} dateMode={dateMode} isMobile={isMobile} />
+          <Map
+            onGeneratorClick={handleGeneratorClick}
+            onSubstationClick={handleSubstationClick}
+            onHvdcClick={handleHvdcClick}
+            onClear={() => {
+              if (leftPanelOpen) {
+                selectNode(null)
+                setGridPanelVisible(true)
+              }
+            }}
+            selectedNode={selectedNode}
+            openedGenerator={openedGenerator}
+            leftPanelOpen={leftPanelOpen}
+            panelWidth={effectivePanelWidth}
+            initialView={initialView}
+            recentData={recentData}
+            dateMode={dateMode}
+            isMobile={isMobile}
+          />
         </Suspense>
-      ) : mapPlaceholder}
-      {selectedNode && (selectedNode.kind === 'substation' || selectedNode.kind === 'substations'
-        ? <SubstationPanel node={selectedNode} {...nodePanelProps} />
-        : selectedNode.kind === 'hvdc'
-          ? <HvdcPanel node={selectedNode} {...nodePanelProps} />
-          : <GeneratorPanel
+      ) : (
+        mapPlaceholder
+      )}
+      {selectedNode &&
+        (selectedNode.kind === 'substation' || selectedNode.kind === 'substations' ? (
+          <SubstationPanel node={selectedNode} {...nodePanelProps} />
+        ) : selectedNode.kind === 'hvdc' ? (
+          <HvdcPanel node={selectedNode} {...nodePanelProps} />
+        ) : (
+          <GeneratorPanel
             node={selectedNode}
             {...nodePanelProps}
             viewMode={viewMode}
@@ -141,12 +200,16 @@ export default function App() {
             onTradingPeriodChange={setTradingPeriod}
             chartSettings={chartSettings}
             onChartSettingsChange={setChartSettings}
-          />)}
+          />
+        ))}
       <GridOverviewPanel
         dateMode={dateMode}
         onDateModeChange={setDateMode}
         onClose={() => setGridPanelVisible(false)}
-        onNodeSelect={(node) => { selectNode(node); setGridPanelVisible(false) }}
+        onNodeSelect={(node) => {
+          selectNode(node)
+          setGridPanelVisible(false)
+        }}
         visible={!selectedNode && gridPanelVisible}
         recentData={recentData}
         loading={loading}

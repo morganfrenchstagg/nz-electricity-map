@@ -8,11 +8,11 @@ import { ArrowDown, ArrowUp, ExternalLink } from './icons'
 
 const STATUS_ORDER = ['Commissioning', 'Pre-Commissioning', 'Under Construction', 'Early Works', 'Committed']
 
-const ALL_FUELS = [...new Set(underConstruction.map(n => n.fuel))].sort()
-const ALL_OPERATORS = [...new Set(underConstruction.map(n => n.operator))].sort()
-const ALL_YEARS = [...new Set(
-  underConstruction.map(n => n.openBy?.slice(0, 4)).filter((y): y is string => !!y)
-)].sort()
+const ALL_FUELS = [...new Set(underConstruction.map((n) => n.fuel))].sort()
+const ALL_OPERATORS = [...new Set(underConstruction.map((n) => n.operator))].sort()
+const ALL_YEARS = [
+  ...new Set(underConstruction.map((n) => n.openBy?.slice(0, 4)).filter((y): y is string => !!y)),
+].sort()
 
 type SortCol = 'name' | 'fuel' | 'operator' | 'status' | 'capacity' | 'generation' | 'cost' | 'openBy'
 type SortDir = 'asc' | 'desc'
@@ -50,22 +50,28 @@ export default function PipelineModal({ onClose }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   function handleSort(col: SortCol) {
-    if (col === sortCol) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortCol(col); setSortDir('asc') }
+    if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
   }
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
   const filtered = useMemo(() => {
-    const rows = underConstruction.filter(n =>
-      (fuels.size === 0 || fuels.has(n.fuel)) &&
-      (years.size === 0 || (n.openBy ? years.has(n.openBy.slice(0, 4)) : false)) &&
-      (operators.size === 0 || operators.has(n.operator)) &&
-      (statuses.size === 0 || statuses.has(n.status))
+    const rows = underConstruction.filter(
+      (n) =>
+        (fuels.size === 0 || fuels.has(n.fuel)) &&
+        (years.size === 0 || (n.openBy ? years.has(n.openBy.slice(0, 4)) : false)) &&
+        (operators.size === 0 || operators.has(n.operator)) &&
+        (statuses.size === 0 || statuses.has(n.status)),
     )
     return sortRows(rows, sortCol, sortDir)
   }, [fuels, years, operators, statuses, sortCol, sortDir])
@@ -81,7 +87,11 @@ export default function PipelineModal({ onClose }: Props) {
 
   return (
     <div onClick={onClose} className="modal-backdrop" style={{ padding: 'var(--space-xl) var(--space-2xl)' }}>
-      <div onClick={e => e.stopPropagation()} className="modal" style={{ width: '100%', maxWidth: 1200, maxHeight: '90vh' }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="modal"
+        style={{ width: '100%', maxWidth: 1200, maxHeight: '90vh' }}
+      >
         <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div className="title">Generation pipeline</div>
@@ -92,13 +102,47 @@ export default function PipelineModal({ onClose }: Props) {
         </div>
 
         <div className="section" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <FilterDropdown label="Fuel" options={ALL_FUELS} active={fuels} onToggle={v => setFuels(toggle(fuels, v))} onClear={() => setFuels(new Set())} swatch={fuel => ({ background: fuelColour(fuel), borderRadius: '50%' })} />
-          <FilterDropdown label="Status" options={STATUS_ORDER} active={statuses} onToggle={v => setStatuses(toggle(statuses, v))} onClear={() => setStatuses(new Set())} swatch={status => ({ background: statusColour(status).bg, border: `1px solid ${statusColour(status).text}` })} />
-          <FilterDropdown label="Year" options={ALL_YEARS} active={years} onToggle={v => setYears(toggle(years, v))} onClear={() => setYears(new Set())} />
-          <FilterDropdown label="Operator" options={ALL_OPERATORS} active={operators} onToggle={v => setOperators(toggle(operators, v))} onClear={() => setOperators(new Set())} />
+          <FilterDropdown
+            label="Fuel"
+            options={ALL_FUELS}
+            active={fuels}
+            onToggle={(v) => setFuels(toggle(fuels, v))}
+            onClear={() => setFuels(new Set())}
+            swatch={(fuel) => ({ background: fuelColour(fuel), borderRadius: '50%' })}
+          />
+          <FilterDropdown
+            label="Status"
+            options={STATUS_ORDER}
+            active={statuses}
+            onToggle={(v) => setStatuses(toggle(statuses, v))}
+            onClear={() => setStatuses(new Set())}
+            swatch={(status) => ({
+              background: statusColour(status).bg,
+              border: `1px solid ${statusColour(status).text}`,
+            })}
+          />
+          <FilterDropdown
+            label="Year"
+            options={ALL_YEARS}
+            active={years}
+            onToggle={(v) => setYears(toggle(years, v))}
+            onClear={() => setYears(new Set())}
+          />
+          <FilterDropdown
+            label="Operator"
+            options={ALL_OPERATORS}
+            active={operators}
+            onToggle={(v) => setOperators(toggle(operators, v))}
+            onClear={() => setOperators(new Set())}
+          />
           {hasFilters && (
             <button
-              onClick={() => { setFuels(new Set()); setYears(new Set()); setOperators(new Set()); setStatuses(new Set()) }}
+              onClick={() => {
+                setFuels(new Set())
+                setYears(new Set())
+                setOperators(new Set())
+                setStatuses(new Set())
+              }}
               className="button-secondary"
             >
               Clear all
@@ -109,59 +153,139 @@ export default function PipelineModal({ onClose }: Props) {
         <div style={{ overflowY: 'auto', flex: 1 }}>
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-divider)', position: 'sticky', top: 0, zIndex: 1 }}>
+              <tr
+                style={{
+                  background: 'var(--color-surface-subtle)',
+                  borderBottom: '1px solid var(--color-divider)',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 1,
+                }}
+              >
                 <SortTh col="name" label="Project" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                 <SortTh col="fuel" label="Fuel" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                 <SortTh col="operator" label="Operator" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
                 <SortTh col="status" label="Status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-                <SortTh col="capacity" label="Capacity" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
-                <SortTh col="generation" label="Annual gen" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
+                <SortTh
+                  col="capacity"
+                  label="Capacity"
+                  sortCol={sortCol}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortTh
+                  col="generation"
+                  label="Annual gen"
+                  sortCol={sortCol}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
                 <SortTh col="cost" label="Cost" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
-                <SortTh col="openBy" label="Open by" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} align="right" />
+                <SortTh
+                  col="openBy"
+                  label="Open by"
+                  sortCol={sortCol}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
                 <th className="heading-sm" style={th()}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="empty-state">No projects match the selected filters</td>
+                  <td colSpan={9} className="empty-state">
+                    No projects match the selected filters
+                  </td>
                 </tr>
               )}
               {filtered.map((n, i) => {
                 const pillColour = statusColour(n.status)
-                const capacityStr = n.capacityMW != null
-                  ? `${n.capacityMW} MW${n.capacityMWh ? ` / ${n.capacityMWh} MWh` : ''}`
-                  : n.capacityMWp != null
-                    ? `${n.capacityMWp} MWp`
-                    : '—'
+                const capacityStr =
+                  n.capacityMW != null
+                    ? `${n.capacityMW} MW${n.capacityMWh ? ` / ${n.capacityMWh} MWh` : ''}`
+                    : n.capacityMWp != null
+                      ? `${n.capacityMWp} MWp`
+                      : '—'
                 return (
                   <tr key={i} className="data-row">
                     <td style={{ ...td(), fontWeight: 500 }}>
                       {n.name}
                       {n.locationDescription && (
-                        <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 5, fontSize: 'var(--font-size-sm)' }}>{n.locationDescription}</span>
+                        <span
+                          style={{
+                            fontWeight: 400,
+                            color: 'var(--color-text-muted)',
+                            marginLeft: 5,
+                            fontSize: 'var(--font-size-sm)',
+                          }}
+                        >
+                          {n.locationDescription}
+                        </span>
                       )}
                     </td>
                     <td style={td()}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: fuelColour(n.fuel), flexShrink: 0, display: 'inline-block' }} />
+                        <span
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: fuelColour(n.fuel),
+                            flexShrink: 0,
+                            display: 'inline-block',
+                          }}
+                        />
                         {n.fuel}
                       </span>
                     </td>
                     <td style={{ ...td(), color: 'var(--color-text-secondary)' }}>{n.operator}</td>
                     <td style={td()}>
-                      <span style={{ fontSize: 'var(--font-size-xs)', padding: 'var(--space-2xs) var(--space-md)', borderRadius: 10, background: pillColour.bg, color: pillColour.text, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                      <span
+                        style={{
+                          fontSize: 'var(--font-size-xs)',
+                          padding: 'var(--space-2xs) var(--space-md)',
+                          borderRadius: 10,
+                          background: pillColour.bg,
+                          color: pillColour.text,
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {n.status}
                       </span>
                     </td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{capacityStr}</td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
+                    <td
+                      style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                    >
+                      {capacityStr}
+                    </td>
+                    <td
+                      style={{
+                        ...td(),
+                        textAlign: 'right',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
                       {n.yearlyGenerationGWh != null ? `${n.yearlyGenerationGWh} GWh` : '—'}
                     </td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
+                    <td
+                      style={{
+                        ...td(),
+                        textAlign: 'right',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
                       {n.costMillionDollars != null ? `$${n.costMillionDollars}M` : '—'}
                     </td>
-                    <td style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                    <td
+                      style={{ ...td(), textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                    >
                       {n.openBy ? formatMonthYear(n.openBy) : '—'}
                     </td>
                     <td style={{ ...td(), paddingLeft: 'var(--space-xs)' }}>
@@ -170,7 +294,7 @@ export default function PipelineModal({ onClose }: Props) {
                           href={n.link}
                           target="_blank"
                           rel="noreferrer"
-                          onClick={e => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                           style={{ display: 'flex', color: 'var(--color-text-muted)' }}
                           title="Source"
                           aria-label={`Source for ${n.name}`}
@@ -190,18 +314,42 @@ export default function PipelineModal({ onClose }: Props) {
   )
 }
 
-function SortTh({ col, label, sortCol, sortDir, onSort, align = 'left' }: {
-  col: SortCol; label: string; sortCol: SortCol; sortDir: SortDir
-  onSort: (col: SortCol) => void; align?: 'left' | 'right'
+function SortTh({
+  col,
+  label,
+  sortCol,
+  sortDir,
+  onSort,
+  align = 'left',
+}: {
+  col: SortCol
+  label: string
+  sortCol: SortCol
+  sortDir: SortDir
+  onSort: (col: SortCol) => void
+  align?: 'left' | 'right'
 }) {
   const active = sortCol === col
   return (
     <th
       onClick={() => onSort(col)}
       className="heading-sm"
-      style={{ ...th(), textAlign: align, cursor: 'pointer', userSelect: 'none', color: active ? 'var(--color-text-strong)' : 'var(--color-text-secondary)' }}
+      style={{
+        ...th(),
+        textAlign: align,
+        cursor: 'pointer',
+        userSelect: 'none',
+        color: active ? 'var(--color-text-strong)' : 'var(--color-text-secondary)',
+      }}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 3,
+          flexDirection: align === 'right' ? 'row-reverse' : 'row',
+        }}
+      >
         {label}
         <span className={active ? 'sort-arrow is-active' : 'sort-arrow'}>
           {active && sortDir === 'desc' ? <ArrowDown size={11} /> : <ArrowUp size={11} />}

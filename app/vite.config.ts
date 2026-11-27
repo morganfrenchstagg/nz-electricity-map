@@ -32,20 +32,28 @@ export default defineConfig(({ mode }) => ({
         // Large, rarely-changing vendor libraries get their own chunks, so app
         // changes don't invalidate them in the browser cache
         codeSplitting: {
-          groups: [{
-            name(id) {
-              if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
-              if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
-              // Calendars and date fields load later with DatePickers (see
-              // LazyDatePickers), apart from the menus and popovers needed at once.
-              // Matched by name so the date hooks' re-exports go with them.
-              if (/\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(id)) {
-                return /\/(use|Hidden)?(Range)?(Date|Time|Calendar|SpinButton)[^/]*(\/|$)/i.test(id) ? 'react-aria-dates' : 'react-aria'
-              }
-              if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
-              return null
+          groups: [
+            {
+              name(id) {
+                if (id.includes('/node_modules/maplibre-gl/')) return 'maplibre'
+                if (/\/node_modules\/highcharts(-react-official)?\//.test(id)) return 'highcharts'
+                // Calendars and date fields load later with DatePickers (see
+                // LazyDatePickers), apart from the menus and popovers needed at once.
+                // Matched by name so the date hooks' re-exports go with them.
+                if (
+                  /\/node_modules\/(react-aria-components|react-aria|react-stately|@react-aria|@react-stately|@internationalized)\//.test(
+                    id,
+                  )
+                ) {
+                  return /\/(use|Hidden)?(Range)?(Date|Time|Calendar|SpinButton)[^/]*(\/|$)/i.test(id)
+                    ? 'react-aria-dates'
+                    : 'react-aria'
+                }
+                if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
+                return null
+              },
             },
-          }],
+          ],
         },
       },
     },

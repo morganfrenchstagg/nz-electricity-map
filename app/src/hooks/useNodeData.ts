@@ -23,7 +23,15 @@ interface Options {
 
 // For GeneratorPanel and SubstationPanel: App's 5-minute dispatch data, or on aggregate views
 // the node's own MWh totals, narrowed to the node's codes
-export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes }: Options) {
+export function useNodeData({
+  dateMode,
+  recentData,
+  loading,
+  error,
+  queryNodes,
+  movedNodes = NO_MOVED_NODES,
+  getCodes,
+}: Options) {
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
   const aggregates = useAggregates(queryNodes, isAggregateMode(dateMode) ? dateMode : null)
@@ -33,10 +41,7 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
   )
   const data = isAggregate ? aggregateData : recentData
 
-  const allCodes = useMemo(
-    () => (data ? getCodes(data, isAggregate) : []),
-    [data, getCodes, isAggregate],
-  )
+  const allCodes = useMemo(() => (data ? getCodes(data, isAggregate) : []), [data, getCodes, isAggregate])
 
   const chartData = useMemo(() => {
     if (!data || allCodes.length === 0) return null
@@ -62,7 +67,9 @@ export function useCodeSelection(allCodes: string[], node: object) {
     [activeCodes, allCodes],
   )
 
-  useEffect(() => { setActiveCodes(null) }, [node])
+  useEffect(() => {
+    setActiveCodes(null)
+  }, [node])
 
   // Hiding the last shown code shows them all again, unless `othersShown` (a substation's Total, say)
   function toggleCode(code: string, othersShown = false) {

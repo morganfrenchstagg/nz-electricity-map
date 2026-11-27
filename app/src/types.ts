@@ -79,13 +79,11 @@ export interface HvdcData {
 
 // A generator, or several picked together (see NodePickerModal)
 export type GeneratorNode =
-  | { kind: 'generator'; generator: Generator }
-  | { kind: 'generators'; generators: Generator[] }
+  { kind: 'generator'; generator: Generator } | { kind: 'generators'; generators: Generator[] }
 
 // A substation, or several picked together (see NodePickerModal)
 export type SubstationNode =
-  | { kind: 'substation'; substation: Substation }
-  | { kind: 'substations'; substations: Substation[] }
+  { kind: 'substation'; substation: Substation } | { kind: 'substations'; substations: Substation[] }
 
 // The HVDC link between the islands, picked from the map (see HvdcPanel)
 export type HvdcNode = { kind: 'hvdc' }

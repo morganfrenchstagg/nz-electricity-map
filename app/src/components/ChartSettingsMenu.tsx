@@ -21,7 +21,7 @@ export default function ChartSettingsMenu({ settings, onChange, offered }: Props
       </Button>
       <Popover placement="bottom end" offset={4} className="popover">
         <Dialog aria-label="Chart settings" className="chart-settings">
-          {offered.map(key => {
+          {offered.map((key) => {
             const setting = CHART_SETTINGS[key]
             const { label, options } = setting
             if ('checkbox' in setting) {
@@ -30,9 +30,11 @@ export default function ChartSettingsMenu({ settings, onChange, offered }: Props
                   key={key}
                   className="checkbox"
                   isSelected={settings[key] === options[1].value}
-                  onChange={ticked => onChange({ ...settings, [key]: options[ticked ? 1 : 0].value })}
+                  onChange={(ticked) => onChange({ ...settings, [key]: options[ticked ? 1 : 0].value })}
                 >
-                  <span className="checkbox-box" aria-hidden="true"><Check size={12} /></span>
+                  <span className="checkbox-box" aria-hidden="true">
+                    <Check size={12} />
+                  </span>
                   {label}
                 </Checkbox>
               )
@@ -42,7 +44,7 @@ export default function ChartSettingsMenu({ settings, onChange, offered }: Props
                 <span className="heading-sm">{label}</span>
                 <ToggleGroup
                   ariaLabel={label}
-                  options={options.map(o => ({
+                  options={options.map((o) => ({
                     key: o.value,
                     label: o.label,
                     active: settings[key] === o.value,

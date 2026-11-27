@@ -1,9 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { combinedUnitOf, inServiceAt, inServiceDuring, isCombinedOver, isCommissioning, isDecommissioned, isRetired, serviceChangesBetween, shortUnitName, unitLabel, unitsByNode } from './generators'
+import {
+  combinedUnitOf,
+  inServiceAt,
+  inServiceDuring,
+  isCombinedOver,
+  isCommissioning,
+  isDecommissioned,
+  isRetired,
+  serviceChangesBetween,
+  shortUnitName,
+  unitLabel,
+  unitsByNode,
+} from './generators'
 import { nzLocalMs } from './time'
 import type { Generator, Unit } from '../types'
 
-const unit = (node: string, name: string): Unit => ({ name, unitCode: name, node, capacity: 10, fuel: 'Hydro', fuelCode: 'hyd' })
+const unit = (node: string, name: string): Unit => ({
+  name,
+  unitCode: name,
+  node,
+  capacity: 10,
+  fuel: 'Hydro',
+  fuelCode: 'hyd',
+})
 
 const generator = (site: string, units: Unit[]): Generator => ({
   site,
@@ -50,12 +69,19 @@ describe('shortUnitName', () => {
 })
 
 describe('isCombinedOver', () => {
-  const dated = (node: string, commissioned: string, decomissioned?: string, combines?: string[]): Unit =>
-    ({ ...unit(node, node), commissioned, decomissioned, combines })
+  const dated = (node: string, commissioned: string, decomissioned?: string, combines?: string[]): Unit => ({
+    ...unit(node, node),
+    commissioned,
+    decomissioned,
+    combines,
+  })
   // Southdown's two units were only ever metered together, and retired with their combined unit
   const swn0 = dated('SWN2201 SWN0', '1995-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z')
   const swn5 = dated('SWN2201 SWN5', '2006-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z')
-  const southdown = dated('SWN2201 southdown', '1995-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z', [swn0.node, swn5.node])
+  const southdown = dated('SWN2201 southdown', '1995-12-31T11:00:00.000Z', '2016-01-19T10:59:59.000Z', [
+    swn0.node,
+    swn5.node,
+  ])
   // Huntly's Rankine units were metered on their own once their combined unit retired
   const hly1 = dated('HLY2201 HLY1', '1981-12-31T11:00:00.000Z')
   const huntly14 = dated('HLY2201 huntly_1_4', '1981-12-31T11:00:00.000Z', '1999-12-31T10:59:59.999Z', [hly1.node])
@@ -126,7 +152,9 @@ describe('inServiceAt', () => {
   })
 
   it("isn't in service without a commissioning date, as it's still being commissioned", () => {
-    expect(inServiceAt(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(false)
+    expect(inServiceAt(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(
+      false,
+    )
   })
 
   it("is in service since EMI's register began for plant that predates it", () => {
@@ -145,13 +173,19 @@ describe('inServiceDuring', () => {
   })
 
   it("isn't in service in any period while it's still being commissioned", () => {
-    expect(inServiceDuring(served({ commissioned: undefined, decomissioned: undefined }), day('2026-10-13'))).toBe(false)
+    expect(inServiceDuring(served({ commissioned: undefined, decomissioned: undefined }), day('2026-10-13'))).toBe(
+      false,
+    )
   })
 })
 
 describe('isDecommissioned', () => {
-  beforeEach(() => { vi.useFakeTimers() })
-  afterEach(() => { vi.useRealTimers() })
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it('is decommissioned once its decommissioning has passed', () => {
     vi.setSystemTime('2025-09-05T07:29:59.999Z')
@@ -170,7 +204,13 @@ describe('serviceChangesBetween', () => {
 
   it('leaves out changes outside the window, and units still being commissioned', () => {
     expect(serviceChangesBetween([served()], nz('2022-01-01T00:00:00'), nz('2023-01-01T00:00:00'))).toEqual([])
-    expect(serviceChangesBetween([served({ commissioned: undefined, decomissioned: undefined })], nz('2022-01-01T00:00:00'), nz('2030-01-01T00:00:00'))).toEqual([])
+    expect(
+      serviceChangesBetween(
+        [served({ commissioned: undefined, decomissioned: undefined })],
+        nz('2022-01-01T00:00:00'),
+        nz('2030-01-01T00:00:00'),
+      ),
+    ).toEqual([])
   })
 })
 
@@ -190,7 +230,9 @@ describe('isRetired', () => {
 
 describe('isCommissioning', () => {
   it("is commissioning without a commissioning date, or before it's due", () => {
-    expect(isCommissioning(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00'))).toBe(true)
+    expect(
+      isCommissioning(served({ commissioned: undefined, decomissioned: undefined }), nz('2030-01-01T00:00:00')),
+    ).toBe(true)
     expect(isCommissioning(served(), nz('2021-07-21T13:59:59'))).toBe(true)
     expect(isCommissioning(served(), nz('2021-07-21T14:00:00'))).toBe(false)
   })

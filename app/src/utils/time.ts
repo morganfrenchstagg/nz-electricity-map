@@ -9,7 +9,7 @@ export function nzLocalMs(ts: string): number {
 // An instant's NZ wall-clock time, in the same convention
 export function nzWallClockMs(ms: number): number {
   return new Date(
-    new Date(ms).toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z'
+    new Date(ms).toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T') + 'Z',
   ).getTime()
 }
 

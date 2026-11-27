@@ -79,7 +79,7 @@ function monthWindow(months: number): { from: string; to: string } {
 // The first day of the calendar quarter a "YYYY-MM-DD" date falls in
 export function quarterStart(date: string): string {
   const month = Number(date.slice(5, 7))
-  return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
+  return `${date.slice(0, 4)}-${String(month - ((month - 1) % 3)).padStart(2, '0')}-01`
 }
 
 // Every NZ month of data, ending with this one
@@ -157,7 +157,10 @@ export function sumQuarters(rows: (string | number)[][]): (string | number)[][] 
   for (const [date, ...values] of rows) {
     const start = quarterStart(date as string)
     const quarter = quarters[quarters.length - 1]
-    if (quarter?.[0] === start) values.forEach((v, i) => { quarter[i + 1] = (quarter[i + 1] as number) + (v as number) })
+    if (quarter?.[0] === start)
+      values.forEach((v, i) => {
+        quarter[i + 1] = (quarter[i + 1] as number) + (v as number)
+      })
     else quarters.push([start, ...values])
   }
   return quarters
@@ -169,9 +172,9 @@ export function sumQuarters(rows: (string | number)[][]): (string | number)[][] 
  * only: energy can be summed, dispatch pricing can't.
  */
 export function foldMovedNodes(data: RecentData, movedNodes: Record<string, string>): RecentData {
-  if (!data.series.some(s => s in movedNodes)) return data
+  if (!data.series.some((s) => s in movedNodes)) return data
   const series: string[] = []
-  const columnOf = data.series.map(s => {
+  const columnOf = data.series.map((s) => {
     const target = movedNodes[s] ?? s
     if (!series.includes(target)) series.push(target)
     return series.indexOf(target) + 1 // +1: col 0 is the timestamp
@@ -180,7 +183,9 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
     series,
     data: data.data.map(([time, ...values]) => {
       const row: (string | number)[] = [time, ...series.map(() => 0)]
-      values.forEach((v, i) => { row[columnOf[i]] = (row[columnOf[i]] as number) + (v as number) })
+      values.forEach((v, i) => {
+        row[columnOf[i]] = (row[columnOf[i]] as number) + (v as number)
+      })
       return row
     }),
     pricing: [],
@@ -195,7 +200,10 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
  * start, so they share the chart helpers. HVDC totals each way come as `hvdc`.
  * Pass 'all' for every node, or null to skip fetching.
  */
-export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMode | null): {
+export function useAggregates(
+  nodes: string[] | 'all' | null,
+  mode: AggregateMode | null,
+): {
   aggregateData: RecentData | null
   loading: boolean
   error: string | null
@@ -210,20 +218,24 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
   const nodesKey = nodes === 'all' ? '' : nodes && nodes.length > 0 ? nodes.join(',') : null
 
   useEffect(() => {
-    if (nodesKey === null || !mode || !modeKey) { setLoading(false); return }
+    if (nodesKey === null || !mode || !modeKey) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(null)
 
     const { from, to, paths } = aggregateWindow(mode)
     // Rows within the window (summed into quarters if needed), timestamped at local midnight
-    const windowRows = (rows: (string | number)[][]) => (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
-      .filter(row => (row[0] as string) >= from && (row[0] as string) <= to)
-      .map(([date, ...values]) => [`${date}T00:00:00`, ...values])
-    Promise.all(paths.map(p => fetchAggregates(p, nodesKey)))
-      .then(responses => {
+    const windowRows = (rows: (string | number)[][]) =>
+      (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
+        .filter((row) => (row[0] as string) >= from && (row[0] as string) <= to)
+        .map(([date, ...values]) => [`${date}T00:00:00`, ...values])
+    Promise.all(paths.map((p) => fetchAggregates(p, nodesKey)))
+      .then((responses) => {
         if (cancelled) return
-        const merged = mergeData(responses.map(r => ({ ...r, pricing: [] })))
+        const merged = mergeData(responses.map((r) => ({ ...r, pricing: [] })))
         setResult({
           modeKey,
           data: {
@@ -231,7 +243,9 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
             data: windowRows(merged.data),
             pricing: [],
             // HVDC totals are all numbers
-            ...(merged.hvdc && { hvdc: { series: merged.hvdc.series, data: windowRows(merged.hvdc.data as (string | number)[][]) } }),
+            ...(merged.hvdc && {
+              hvdc: { series: merged.hvdc.series, data: windowRows(merged.hvdc.data as (string | number)[][]) },
+            }),
           },
         })
         setLoading(false)
@@ -242,7 +256,9 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
         setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [nodesKey, modeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { aggregateData: result?.modeKey === modeKey ? result.data : null, loading, error }

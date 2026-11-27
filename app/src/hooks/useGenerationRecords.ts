@@ -35,10 +35,14 @@ function useDailyTotals(nodes: string | null, month: string | null): RecentData 
     if (nodes === null || path === null) return
     let cancelled = false
     fetchAggregates(path, nodes).then(
-      (response) => { if (!cancelled) setResult({ key, data: asData(response) }) },
+      (response) => {
+        if (!cancelled) setResult({ key, data: asData(response) })
+      },
       () => {},
     )
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [nodes, path, key])
 
   return path !== null && result?.key === key ? result.data : null
@@ -59,7 +63,11 @@ export interface DatedRecords extends GenerationRecords {
  * the chart does. The records are null until the totals load, and when the codes
  * generated in none of them; `loaded` tells those apart.
  */
-export function useGenerationRecords(queryNodes: string[], movedNodes: Record<string, string>, codes: string[]): {
+export function useGenerationRecords(
+  queryNodes: string[],
+  movedNodes: Record<string, string>,
+  codes: string[],
+): {
   records: DatedRecords | null
   loaded: boolean
   error: string | null
@@ -73,10 +81,16 @@ export function useGenerationRecords(queryNodes: string[], movedNodes: Record<st
     let cancelled = false
     setError(null)
     loadMonthly(nodes).then(
-      (data) => { if (!cancelled) setMonthly({ nodes, data }) },
-      (err: unknown) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Unknown error') },
+      (data) => {
+        if (!cancelled) setMonthly({ nodes, data })
+      },
+      (err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unknown error')
+      },
     )
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [nodes])
 
   const current = monthly !== null && monthly.nodes === nodes ? monthly.data : null
@@ -88,12 +102,16 @@ export function useGenerationRecords(queryNodes: string[], movedNodes: Record<st
   const firstDaily = useDailyTotals(nodes, months?.firstMonth ?? null)
   const lastDaily = useDailyTotals(nodes, stoppedIn)
 
-  const records = useMemo((): DatedRecords | null => months && {
-    ...months,
-    firstDay: firstDaily && firstDayGenerated(foldMovedNodes(firstDaily, movedNodes), codes),
-    stopped: stoppedIn !== null,
-    lastDay: lastDaily && lastDayGenerated(foldMovedNodes(lastDaily, movedNodes), codes),
-  }, [months, firstDaily, lastDaily, stoppedIn, movedNodes, codes])
+  const records = useMemo(
+    (): DatedRecords | null =>
+      months && {
+        ...months,
+        firstDay: firstDaily && firstDayGenerated(foldMovedNodes(firstDaily, movedNodes), codes),
+        stopped: stoppedIn !== null,
+        lastDay: lastDaily && lastDayGenerated(foldMovedNodes(lastDaily, movedNodes), codes),
+      },
+    [months, firstDaily, lastDaily, stoppedIn, movedNodes, codes],
+  )
 
   return { records, loaded: current !== null, error }
 }

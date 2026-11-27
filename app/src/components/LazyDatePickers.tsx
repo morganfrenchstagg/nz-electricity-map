@@ -6,8 +6,8 @@ import { CalendarIcon } from './icons'
 // DatePickers, with React Aria's calendars and date fields (about a third of it), loads when a
 // picker is wanted, not with the page. Until then each picker has a look-alike stand-in.
 const loadPickers = () => import('./DatePickers')
-const LoadedRangePicker = lazy(() => loadPickers().then(m => ({ default: m.DateRangePicker })))
-const LoadedDatePicker = lazy(() => loadPickers().then(m => ({ default: m.DatePicker })))
+const LoadedRangePicker = lazy(() => loadPickers().then((m) => ({ default: m.DateRangePicker })))
+const LoadedDatePicker = lazy(() => loadPickers().then((m) => ({ default: m.DatePicker })))
 
 // PeriodToggle's calendar button is always shown, so it loads on hover, focus or open
 export function DateRangePicker(props: DateRangePickerProps) {
@@ -23,9 +23,15 @@ export function DateRangePicker(props: DateRangePickerProps) {
       aria-expanded={props.isOpen}
       className={props.isActive ? 'calendar-button is-active' : 'calendar-button'}
       onPointerEnter={want}
-      onFocus={() => { setFocused(true); want() }}
+      onFocus={() => {
+        setFocused(true)
+        want()
+      }}
       onBlur={() => setFocused(false)}
-      onClick={() => { want(); props.onOpenChange(true) }}
+      onClick={() => {
+        want()
+        props.onOpenChange(true)
+      }}
     >
       <CalendarIcon />
     </button>
@@ -52,7 +58,9 @@ function DateFieldStandIn({ value }: { value: string }) {
   return (
     <div className="date-field" aria-busy="true">
       <span className="date-field-input">{value ? `${d}/${m}/${y}` : 'dd/mm/yyyy'}</span>
-      <span className="date-field-button"><CalendarIcon /></span>
+      <span className="date-field-button">
+        <CalendarIcon />
+      </span>
     </div>
   )
 }

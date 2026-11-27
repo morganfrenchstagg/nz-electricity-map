@@ -38,8 +38,8 @@ export function appendRecent(held: RecentData, added: RecentData, since: string)
 
   return {
     series: held.series,
-    data: [...held.data.filter(row => !isAfter(row)), ...data].slice(-RECENT_INTERVALS),
-    pricing: [...heldPricing.filter(row => !isAfter(row)), ...pricing].slice(-RECENT_INTERVALS),
+    data: [...held.data.filter((row) => !isAfter(row)), ...data].slice(-RECENT_INTERVALS),
+    pricing: [...heldPricing.filter((row) => !isAfter(row)), ...pricing].slice(-RECENT_INTERVALS),
     ...(hvdc && { hvdc }),
   }
 }

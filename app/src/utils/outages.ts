@@ -79,8 +79,9 @@ export function mergeOutageDays(days: OutageData[]): OutageData {
 // never clips starts to now, so an ongoing outage shows when it began. Times are outageMs's,
 // so `nowMs` must be nzNowMs().
 export function mergeOutageSegments(records: OutageRecord[], nowMs: number, maxMW = Infinity): OutageSegment[] {
-  const events = [...new Set(records.flatMap((r) => [outageMs(r.timeStart), outageMs(r.timeEnd)]))]
-    .sort((a, b) => a - b)
+  const events = [...new Set(records.flatMap((r) => [outageMs(r.timeStart), outageMs(r.timeEnd)]))].sort(
+    (a, b) => a - b,
+  )
   const segments: OutageSegment[] = []
   for (let i = 0; i < events.length - 1; i++) {
     const mw = outageMWAt(records, events[i], maxMW)
@@ -97,7 +98,11 @@ export function outageEasesAt(segments: OutageSegment[], atMs: number): number |
   const i = segments.findIndex((s) => s.start <= atMs && atMs < s.end)
   if (i < 0) return null
   let end = segments[i].end
-  for (let j = i + 1; j < segments.length && segments[j].start === end && segments[j].mw >= segments[i].mw - 0.001; j++) {
+  for (
+    let j = i + 1;
+    j < segments.length && segments[j].start === end && segments[j].mw >= segments[i].mw - 0.001;
+    j++
+  ) {
     end = segments[j].end
   }
   return end

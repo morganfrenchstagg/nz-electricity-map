@@ -1,8 +1,22 @@
 import { useContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, Calendar, CalendarCell, CalendarGrid, CalendarStateContext, DateField, DateInput, DateSegment, Dialog,
-  DialogTrigger, Group, I18nProvider, Label, Popover, RangeCalendar, RangeCalendarStateContext,
+  Button,
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  CalendarStateContext,
+  DateField,
+  DateInput,
+  DateSegment,
+  Dialog,
+  DialogTrigger,
+  Group,
+  I18nProvider,
+  Label,
+  Popover,
+  RangeCalendar,
+  RangeCalendarStateContext,
   DatePicker as AriaDatePicker,
 } from 'react-aria-components'
 import { parseDate } from '@internationalized/date'
@@ -14,7 +28,8 @@ import { CalendarIcon, ChevronLeft, ChevronRight } from './icons'
 // Built on React Aria, React Spectrum's unstyled base. Dates are ISO "YYYY-MM-DD", like DateMode's.
 
 const MONTHS = Array.from({ length: 12 }, (_, i) =>
-  new Date(Date.UTC(2000, i, 1)).toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }))
+  new Date(Date.UTC(2000, i, 1)).toLocaleDateString(LOCALE, { timeZone: 'UTC', month: 'short' }),
+)
 
 interface CommonProps {
   min: string
@@ -48,7 +63,18 @@ function toDraft(value: Range | null): Draft {
 }
 
 // A calendar button at the end of PeriodToggle, opening From and To fields over a range calendar
-export function DateRangePicker({ value, onChange, min, max, maxDays, error, isActive, isOpen, onOpenChange, autoFocus }: DateRangePickerProps) {
+export function DateRangePicker({
+  value,
+  onChange,
+  min,
+  max,
+  maxDays,
+  error,
+  isActive,
+  isOpen,
+  onOpenChange,
+  autoFocus,
+}: DateRangePickerProps) {
   const [minValue, maxValue] = useBounds(min, max)
   const [draft, setDraft] = useState(() => toDraft(value))
   // The calendar's month; follows the dates as they're typed
@@ -84,7 +110,11 @@ export function DateRangePicker({ value, onChange, min, max, maxDays, error, isA
   return (
     <I18nProvider locale={LOCALE}>
       <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-        <Button autoFocus={autoFocus} aria-label={value ? rangeLabel(value) : 'Custom dates'} className={isActive ? 'calendar-button is-active' : 'calendar-button'}>
+        <Button
+          autoFocus={autoFocus}
+          aria-label={value ? rangeLabel(value) : 'Custom dates'}
+          className={isActive ? 'calendar-button is-active' : 'calendar-button'}
+        >
           <CalendarIcon />
         </Button>
         <CalendarPopover>
@@ -92,7 +122,10 @@ export function DateRangePicker({ value, onChange, min, max, maxDays, error, isA
             <DateRangeField
               label="From"
               value={draft.start}
-              onChange={d => { commit(d, draft.end); if (d) setFocusedDate(d) }}
+              onChange={(d) => {
+                commit(d, draft.end)
+                if (d) setFocusedDate(d)
+              }}
               minValue={minValue}
               maxValue={maxValue}
               isInvalid={error != null}
@@ -100,7 +133,10 @@ export function DateRangePicker({ value, onChange, min, max, maxDays, error, isA
             <DateRangeField
               label="To"
               value={draft.end}
-              onChange={d => { commit(draft.start, d); if (d) setFocusedDate(d) }}
+              onChange={(d) => {
+                commit(draft.start, d)
+                if (d) setFocusedDate(d)
+              }}
               minValue={minValue}
               maxValue={maxValue}
               isInvalid={error != null}
@@ -109,7 +145,10 @@ export function DateRangePicker({ value, onChange, min, max, maxDays, error, isA
           </div>
           <RangeCalendar
             value={calendarRange}
-            onChange={r => { commit(r.start, r.end); onOpenChange(false) }}
+            onChange={(r) => {
+              commit(r.start, r.end)
+              onOpenChange(false)
+            }}
             minValue={minValue}
             maxValue={maxValue}
             // Once the first day is picked, rule out days that would make the range too long
@@ -141,7 +180,9 @@ function DateRangeField({ label, ...props }: DateRangeFieldProps) {
   return (
     <DateField {...props} validationBehavior="aria" shouldForceLeadingZeros className="date-range-field">
       <Label className="heading-sm">{label}</Label>
-      <DateInput className="date-field date-field-input">{s => <DateSegment segment={s} className="date-segment" />}</DateInput>
+      <DateInput className="date-field date-field-input">
+        {(s) => <DateSegment segment={s} className="date-segment" />}
+      </DateInput>
     </DateField>
   )
 }
@@ -155,14 +196,14 @@ export interface DatePickerProps extends CommonProps {
 }
 
 export function DatePicker({ value, onChange, min, max, isOpen, onOpenChange, isInvalid, ariaLabel }: DatePickerProps) {
-  const date = useMemo(() => value ? parseDate(value) : null, [value])
+  const date = useMemo(() => (value ? parseDate(value) : null), [value])
   const [minValue, maxValue] = useBounds(min, max)
 
   return (
     <I18nProvider locale={LOCALE}>
       <AriaDatePicker
         value={date}
-        onChange={d => onChange(d && d.toString())}
+        onChange={(d) => onChange(d && d.toString())}
         minValue={minValue}
         maxValue={maxValue}
         isOpen={isOpen}
@@ -173,7 +214,9 @@ export function DatePicker({ value, onChange, min, max, isOpen, onOpenChange, is
         aria-label={ariaLabel}
       >
         <Group className="date-field">
-          <DateInput className="date-field-input">{s => <DateSegment segment={s} className="date-segment" />}</DateInput>
+          <DateInput className="date-field-input">
+            {(s) => <DateSegment segment={s} className="date-segment" />}
+          </DateInput>
           <CalendarButton />
         </Group>
         <CalendarPopover>
@@ -217,31 +260,41 @@ function CalendarHeader() {
   const years: number[] = []
   for (let y = maxValue?.year ?? focusedDate.year; y >= (minValue?.year ?? focusedDate.year); y--) years.push(y)
   const monthOutOfBounds = (month: number) =>
-    (minValue != null && focusedDate.year === minValue.year && month < minValue.month)
-    || (maxValue != null && focusedDate.year === maxValue.year && month > maxValue.month)
+    (minValue != null && focusedDate.year === minValue.year && month < minValue.month) ||
+    (maxValue != null && focusedDate.year === maxValue.year && month > maxValue.month)
 
   return (
     <header className="calendar-header">
-      <Button slot="previous" className="calendar-nav" aria-label="Previous month"><ChevronLeft size={14} /></Button>
+      <Button slot="previous" className="calendar-nav" aria-label="Previous month">
+        <ChevronLeft size={14} />
+      </Button>
       <select
         aria-label="Month"
         value={focusedDate.month}
-        onChange={e => state.setFocusedDate(focusedDate.set({ month: Number(e.target.value) }))}
+        onChange={(e) => state.setFocusedDate(focusedDate.set({ month: Number(e.target.value) }))}
         className="toggle-select"
       >
         {MONTHS.map((name, i) => (
-          <option key={name} value={i + 1} disabled={monthOutOfBounds(i + 1)}>{name}</option>
+          <option key={name} value={i + 1} disabled={monthOutOfBounds(i + 1)}>
+            {name}
+          </option>
         ))}
       </select>
       <select
         aria-label="Year"
         value={focusedDate.year}
-        onChange={e => state.setFocusedDate(focusedDate.set({ year: Number(e.target.value) }))}
+        onChange={(e) => state.setFocusedDate(focusedDate.set({ year: Number(e.target.value) }))}
         className="toggle-select"
       >
-        {years.map(y => <option key={y} value={y}>{y}</option>)}
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
       </select>
-      <Button slot="next" className="calendar-nav" aria-label="Next month"><ChevronRight size={14} /></Button>
+      <Button slot="next" className="calendar-nav" aria-label="Next month">
+        <ChevronRight size={14} />
+      </Button>
     </header>
   )
 }
@@ -249,7 +302,7 @@ function CalendarHeader() {
 function CalendarDays() {
   return (
     <CalendarGrid className="calendar-grid" weekdayStyle="narrow">
-      {date => <CalendarCell date={date} className="calendar-cell" />}
+      {(date) => <CalendarCell date={date} className="calendar-cell" />}
     </CalendarGrid>
   )
 }

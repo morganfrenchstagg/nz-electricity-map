@@ -20,10 +20,13 @@ export function useDefinitions(): UseDefinitionsResult {
   }, [])
 
   // Map rebuilds its GeoJSON sources whenever these arrays change identity
-  return useMemo(() => ({
-    generators: data?.generators.filter(g => g.site !== 'SZR') ?? [],
-    substations: data?.substations ?? [],
-    loading: !data && !error,
-    error,
-  }), [data, error])
+  return useMemo(
+    () => ({
+      generators: data?.generators.filter((g) => g.site !== 'SZR') ?? [],
+      substations: data?.substations ?? [],
+      loading: !data && !error,
+      error,
+    }),
+    [data, error],
+  )
 }

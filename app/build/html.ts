@@ -9,7 +9,13 @@ export const API_URL = 'https://api.electricitymap.frenchsta.gg/v1'
 export const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
 export const CC_BY = 'https://creativecommons.org/licenses/by/4.0/'
 const LINKEDIN = 'https://www.linkedin.com/in/morganfrenchstagg'
-export const CREATOR = { '@type': 'Person', '@id': `${ORIGIN}/#creator`, name: 'Morgan French-Stagg', url: LINKEDIN, sameAs: [LINKEDIN] }
+export const CREATOR = {
+  '@type': 'Person',
+  '@id': `${ORIGIN}/#creator`,
+  name: 'Morgan French-Stagg',
+  url: LINKEDIN,
+  sameAs: [LINKEDIN],
+}
 // The data's sources and who made the site, at the foot of every page
 export const FOOTER = `<footer class="prerender__footer">
 <p>Data from the Electricity Authority's <a href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</a>
@@ -21,12 +27,14 @@ Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p>
 </footer>`
 
 // The site's icon, as public/favicon.svg draws it
-const ICON = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path d="M36 6 14 36h15l-3 22 24-32H35z" fill="#fff"/></svg>'
+const ICON =
+  '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path d="M36 6 14 36h15l-3 22 24-32H35z" fill="#fff"/></svg>'
 
 // Atop every page: the site's name, the Analysis section, marked when the page
 // at `path` is in it, and a button into the live map at `live`
 export function header(live: string, path: string): string {
-  const current = path === ANALYSIS_PATH ? ' aria-current="page"' : path.startsWith(`${ANALYSIS_PATH}/`) ? ' aria-current="true"' : ''
+  const current =
+    path === ANALYSIS_PATH ? ' aria-current="page"' : path.startsWith(`${ANALYSIS_PATH}/`) ? ' aria-current="true"' : ''
   return `<header class="prerender__header"><div class="prerender__bar">
 <a class="prerender__brand" href="/" aria-label="${SITE_NAME}">${ICON}<span>${SITE_NAME}</span></a>
 <nav class="prerender__nav" aria-label="Sections"><a href="${ANALYSIS_PATH}"${current}>Analysis</a></nav>
@@ -78,7 +86,8 @@ export function pct(fraction: number): string {
 }
 
 export function ordinal(n: number): string {
-  const tens = n % 100, ones = n % 10
+  const tens = n % 100,
+    ones = n % 10
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ones === 1 ? 'st' : ones === 2 ? 'nd' : ones === 3 ? 'rd' : 'th'
   return `${n}${suffix}`
 }
@@ -90,7 +99,12 @@ export function article(n: number): string {
 }
 
 export function nzDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-NZ', {
+    timeZone: 'Pacific/Auckland',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 export function nzYear(date: string | Date): number {
@@ -150,17 +164,24 @@ export function linkList(links: { href: string; text: string }[]): string {
 }
 
 function row(cells: string[], numericFrom: number): string {
-  return `<tr>${cells.map((c, i) => i >= numericFrom ? `<td class="num">${c}</td>` : `<td>${c}</td>`).join('')}</tr>`
+  return `<tr>${cells.map((c, i) => (i >= numericFrom ? `<td class="num">${c}</td>` : `<td>${c}</td>`)).join('')}</tr>`
 }
 
 // A table of rows of HTML (already escaped), its header text escaped here. The
 // columns from `numericFrom` on are figures, right-aligned. Rows in `more` are
 // shown only once its toggle, labelled `more.label`, is opened (see .prerender__more).
-export function table(head: string[], rows: string[][], numericFrom = head.length, more?: { label: string; rows: string[][] }): string {
+export function table(
+  head: string[],
+  rows: string[][],
+  numericFrom = head.length,
+  more?: { label: string; rows: string[][] },
+): string {
   const thead = `<thead><tr>${head.map((h, i) => `<th${i >= numericFrom ? ' class="num"' : ''}>${esc(h)}</th>`).join('')}</tr></thead>`
   const body = (rs: string[][], cls = '') => `<tbody${cls}>${rs.map((r) => row(r, numericFrom)).join('')}</tbody>`
   const html = `<div class="prerender__table"><table>${thead}${body(rows)}${more ? body(more.rows, ' class="prerender__more-rows"') : ''}</table></div>`
-  return more ? `<div class="prerender__more">${html}<details><summary>${esc(more.label)}</summary></details></div>` : html
+  return more
+    ? `<div class="prerender__more">${html}<details><summary>${esc(more.label)}</summary></details></div>`
+    : html
 }
 
 // A column of figures to one precision, a decimal place when they're all under
@@ -186,21 +207,32 @@ export function shareCell(fraction: number): string {
   return esc(shareText(fraction))
 }
 
-
 export function breadcrumbs(trail: { name: string; path: string }[]): { html: string; jsonLd: object } {
   return {
-    html: `<nav class="prerender__crumbs">${trail.map((t, i) => i < trail.length - 1 ? `${link(t.path, t.name)} › ` : esc(t.name)).join('')}</nav>`,
+    html: `<nav class="prerender__crumbs">${trail.map((t, i) => (i < trail.length - 1 ? `${link(t.path, t.name)} › ` : esc(t.name))).join('')}</nav>`,
     jsonLd: {
       '@type': 'BreadcrumbList',
-      itemListElement: trail.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: t.name, item: ORIGIN + t.path })),
+      itemListElement: trail.map((t, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: t.name,
+        item: ORIGIN + t.path,
+      })),
     },
   }
 }
 
 export function webPage(path: string, name: string, description: string, extra: object = {}): object {
   return {
-    '@type': 'WebPage', '@id': ORIGIN + path, url: ORIGIN + path, name, description,
-    isPartOf: { '@id': `${ORIGIN}/#website` }, inLanguage: 'en-NZ', author: { '@id': CREATOR['@id'] }, ...extra,
+    '@type': 'WebPage',
+    '@id': ORIGIN + path,
+    url: ORIGIN + path,
+    name,
+    description,
+    isPartOf: { '@id': `${ORIGIN}/#website` },
+    inLanguage: 'en-NZ',
+    author: { '@id': CREATOR['@id'] },
+    ...extra,
   }
 }
 

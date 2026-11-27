@@ -17,7 +17,17 @@ interface Props extends NodePanelProps {
 
 // Flow north above zero, south below; on aggregate views, the energy sent each way.
 // The 3d view has only em6's last day of it (see HvdcData).
-export default function HvdcPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, ...panel }: Props) {
+export default function HvdcPanel({
+  node,
+  onClear,
+  dateMode,
+  onDateModeChange,
+  recentData,
+  loading,
+  error,
+  onNodeChange,
+  ...panel
+}: Props) {
   const [headerRef, compactHeader] = useCompactWhenOverflowing<HTMLDivElement>()
   const [toolbarRef, compactToolbar] = useCompactWhenOverflowing<HTMLDivElement>()
   const headerMenu = hasHeaderMenu(panel)
@@ -33,18 +43,30 @@ export default function HvdcPanel({ node, onClear, dateMode, onDateModeChange, r
     if (!hvdc) return null
     if (aggregatePeriod) return hvdcEnergyChartOptions(hvdc, aggregatePeriod)
     // The 3d view's HVDC is only em6's last day, so span just that rather than leave two days blank
-    const times = dateMode.kind === 'recent' ? [] : recentData?.data.map(row => row[0] as string) ?? []
+    const times = dateMode.kind === 'recent' ? [] : (recentData?.data.map((row) => row[0] as string) ?? [])
     return hvdcChartOptions(hvdc, times.length > 0 ? times : undefined)
   }, [hvdc, aggregatePeriod, recentData, dateMode])
   const dataLoading = aggregatePeriod ? aggregates.loading : loading
   const dataError = aggregatePeriod ? aggregates.error : error
 
   const header = (
-    <NodeTitle node={node} title="HVDC inter-island link" compact={compactHeader} onNodeChange={onNodeChange} onClear={headerMenu ? undefined : onClear} subtitle="Benmore to Haywards" />
+    <NodeTitle
+      node={node}
+      title="HVDC inter-island link"
+      compact={compactHeader}
+      onNodeChange={onNodeChange}
+      onClear={headerMenu ? undefined : onClear}
+      subtitle="Benmore to Haywards"
+    />
   )
 
   return (
-    <Panel {...panel} header={header} headerRef={headerRef} actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}>
+    <Panel
+      {...panel}
+      header={header}
+      headerRef={headerRef}
+      actions={headerMenu ? [{ label: 'Clear selection', onClick: onClear }] : undefined}
+    >
       <PanelToolbar toolbarRef={toolbarRef} compact={compactToolbar}>
         <DateControls
           dateMode={dateMode}

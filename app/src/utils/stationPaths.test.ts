@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import type { Generator, Substation, Unit } from '../types'
 import {
-  generatorCapacity, generatorHistoricPath, generatorPath, generatorTitle, isHistoricPath, nodeParamOfPath, slugify, stationKind, stationPath, substationPath,
+  generatorCapacity,
+  generatorHistoricPath,
+  generatorPath,
+  generatorTitle,
+  isHistoricPath,
+  nodeParamOfPath,
+  slugify,
+  stationKind,
+  stationPath,
+  substationPath,
 } from './stationPaths'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
-  return { name: 'U1', unitCode: 'X0', node: 'XXX2201 XXX0', capacity: 100, fuel: 'Hydro', fuelCode: 'HYD', ...overrides }
+  return {
+    name: 'U1',
+    unitCode: 'X0',
+    node: 'XXX2201 XXX0',
+    capacity: 100,
+    fuel: 'Hydro',
+    fuelCode: 'HYD',
+    ...overrides,
+  }
 }
 
 function gen(name: string, site: string, units: Unit[] = [unit()]): Generator {
@@ -44,7 +61,8 @@ describe('station paths', () => {
   })
 
   it('adds the site code to names that slugify alike, whatever their order', () => {
-    const a = gen('Te Rapa', 'TRP'), b = gen('Te Rāpa', 'TRB')
+    const a = gen('Te Rapa', 'TRP'),
+      b = gen('Te Rāpa', 'TRB')
     expect(generatorPath(a, [a, b])).toBe('/generator/te-rapa-trp')
     expect(generatorPath(b, [b, a])).toBe('/generator/te-rapa-trb')
   })
@@ -62,8 +80,12 @@ describe('station paths', () => {
 
   it("paths a generator at All to its history's page, and only a single generator", () => {
     expect(generatorHistoricPath(ati, generators)).toBe('/generator/atiamuri/historic')
-    expect(stationPath({ kind: 'generator', generator: huntly }, generators, substations, true)).toBe('/generator/huntly/historic')
-    expect(stationPath({ kind: 'substation', substation: ota }, generators, substations, true)).toBe('/substation/otahuhu')
+    expect(stationPath({ kind: 'generator', generator: huntly }, generators, substations, true)).toBe(
+      '/generator/huntly/historic',
+    )
+    expect(stationPath({ kind: 'substation', substation: ota }, generators, substations, true)).toBe(
+      '/substation/otahuhu',
+    )
     expect(stationPath({ kind: 'generators', generators }, generators, substations, true)).toBeNull()
   })
 

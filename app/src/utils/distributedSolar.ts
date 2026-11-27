@@ -27,7 +27,11 @@ function lastAtOrBefore(points: [number, number][], ms: number): number {
 // Estimated MW at each of `times` ("local time as UTC"), summed over the GXPs
 // `includeGxp` keeps. Interpolated between 15-minute points; the last point holds
 // for 15 minutes. Null where the estimate doesn't reach.
-export function distributedSolarAt(days: SolarProduction[], times: number[], includeGxp: (gxp: string) => boolean): (number | null)[] {
+export function distributedSolarAt(
+  days: SolarProduction[],
+  times: number[],
+  includeGxp: (gxp: string) => boolean,
+): (number | null)[] {
   const points = days
     .flatMap((day) => {
       const gxps = day.gxps.filter((g) => includeGxp(g.gxp))
@@ -55,10 +59,9 @@ export function distributedSolarAt(days: SolarProduction[], times: number[], inc
 // before it. Readings stop around sunset and nights are forecast as zero; that's
 // kept so the line runs through the night into the next day's readings.
 export function observedSolar(days: SolarProduction[], times: number[], values: (number | null)[]): (number | null)[] {
-  const observedUntil = new Map(days.map((day) => [
-    day.date,
-    day.observedUntil ? nzWallClockMs(Date.parse(day.observedUntil)) : -Infinity,
-  ]))
+  const observedUntil = new Map(
+    days.map((day) => [day.date, day.observedUntil ? nzWallClockMs(Date.parse(day.observedUntil)) : -Infinity]),
+  )
   const newest = Math.max(...observedUntil.values())
   return values.map((mw, i) => {
     const ms = times[i]
@@ -69,11 +72,16 @@ export function observedSolar(days: SolarProduction[], times: number[], values: 
 
 // Installed MW at the kept GXPs, keyed by date. It steps at month ends, which a
 // range can span.
-export function distributedSolarCapacities(days: SolarProduction[], includeGxp: (gxp: string) => boolean): Map<string, number> {
-  return new Map(days.map((day) => [
-    day.date,
-    day.gxps.filter((g) => includeGxp(g.gxp)).reduce((sum, g) => sum + g.distributedMw, 0),
-  ]))
+export function distributedSolarCapacities(
+  days: SolarProduction[],
+  includeGxp: (gxp: string) => boolean,
+): Map<string, number> {
+  return new Map(
+    days.map((day) => [
+      day.date,
+      day.gxps.filter((g) => includeGxp(g.gxp)).reduce((sum, g) => sum + g.distributedMw, 0),
+    ]),
+  )
 }
 
 // `until`: the last time covered, when the forecast is left out
@@ -86,7 +94,13 @@ export interface SolarSoFar {
 // totals stop at yesterday. Sums MW at each 5-minute dispatch time from midnight
 // to `now` ("local time as UTC"), as the dispatch totals are. `observedOnly`
 // leaves out the forecast (see observedSolar). Null with no estimate for today.
-export function solarSoFar(days: SolarProduction[], today: string, now: number, includeGxp: (gxp: string) => boolean, observedOnly = false): SolarSoFar | null {
+export function solarSoFar(
+  days: SolarProduction[],
+  today: string,
+  now: number,
+  includeGxp: (gxp: string) => boolean,
+  observedOnly = false,
+): SolarSoFar | null {
   const estimate = days.filter((day) => day.date === today && day.gxps.some((g) => includeGxp(g.gxp)))
   const times: number[] = []
   for (let ms = nzLocalMs(`${today}T00:00:00`); ms <= now; ms += DISPATCH_INTERVAL_MS) times.push(ms)
@@ -94,7 +108,7 @@ export function solarSoFar(days: SolarProduction[], today: string, now: number, 
   const values = observedOnly ? observedSolar(estimate, times, at) : at
   const covered = times.filter((_, i) => values[i] !== null)
   if (covered.length === 0) return null
-  const mwh = values.reduce<number>((sum, mw) => sum + (mw ?? 0), 0) * DISPATCH_INTERVAL_MS / HOUR_MS
+  const mwh = (values.reduce<number>((sum, mw) => sum + (mw ?? 0), 0) * DISPATCH_INTERVAL_MS) / HOUR_MS
   return observedOnly ? { mwh, until: covered[covered.length - 1] } : { mwh }
 }
 
@@ -111,7 +125,12 @@ export interface SolarPeriod {
 // it's created under today).
 // Periods can be short of days: the backfill covers only part of the oldest, and
 // days can still be waiting on weather. Periods with no days are left out.
-export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: string) => boolean, today: string, soFar: SolarSoFar | null): Map<string, SolarPeriod> {
+export function distributedSolarEnergy(
+  files: SolarEnergy[],
+  includeGxp: (gxp: string) => boolean,
+  today: string,
+  soFar: SolarSoFar | null,
+): Map<string, SolarPeriod> {
   const energy = new Map<string, SolarPeriod>()
   let current: SolarPeriod | undefined
   for (const { series, data } of files) {
@@ -123,7 +142,7 @@ export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: s
     }
   }
   if (soFar) {
-    if (!current) energy.set(today, current = { mwh: 0, days: 0 })
+    if (!current) energy.set(today, (current = { mwh: 0, days: 0 }))
     current.mwh += soFar.mwh
     current.days += 1
     if (soFar.until !== undefined) current.until = soFar.until
@@ -134,5 +153,7 @@ export function distributedSolarEnergy(files: SolarEnergy[], includeGxp: (gxp: s
 
 // For the period so far, when today's share stops short of now (see solarSoFar)
 export function solarPeriodNote(period: SolarPeriod | undefined): string | null {
-  return period?.until !== undefined ? `Today's embedded solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings` : null
+  return period?.until !== undefined
+    ? `Today's embedded solar estimated up to ${Highcharts.dateFormat('%I:%M %p', period.until)}, from satellite readings`
+    : null
 }

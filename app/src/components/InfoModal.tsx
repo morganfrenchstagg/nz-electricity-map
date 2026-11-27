@@ -7,7 +7,11 @@ const BACKEND_SOURCE_URL = 'https://github.com/morganfrenchstagg/nz-electricity-
 const LINKEDIN_URL = 'https://www.linkedin.com/in/morganfrenchstagg'
 
 function Link({ href, children }: { href: string; children: ReactNode }) {
-  return <a href={href} target="_blank" rel="noopener noreferrer" className="link">{children}</a>
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="link">
+      {children}
+    </a>
+  )
 }
 
 function Section({ heading, children }: { heading: string; children: ReactNode }) {
@@ -24,17 +28,27 @@ const ccBy = <Link href={CC_BY_URL}>CC BY 4.0</Link>
 // What the site is, its data sources, licence and disclaimer. Opened from every Panel's header.
 export default function InfoModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
   return (
     <div onClick={onClose} className="modal-backdrop" style={{ padding: 'var(--space-xl)' }}>
-      <div onClick={e => e.stopPropagation()} className="modal" role="dialog" aria-labelledby="info-modal-title" style={{ width: '100%', maxWidth: 600, maxHeight: '85vh' }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="modal"
+        role="dialog"
+        aria-labelledby="info-modal-title"
+        style={{ width: '100%', maxWidth: 600, maxHeight: '85vh' }}
+      >
         <div className="section section--header" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <div id="info-modal-title" className="title">About NZ Electricity Map</div>
+            <div id="info-modal-title" className="title">
+              About NZ Electricity Map
+            </div>
           </div>
           <button onClick={onClose} className="button-secondary">
             Close
@@ -44,13 +58,12 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
         <div style={{ overflow: 'auto', padding: 'var(--space-xl)' }}>
           <Section heading="About">
             <p>
-              Where New Zealand's electricity comes from, power station by power station: what each one
-              is generating, its offers, prices and outages, and the grid's fuel mix back to 1997, from
-              public market data.
+              Where New Zealand's electricity comes from, power station by power station: what each one is generating,
+              its offers, prices and outages, and the grid's fuel mix back to 1997, from public market data.
             </p>
             <p>
-              This is an independent project. The source code is available on GitHub
-              (<Link href={FRONTEND_SOURCE_URL}>Frontend</Link>, <Link href={BACKEND_SOURCE_URL}>Backend</Link>).
+              This is an independent project. The source code is available on GitHub (
+              <Link href={FRONTEND_SOURCE_URL}>Frontend</Link>, <Link href={BACKEND_SOURCE_URL}>Backend</Link>).
             </p>
             <p>
               Created by <Link href={LINKEDIN_URL}>Morgan French-Stagg</Link>, with help from Jack Gibbons.
@@ -60,48 +73,71 @@ export default function InfoModal({ onClose }: { onClose: () => void }) {
           <Section heading="Data sources">
             <ul>
               <li>
-                Generation, prices and offers: the Electricity Authority's <Link href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</Link> real-time
-                dispatch API, nodal prices and volumes, and bids and offers data.
+                Generation, prices and offers: the Electricity Authority's{' '}
+                <Link href="https://www.emi.ea.govt.nz">Electricity Market Information (EMI)</Link> real-time dispatch
+                API, nodal prices and volumes, and bids and offers data.
               </li>
               <li>
                 Embedded solar: estimated for this site from the solar installed at each substation, in EMI's installed
                 distributed generation data, and <Link href={OPEN_METEO.url}>Open-Meteo</Link>'s weather forecasts.
               </li>
-              <li>Outages: Transpower's <Link href="https://customerportal.transpower.co.nz/pocp/outages">Planned Outage Coordination Process (POCP)</Link>.</li>
               <li>
-                HVDC flows: EMI's <Link href="https://www.emi.ea.govt.nz/Wholesale/Datasets/Metered_data/HVDC_Flows">metered HVDC flows</Link>,
-                and <Link href="https://www.em6.co.nz">em6</Link> for the days since EMI's latest month. Transfer limits: em6.
+                Outages: Transpower's{' '}
+                <Link href="https://customerportal.transpower.co.nz/pocp/outages">
+                  Planned Outage Coordination Process (POCP)
+                </Link>
+                .
               </li>
-              <li>Transmission lines: Transpower's <Link href="https://data-transpower.opendata.arcgis.com/">open data</Link>.</li>
               <li>
-                Base map: <Link href="https://openfreemap.org">OpenFreeMap</Link>, © <Link href="https://www.openmaptiles.org/">OpenMapTiles</Link>, data
-                from <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap</Link> contributors.
+                HVDC flows: EMI's{' '}
+                <Link href="https://www.emi.ea.govt.nz/Wholesale/Datasets/Metered_data/HVDC_Flows">
+                  metered HVDC flows
+                </Link>
+                , and <Link href="https://www.em6.co.nz">em6</Link> for the days since EMI's latest month. Transfer
+                limits: em6.
               </li>
-              <li>Aerial imagery: <Link href="https://basemaps.linz.govt.nz">LINZ Basemaps</Link>.</li>
+              <li>
+                Transmission lines: Transpower's{' '}
+                <Link href="https://data-transpower.opendata.arcgis.com/">open data</Link>.
+              </li>
+              <li>
+                Base map: <Link href="https://openfreemap.org">OpenFreeMap</Link>, ©{' '}
+                <Link href="https://www.openmaptiles.org/">OpenMapTiles</Link>, data from{' '}
+                <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap</Link> contributors.
+              </li>
+              <li>
+                Aerial imagery: <Link href="https://basemaps.linz.govt.nz">LINZ Basemaps</Link>.
+              </li>
               <li>Generation pipeline: compiled for this site from public sources.</li>
             </ul>
           </Section>
 
           <Section heading="Licensing">
             <ul>
-              <li>Electricity market data: © <Link href={EMI.url}>{EMI.name}</Link>, licensed under {ccBy}.</li>
-              <li>Transmission lines: © <Link href={TRANSPOWER.url}>{TRANSPOWER.name}</Link>, licensed under {ccBy}.</li>
-              <li>Weather data: <Link href={OPEN_METEO.url}>{OPEN_METEO.name}</Link>, licensed under {ccBy}.</li>
               <li>
-                Aerial imagery: © <Link href={LINZ.url}>{LINZ.name}</Link>, licensed
-                under {ccBy}.
+                Electricity market data: © <Link href={EMI.url}>{EMI.name}</Link>, licensed under {ccBy}.
               </li>
               <li>
-                Map data: © <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>, available under
-                the <Link href="https://opendatacommons.org/licenses/odbl/">Open Database License</Link>.
+                Transmission lines: © <Link href={TRANSPOWER.url}>{TRANSPOWER.name}</Link>, licensed under {ccBy}.
+              </li>
+              <li>
+                Weather data: <Link href={OPEN_METEO.url}>{OPEN_METEO.name}</Link>, licensed under {ccBy}.
+              </li>
+              <li>
+                Aerial imagery: © <Link href={LINZ.url}>{LINZ.name}</Link>, licensed under {ccBy}.
+              </li>
+              <li>
+                Map data: © <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>,
+                available under the <Link href="https://opendatacommons.org/licenses/odbl/">Open Database License</Link>
+                .
               </li>
             </ul>
           </Section>
 
           <Section heading="Disclaimer">
             <p>
-              This site isn't affiliated with or endorsed by the Electricity Authority, Transpower or any other
-              data provider. Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it for
+              This site isn't affiliated with or endorsed by the Electricity Authority, Transpower or any other data
+              provider. Data is shown as is and may be delayed, incomplete or wrong, so don't rely on it for
               operational, trading or other decisions.
             </p>
           </Section>
