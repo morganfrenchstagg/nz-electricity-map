@@ -41,7 +41,7 @@ NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com
   - `/dispatch/aggregates/annual`: each node's MWh every year since 1997 (generating units' nodes are generation, buses' are negative where power was taken)
   - `/offers/YYYY-MM-DD`: generators' offers for a day
   - `/outages`: Transpower's planned outages
-- Embedded (rooftop) solar estimates: https://api-solar.electricitymap.frenchsta.gg/solar-production/YYYY-MM-DD
+- Embedded (rooftop) solar estimates: https://api-solar.electricitymap.frenchsta.gg/solar-production/YYYY-MM-DD, from an API described in OpenAPI 3.1 at https://api-solar.electricitymap.frenchsta.gg/openapi.json (docs at https://api-solar.electricitymap.frenchsta.gg/)
 
 ## Source code
 
