@@ -43,7 +43,10 @@ export function alignPrior(priorMs: number[], period: PriorPeriod, viewMs: numbe
     let found = -1
     while (lo <= hi) {
       const mid = (lo + hi) >> 1
-      if (xs[mid] <= x) { found = mid; lo = mid + 1 } else hi = mid - 1
+      if (xs[mid] <= x) {
+        found = mid
+        lo = mid + 1
+      } else hi = mid - 1
     }
     return found >= 0 && x - xs[found] <= tolerance && charted[found] ? found : undefined
   }
@@ -65,7 +68,13 @@ interface PriorLineOptions {
 
 // An earlier period's dotted line. A line from zero, whatever the chart's
 // series stack as, and drawn over them.
-export function priorLine({ name, colour, data, aggregate, lineWidth = 1.5 }: PriorLineOptions): Highcharts.SeriesLineOptions {
+export function priorLine({
+  name,
+  colour,
+  data,
+  aggregate,
+  lineWidth = 1.5,
+}: PriorLineOptions): Highcharts.SeriesLineOptions {
   return {
     type: 'line',
     id: `prior-${name}`,
@@ -122,12 +131,17 @@ export interface PriorTooltipEntry {
 
 // The earlier period's part of a tooltip: its time, then each entry's earlier
 // value and how the view's has changed from it
-export function priorTooltip(priorMs: number | undefined, entries: PriorTooltipEntry[], format: (value: number) => string, period: AggregatePeriod | null): string {
+export function priorTooltip(
+  priorMs: number | undefined,
+  entries: PriorTooltipEntry[],
+  format: (value: number) => string,
+  period: AggregatePeriod | null,
+): string {
   const rows = entries.filter((e) => e.before !== null)
   if (priorMs === undefined || rows.length === 0) return ''
   const row = ({ name, colour, before, now }: PriorTooltipEntry) =>
-    `<tr><td><span style="color:${colour}">┅</span> ${name}</td><td><b>${format(before!)}</b></td>`
-    + `<td style="color:var(--color-text-muted);padding-left:var(--space-md)">${now !== null ? changeText(now, before!, format) : ''}</td></tr>`
+    `<tr><td><span style="color:${colour}">┅</span> ${name}</td><td><b>${format(before!)}</b></td>` +
+    `<td style="color:var(--color-text-muted);padding-left:var(--space-md)">${now !== null ? changeText(now, before!, format) : ''}</td></tr>`
   return `<table style="margin-top:var(--space-sm)"><tr><td colspan="3" class="eyebrow">${tooltipTime(priorMs, period)}</td></tr>${rows.map(row).join('')}</table>`
 }
 

@@ -85,7 +85,7 @@ function monthWindow(months: number): { from: string; to: string } {
 // January, April, July or October
 export function quarterStart(date: string): string {
   const month = Number(date.slice(5, 7))
-  return `${date.slice(0, 4)}-${String(month - (month - 1) % 3).padStart(2, '0')}-01`
+  return `${date.slice(0, 4)}-${String(month - ((month - 1) % 3)).padStart(2, '0')}-01`
 }
 
 // Every NZ month of data, ending with this one. Monthly rows are keyed by the
@@ -166,14 +166,18 @@ export function aggregateWindow(mode: AggregateMode, shift?: Shift): { from: str
   const window = viewWindow(mode)
   const { from, to } = shift ? { from: shiftDate(window.from, shift), to: shiftDate(window.to, shift) } : window
   switch (mode.aggregation) {
-    case 'daily': return { from, to, paths: monthsBetween(from, to) }
-    case 'weekly': return { from, to, paths: weeklyYearsBetween(from, to) }
+    case 'daily':
+      return { from, to, paths: monthsBetween(from, to) }
+    case 'weekly':
+      return { from, to, paths: weeklyYearsBetween(from, to) }
     // Every year's totals are in the one file
-    case 'annual': return { from, to, paths: ['annual'] }
+    case 'annual':
+      return { from, to, paths: ['annual'] }
     // Months come from each year's monthly totals, and so do quarters, as there's
     // no quarterly API (see sumQuarters). Years with no data yet 404, and are
     // fetched as empty (see fetchAggregates).
-    default: return { from, to, paths: monthlyYearsBetween(from, to) }
+    default:
+      return { from, to, paths: monthlyYearsBetween(from, to) }
   }
 }
 
@@ -184,7 +188,10 @@ export function sumQuarters(rows: (string | number)[][]): (string | number)[][] 
   for (const [date, ...values] of rows) {
     const start = quarterStart(date as string)
     const quarter = quarters[quarters.length - 1]
-    if (quarter?.[0] === start) values.forEach((v, i) => { quarter[i + 1] = (quarter[i + 1] as number) + (v as number) })
+    if (quarter?.[0] === start)
+      values.forEach((v, i) => {
+        quarter[i + 1] = (quarter[i + 1] as number) + (v as number)
+      })
     else quarters.push([start, ...values])
   }
   return quarters
@@ -196,9 +203,9 @@ export function sumQuarters(rows: (string | number)[][]): (string | number)[][] 
  * can be summed; dispatch pricing can't, so this is only for aggregates.
  */
 export function foldMovedNodes(data: RecentData, movedNodes: Record<string, string>): RecentData {
-  if (!data.series.some(s => s in movedNodes)) return data
+  if (!data.series.some((s) => s in movedNodes)) return data
   const series: string[] = []
-  const columnOf = data.series.map(s => {
+  const columnOf = data.series.map((s) => {
     const target = movedNodes[s] ?? s
     if (!series.includes(target)) series.push(target)
     return series.indexOf(target) + 1 // +1: col 0 is the timestamp
@@ -207,7 +214,9 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
     series,
     data: data.data.map(([time, ...values]) => {
       const row: (string | number)[] = [time, ...series.map(() => 0)]
-      values.forEach((v, i) => { row[columnOf[i]] = (row[columnOf[i]] as number) + (v as number) })
+      values.forEach((v, i) => {
+        row[columnOf[i]] = (row[columnOf[i]] as number) + (v as number)
+      })
       return row
     }),
     pricing: [],
@@ -225,7 +234,11 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
  * fetching. `shift` fetches the same view's window that much earlier, the
  * period it's compared with (see utils/compare).
  */
-export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMode | null, shift?: Shift): {
+export function useAggregates(
+  nodes: string[] | 'all' | null,
+  mode: AggregateMode | null,
+  shift?: Shift,
+): {
   aggregateData: RecentData | null
   loading: boolean
   error: string | null
@@ -241,7 +254,10 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
   const nodesKey = nodes === 'all' ? '' : nodes && nodes.length > 0 ? nodes.join(',') : null
 
   useEffect(() => {
-    if (nodesKey === null || !mode || !modeKey) { setLoading(false); return }
+    if (nodesKey === null || !mode || !modeKey) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -249,13 +265,14 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
     const { from, to, paths } = aggregateWindow(mode, shift)
     // A file's rows over the window, by quarter where they're summed from months,
     // each timestamped at local midnight
-    const windowRows = (rows: (string | number)[][]) => (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
-      .filter(row => (row[0] as string) >= from && (row[0] as string) <= to)
-      .map(([date, ...values]) => [`${date}T00:00:00`, ...values])
-    Promise.all(paths.map(p => fetchAggregates(p, nodesKey)))
-      .then(responses => {
+    const windowRows = (rows: (string | number)[][]) =>
+      (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
+        .filter((row) => (row[0] as string) >= from && (row[0] as string) <= to)
+        .map(([date, ...values]) => [`${date}T00:00:00`, ...values])
+    Promise.all(paths.map((p) => fetchAggregates(p, nodesKey)))
+      .then((responses) => {
         if (cancelled) return
-        const merged = mergeData(responses.map(r => ({ ...r, pricing: [] })))
+        const merged = mergeData(responses.map((r) => ({ ...r, pricing: [] })))
         setResult({
           modeKey,
           data: {
@@ -263,7 +280,9 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
             data: windowRows(merged.data),
             pricing: [],
             // The HVDC's totals are all numbers
-            ...(merged.hvdc && { hvdc: { series: merged.hvdc.series, data: windowRows(merged.hvdc.data as (string | number)[][]) } }),
+            ...(merged.hvdc && {
+              hvdc: { series: merged.hvdc.series, data: windowRows(merged.hvdc.data as (string | number)[][]) },
+            }),
           },
         })
         setLoading(false)
@@ -274,7 +293,9 @@ export function useAggregates(nodes: string[] | 'all' | null, mode: AggregateMod
         setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [nodesKey, modeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { aggregateData: result?.modeKey === modeKey ? result.data : null, loading, error }

@@ -11,7 +11,7 @@ function setVisibility(state: DocumentVisibilityState) {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState })
+  doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as const })
   vi.stubGlobal('document', doc)
 })
 

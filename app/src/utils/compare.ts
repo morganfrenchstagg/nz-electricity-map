@@ -12,7 +12,8 @@ import { todayNZ } from './time'
 //   week  a week earlier
 //   year  52 weeks earlier, so the days of the week line up
 //   a "YYYY-MM-DD" date, the start of a period as long as the view's
-export type Compare = 'prev' | 'week' | 'year' | string
+// (see parseCompare), so it's any string as far as the type goes
+export type Compare = string
 
 export type CompareOption = 'prev' | 'week' | 'year' | 'custom'
 
@@ -42,11 +43,15 @@ export function parseCompare(value: string | null): Compare | null {
 // earlier period to compare with.
 export function compareOptions(mode: DateMode): CompareOption[] {
   switch (mode.kind) {
-    case 'last90': return ['prev', 'year']
+    case 'last90':
+      return ['prev', 'year']
     case 'lastYear':
-    case '5y': return ['prev']
-    case 'all': return []
-    default: return ['prev', 'week', 'year', 'custom']
+    case '5y':
+      return ['prev']
+    case 'all':
+      return []
+    default:
+      return ['prev', 'week', 'year', 'custom']
   }
 }
 
@@ -90,7 +95,12 @@ function viewDates(mode: DateMode): { from: string; to: string } {
 
 function parts(date: string) {
   const d = new Date(`${date}T00:00:00Z`)
-  return { weekday: WEEKDAYS[d.getUTCDay()], day: d.getUTCDate(), month: MONTHS[d.getUTCMonth()], year: d.getUTCFullYear() }
+  return {
+    weekday: WEEKDAYS[d.getUTCDay()],
+    day: d.getUTCDate(),
+    month: MONTHS[d.getUTCMonth()],
+    year: d.getUTCFullYear(),
+  }
 }
 
 // A day, e.g. "Thu 26 Nov", or "Fri 28 Nov 2025" outside this year
@@ -123,10 +133,14 @@ function aggregateShift(mode: AggregateMode, option: CompareOption): Shift | nul
   if (option === 'year' && mode.kind === 'last90') return { days: YEAR_DAYS }
   if (option !== 'prev') return null
   switch (mode.kind) {
-    case 'last90': return { days: NINETY_DAY_DAYS }
-    case 'lastYear': return { days: YEAR_DAYS }
-    case '5y': return mode.aggregation === 'weekly' ? { days: FIVE_YEAR_WEEKS_DAYS } : { months: 60 }
-    default: return null
+    case 'last90':
+      return { days: NINETY_DAY_DAYS }
+    case 'lastYear':
+      return { days: YEAR_DAYS }
+    case '5y':
+      return mode.aggregation === 'weekly' ? { days: FIVE_YEAR_WEEKS_DAYS } : { months: 60 }
+    default:
+      return null
   }
 }
 
@@ -146,10 +160,14 @@ function aggregatePeriod(mode: AggregateMode, option: CompareOption): PriorPerio
 function dispatchShiftDays(mode: DateMode, option: CompareOption, start: string | undefined): number | null {
   const { from, to } = viewDates(mode)
   switch (option) {
-    case 'prev': return mode.kind === 'recent' ? RECENT_DAYS : daysBetween(from, to)
-    case 'week': return WEEK_DAYS
-    case 'year': return YEAR_DAYS
-    case 'custom': return start && start < from ? daysBetween(start, from) - 1 : null
+    case 'prev':
+      return mode.kind === 'recent' ? RECENT_DAYS : daysBetween(from, to)
+    case 'week':
+      return WEEK_DAYS
+    case 'year':
+      return YEAR_DAYS
+    case 'custom':
+      return start && start < from ? daysBetween(start, from) - 1 : null
   }
 }
 
@@ -189,8 +207,10 @@ export function optionPeriod(mode: DateMode, option: CompareOption, customStart?
 export function priorPeriod(mode: DateMode, compare: Compare | null): PriorPeriod | null {
   if (compare === null) return null
   const custom = isCustomCompare(compare)
-  return optionPeriod(mode, custom ? 'custom' : compare as CompareOption, custom ? compare : undefined)
-    ?? optionPeriod(mode, 'prev')
+  return (
+    optionPeriod(mode, custom ? 'custom' : (compare as CompareOption), custom ? compare : undefined) ??
+    optionPeriod(mode, 'prev')
+  )
 }
 
 // A choice's name in the menu
@@ -199,31 +219,49 @@ export function optionLabel(mode: DateMode, option: CompareOption): string {
   switch (option) {
     case 'prev':
       switch (mode.kind) {
-        case 'today': return 'Yesterday'
-        case 'date': return 'Day before'
-        case 'recent': return 'Previous 3 days'
-        case 'range': return `Previous ${daysBetween(mode.from, mode.to)} days`
-        case 'last90': return 'Previous 13 weeks'
-        case 'lastYear': return 'Previous 52 weeks'
-        default: return 'Previous 5 years'
+        case 'today':
+          return 'Yesterday'
+        case 'date':
+          return 'Day before'
+        case 'recent':
+          return 'Previous 3 days'
+        case 'range':
+          return `Previous ${daysBetween(mode.from, mode.to)} days`
+        case 'last90':
+          return 'Previous 13 weeks'
+        case 'lastYear':
+          return 'Previous 52 weeks'
+        default:
+          return 'Previous 5 years'
       }
-    case 'week': return day ? 'Same day last week' : 'A week earlier'
-    case 'year': return day ? 'Same day last year' : 'A year earlier'
-    case 'custom': return day ? 'Custom date' : 'Custom start date'
+    case 'week':
+      return day ? 'Same day last week' : 'A week earlier'
+    case 'year':
+      return day ? 'Same day last year' : 'A year earlier'
+    case 'custom':
+      return day ? 'Custom date' : 'Custom start date'
   }
 }
 
 // What a view charts, for the legend beside the period it's compared with
 export function viewLabel(mode: DateMode): string {
   switch (mode.kind) {
-    case 'today': return `${dayLabel(todayNZ())}, so far`
-    case 'recent': return 'Last 3 days'
-    case 'date': return dayLabel(mode.date)
-    case 'range': return spanLabel(mode.from, mode.to)
-    case 'last90': return 'Last 13 weeks'
-    case 'lastYear': return 'Last 52 weeks'
-    case '5y': return 'Last 5 years'
-    case 'all': return 'All time'
+    case 'today':
+      return `${dayLabel(todayNZ())}, so far`
+    case 'recent':
+      return 'Last 3 days'
+    case 'date':
+      return dayLabel(mode.date)
+    case 'range':
+      return spanLabel(mode.from, mode.to)
+    case 'last90':
+      return 'Last 13 weeks'
+    case 'lastYear':
+      return 'Last 52 weeks'
+    case '5y':
+      return 'Last 5 years'
+    case 'all':
+      return 'All time'
   }
 }
 
@@ -231,10 +269,14 @@ export function viewLabel(mode: DateMode): string {
 export function compareButtonLabel(mode: DateMode, period: PriorPeriod | null): string {
   if (!period) return 'Compare'
   switch (period.option) {
-    case 'prev': return mode.kind === 'today' ? 'vs yesterday' : mode.kind === 'date' ? 'vs day before' : 'vs previous'
-    case 'week': return 'vs a week earlier'
-    case 'year': return 'vs a year earlier'
-    case 'custom': return `vs ${dayLabel(period.from, false)}`
+    case 'prev':
+      return mode.kind === 'today' ? 'vs yesterday' : mode.kind === 'date' ? 'vs day before' : 'vs previous'
+    case 'week':
+      return 'vs a week earlier'
+    case 'year':
+      return 'vs a year earlier'
+    case 'custom':
+      return `vs ${dayLabel(period.from, false)}`
   }
 }
 
@@ -244,5 +286,11 @@ export function compareButtonLabel(mode: DateMode, period: PriorPeriod | null): 
 export function shiftedMs(ms: number, shift: Shift): number {
   if ('days' in shift) return ms + shift.days * DAY_MS
   const d = new Date(ms)
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + shift.months, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes())
+  return Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth() + shift.months,
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+  )
 }

@@ -31,7 +31,17 @@ interface Options {
 // What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
 // or for the 90d, 1y, 5y and All views the node's own MWh totals, narrowed to the
 // node's codes. Called again for an earlier period it's compared with.
-export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes, shift, enabled = true }: Options) {
+export function useNodeData({
+  dateMode,
+  recentData,
+  loading,
+  error,
+  queryNodes,
+  movedNodes = NO_MOVED_NODES,
+  getCodes,
+  shift,
+  enabled = true,
+}: Options) {
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
   const aggregates = useAggregates(enabled ? queryNodes : null, isAggregateMode(dateMode) ? dateMode : null, shift)
@@ -41,10 +51,7 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
   )
   const data = !enabled ? null : isAggregate ? aggregateData : recentData
 
-  const allCodes = useMemo(
-    () => (data ? getCodes(data, isAggregate) : []),
-    [data, getCodes, isAggregate],
-  )
+  const allCodes = useMemo(() => (data ? getCodes(data, isAggregate) : []), [data, getCodes, isAggregate])
 
   const chartData = useMemo(() => {
     if (!data || allCodes.length === 0) return null
@@ -64,7 +71,11 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
 // The node's data for the earlier period the view is compared with (see
 // utils/compare): App's dispatch data for it, or the node's totals that far
 // back. Nothing while the view isn't compared.
-export function usePriorNodeData(prior: PriorData | null, dateMode: DateMode, nodes: Pick<Options, 'queryNodes' | 'movedNodes' | 'getCodes'>) {
+export function usePriorNodeData(
+  prior: PriorData | null,
+  dateMode: DateMode,
+  nodes: Pick<Options, 'queryNodes' | 'movedNodes' | 'getCodes'>,
+) {
   const mode = prior?.period.mode ?? dateMode
   return useNodeData({
     ...nodes,
@@ -87,7 +98,9 @@ export function useCodeSelection(allCodes: string[], node: object) {
     [activeCodes, allCodes],
   )
 
-  useEffect(() => { setActiveCodes(null) }, [node])
+  useEffect(() => {
+    setActiveCodes(null)
+  }, [node])
 
   // Shows or hides a code. Hiding the only series showing shows every code
   // again; `othersShown` says another series still is, e.g. a substation's Total.

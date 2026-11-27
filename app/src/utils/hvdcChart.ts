@@ -1,7 +1,16 @@
 import type Highcharts from 'highcharts'
 import type { HvdcData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
-import { chartReach, columnFillEvents, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from './chart'
+import {
+  chartReach,
+  columnFillEvents,
+  DATETIME_LABEL_FORMATS,
+  FIT_TO_CONTAINER,
+  midnightPlotLines,
+  timeChartAccessibility,
+  tooltipTime,
+  withGaps,
+} from './chart'
 import { fuelCodeColour, HVDC_IMPORT_CODE } from './colours'
 import { energyUnit, formatMW, MW_UNIT } from './format'
 import { hvdcEnergies, hvdcPoints } from './hvdc'
@@ -17,7 +26,12 @@ const HALF_HOUR_MS = 30 * 60 * 1000
 // A limit's step line, each half hour's held until the next, labelled at its end
 // as GeneratorPanel's capacity line is. The south limit's label goes `below` its
 // line, away from the transfer above it.
-function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoint) => number | null, below = false): Highcharts.SeriesLineOptions {
+function limitSeries(
+  points: HvdcPoint[],
+  name: string,
+  limitOf: (point: HvdcPoint) => number | null,
+  below = false,
+): Highcharts.SeriesLineOptions {
   const data = points.map((point) => [point.ms, limitOf(point)] as [number, number | null])
   const lastMs = [...data].reverse().find(([, y]) => y !== null)?.[0]
   return {
@@ -26,17 +40,25 @@ function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoi
     data: withGaps(data).map(([x, y]) => ({
       x,
       y,
-      dataLabels: x === lastMs && y !== null ? {
-        enabled: true,
-        format: `${name}: ${formatMW(Math.abs(y))}`,
-        align: 'right',
-        verticalAlign: below ? 'top' : 'bottom',
-        y: below ? 2 : -2,
-        style: { color: LIMIT_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
-        crop: false,
-        overflow: 'allow' as const,
-        x: -4,
-      } : { enabled: false },
+      dataLabels:
+        x === lastMs && y !== null
+          ? {
+              enabled: true,
+              format: `${name}: ${formatMW(Math.abs(y))}`,
+              align: 'right',
+              verticalAlign: below ? 'top' : 'bottom',
+              y: below ? 2 : -2,
+              style: {
+                color: LIMIT_COLOUR,
+                fontSize: 'var(--font-size-2xs)',
+                fontWeight: 'normal',
+                textOutline: 'none',
+              },
+              crop: false,
+              overflow: 'allow' as const,
+              x: -4,
+            }
+          : { enabled: false },
     })),
     color: LIMIT_COLOUR,
     lineWidth: 1.5,
@@ -58,7 +80,11 @@ export interface HvdcPrior {
 // has them. It spans `times`, the view's dispatch timestamps, so days without
 // the HVDC are left blank rather than cut off. An earlier period it's compared
 // with is a dotted transfer line. Null with no flows.
-export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => row[0] as string), prior?: HvdcPrior): Highcharts.Options | null {
+export function hvdcChartOptions(
+  hvdc: HvdcData,
+  times = hvdc.data.map((row) => row[0] as string),
+  prior?: HvdcPrior,
+): Highcharts.Options | null {
   const points = hvdcPoints(hvdc)
   if (points.length === 0) return null
   const byMs = new Map(points.map((point) => [point.ms, point]))
@@ -68,17 +94,30 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
 
   // The earlier period's transfer, charted on to the end of the view's last day
   const priorPoints = prior ? hvdcPoints(prior.hvdc) : []
-  const aligned = prior ? alignPrior(priorPoints.map((point) => point.ms), prior.period, [min, viewMax], false) : null
+  const aligned = prior
+    ? alignPrior(
+        priorPoints.map((point) => point.ms),
+        prior.period,
+        [min, viewMax],
+        false,
+      )
+    : null
   const priorXs = aligned ? aligned.xs.filter((_, i) => aligned.charted[i]) : []
   const max = Math.max(viewMax, ...priorXs)
 
   return {
-    chart: { ...FIT_TO_CONTAINER, type: 'line', height: null, animation: false, backgroundColor: 'var(--color-surface)' },
+    chart: {
+      ...FIT_TO_CONTAINER,
+      type: 'line',
+      height: null,
+      animation: false,
+      backgroundColor: 'var(--color-surface)',
+    },
     title: { text: undefined },
     ...timeChartAccessibility(
       'HVDC transfer',
-      'The HVDC\'s transfer between the islands, flowing north above zero and south below it, with its limit each way'
-        + priorDescription(prior && priorXs.length > 0 ? prior.period : null),
+      "The HVDC's transfer between the islands, flowing north above zero and south below it, with its limit each way" +
+        priorDescription(prior && priorXs.length > 0 ? prior.period : null),
       null,
       MW_UNIT,
       HALF_HOUR_MS,
@@ -101,7 +140,7 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
       shared: true,
       useHTML: true,
       formatter: function () {
-        const point = byMs.get(this.x as number)
+        const point = byMs.get(this.x)
         if (!point) return false
         const mw = Math.round(point.north)
         const transfer = mw === 0 ? 'No transfer' : `<b>${formatMW(Math.abs(mw))}</b> ${mw > 0 ? 'north' : 'south'}`
@@ -109,24 +148,36 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
           value === null ? '' : `<tr><td>${name}</td><td>${formatMW(Math.abs(value))}</td></tr>`
         // The earlier period's transfer at the same time, north positive as on the chart
         const p = aligned?.indexAt(point.ms)
-        const earlier = p === undefined ? '' : priorTooltip(priorPoints[p].ms, [
-          { name: 'Transfer (north +)', colour, before: priorPoints[p].north, now: point.north },
-        ], formatMW, null)
-        return `<b>${tooltipTime(point.ms, null)}</b><br/><table>`
-          + `<tr><td><span style="color:${colour}">●</span> Transfer</td><td>${transfer}</td></tr>`
-          + limit('North limit', point.northLimit)
-          + limit('South limit', point.southLimit)
-          + `</table>${earlier}`
+        const earlier =
+          p === undefined
+            ? ''
+            : priorTooltip(
+                priorPoints[p].ms,
+                [{ name: 'Transfer (north +)', colour, before: priorPoints[p].north, now: point.north }],
+                formatMW,
+                null,
+              )
+        return (
+          `<b>${tooltipTime(point.ms, null)}</b><br/><table>` +
+          `<tr><td><span style="color:${colour}">●</span> Transfer</td><td>${transfer}</td></tr>` +
+          limit('North limit', point.northLimit) +
+          limit('South limit', point.southLimit) +
+          `</table>${earlier}`
+        )
       },
     },
     series: [
-      ...(aligned && prior ? [priorLine({
-        name: `Transfer, ${prior.period.label}`,
-        colour,
-        data: aligned.points(priorPoints.map((point) => point.north)),
-        aggregate: false,
-        lineWidth: 2,
-      })] : []),
+      ...(aligned && prior
+        ? [
+            priorLine({
+              name: `Transfer, ${prior.period.label}`,
+              colour,
+              data: aligned.points(priorPoints.map((point) => point.north)),
+              aggregate: false,
+              lineWidth: 2,
+            }),
+          ]
+        : []),
       {
         type: 'line',
         name: 'Transfer',
@@ -137,7 +188,12 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
         animation: false,
       },
       limitSeries(points, 'North limit', (point) => point.northLimit),
-      limitSeries(points, 'South limit', (point) => (point.southLimit === null ? null : -Math.abs(point.southLimit)), true),
+      limitSeries(
+        points,
+        'South limit',
+        (point) => (point.southLimit === null ? null : -Math.abs(point.southLimit)),
+        true,
+      ),
     ],
   }
 }
@@ -146,22 +202,56 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
 // HvdcData), as columns: north above zero and south below it, as it can have
 // flowed both ways. An earlier period it's compared with is a dotted line each
 // way. Null with no totals.
-export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod, prior?: HvdcPrior): Highcharts.Options | null {
+export function hvdcEnergyChartOptions(
+  hvdc: HvdcData,
+  period: AggregatePeriod,
+  prior?: HvdcPrior,
+): Highcharts.Options | null {
   const energies = hvdcEnergies(hvdc)
   if (energies.length === 0) return null
   const byMs = new Map(energies.map((energy) => [energy.ms, energy]))
   const colour = fuelCodeColour(HVDC_IMPORT_CODE)
   // In GWh unless the columns stay small
-  const unit = energyUnit(chartReach(energies.map((energy) => [energy.north, -energy.south]), true))
+  const unit = energyUnit(
+    chartReach(
+      energies.map((energy) => [energy.north, -energy.south]),
+      true,
+    ),
+  )
 
   const priorEnergies = prior ? hvdcEnergies(prior.hvdc) : []
-  const aligned = prior ? alignPrior(priorEnergies.map((energy) => energy.ms), prior.period, energies.map((energy) => energy.ms), true) : null
-  const priorSeries = aligned && prior ? [
-    priorLine({ name: `North, ${prior.period.label}`, colour: 'var(--color-reference)', data: aligned.points(priorEnergies.map((energy) => energy.north / unit.size)), aggregate: true, lineWidth: 2 }),
-    priorLine({ name: `South, ${prior.period.label}`, colour: 'var(--color-reference)', data: aligned.points(priorEnergies.map((energy) => -energy.south / unit.size || 0)), aggregate: true, lineWidth: 2 }),
-  ] : []
+  const aligned = prior
+    ? alignPrior(
+        priorEnergies.map((energy) => energy.ms),
+        prior.period,
+        energies.map((energy) => energy.ms),
+        true,
+      )
+    : null
+  const priorSeries =
+    aligned && prior
+      ? [
+          priorLine({
+            name: `North, ${prior.period.label}`,
+            colour: 'var(--color-reference)',
+            data: aligned.points(priorEnergies.map((energy) => energy.north / unit.size)),
+            aggregate: true,
+            lineWidth: 2,
+          }),
+          priorLine({
+            name: `South, ${prior.period.label}`,
+            colour: 'var(--color-reference)',
+            data: aligned.points(priorEnergies.map((energy) => -energy.south / unit.size || 0)),
+            aggregate: true,
+            lineWidth: 2,
+          }),
+        ]
+      : []
 
-  const columns = (name: string, mwhOf: (energy: typeof energies[number]) => number): Highcharts.SeriesColumnOptions => ({
+  const columns = (
+    name: string,
+    mwhOf: (energy: (typeof energies)[number]) => number,
+  ): Highcharts.SeriesColumnOptions => ({
     type: 'column',
     name,
     color: colour,
@@ -178,14 +268,17 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod, 
   return {
     chart: {
       ...FIT_TO_CONTAINER,
-      type: 'column', height: null, animation: false, backgroundColor: 'var(--color-surface)',
+      type: 'column',
+      height: null,
+      animation: false,
+      backgroundColor: 'var(--color-surface)',
       className: 'aggregate-columns', // see index.css
     },
     title: { text: undefined },
     ...timeChartAccessibility(
       'HVDC transfer',
-      'The energy the HVDC sent between the islands, north above zero and south below it'
-        + priorDescription(priorSeries.length > 0 ? prior?.period ?? null : null),
+      'The energy the HVDC sent between the islands, north above zero and south below it' +
+        priorDescription(priorSeries.length > 0 ? (prior?.period ?? null) : null),
       period,
       unit,
     ),
@@ -204,7 +297,7 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod, 
       shared: true,
       useHTML: true,
       formatter: function () {
-        const energy = byMs.get(this.x as number)
+        const energy = byMs.get(this.x)
         if (!energy) return false
         const row = (name: string, mwh: number) => {
           const value = unit.format(mwh / unit.size)
@@ -213,13 +306,24 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod, 
         // The earlier period's totals each way, and how they've changed
         const p = aligned?.indexAt(energy.ms)
         const before = p === undefined ? null : priorEnergies[p]
-        const earlier = !before ? '' : priorTooltip(before.ms, [
-          { name: 'North', colour, before: before.north / unit.size, now: energy.north / unit.size },
-          { name: 'South', colour, before: before.south / unit.size, now: energy.south / unit.size },
-        ], unit.format, period)
+        const earlier = !before
+          ? ''
+          : priorTooltip(
+              before.ms,
+              [
+                { name: 'North', colour, before: before.north / unit.size, now: energy.north / unit.size },
+                { name: 'South', colour, before: before.south / unit.size, now: energy.south / unit.size },
+              ],
+              unit.format,
+              period,
+            )
         return `<b>${tooltipTime(energy.ms, period)}</b><br/><table>${row('North', energy.north)}${row('South', energy.south)}</table>${earlier}`
       },
     },
-    series: [columns('North', (energy) => energy.north), columns('South', (energy) => -energy.south || 0), ...priorSeries], // 0, not -0
+    series: [
+      columns('North', (energy) => energy.north),
+      columns('South', (energy) => -energy.south || 0),
+      ...priorSeries,
+    ], // 0, not -0
   }
 }

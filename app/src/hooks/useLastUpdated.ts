@@ -36,7 +36,10 @@ export function useLastUpdated(recentData: RecentData | null, dateMode: DateMode
     }
 
     const ts = latestTimestamp(recentData)
-    if (!ts) { setLabel(null); return }
+    if (!ts) {
+      setLabel(null)
+      return
+    }
 
     setLabel(formatAgo(ts))
 

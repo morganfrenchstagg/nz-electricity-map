@@ -44,7 +44,7 @@ function dispatchOf(series: string[], rows: [string, number[], (number | null)[]
 describe('tradingPeriodDispatch', () => {
   const series = ['ABC2201 ABC0', 'ABC2201 ABC1', 'XYZ2201 XYZ0']
 
-  it('averages the MW and price over the period\'s intervals, leaving out the next period', () => {
+  it("averages the MW and price over the period's intervals, leaving out the next period", () => {
     const dispatch = dispatchOf(series, [
       ['2026-10-13T14:00:00', [100, 0, 0], [50, 50, 10]],
       ['2026-10-13T14:25:00', [200, 0, 0], [70, 70, 10]],
@@ -53,24 +53,18 @@ describe('tradingPeriodDispatch', () => {
     expect(tradingPeriodDispatch(dispatch, ['ABC2201 ABC0'], '20261013', 29)).toEqual({ mw: 150, price: 60 })
   })
 
-  it('totals the units\' MW, weighting their nodes\' prices by it', () => {
-    const dispatch = dispatchOf(series, [
-      ['2026-10-13T14:00:00', [30, 10, 60], [40, 40, 100]],
-    ])
+  it("totals the units' MW, weighting their nodes' prices by it", () => {
+    const dispatch = dispatchOf(series, [['2026-10-13T14:00:00', [30, 10, 60], [40, 40, 100]]])
     expect(tradingPeriodDispatch(dispatch, series, '20261013', 29)).toEqual({ mw: 100, price: 76 })
   })
 
   it('averages the prices evenly when nothing generated, and counts power drawn as nothing', () => {
-    const dispatch = dispatchOf(series, [
-      ['2026-10-13T14:00:00', [0, -20, 0], [40, 40, 100]],
-    ])
+    const dispatch = dispatchOf(series, [['2026-10-13T14:00:00', [0, -20, 0], [40, 40, 100]]])
     expect(tradingPeriodDispatch(dispatch, series, '20261013', 29)).toEqual({ mw: 0, price: 60 })
   })
 
   it('prices a unit missing from the dispatch at its bus', () => {
-    const dispatch = dispatchOf(['ABC2201', 'ABC2201 ABC0'], [
-      ['2026-10-13T14:00:00', [0, 50], [25, 25]],
-    ])
+    const dispatch = dispatchOf(['ABC2201', 'ABC2201 ABC0'], [['2026-10-13T14:00:00', [0, 50], [25, 25]]])
     expect(tradingPeriodDispatch(dispatch, ['ABC2201 ABC9'], '20261013', 29)).toEqual({ mw: 0, price: 25 })
   })
 
@@ -79,7 +73,10 @@ describe('tradingPeriodDispatch', () => {
       ['2026-10-13T14:00:00', [50, 0, 0], [null, 40, 40]],
       ['2026-10-13T14:05:00', [50, 0, 0], [30, 40, 40]],
     ])
-    expect(tradingPeriodDispatch(dispatch, ['ABC2201 ABC0', 'NEW2201 NEW0'], '20261013', 29)).toEqual({ mw: 50, price: 30 })
+    expect(tradingPeriodDispatch(dispatch, ['ABC2201 ABC0', 'NEW2201 NEW0'], '20261013', 29)).toEqual({
+      mw: 50,
+      price: 30,
+    })
   })
 
   it('has no price when none of the nodes were priced', () => {
@@ -87,7 +84,7 @@ describe('tradingPeriodDispatch', () => {
     expect(tradingPeriodDispatch(dispatch, ['ABC2201 ABC0'], '20261013', 29)).toEqual({ mw: 50, price: null })
   })
 
-  it('is null when the dispatch has none of the period\'s intervals', () => {
+  it("is null when the dispatch has none of the period's intervals", () => {
     const dispatch = dispatchOf(series, [['2026-10-13T14:30:00', [50, 0, 0], [40, 40, 40]]])
     expect(tradingPeriodDispatch(dispatch, series, '20261013', 29)).toBeNull()
   })

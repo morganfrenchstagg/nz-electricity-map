@@ -20,7 +20,11 @@ function dayAfter(date: string): string {
 
 function pocpUrl(prefixes: string[], days?: Props['days']): string {
   const when = days
-    ? { dateOption: 'absolute', outageAtFrom: new Date(nzMidnightMs(days.from)).toISOString(), outageAtTo: new Date(nzMidnightMs(dayAfter(days.to))).toISOString() }
+    ? {
+        dateOption: 'absolute',
+        outageAtFrom: new Date(nzMidnightMs(days.from)).toISOString(),
+        outageAtTo: new Date(nzMidnightMs(dayAfter(days.to))).toISOString(),
+      }
     : { dateOption: 'relative', nextUnit: 'weeks', nextCount: 4 }
   const filter = { ...when, q: prefixes.join(',') }
   const params = new URLSearchParams({
@@ -65,14 +69,19 @@ const tdStyle: React.CSSProperties = {
 }
 
 export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, onClose }: Props) {
-  const sorted = outages
-    .slice()
-    .sort((a, b) => outageMs(a.record.timeStart) - outageMs(b.record.timeStart))
+  const sorted = outages.slice().sort((a, b) => outageMs(a.record.timeStart) - outageMs(b.record.timeStart))
 
   return (
     <div onClick={onClose} className="modal-backdrop">
-      <div onClick={e => e.stopPropagation()} className="modal" style={{ width: 'fit-content', maxWidth: '92vw', maxHeight: '80vh' }}>
-        <div className="section section--header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="modal"
+        style={{ width: 'fit-content', maxWidth: '92vw', maxHeight: '80vh' }}
+      >
+        <div
+          className="section section--header"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+        >
           <span className="title">Outages</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {outageBlockPrefixes.length > 0 && (
@@ -80,7 +89,12 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
                 href={pocpUrl(outageBlockPrefixes, days)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}
+                style={{
+                  fontSize: 'var(--font-size-sm)',
+                  color: 'var(--color-accent)',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
               >
                 View in POCP ↗
               </a>
@@ -88,7 +102,15 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
             <button
               onClick={onClose}
               aria-label="Close"
-              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 'var(--font-size-lg)', color: 'var(--color-text-secondary)', padding: 'var(--space-xs)', lineHeight: 1 }}
+              style={{
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-lg)',
+                color: 'var(--color-text-secondary)',
+                padding: 'var(--space-xs)',
+                lineHeight: 1,
+              }}
             >
               ✕
             </button>
@@ -101,12 +123,24 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th className="eyebrow" style={thStyle}>Unit</th>
-                  <th className="eyebrow" style={thStyle}>Outage</th>
-                  <th className="eyebrow" style={thStyle}>Capacity remaining</th>
-                  <th className="eyebrow" style={thStyle}>Start</th>
-                  <th className="eyebrow" style={thStyle}>End</th>
-                  <th className="eyebrow" style={thStyle}>Status</th>
+                  <th className="eyebrow" style={thStyle}>
+                    Unit
+                  </th>
+                  <th className="eyebrow" style={thStyle}>
+                    Outage
+                  </th>
+                  <th className="eyebrow" style={thStyle}>
+                    Capacity remaining
+                  </th>
+                  <th className="eyebrow" style={thStyle}>
+                    Start
+                  </th>
+                  <th className="eyebrow" style={thStyle}>
+                    End
+                  </th>
+                  <th className="eyebrow" style={thStyle}>
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -117,20 +151,24 @@ export default function OutageModal({ outages, outageBlockPrefixes, atMs, days, 
                   return (
                     <tr key={`${code}-${record.outageBlock}-${i}`}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{label}</td>
-                      <td style={{ ...tdStyle, color: 'var(--color-danger)', fontWeight: 600 }}>{formatMW(record.mwattLost)}</td>
+                      <td style={{ ...tdStyle, color: 'var(--color-danger)', fontWeight: 600 }}>
+                        {formatMW(record.mwattLost)}
+                      </td>
                       <td style={tdStyle}>{capacityRemaining !== null ? formatMW(capacityRemaining) : '—'}</td>
                       <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>{formatDateTime(start)}</td>
                       <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>{formatDateTime(end)}</td>
                       <td style={tdStyle}>
                         {isCurrent && (
-                          <span style={{
-                            background: 'var(--color-danger-subtle)',
-                            color: 'var(--color-danger)',
-                            borderRadius: 4,
-                            padding: '1px var(--space-sm)',
-                            fontSize: 'var(--font-size-xs)',
-                            fontWeight: 600,
-                          }}>
+                          <span
+                            style={{
+                              background: 'var(--color-danger-subtle)',
+                              color: 'var(--color-danger)',
+                              borderRadius: 4,
+                              padding: '1px var(--space-sm)',
+                              fontSize: 'var(--font-size-xs)',
+                              fontWeight: 600,
+                            }}
+                          >
                             Ongoing
                           </span>
                         )}

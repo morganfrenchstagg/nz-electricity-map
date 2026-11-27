@@ -27,10 +27,29 @@ interface Props {
 // The period toggle with its date range picker's calendar button (and the 90d,
 // 1y, 5y and All views' totals toggle), the compare menu and data status in
 // every panel's toolbar. GeneratorPanel's Offers view has its own.
-export default function DateControls({ dateMode, picker, compare, onCompareChange, compact, lastUpdated, loading, error, priorError = false, empty }: Props) {
+export default function DateControls({
+  dateMode,
+  picker,
+  compare,
+  onCompareChange,
+  compact,
+  lastUpdated,
+  loading,
+  error,
+  priorError = false,
+  empty,
+}: Props) {
   const {
-    pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
-    handleRangeChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
+    pickerRange,
+    pickerOpen,
+    setPickerOpen,
+    customDates,
+    showDateInputs,
+    rangeError,
+    handleRangeChange,
+    handlePeriodClick,
+    handleAggregationClick,
+    handleCustomClick,
   } = picker
 
   const rangePicker = (
@@ -65,7 +84,12 @@ export default function DateControls({ dateMode, picker, compare, onCompareChang
       <CompareMenu dateMode={dateMode} compare={compare} onCompareChange={onCompareChange} compact={compact} />
       {/* Left out of the compact toolbar, where it would take a line of its own */}
       {lastUpdated && !loading && !compact && (
-        <><div className="divider" /><span className="status-text" style={{ marginLeft: 4 }}>{lastUpdated}</span></>
+        <>
+          <div className="divider" />
+          <span className="status-text" style={{ marginLeft: 4 }}>
+            {lastUpdated}
+          </span>
+        </>
       )}
       {loading && <span className="status-text">Loading…</span>}
       {error && !empty && <span className="status-text is-error">Failed to load data</span>}

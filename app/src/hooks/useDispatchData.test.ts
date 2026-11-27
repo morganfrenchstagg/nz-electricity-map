@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentData } from '../types'
-import { datesBetween, daysBetween, isAggregateMode, isLiveMode, isPastMode, mergeData, MAX_RANGE_DAYS, periodMode, periodOf } from './useDispatchData'
+import {
+  datesBetween,
+  daysBetween,
+  isAggregateMode,
+  isLiveMode,
+  isPastMode,
+  mergeData,
+  MAX_RANGE_DAYS,
+  periodMode,
+  periodOf,
+} from './useDispatchData'
 import { nzLocalMs } from '../utils/time'
 
 describe('datesBetween', () => {
@@ -54,7 +64,7 @@ describe('periodMode', () => {
     expect(periodMode('all')).toEqual({ kind: 'all', aggregation: 'annual' })
   })
 
-  it('takes the totals given when they are one of the view\'s choices', () => {
+  it("takes the totals given when they are one of the view's choices", () => {
     expect(periodMode('last90', 'weekly')).toEqual({ kind: 'last90', aggregation: 'weekly' })
     expect(periodMode('lastYear', 'daily')).toEqual({ kind: 'lastYear', aggregation: 'daily' })
     expect(periodMode('5y', 'weekly')).toEqual({ kind: '5y', aggregation: 'weekly' })
@@ -160,19 +170,25 @@ describe('mergeData', () => {
 
   it('sorts the rows by time, whatever order the days come in', () => {
     const merged = mergeData([day2, day1])
-    expect(merged.data.map(row => row[0])).toEqual(['2026-10-12T23:55:00', '2026-10-13T00:00:00'])
-    expect(merged.pricing.map(row => row[0])).toEqual(['2026-10-12T23:55:00', '2026-10-13T00:00:00'])
+    expect(merged.data.map((row) => row[0])).toEqual(['2026-10-12T23:55:00', '2026-10-13T00:00:00'])
+    expect(merged.pricing.map((row) => row[0])).toEqual(['2026-10-12T23:55:00', '2026-10-13T00:00:00'])
   })
 
   it("joins the days' HVDC", () => {
     const hvdc = (time: string) => ({ series: ['northFlow', 'southFlow'], data: [[time, 400, 0]] })
-    const merged = mergeData([{ ...day1, hvdc: hvdc('2026-10-12T23:30:00') }, { ...day2, hvdc: hvdc('2026-10-13T00:00:00') }])
-    expect(merged.hvdc?.data.map(row => row[0])).toEqual(['2026-10-12T23:30:00', '2026-10-13T00:00:00'])
+    const merged = mergeData([
+      { ...day1, hvdc: hvdc('2026-10-12T23:30:00') },
+      { ...day2, hvdc: hvdc('2026-10-13T00:00:00') },
+    ])
+    expect(merged.hvdc?.data.map((row) => row[0])).toEqual(['2026-10-12T23:30:00', '2026-10-13T00:00:00'])
     expect(mergeData([day1, day2]).hvdc).toBeUndefined()
   })
 
   it('merges days without pricing, such as aggregates', () => {
-    const merged = mergeData([{ ...day1, pricing: [] }, { ...day2, pricing: [] }])
+    const merged = mergeData([
+      { ...day1, pricing: [] },
+      { ...day2, pricing: [] },
+    ])
     expect(merged.data).toHaveLength(2)
     expect(merged.pricing).toEqual([])
   })
@@ -183,7 +199,9 @@ describe('periodOf', () => {
     vi.useFakeTimers()
     vi.setSystemTime('2026-10-13T01:30:00Z') // 2:30pm NZDT
   })
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   const now = () => nzLocalMs('2026-10-13T14:30:00')
 
@@ -193,19 +211,52 @@ describe('periodOf', () => {
   })
 
   it('covers the whole of a picked day or range, in NZ time', () => {
-    expect(periodOf({ kind: 'date', date: '2025-09-05' })).toEqual({ from: nzLocalMs('2025-09-05T00:00:00'), to: nzLocalMs('2025-09-06T00:00:00') - 1 })
-    expect(periodOf({ kind: 'range', from: '2025-09-01', to: '2025-09-05' })).toEqual({ from: nzLocalMs('2025-09-01T00:00:00'), to: nzLocalMs('2025-09-06T00:00:00') - 1 })
+    expect(periodOf({ kind: 'date', date: '2025-09-05' })).toEqual({
+      from: nzLocalMs('2025-09-05T00:00:00'),
+      to: nzLocalMs('2025-09-06T00:00:00') - 1,
+    })
+    expect(periodOf({ kind: 'range', from: '2025-09-01', to: '2025-09-05' })).toEqual({
+      from: nzLocalMs('2025-09-01T00:00:00'),
+      to: nzLocalMs('2025-09-06T00:00:00') - 1,
+    })
   })
 
   it("covers the aggregate views' charts through to now, as the map shows live data under them", () => {
-    expect(periodOf({ kind: 'last90', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2026-07-20T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'last90', aggregation: 'daily' })).toEqual({ from: nzLocalMs('2026-07-20T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'lastYear', aggregation: 'daily' })).toEqual({ from: nzLocalMs('2025-10-20T00:00:00'), to: now() })
-    expect(periodOf({ kind: '5y', aggregation: 'monthly' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
-    expect(periodOf({ kind: '5y', aggregation: 'weekly' })).toEqual({ from: nzLocalMs('2021-11-01T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'all', aggregation: 'annual' })).toEqual({ from: nzLocalMs('1998-01-01T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'all', aggregation: 'quarterly' })).toEqual({ from: nzLocalMs('1997-10-01T00:00:00'), to: now() })
-    expect(periodOf({ kind: 'all', aggregation: 'monthly' })).toEqual({ from: nzLocalMs('1997-08-01T00:00:00'), to: now() })
+    expect(periodOf({ kind: 'last90', aggregation: 'weekly' })).toEqual({
+      from: nzLocalMs('2026-07-20T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'last90', aggregation: 'daily' })).toEqual({
+      from: nzLocalMs('2026-07-20T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({
+      from: nzLocalMs('2025-10-20T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'lastYear', aggregation: 'daily' })).toEqual({
+      from: nzLocalMs('2025-10-20T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: '5y', aggregation: 'monthly' })).toEqual({
+      from: nzLocalMs('2021-11-01T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: '5y', aggregation: 'weekly' })).toEqual({
+      from: nzLocalMs('2021-11-01T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'all', aggregation: 'annual' })).toEqual({
+      from: nzLocalMs('1998-01-01T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'all', aggregation: 'quarterly' })).toEqual({
+      from: nzLocalMs('1997-10-01T00:00:00'),
+      to: now(),
+    })
+    expect(periodOf({ kind: 'all', aggregation: 'monthly' })).toEqual({
+      from: nzLocalMs('1997-08-01T00:00:00'),
+      to: now(),
+    })
   })
 })

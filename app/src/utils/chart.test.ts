@@ -1,29 +1,57 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type Highcharts from 'highcharts'
-import { chartReach, dataInterval, extractChartData, timeChartAccessibility, tooltipTime, totalMWh, withGaps } from './chart'
+import {
+  chartReach,
+  dataInterval,
+  extractChartData,
+  timeChartAccessibility,
+  tooltipTime,
+  totalMWh,
+  withGaps,
+} from './chart'
 import type { ChartRow } from './chart'
 import { MW_UNIT, energyUnit } from './format'
 
 const MIN = 60 * 1000
 // The times of a day of trading periods, every half hour from midnight
-const tradingPeriods = (date: string) => Array.from({ length: 48 }, (_, i) =>
-  `${date}T${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}:00`)
+const tradingPeriods = (date: string) =>
+  Array.from(
+    { length: 48 },
+    (_, i) => `${date}T${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}:00`,
+  )
 const ms = (time: string) => Date.parse(`${time}Z`)
 
 describe('withGaps', () => {
   it('leaves 5-minute data as it is', () => {
-    const points: [number, number][] = [[0, 1], [5 * MIN, 2], [10 * MIN, 3]]
+    const points: [number, number][] = [
+      [0, 1],
+      [5 * MIN, 2],
+      [10 * MIN, 3],
+    ]
     expect(withGaps(points)).toEqual(points)
   })
 
   it('breaks the line after a gap of over 20 minutes', () => {
-    expect(withGaps([[0, 1], [5 * MIN, 2], [30 * MIN, 3]])).toEqual([
-      [0, 1], [5 * MIN, 2], [5 * MIN + 1, null], [30 * MIN, 3],
+    expect(
+      withGaps([
+        [0, 1],
+        [5 * MIN, 2],
+        [30 * MIN, 3],
+      ]),
+    ).toEqual([
+      [0, 1],
+      [5 * MIN, 2],
+      [5 * MIN + 1, null],
+      [30 * MIN, 3],
     ])
   })
 
   it('bridges a gap of exactly 20 minutes', () => {
-    const points: [number, number][] = [[0, 1], [5 * MIN, 2], [25 * MIN, 3]]
+    const points: [number, number][] = [
+      [0, 1],
+      [5 * MIN, 2],
+      [25 * MIN, 3],
+    ]
     expect(withGaps(points)).toEqual(points)
   })
 
@@ -33,15 +61,37 @@ describe('withGaps', () => {
   })
 
   it('breaks half-hourly data after a gap of over 2 hours', () => {
-    const points: [number, number][] = [[0, 1], [30 * MIN, 2], [3 * 60 * MIN, 3], [5 * 60 * MIN, 4]]
-    expect(withGaps(points)).toEqual([[0, 1], [30 * MIN, 2], [30 * MIN + 1, null], [3 * 60 * MIN, 3], [5 * 60 * MIN, 4]])
+    const points: [number, number][] = [
+      [0, 1],
+      [30 * MIN, 2],
+      [3 * 60 * MIN, 3],
+      [5 * 60 * MIN, 4],
+    ]
+    expect(withGaps(points)).toEqual([
+      [0, 1],
+      [30 * MIN, 2],
+      [30 * MIN + 1, null],
+      [3 * 60 * MIN, 3],
+      [5 * 60 * MIN, 4],
+    ])
   })
 
   it("keeps to each day's own interval across a range", () => {
     // The last trading periods before dispatch data, then its first intervals
-    const times = ['2020-09-10T23:00:00', '2020-09-10T23:30:00', '2020-09-11T00:00:00', '2020-09-11T00:05:00', '2020-09-11T00:30:00'].map(ms)
+    const times = [
+      '2020-09-10T23:00:00',
+      '2020-09-10T23:30:00',
+      '2020-09-11T00:00:00',
+      '2020-09-11T00:05:00',
+      '2020-09-11T00:30:00',
+    ].map(ms)
     expect(withGaps(times.map((x, i) => [x, i]))).toEqual([
-      [times[0], 0], [times[1], 1], [times[2], 2], [times[3], 3], [times[3] + 1, null], [times[4], 4],
+      [times[0], 0],
+      [times[1], 1],
+      [times[2], 2],
+      [times[3], 3],
+      [times[3] + 1, null],
+      [times[4], 4],
     ])
   })
 
@@ -89,7 +139,16 @@ describe('extractChartData', () => {
 
 describe('chartReach', () => {
   it('is the largest total at a time when stacked', () => {
-    expect(chartReach([[100, 200], [300, 400], [50, 50]], true)).toBe(700)
+    expect(
+      chartReach(
+        [
+          [100, 200],
+          [300, 400],
+          [50, 50],
+        ],
+        true,
+      ),
+    ).toBe(700)
   })
 
   it('stacks positive and negative values apart', () => {
@@ -98,7 +157,15 @@ describe('chartReach', () => {
   })
 
   it('is the largest single value when not stacked', () => {
-    expect(chartReach([[100, 200], [300, -400]], false)).toBe(400)
+    expect(
+      chartReach(
+        [
+          [100, 200],
+          [300, -400],
+        ],
+        false,
+      ),
+    ).toBe(400)
   })
 
   it('is zero with nothing to chart', () => {
@@ -113,8 +180,16 @@ describe('totalMWh', () => {
 
   it('integrates MW over time', () => {
     // 60 MW every 5 minutes from 2pm to 3pm
-    const times = Array.from({ length: 13 }, (_, i) => new Date(Date.UTC(2026, 9, 13, 14, i * 5)).toISOString().slice(11, 16))
-    expect(totalMWh(times.map((t) => row(t, { A: 60 })), ['A'], false)).toBeCloseTo(60)
+    const times = Array.from({ length: 13 }, (_, i) =>
+      new Date(Date.UTC(2026, 9, 13, 14, i * 5)).toISOString().slice(11, 16),
+    )
+    expect(
+      totalMWh(
+        times.map((t) => row(t, { A: 60 })),
+        ['A'],
+        false,
+      ),
+    ).toBeCloseTo(60)
     // A ramp from 0 to 12 MW over 5 minutes averages 6 MW
     expect(totalMWh([row('14:00', { A: 0 }), row('14:05', { A: 12 })], ['A'], false)).toBeCloseTo(0.5)
   })
@@ -132,7 +207,9 @@ describe('totalMWh', () => {
   })
 
   it('integrates half-hourly trading periods', () => {
-    const rows = tradingPeriods('1997-08-01').slice(0, 3).map((time) => ({ time, A: 60 }))
+    const rows = tradingPeriods('1997-08-01')
+      .slice(0, 3)
+      .map((time) => ({ time, A: 60 }))
     expect(totalMWh(rows, ['A'], false)).toBeCloseTo(60)
   })
 
@@ -155,9 +232,11 @@ describe('totalMWh', () => {
 })
 
 describe('tooltipTime', () => {
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
-  it("marks the total for the day, week, month, quarter or year today falls in as only being so far", () => {
+  it('marks the total for the day, week, month, quarter or year today falls in as only being so far', () => {
     vi.useFakeTimers()
     vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on Wednesday the 14th
     expect(tooltipTime(Date.UTC(2026, 9, 13), 'daily')).toBe('Tue 13 Oct')
@@ -192,27 +271,36 @@ describe('timeChartAccessibility', () => {
   const point = (x: number, y: number, name: string) => ({ x, y, series: { name } }) as unknown as Highcharts.Point
 
   it('names the chart for screen readers', () => {
-    expect(timeChartAccessibility('Huntly generation', 'Generation', null, MW_UNIT).lang?.accessibility?.defaultChartTitle)
-      .toBe('Huntly generation')
+    expect(
+      timeChartAccessibility('Huntly generation', 'Generation', null, MW_UNIT).lang?.accessibility?.defaultChartTitle,
+    ).toBe('Huntly generation')
   })
 
   it('describes the unit and how often there is a point', () => {
-    expect(timeChartAccessibility('', 'Generation', null, MW_UNIT).accessibility?.description)
-      .toBe('Generation, in MW every 5 minutes.')
-    expect(timeChartAccessibility('', 'Generation', null, MW_UNIT, 30 * MIN).accessibility?.description)
-      .toBe('Generation, in MW every half hour.')
-    expect(timeChartAccessibility('', 'Generation', 'weekly', energyUnit(10000)).accessibility?.description)
-      .toBe('Generation, in GWh each week.')
-    expect(timeChartAccessibility('', 'Generation', 'quarterly', energyUnit(10000)).accessibility?.description)
-      .toBe('Generation, in GWh each quarter.')
+    expect(timeChartAccessibility('', 'Generation', null, MW_UNIT).accessibility?.description).toBe(
+      'Generation, in MW every 5 minutes.',
+    )
+    expect(timeChartAccessibility('', 'Generation', null, MW_UNIT, 30 * MIN).accessibility?.description).toBe(
+      'Generation, in MW every half hour.',
+    )
+    expect(timeChartAccessibility('', 'Generation', 'weekly', energyUnit(10000)).accessibility?.description).toBe(
+      'Generation, in GWh each week.',
+    )
+    expect(timeChartAccessibility('', 'Generation', 'quarterly', energyUnit(10000)).accessibility?.description).toBe(
+      'Generation, in GWh each quarter.',
+    )
   })
 
   it('reads a point out as its tooltip is headed, in the unit', () => {
     const describe5Min = timeChartAccessibility('', '', null, MW_UNIT).accessibility?.point?.descriptionFormatter
-    expect(describe5Min?.(point(Date.UTC(2026, 9, 13, 14, 30), 1234.5, 'Hydro'))).toBe('13 Oct 02:30 PM, 1,235 MW. Hydro.')
-    const describeDay = timeChartAccessibility('', '', 'daily', energyUnit(10000)).accessibility?.point?.descriptionFormatter
+    expect(describe5Min?.(point(Date.UTC(2026, 9, 13, 14, 30), 1234.5, 'Hydro'))).toBe(
+      '13 Oct 02:30 PM, 1,235 MW. Hydro.',
+    )
+    const describeDay = timeChartAccessibility('', '', 'daily', energyUnit(10000)).accessibility?.point
+      ?.descriptionFormatter
     expect(describeDay?.(point(Date.UTC(2026, 9, 13), 12.5, 'Wind'))).toBe('Tue 13 Oct, 12.50 GWh. Wind.')
-    const describeQuarter = timeChartAccessibility('', '', 'quarterly', energyUnit(10000)).accessibility?.point?.descriptionFormatter
+    const describeQuarter = timeChartAccessibility('', '', 'quarterly', energyUnit(10000)).accessibility?.point
+      ?.descriptionFormatter
     expect(describeQuarter?.(point(Date.UTC(2025, 9, 1), 12.5, 'Wind'))).toBe('Oct – Dec 2025, 12.50 GWh. Wind.')
   })
 })

@@ -32,7 +32,21 @@ interface NodeChartOptions {
 // The chart GeneratorPanel and SubstationPanel share: a series per code, and a
 // line at each midnight of the dispatch data, around each panel's own axis,
 // tooltip and extra series.
-export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, type, stacking, labelFor, colourFor, transformValue = identity, extraSeries = [], legend = false, yAxis, tooltipFormatter, accessibility }: NodeChartOptions): Highcharts.Options {
+export function nodeChartOptions({
+  chartData,
+  aggregatePeriod,
+  effectiveCodes,
+  type,
+  stacking,
+  labelFor,
+  colourFor,
+  transformValue = identity,
+  extraSeries = [],
+  legend = false,
+  yAxis,
+  tooltipFormatter,
+  accessibility,
+}: NodeChartOptions): Highcharts.Options {
   const isAggregate = aggregatePeriod !== null
   // Aggregate totals: stacked areas become stacked columns (which already stack
   // negative values separately, so no 'neg' stack), and lines get markers.
@@ -54,9 +68,7 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
       // Zero-height columns skip the border, or it would draw as a 1px line.
       borderColor: colour,
       visible: effectiveCodes.has(code),
-      data: isAggregate
-        ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y]))
-        : withGaps(points),
+      data: isAggregate ? points.map(([x, y]) => (y === 0 ? { x, y, borderWidth: 0 } : [x, y])) : withGaps(points),
       stack: isAggregate ? undefined : chartData.rows.some((row) => (row[code] as number) < 0) ? 'neg' : 'pos',
       marker: { enabled: isAggregate && type === 'line', radius: 3 },
       events: columnFillEvents(aggregatePeriod),
@@ -67,7 +79,10 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
   return {
     chart: {
       ...FIT_TO_CONTAINER,
-      type, height: null, animation: false, backgroundColor: 'var(--color-surface)',
+      type,
+      height: null,
+      animation: false,
+      backgroundColor: 'var(--color-surface)',
       className: columns ? 'aggregate-columns' : undefined, // see index.css
     },
     title: { text: undefined },
@@ -106,14 +121,19 @@ export function nodeChartOptions({ chartData, aggregatePeriod, effectiveCodes, t
 // Each charted code's price at each dispatch timestamp. Built once per chart
 // rather than per tooltip, which fires on every mouse move. A node can have no
 // price at some timestamps, so values may be null.
-export function pricesByTime(recentData: RecentData | null, codes: string[]): Map<number, Record<string, number | null>> {
+export function pricesByTime(
+  recentData: RecentData | null,
+  codes: string[],
+): Map<number, Record<string, number | null>> {
   const prices = new Map<number, Record<string, number | null>>()
   if (!recentData?.pricing) return prices
   const indices = codes.map((c) => recentData.series.indexOf(c) + 1)
   for (const row of recentData.pricing) {
     const ms = nzLocalMs(row[0] as string)
     const entry: Record<string, number | null> = {}
-    codes.forEach((code, i) => { entry[code] = row[indices[i]] as number | null })
+    codes.forEach((code, i) => {
+      entry[code] = row[indices[i]] as number | null
+    })
     prices.set(ms, entry)
   }
   return prices
@@ -134,14 +154,18 @@ interface TooltipRowContext {
 
 // A point's row in a node chart's tooltip: its colour, its series' name, its
 // value (and `after` it, e.g. a generator's capacity) and its node's price
-export function tooltipRow(point: Highcharts.Point, { codes, prices, formatValue, showName, valueFor }: TooltipRowContext, after = ''): string {
-  const value = valueFor ? valueFor(point) : point.y ?? 0
+export function tooltipRow(
+  point: Highcharts.Point,
+  { codes, prices, formatValue, showName, valueFor }: TooltipRowContext,
+  after = '',
+): string {
+  const value = valueFor ? valueFor(point) : (point.y ?? 0)
   const val = formatValue(value)
   const formatted = value === 0 ? val : `<b>${val}</b>`
   const code = codes[point.series.index]
   const price = code !== undefined && prices ? prices[code] : undefined
   const priceStr = price != null ? `$${price.toFixed(2)}/MWh` : ''
-  return `<tr><td><span style="color:${String(point.color)}">●</span> ${showName ? point.series.name : ''}</td><td>${formatted}${after}</td><td>${priceStr}</td></tr>`
+  return `<tr><td><span style="color:${point.color as string}">●</span> ${showName ? point.series.name : ''}</td><td>${formatted}${after}</td><td>${priceStr}</td></tr>`
 }
 
 // The tooltip's last row, totalling its points when it lists more than one

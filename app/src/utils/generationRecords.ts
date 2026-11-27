@@ -26,7 +26,7 @@ function totals(data: RecentData, codes: string[]): Total[] {
 }
 
 function best<T extends { mwh: number }>(items: T[]): T {
-  return items.reduce((b, item) => item.mwh > b.mwh ? item : b)
+  return items.reduce((b, item) => (item.mwh > b.mwh ? item : b))
 }
 
 // From monthly totals in date order. Null when the codes generated in none of them.
@@ -52,7 +52,11 @@ export function firstDayGenerated(daily: RecentData, codes: string[]): string | 
 }
 
 export function lastDayGenerated(daily: RecentData, codes: string[]): string | null {
-  return totals(daily, codes).reverse().find((d) => d.mwh > 0)?.date ?? null
+  return (
+    totals(daily, codes)
+      .reverse()
+      .find((d) => d.mwh > 0)?.date ?? null
+  )
 }
 
 const HOUR_MS = 60 * 60 * 1000

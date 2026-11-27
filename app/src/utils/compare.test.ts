@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { compareButtonLabel, compareOptions, customStartBounds, optionLabel, parseCompare, priorPeriod, shiftedMs, spanLabel } from './compare'
+import {
+  compareButtonLabel,
+  compareOptions,
+  customStartBounds,
+  optionLabel,
+  parseCompare,
+  priorPeriod,
+  shiftedMs,
+  spanLabel,
+} from './compare'
 import { aggregateWindow } from '../hooks/useAggregates'
 import type { DateMode } from '../hooks/useDispatchData'
 
@@ -7,7 +16,9 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime('2026-11-27T01:00:00Z') // 2pm NZDT on Friday the 27th
 })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 const today: DateMode = { kind: 'today' }
 const recent: DateMode = { kind: 'recent' }
@@ -35,28 +46,60 @@ describe('compareOptions', () => {
 
 describe('priorPeriod', () => {
   it('compares today with a whole earlier day', () => {
-    expect(priorPeriod(today, 'prev')).toMatchObject({ mode: { kind: 'date', date: '2026-11-26' }, shift: { days: 1 }, label: 'Thu 26 Nov' })
+    expect(priorPeriod(today, 'prev')).toMatchObject({
+      mode: { kind: 'date', date: '2026-11-26' },
+      shift: { days: 1 },
+      label: 'Thu 26 Nov',
+    })
     expect(priorPeriod(today, 'week')).toMatchObject({ mode: { kind: 'date', date: '2026-11-20' }, shift: { days: 7 } })
     // 52 weeks, so it's a Friday too
-    expect(priorPeriod(today, 'year')).toMatchObject({ mode: { kind: 'date', date: '2025-11-28' }, label: 'Fri 28 Nov 2025' })
-    expect(priorPeriod(today, '2026-11-03')).toMatchObject({ option: 'custom', mode: { kind: 'date', date: '2026-11-03' }, shift: { days: 24 } })
+    expect(priorPeriod(today, 'year')).toMatchObject({
+      mode: { kind: 'date', date: '2025-11-28' },
+      label: 'Fri 28 Nov 2025',
+    })
+    expect(priorPeriod(today, '2026-11-03')).toMatchObject({
+      option: 'custom',
+      mode: { kind: 'date', date: '2026-11-03' },
+      shift: { days: 24 },
+    })
   })
 
   it('shifts the 3d view by its rolling window, over the days it covers', () => {
-    expect(priorPeriod(recent, 'prev')).toMatchObject({ mode: { kind: 'range', from: '2026-11-21', to: '2026-11-24' }, shift: { days: 3 }, label: '21 – 24 Nov' })
-    expect(priorPeriod(recent, '2026-11-03')).toMatchObject({ mode: { kind: 'range', from: '2026-11-03', to: '2026-11-06' } })
+    expect(priorPeriod(recent, 'prev')).toMatchObject({
+      mode: { kind: 'range', from: '2026-11-21', to: '2026-11-24' },
+      shift: { days: 3 },
+      label: '21 – 24 Nov',
+    })
+    expect(priorPeriod(recent, '2026-11-03')).toMatchObject({
+      mode: { kind: 'range', from: '2026-11-03', to: '2026-11-06' },
+    })
   })
 
   it('compares a range with one as long', () => {
-    expect(priorPeriod(range, 'prev')).toMatchObject({ mode: { kind: 'range', from: '2026-11-11', to: '2026-11-15' }, shift: { days: 5 } })
+    expect(priorPeriod(range, 'prev')).toMatchObject({
+      mode: { kind: 'range', from: '2026-11-11', to: '2026-11-15' },
+      shift: { days: 5 },
+    })
   })
 
   it('fetches an aggregate view shifted back a whole window', () => {
     const daily: DateMode = { kind: 'last90', aggregation: 'daily' }
-    expect(priorPeriod(daily, 'prev')).toMatchObject({ mode: daily, shift: { days: 91 }, from: '2026-06-01', to: '2026-08-28' })
+    expect(priorPeriod(daily, 'prev')).toMatchObject({
+      mode: daily,
+      shift: { days: 91 },
+      from: '2026-06-01',
+      to: '2026-08-28',
+    })
     expect(priorPeriod(daily, 'year')).toMatchObject({ shift: { days: 364 }, from: '2025-09-01' })
-    expect(priorPeriod({ kind: 'lastYear', aggregation: 'weekly' }, 'prev')).toMatchObject({ from: '2024-12-02', to: '2025-11-30', label: '2 Dec 2024 – 30 Nov 2025' })
-    expect(priorPeriod({ kind: '5y', aggregation: 'monthly' }, 'prev')).toMatchObject({ shift: { months: 60 }, label: 'Dec 2016 – Nov 2021' })
+    expect(priorPeriod({ kind: 'lastYear', aggregation: 'weekly' }, 'prev')).toMatchObject({
+      from: '2024-12-02',
+      to: '2025-11-30',
+      label: '2 Dec 2024 – 30 Nov 2025',
+    })
+    expect(priorPeriod({ kind: '5y', aggregation: 'monthly' }, 'prev')).toMatchObject({
+      shift: { months: 60 },
+      label: 'Dec 2016 – Nov 2021',
+    })
   })
 
   it('falls back to the period before for a choice the view lacks, and has nothing for All', () => {
@@ -68,7 +111,10 @@ describe('priorPeriod', () => {
 
   it("doesn't reach before the data starts", () => {
     expect(priorPeriod({ kind: 'date', date: '2009-01-01' }, 'prev')).toBeNull()
-    expect(priorPeriod({ kind: 'date', date: '2009-01-05' }, 'week')).toMatchObject({ option: 'prev', mode: { date: '2009-01-04' } })
+    expect(priorPeriod({ kind: 'date', date: '2009-01-05' }, 'week')).toMatchObject({
+      option: 'prev',
+      mode: { date: '2009-01-04' },
+    })
   })
 })
 

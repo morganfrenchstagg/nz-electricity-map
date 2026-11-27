@@ -66,8 +66,8 @@ export function useDistributedSolar(mode: DateMode, enabled: boolean): { days: S
       setFetched((prev) => (prev?.key === key && sameDays(prev.days, days) ? prev : { key, days }))
     }
 
-    load()
-    const stopPolling = isLiveMode(mode) ? pollWhileVisible(load, POLL_MS) : undefined
+    void load()
+    const stopPolling = isLiveMode(mode) ? pollWhileVisible(() => void load(), POLL_MS) : undefined
 
     return () => {
       cancelled = true
@@ -76,7 +76,8 @@ export function useDistributedSolar(mode: DateMode, enabled: boolean): { days: S
   }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!key) return { days: NO_DAYS, loaded: true }
-  if (fetched?.key === key) return { days: cached && sameDays(cached, fetched.days) ? cached : fetched.days, loaded: true }
+  if (fetched?.key === key)
+    return { days: cached && sameDays(cached, fetched.days) ? cached : fetched.days, loaded: true }
   if (cached) return { days: cached, loaded: true }
   return { days: fetched?.days ?? NO_DAYS, loaded: false }
 }
@@ -102,12 +103,20 @@ export function solarEnergyQuarters(files: SolarEnergy[]): SolarEnergy {
     for (const { from, days, totalMwh, mwh } of file.data) {
       let quarter = data[data.length - 1]
       if (quarter?.from !== quarterStart(from)) {
-        quarter = { from: quarterStart(from), to: quarterEnd(quarterStart(from)), days: 0, totalMwh: 0, mwh: series.map(() => 0) }
+        quarter = {
+          from: quarterStart(from),
+          to: quarterEnd(quarterStart(from)),
+          days: 0,
+          totalMwh: 0,
+          mwh: series.map(() => 0),
+        }
         data.push(quarter)
       }
       quarter.days += days
       quarter.totalMwh += totalMwh
-      file.series.forEach((gxp, i) => { quarter.mwh[column.get(gxp)!] += mwh[i] })
+      file.series.forEach((gxp, i) => {
+        quarter.mwh[column.get(gxp)!] += mwh[i]
+      })
     }
   }
   return { series, data }
@@ -118,7 +127,11 @@ export function solarEnergyQuarters(files: SolarEnergy[]): SolarEnergy {
 // aggregateWindow), and whether they've loaded. Empty while they load, on the
 // other views, and while `enabled` is false, when there's nothing to load.
 // `shift` fetches the window that much earlier, as useAggregates' does.
-export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean, shift?: Shift): { files: SolarEnergy[]; loaded: boolean } {
+export function useDistributedSolarEnergy(
+  mode: DateMode,
+  enabled: boolean,
+  shift?: Shift,
+): { files: SolarEnergy[]; loaded: boolean } {
   // Tagged with its view, as useAggregates' totals are, so a switch between
   // views doesn't chart one's totals against the other's periods
   const modeKey = isAggregateMode(mode) && enabled ? JSON.stringify([mode, shift ?? null]) : null
@@ -128,16 +141,22 @@ export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean, shif
     if (!modeKey || !isAggregateMode(mode)) return
     let cancelled = false
     // A file that fails is left out, as with the daily estimates
-    Promise.all(aggregateWindow(mode, shift).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then((fetched) => {
-      if (cancelled) return
-      const files = fetched.filter((file): file is SolarEnergy => file !== null)
-      setResult({ modeKey, files: mode.aggregation === 'quarterly' ? [solarEnergyQuarters(files)] : files })
-    })
-    return () => { cancelled = true }
+    void Promise.all(aggregateWindow(mode, shift).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then(
+      (fetched) => {
+        if (cancelled) return
+        const files = fetched.filter((file): file is SolarEnergy => file !== null)
+        setResult({ modeKey, files: mode.aggregation === 'quarterly' ? [solarEnergyQuarters(files)] : files })
+      },
+    )
+    return () => {
+      cancelled = true
+    }
   }, [modeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!modeKey) return { files: NO_ENERGY, loaded: true }
-  return result && result.modeKey === modeKey ? { files: result.files, loaded: true } : { files: NO_ENERGY, loaded: false }
+  return result && result.modeKey === modeKey
+    ? { files: result.files, loaded: true }
+    : { files: NO_ENERGY, loaded: false }
 }
 
 // What a view's chart is like, for which charts can stand in for each other:
@@ -157,7 +176,13 @@ export interface HeldWithSolar<T> {
 // What useShownWithSolar charts on a render: `value`, unless it's still
 // waiting on its estimate, when it's what's held for the same kind of chart
 // (or null), and what to hold from then on
-export function shownWithSolar<T>(value: T, kind: string, enabled: boolean, waiting: boolean, held: HeldWithSolar<T> | null): { shown: T | null; held: HeldWithSolar<T> | null } {
+export function shownWithSolar<T>(
+  value: T,
+  kind: string,
+  enabled: boolean,
+  waiting: boolean,
+  held: HeldWithSolar<T> | null,
+): { shown: T | null; held: HeldWithSolar<T> | null } {
   if (waiting) return { shown: held?.kind === kind ? held.value : null, held }
   // A view charted without its estimate (with `enabled` false) isn't held for when it's turned on
   return { shown: value, held: { kind: enabled ? kind : null, value } }
@@ -170,7 +195,14 @@ export function shownWithSolar<T>(value: T, kind: string, enabled: boolean, wait
 // while the 3d view's estimate loads, or null if there's none. After that the
 // data is charted without the estimate, which is added when it comes. `view`
 // tells one view's wait from the next. Nothing is waited on while `enabled` is false.
-export function useShownWithSolar<T>(value: T, view: string, kind: string, enabled: boolean, dataLoaded: boolean, solarLoaded: boolean): { shown: T | null; waiting: boolean } {
+export function useShownWithSolar<T>(
+  value: T,
+  view: string,
+  kind: string,
+  enabled: boolean,
+  dataLoaded: boolean,
+  solarLoaded: boolean,
+): { shown: T | null; waiting: boolean } {
   const wait = enabled && dataLoaded && !solarLoaded ? view : null
   const [timedOut, setTimedOut] = useState(false)
   // Each wait gets its own SOLAR_WAIT_MS, without a render of the last one's timeout

@@ -6,14 +6,20 @@ import { CalendarIcon, rangeLabel } from './dateLabels'
 // it), loads once a picker is wanted rather than with the page. Until then each
 // picker has a stand-in that looks the same.
 const loadPickers = () => import('./DatePickers')
-const LoadedRangePicker = lazy(() => loadPickers().then(m => ({ default: m.DateRangePicker })))
-const LoadedDatePicker = lazy(() => loadPickers().then(m => ({ default: m.DatePicker })))
-const LoadedCompareCalendar = lazy(() => loadPickers().then(m => ({ default: m.CompareCalendar })))
+const LoadedRangePicker = lazy(() => loadPickers().then((m) => ({ default: m.DateRangePicker })))
+const LoadedDatePicker = lazy(() => loadPickers().then((m) => ({ default: m.DatePicker })))
+const LoadedCompareCalendar = lazy(() => loadPickers().then((m) => ({ default: m.CompareCalendar })))
 
 // CompareMenu's calendar, only there once a custom start is picked, so it loads then
 export function CompareCalendar(props: CompareCalendarProps) {
   return (
-    <Suspense fallback={<div className="status-text" style={{ padding: 'var(--space-md)' }}>Loading…</div>}>
+    <Suspense
+      fallback={
+        <div className="status-text" style={{ padding: 'var(--space-md)' }}>
+          Loading…
+        </div>
+      }
+    >
       <LoadedCompareCalendar {...props} />
     </Suspense>
   )
@@ -34,9 +40,15 @@ export function DateRangePicker(props: DateRangePickerProps) {
       aria-expanded={props.isOpen}
       className={props.isActive ? 'calendar-button is-active' : 'calendar-button'}
       onPointerEnter={want}
-      onFocus={() => { setFocused(true); want() }}
+      onFocus={() => {
+        setFocused(true)
+        want()
+      }}
       onBlur={() => setFocused(false)}
-      onClick={() => { want(); props.onOpenChange(true) }}
+      onClick={() => {
+        want()
+        props.onOpenChange(true)
+      }}
     >
       <CalendarIcon />
     </button>
@@ -63,7 +75,9 @@ function DateFieldStandIn({ value }: { value: string }) {
   return (
     <div className="date-field" aria-busy="true">
       <span className="date-field-input">{value ? `${d}/${m}/${y}` : 'dd/mm/yyyy'}</span>
-      <span className="date-field-button"><CalendarIcon /></span>
+      <span className="date-field-button">
+        <CalendarIcon />
+      </span>
     </div>
   )
 }

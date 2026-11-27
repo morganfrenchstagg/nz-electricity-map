@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         working-directory: app
         run: npm run lint
+      - name: Check formatting
+        working-directory: app
+        run: npm run format:check
       - name: Run tests
         working-directory: app
         run: npm test

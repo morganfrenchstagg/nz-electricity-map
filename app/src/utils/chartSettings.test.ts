@@ -3,14 +3,30 @@ import { DEFAULT_CHART_SETTINGS, readChartSettings, writeChartSettings } from '.
 
 describe('readChartSettings', () => {
   it('reads a setting from its param', () => {
-    expect(readChartSettings(new URLSearchParams('chart=line'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'line' })
-    expect(readChartSettings(new URLSearchParams('chart=proportion'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'proportion' })
-    expect(readChartSettings(new URLSearchParams('solar=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, solar: 'combined' })
-    expect(readChartSettings(new URLSearchParams('fossil=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, fossil: 'combined' })
+    expect(readChartSettings(new URLSearchParams('chart=line'))).toEqual({
+      ...DEFAULT_CHART_SETTINGS,
+      chartType: 'line',
+    })
+    expect(readChartSettings(new URLSearchParams('chart=proportion'))).toEqual({
+      ...DEFAULT_CHART_SETTINGS,
+      chartType: 'proportion',
+    })
+    expect(readChartSettings(new URLSearchParams('solar=combined'))).toEqual({
+      ...DEFAULT_CHART_SETTINGS,
+      solar: 'combined',
+    })
+    expect(readChartSettings(new URLSearchParams('fossil=combined'))).toEqual({
+      ...DEFAULT_CHART_SETTINGS,
+      fossil: 'combined',
+    })
   })
 
   it('reads every setting a link gives', () => {
-    expect(readChartSettings(new URLSearchParams('chart=line&solar=combined'))).toEqual({ ...DEFAULT_CHART_SETTINGS, chartType: 'line', solar: 'combined' })
+    expect(readChartSettings(new URLSearchParams('chart=line&solar=combined'))).toEqual({
+      ...DEFAULT_CHART_SETTINGS,
+      chartType: 'line',
+      solar: 'combined',
+    })
   })
 
   it('defaults a setting the link leaves out', () => {

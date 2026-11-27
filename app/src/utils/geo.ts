@@ -7,32 +7,41 @@ import type { Period } from './time'
 const isShown = (u: Unit, period: Period, dispatching?: Set<string>) =>
   inServiceDuring(u, period) || (dispatching !== undefined && dispatching.has(u.node) && isCommissioning(u, period.to))
 
-const isOnMap = (g: Generator, period: Period, dispatching?: Set<string>) => g.units.some((u) => isShown(u, period, dispatching))
+const isOnMap = (g: Generator, period: Period, dispatching?: Set<string>) =>
+  g.units.some((u) => isShown(u, period, dispatching))
 
 // Only generators with a unit shown are on the map. Their capacity leaves out units still being commissioned.
-export function generatorsToGeoJson(generators: Generator[], period: Period, dispatching?: Set<string>): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = generators.filter((g) => isOnMap(g, period, dispatching)).map((g) => {
-    const activeUnits = g.units.filter((u) => isShown(u, period, dispatching))
-    const dominantFuel = activeUnits[0]?.fuel ?? g.units[0]?.fuel ?? 'Unknown'
-    const totalCapacityMW = activeUnits.filter(u => !isCharging(u) && inServiceDuring(u, period)).reduce((sum, u) => sum + u.capacity, 0)
+export function generatorsToGeoJson(
+  generators: Generator[],
+  period: Period,
+  dispatching?: Set<string>,
+): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = generators
+    .filter((g) => isOnMap(g, period, dispatching))
+    .map((g) => {
+      const activeUnits = g.units.filter((u) => isShown(u, period, dispatching))
+      const dominantFuel = activeUnits[0]?.fuel ?? g.units[0]?.fuel ?? 'Unknown'
+      const totalCapacityMW = activeUnits
+        .filter((u) => !isCharging(u) && inServiceDuring(u, period))
+        .reduce((sum, u) => sum + u.capacity, 0)
 
-    return {
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [g.location.long, g.location.lat],
-      },
-      properties: {
-        site: g.site,
-        name: g.name,
-        operator: g.operator,
-        fuel: dominantFuel,
-        totalCapacityMW,
-        island: g.island,
-        gridZone: g.gridZone,
-      },
-    }
-  })
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [g.location.long, g.location.lat],
+        },
+        properties: {
+          site: g.site,
+          name: g.name,
+          operator: g.operator,
+          fuel: dominantFuel,
+          totalCapacityMW,
+          island: g.island,
+          gridZone: g.gridZone,
+        },
+      }
+    })
 
   // Smallest first so the largest generators draw on top. MapLibre also hit-tests in reverse
   // data order, so clicks and hovers on overlapping points pick the largest one too
@@ -77,8 +86,8 @@ export interface UnderConstructionUnit {
 export function ucUnitsForSite(nodes: UnderConstructionNode[], site: string): UnderConstructionUnit[] {
   if (!site) return []
   return nodes
-    .filter(n => n.site === site)
-    .map(n => ({
+    .filter((n) => n.site === site)
+    .map((n) => ({
       locationDescription: n.locationDescription ?? null,
       fuel: n.fuel,
       operator: n.operator,
@@ -98,10 +107,13 @@ export function underConstructionToGeoJson(
   dispatching?: Set<string>,
 ): GeoJSON.FeatureCollection {
   // Nodes whose site matches a generator on the map are shown in the generator tooltip instead
-  const generatorSites = new Set(generators.filter(g => isOnMap(g, period, dispatching)).map(g => g.site))
+  const generatorSites = new Set(generators.filter((g) => isOnMap(g, period, dispatching)).map((g) => g.site))
 
   // Group nodes by resolved coordinates so co-located units share one feature
-  const grouped = new Map<string, { lat: number; long: number; name: string; fuel: string; units: UnderConstructionUnit[] }>()
+  const grouped = new Map<
+    string,
+    { lat: number; long: number; name: string; fuel: string; units: UnderConstructionUnit[] }
+  >()
 
   for (const node of nodes) {
     if (node.site && generatorSites.has(node.site)) continue
@@ -114,7 +126,10 @@ export function underConstructionToGeoJson(
       long = node.location.long
     } else if (node.site) {
       const gen = generators.find((g) => g.site === node.site)
-      if (gen) { lat = gen.location.lat; long = gen.location.long }
+      if (gen) {
+        lat = gen.location.lat
+        long = gen.location.long
+      }
     }
 
     if (lat === undefined || long === undefined) continue
