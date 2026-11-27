@@ -4,6 +4,7 @@ import type { SolarEnergy, SolarProduction } from '../api'
 import { datesBetween, isAggregateMode, isLiveMode, periodOf } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { aggregateWindow, quarterStart } from './useAggregates'
+import type { Shift } from './useAggregates'
 import { pollWhileVisible } from '../utils/poll'
 import { todayNZ } from '../utils/time'
 
@@ -116,17 +117,18 @@ export function solarEnergyQuarters(files: SolarEnergy[]): SolarEnergy {
 // the files covering the same periods as its dispatch totals (see
 // aggregateWindow), and whether they've loaded. Empty while they load, on the
 // other views, and while `enabled` is false, when there's nothing to load.
-export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean): { files: SolarEnergy[]; loaded: boolean } {
+// `shift` fetches the window that much earlier, as useAggregates' does.
+export function useDistributedSolarEnergy(mode: DateMode, enabled: boolean, shift?: Shift): { files: SolarEnergy[]; loaded: boolean } {
   // Tagged with its view, as useAggregates' totals are, so a switch between
   // views doesn't chart one's totals against the other's periods
-  const modeKey = isAggregateMode(mode) && enabled ? JSON.stringify(mode) : null
+  const modeKey = isAggregateMode(mode) && enabled ? JSON.stringify([mode, shift ?? null]) : null
   const [result, setResult] = useState<{ modeKey: string; files: SolarEnergy[] } | null>(null)
 
   useEffect(() => {
     if (!modeKey || !isAggregateMode(mode)) return
     let cancelled = false
     // A file that fails is left out, as with the daily estimates
-    Promise.all(aggregateWindow(mode).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then((fetched) => {
+    Promise.all(aggregateWindow(mode, shift).paths.map((path) => fetchSolarEnergy(path).catch(() => null))).then((fetched) => {
       if (cancelled) return
       const files = fetched.filter((file): file is SolarEnergy => file !== null)
       setResult({ modeKey, files: mode.aggregation === 'quarterly' ? [solarEnergyQuarters(files)] : files })

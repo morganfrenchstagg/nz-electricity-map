@@ -3,7 +3,9 @@ import type { RecentData } from '../types'
 import { isAggregateMode } from './useDispatchData'
 import type { DateMode } from './useDispatchData'
 import { aggregatePeriodOf, foldMovedNodes, useAggregates } from './useAggregates'
+import type { Shift } from './useAggregates'
 import { extractChartData } from '../utils/chart'
+import type { PriorData } from '../utils/compare'
 
 const NO_MOVED_NODES: Record<string, string> = {}
 
@@ -20,20 +22,24 @@ interface Options {
   // The node's codes in the data, in chart order. The aggregate views pass
   // includeRetired, as their totals cover units since retired.
   getCodes: (data: RecentData, includeRetired: boolean) => string[]
+  // For an earlier period the view's compared with: how far back its totals
+  // are (see useAggregates), and false while there's none, to fetch nothing
+  shift?: Shift
+  enabled?: boolean
 }
 
 // What GeneratorPanel and SubstationPanel chart: App's 5-minute dispatch data,
 // or for the 90d, 1y, 5y and All views the node's own MWh totals, narrowed to the
-// node's codes.
-export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes }: Options) {
+// node's codes. Called again for an earlier period it's compared with.
+export function useNodeData({ dateMode, recentData, loading, error, queryNodes, movedNodes = NO_MOVED_NODES, getCodes, shift, enabled = true }: Options) {
   const aggregatePeriod = aggregatePeriodOf(dateMode)
   const isAggregate = aggregatePeriod !== null
-  const aggregates = useAggregates(queryNodes, isAggregateMode(dateMode) ? dateMode : null)
+  const aggregates = useAggregates(enabled ? queryNodes : null, isAggregateMode(dateMode) ? dateMode : null, shift)
   const aggregateData = useMemo(
     () => aggregates.aggregateData && foldMovedNodes(aggregates.aggregateData, movedNodes),
     [aggregates.aggregateData, movedNodes],
   )
-  const data = isAggregate ? aggregateData : recentData
+  const data = !enabled ? null : isAggregate ? aggregateData : recentData
 
   const allCodes = useMemo(
     () => (data ? getCodes(data, isAggregate) : []),
@@ -50,9 +56,25 @@ export function useNodeData({ dateMode, recentData, loading, error, queryNodes, 
     isAggregate,
     allCodes,
     chartData,
-    loading: isAggregate ? aggregates.loading : loading,
-    error: isAggregate ? aggregates.error : error,
+    loading: enabled && (isAggregate ? aggregates.loading : loading),
+    error: !enabled ? null : isAggregate ? aggregates.error : error,
   }
+}
+
+// The node's data for the earlier period the view is compared with (see
+// utils/compare): App's dispatch data for it, or the node's totals that far
+// back. Nothing while the view isn't compared.
+export function usePriorNodeData(prior: PriorData | null, dateMode: DateMode, nodes: Pick<Options, 'queryNodes' | 'movedNodes' | 'getCodes'>) {
+  const mode = prior?.period.mode ?? dateMode
+  return useNodeData({
+    ...nodes,
+    dateMode: mode,
+    recentData: prior?.recentData ?? null,
+    loading: prior?.loading ?? false,
+    error: prior?.error ?? null,
+    shift: prior && isAggregateMode(mode) ? prior.period.shift : undefined,
+    enabled: prior !== null,
+  })
 }
 
 // Which of a node's codes are charted: all of them until the user picks, and

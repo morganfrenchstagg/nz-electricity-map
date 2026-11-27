@@ -1,5 +1,5 @@
 import { lazy, startTransition, Suspense, useState } from 'react'
-import type { DatePickerProps, DateRangePickerProps } from './DatePickers'
+import type { CompareCalendarProps, DatePickerProps, DateRangePickerProps } from './DatePickers'
 import { CalendarIcon, rangeLabel } from './dateLabels'
 
 // DatePickers, with React Aria's calendars and date fields (about a third of
@@ -8,6 +8,16 @@ import { CalendarIcon, rangeLabel } from './dateLabels'
 const loadPickers = () => import('./DatePickers')
 const LoadedRangePicker = lazy(() => loadPickers().then(m => ({ default: m.DateRangePicker })))
 const LoadedDatePicker = lazy(() => loadPickers().then(m => ({ default: m.DatePicker })))
+const LoadedCompareCalendar = lazy(() => loadPickers().then(m => ({ default: m.CompareCalendar })))
+
+// CompareMenu's calendar, only there once a custom start is picked, so it loads then
+export function CompareCalendar(props: CompareCalendarProps) {
+  return (
+    <Suspense fallback={<div className="status-text" style={{ padding: 'var(--space-md)' }}>Loading…</div>}>
+      <LoadedCompareCalendar {...props} />
+    </Suspense>
+  )
+}
 
 // PeriodToggle's calendar button, which is always there, so it loads when the
 // pointer comes over it, it takes focus or it's opened

@@ -8,8 +8,11 @@ import { useOutages } from '../hooks/useOutages'
 import type { OutageRecord } from '../api'
 import { capacityLeftAfter, maxOutageMWOf, mergeOutageSegments, outageEasesAt } from '../utils/outages'
 import type { OutageSegment } from '../utils/outages'
-import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
+import { useCodeSelection, useNodeData, usePriorNodeData } from '../hooks/useNodeData'
 import { chartReach, dataInterval, timeChartAccessibility, tooltipTime, totalMWh } from '../utils/chart'
+import type { ChartRow } from '../utils/chart'
+import { alignPrior, priorDescription, priorLine, priorTooltip, priorTotalLines } from '../utils/compareChart'
+import { CompareLegend } from './CompareMenu'
 import { nodeChartOptions, pricesByTime, tooltipRow, tooltipTotalRow } from '../utils/nodeChart'
 import { createGeneratorAdapter, createMultiGeneratorAdapter } from '../utils/generatorAdapter'
 import { energyUnit, formatEnergy, formatMW, formatMWh, MW_UNIT, PERCENT_UNIT } from '../utils/format'
@@ -72,7 +75,7 @@ interface Props extends NodePanelProps {
 
 // A generator's units, or several generators', against their capacity and
 // outages, with an Offers view of what they bid into the market
-export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, chartSettings, onChartSettingsChange, ...panel }: Props) {
+export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChange, compare, onCompareChange, prior, recentData, loading, error, onNodeChange, viewMode, onViewModeChange, tradingPeriod, onTradingPeriodChange, chartSettings, onChartSettingsChange, ...panel }: Props) {
   const outages = useOutages(dateMode)
   const lastUpdated = useLastUpdated(recentData, dateMode)
   // The header hides its capacity readout, and the toolbar collapses to dropdowns, when too narrow
@@ -95,6 +98,9 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
   })
   const generationSelection = useCodeSelection(allCodes, node)
   const { effectiveCodes } = generationSelection
+  // The earlier period the view's compared with, charted as dotted lines
+  const priorNode = usePriorNodeData(prior, dateMode, { queryNodes: adapter.queryNodes, movedNodes: adapter.movedNodes, getCodes: adapter.getCodes })
+  const priorChartData = prior && priorNode.chartData
   // The units counted towards capacity and outages. The data leaves out units that
   // didn't dispatch, so they aren't charted or picked out, but while every unit
   // charted is shown, they're counted too (the adapter keeps to those in service).
@@ -305,6 +311,36 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
     // Each time's row, for the tooltip's generation where the points are shares
     const rowByMs = new Map(chartData.rows.map((row) => [nzLocalMs(row.time), row]))
 
+    // The earlier period's lines: stacked (or a single unit), the shown units'
+    // generation together, over the stack; as lines, each shown unit's. Shares
+    // always add up to 100%, so the proportion chart has none.
+    const generationOf = (row: ChartRow, codes: string[]) => codes.reduce((sum, code) => sum + Math.max((row[code] as number) || 0, 0), 0)
+    const priorMs = priorChartData?.rows.map((row) => nzLocalMs(row.time)) ?? []
+    const aligned = prior && priorChartData && !proportion
+      ? alignPrior(priorMs, prior.period, chartData.rows.map((row) => nzLocalMs(row.time)), isAggregate)
+      : null
+    const twins = !aligned || !priorChartData ? [] : chartType === 'line' && shownCodes.length > 1
+      ? shownCodes.filter((code) => priorChartData.codes.includes(code)).map((code) => {
+        const value = (row: ChartRow) => (row[code] as number) || 0
+        return { name: adapter.labelFor(code), colour: adapter.colourFor(code), before: value, now: value }
+      })
+      : [{
+        name: shownCodes.length === 1 ? adapter.labelFor(shownCodes[0]) : 'Total',
+        colour: shownCodes.length === 1 ? adapter.colourFor(shownCodes[0]) : 'var(--color-reference)',
+        before: (row: ChartRow) => generationOf(row, shownCodes.filter((code) => priorChartData.codes.includes(code))),
+        now: (row: ChartRow) => generationOf(row, shownCodes),
+      }]
+    const total = twins.length === 1 && shownCodes.length > 1
+    const priorSeries = aligned && prior && priorChartData ? twins.flatMap((twin) => {
+      const options = {
+        name: `${twin.name}, ${prior.period.label}`,
+        colour: twin.colour,
+        data: aligned.points(priorChartData.rows.map((row) => twin.before(row) / unit.size)),
+        aggregate: isAggregate,
+      }
+      return total ? priorTotalLines(options) : [priorLine(options)]
+    }) : []
+
     return nodeChartOptions({
       chartData: shares ? { ...chartData, rows: shares } : chartData,
       aggregatePeriod,
@@ -314,7 +350,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
       labelFor: adapter.labelFor,
       colourFor: adapter.colourFor,
       transformValue: proportion ? undefined : (value) => value / unit.size,
-      extraSeries: capSeries ? [capSeries] : [],
+      extraSeries: [...(capSeries ? [capSeries] : []), ...priorSeries],
       legend: adapter.showLegend,
       yAxis: proportion
         // The shares' floating point sums can come out a hair over 100
@@ -339,17 +375,26 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           const total = points.reduce((sum, p) => sum + (valueFor ? valueFor(p) : p.y ?? 0), 0)
           rows += tooltipTotalRow(total, formatValue, cap !== null ? ` / ${formatValue(cap)} (${cap > 0 ? Math.round(total / cap * 100) : 0}%)` : '')
         }
-        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        // The earlier period's values at the same time, and how they've changed
+        const p = aligned?.indexAt(this.x as number)
+        const earlier = !priorChartData ? '' : priorTooltip(p === undefined ? undefined : priorMs[p], twins.map((twin) => ({
+          name: twin.name,
+          colour: twin.colour,
+          before: p === undefined ? null : twin.before(priorChartData.rows[p]) / unit.size,
+          now: row ? twin.now(row) / unit.size : null,
+        })), formatValue, aggregatePeriod)
+        return `<b>${tooltipTime(this.x as number, aggregatePeriod)}</b><br/><table>${rows}</table>${earlier}`
       },
       accessibility: timeChartAccessibility(
         `${adapter.title} generation`,
-        proportion ? "Each unit's share of the generation, stacked" : stacked ? 'Generation from each unit, stacked' : 'Generation',
+        (proportion ? "Each unit's share of the generation, stacked" : stacked ? 'Generation from each unit, stacked' : 'Generation')
+          + priorDescription(priorSeries.length > 0 ? prior?.period ?? null : null),
         aggregatePeriod,
         proportion ? PERCENT_UNIT : unit,
         dataInterval(chartData.rows.map((row) => row.time)),
       ),
     })
-  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod, chartType, proportion])
+  }, [chartData, effectiveCodes, capacityCodes, adapter, recentData, isAggregate, aggregatePeriod, chartType, proportion, prior, priorChartData])
 
   // A button per unit, when there's more than one
   const unitButtons = buttonCodes.length < 2 ? [] : buttonCodes.map((code) => (
@@ -502,10 +547,13 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
           <DateControls
             dateMode={dateMode}
             picker={datePicker}
+            compare={compare}
+            onCompareChange={onCompareChange}
             compact={compactToolbar}
             lastUpdated={lastUpdated}
-            loading={dataLoading}
+            loading={dataLoading || priorNode.loading}
             error={dataError}
+            priorError={priorNode.error !== null}
             empty={allCodes.length === 0}
           />
         )}
@@ -539,6 +587,15 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             </Suspense>
           ) : null
         ) : (
+          <>
+          {/* Shares always add up to 100%, so they aren't compared */}
+          {prior && priorChartData && chartOptions && !proportion && (
+            <CompareLegend
+              dateMode={dateMode}
+              period={prior.period}
+              note={effectiveCodes.size > 1 && chartType === 'line' ? 'each unit' : undefined}
+            />
+          )}
           <NodeChart
             chartKey={`${nodeKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}-${chartType}`}
             options={chartOptions}
@@ -546,6 +603,7 @@ export default function GeneratorPanel({ node, onClear, dateMode, onDateModeChan
             error={dataError}
             empty={allCodes.length === 0}
           />
+          </>
         )}
       </div>
       {viewMode === 'generation' && dateMode.kind === 'all' && (dataLoading || allCodes.length > 0) && (

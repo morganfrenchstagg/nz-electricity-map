@@ -162,8 +162,8 @@ describe('tooltipTime', () => {
     vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on Wednesday the 14th
     expect(tooltipTime(Date.UTC(2026, 9, 13), 'daily')).toBe('Tue 13 Oct')
     expect(tooltipTime(Date.UTC(2026, 9, 14), 'daily')).toBe('Wed 14 Oct (so far)')
-    expect(tooltipTime(Date.UTC(2026, 9, 5), 'weekly')).toBe(' 5 Oct – 11 Oct 2026')
-    expect(tooltipTime(Date.UTC(2026, 9, 12), 'weekly')).toBe('12 Oct – 18 Oct 2026 (so far)')
+    expect(tooltipTime(Date.UTC(2026, 9, 5), 'weekly')).toBe(' 5 Oct – 11 Oct')
+    expect(tooltipTime(Date.UTC(2026, 9, 12), 'weekly')).toBe('12 Oct – 18 Oct (so far)')
     expect(tooltipTime(Date.UTC(2026, 8, 1), 'monthly')).toBe('September 2026')
     expect(tooltipTime(Date.UTC(2026, 9, 1), 'monthly')).toBe('October 2026 (so far)')
     expect(tooltipTime(Date.UTC(2026, 6, 1), 'quarterly')).toBe('Jul – Sep 2026')
@@ -176,6 +176,14 @@ describe('tooltipTime', () => {
     vi.useFakeTimers()
     vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on the 14th
     expect(tooltipTime(Date.UTC(2026, 9, 14, 0, 25), null)).toBe('14 Oct 12:25 AM')
+  })
+
+  it('says the year of a day outside this one', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime('2026-10-13T11:30:00Z') // 12:30am NZDT on the 14th
+    expect(tooltipTime(Date.UTC(2025, 9, 15, 9, 25), null)).toBe('15 Oct 2025 09:25 AM')
+    expect(tooltipTime(Date.UTC(2025, 9, 15), 'daily')).toBe('Wed 15 Oct 2025')
+    expect(tooltipTime(Date.UTC(2025, 11, 29), 'weekly')).toBe('29 Dec 2025 –  4 Jan')
   })
 })
 

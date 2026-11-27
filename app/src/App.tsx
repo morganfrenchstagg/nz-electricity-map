@@ -1,10 +1,12 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import GeneratorPanel from './components/GeneratorPanel'
 import SubstationPanel from './components/SubstationPanel'
 import HvdcPanel from './components/HvdcPanel'
 import GridOverviewPanel from './components/GridOverviewPanel'
 import type { Generator, Substation } from './types'
-import { useDispatchData } from './hooks/useDispatchData'
+import { isAggregateMode, useDispatchData } from './hooks/useDispatchData'
+import { priorPeriod } from './utils/compare'
+import type { PriorData } from './utils/compare'
 import { useDefinitions } from './hooks/useDefinitions'
 import { useResizableWidth } from './hooks/useResizableWidth'
 import { useIsMobile } from './hooks/useIsMobile'
@@ -26,6 +28,7 @@ export default function App() {
   const {
     selectedNode, selectNode, openedGenerator,
     dateMode, setDateMode,
+    compare, setCompare,
     viewMode, setViewMode,
     tradingPeriod, setTradingPeriod,
     activeFuels, setActiveFuels,
@@ -93,6 +96,21 @@ export default function App() {
   // their own hook (and firing duplicate requests on date changes).
   const { recentData, loading, error } = useDispatchData(dateMode)
 
+  // The earlier period the view is compared with, if it is. The 5-minute
+  // views' is a day or range of dispatch data, fetched here once for every
+  // panel as the view's own is. The aggregate views' are fetched by each panel
+  // with its own totals (see useAggregates' shift).
+  const priorPeriodShown = useMemo(() => priorPeriod(dateMode, compare), [dateMode, compare])
+  const priorDispatchMode = priorPeriodShown && !isAggregateMode(priorPeriodShown.mode) ? priorPeriodShown.mode : null
+  const priorDispatch = useDispatchData(priorDispatchMode)
+  const prior = useMemo((): PriorData | null => priorPeriodShown && {
+    period: priorPeriodShown,
+    // Until this period's own has loaded, the last one's isn't charted against it
+    recentData: priorDispatch.loadedFor === priorDispatchMode ? priorDispatch.recentData : null,
+    loading: priorDispatchMode !== null && priorDispatch.loading,
+    error: priorDispatchMode !== null ? priorDispatch.error : null,
+  }, [priorPeriodShown, priorDispatchMode, priorDispatch.loadedFor, priorDispatch.recentData, priorDispatch.loading, priorDispatch.error])
+
   const handleGeneratorClick = useCallback((generator: Generator) => {
     selectNode({ kind: 'generator', generator })
     setGridPanelVisible(false)
@@ -115,6 +133,9 @@ export default function App() {
     onClear: () => { selectNode(null); setGridPanelVisible(true) },
     dateMode,
     onDateModeChange: setDateMode,
+    compare,
+    onCompareChange: setCompare,
+    prior,
     recentData,
     loading,
     error,
@@ -150,6 +171,9 @@ export default function App() {
       <GridOverviewPanel
         dateMode={dateMode}
         onDateModeChange={setDateMode}
+        compare={compare}
+        onCompareChange={setCompare}
+        prior={prior}
         onClose={() => setGridPanelVisible(false)}
         onNodeSelect={(node) => { selectNode(node); setGridPanelVisible(false) }}
         visible={!selectedNode && gridPanelVisible}

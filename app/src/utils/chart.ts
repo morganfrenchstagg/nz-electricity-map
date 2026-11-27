@@ -215,11 +215,14 @@ function periodEnd(ms: number, period: AggregatePeriod): number {
 
 // Tooltip heading: a 5-minute timestamp, or the day, week, month, quarter or year a total covers.
 // The total for the one today falls in is still growing, so it's marked as only being so far.
+// A day outside this year says which, as an earlier period compared with can be.
 export function tooltipTime(ms: number, period: AggregatePeriod | null): string {
   const soFar = period && periodEnd(ms, period) > nzLocalMs(`${todayNZ()}T00:00:00`) ? ' (so far)' : ''
+  const thisYear = Number(todayNZ().slice(0, 4))
+  const day = (at: number) => Highcharts.dateFormat(new Date(at).getUTCFullYear() === thisYear ? '%e %b' : '%e %b %Y', at)
   switch (period) {
-    case 'daily': return Highcharts.dateFormat('%a %e %b', ms) + soFar
-    case 'weekly': return `${Highcharts.dateFormat('%e %b', ms)} – ${Highcharts.dateFormat('%e %b %Y', ms + 6 * DAY_MS)}${soFar}`
+    case 'daily': return `${Highcharts.dateFormat('%a', ms)} ${day(ms).trim()}${soFar}`
+    case 'weekly': return `${day(ms)} – ${day(ms + 6 * DAY_MS)}${soFar}`
     case 'monthly': return Highcharts.dateFormat('%B %Y', ms) + soFar
     case 'quarterly': {
       const start = new Date(ms)
@@ -227,7 +230,7 @@ export function tooltipTime(ms: number, period: AggregatePeriod | null): string 
       return `${Highcharts.dateFormat('%b', ms)} – ${Highcharts.dateFormat('%b %Y', lastMonth)}${soFar}`
     }
     case 'annual': return Highcharts.dateFormat('%Y', ms) + soFar
-    default: return Highcharts.dateFormat('%e %b %I:%M %p', ms)
+    default: return `${day(ms)} ${Highcharts.dateFormat('%I:%M %p', ms)}`
   }
 }
 
