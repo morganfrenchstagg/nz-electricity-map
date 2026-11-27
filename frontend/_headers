@@ -19,6 +19,13 @@
   Access-Control-Allow-Headers: Content-Type, If-None-Match
   Access-Control-Expose-Headers: ETag
 
+# The API catalog (https://www.rfc-editor.org/rfc/rfc9727). Its file has no
+# extension, so its type is set here, with the RFC's profile. The RFC also asks
+# for the Link header, so a HEAD request finds the catalog without the body.
+/.well-known/api-catalog
+  Content-Type: application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"
+  Link: </.well-known/api-catalog>; rel="api-catalog"
+
 # The pages.dev copy of the site isn't for search engines: its pages' canonical
 # links point at the custom domain
 https://:project.pages.dev/*

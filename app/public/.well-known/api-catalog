@@ -1,0 +1,46 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://api.electricitymap.frenchsta.gg",
+      "service-desc": [
+        {
+          "href": "https://api.electricitymap.frenchsta.gg/openapi.json",
+          "type": "application/json"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://api.electricitymap.frenchsta.gg/docs",
+          "type": "text/html"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://api.electricitymap.frenchsta.gg/ping",
+          "type": "text/plain"
+        }
+      ],
+      "license": [
+        {
+          "href": "https://api.electricitymap.frenchsta.gg/v1/attribution",
+          "type": "application/json"
+        }
+      ]
+    },
+    {
+      "anchor": "https://api.electricitymap.frenchsta.gg/mcp",
+      "service-desc": [
+        {
+          "href": "https://electricitymap.frenchsta.gg/.well-known/mcp/server-card.json",
+          "type": "application/json"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://api.electricitymap.frenchsta.gg/ping",
+          "type": "text/plain"
+        }
+      ]
+    }
+  ]
+}
