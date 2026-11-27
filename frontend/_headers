@@ -26,6 +26,16 @@
   Content-Type: application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"
   Link: </.well-known/api-catalog>; rel="api-catalog"
 
+# What agents can find from the home page
+# (https://www.rfc-editor.org/rfc/rfc9727#section-3). Pages joins the lines into
+# one Link header with commas. It doesn't generate Early Hints Link headers from
+# the page's modulepreload links, as they have crossorigin, so none are lost.
+/
+  Link: </.well-known/api-catalog>; rel="api-catalog"
+  Link: <https://api.electricitymap.frenchsta.gg/openapi.json>; rel="service-desc"; type="application/json"
+  Link: <https://api.electricitymap.frenchsta.gg/docs>; rel="service-doc"; type="text/html"
+  Link: </llms.txt>; rel="describedby"; type="text/plain"
+
 # The pages.dev copy of the site isn't for search engines: its pages' canonical
 # links point at the custom domain
 https://:project.pages.dev/*
