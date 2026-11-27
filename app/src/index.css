@@ -326,6 +326,140 @@ a.button-secondary {
   background: var(--color-surface-muted);
 }
 
+/* CompareMenu's button, after the period toggle. As tall as a ToggleGroup. */
+.compare-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.compare-button[data-hovered],
+.compare-button[aria-expanded='true'] {
+  background: var(--color-surface-muted);
+}
+
+.compare-button.is-active {
+  border-color: var(--color-accent-muted);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+
+.compare-button[data-disabled] {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.compare-button[data-focus-visible] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.compare-chevron {
+  display: flex;
+  color: var(--color-text-faint);
+}
+
+.compare-dialog {
+  outline: none;
+}
+
+.compare-options {
+  min-width: 260px;
+  outline: none;
+}
+
+.compare-options .menu-item {
+  justify-content: space-between;
+  gap: var(--space-xl);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.compare-options .menu-item[data-hovered],
+.compare-options .menu-item[data-focused] {
+  background: var(--color-surface-hover);
+}
+
+.compare-options .menu-item[data-selected] {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-text);
+}
+
+.compare-options .menu-item[data-disabled] {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+.compare-options .menu-item[data-focus-visible] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.compare-option-dates {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.menu-item[data-selected] .compare-option-dates {
+  color: inherit;
+}
+
+/* The custom start's calendar, under the choices */
+.compare-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+  padding: var(--space-md) var(--space-lg) var(--space-xs);
+  border-top: 1px solid var(--color-divider);
+}
+
+/* The days a custom period runs on to, after the one picked */
+.calendar--compare .calendar-cell.is-in-span {
+  border-radius: 0;
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-text);
+}
+
+/* The legend over a chart compared with an earlier period: the view's line, then the earlier one's */
+.compare-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-xl);
+  padding: 0 var(--space-xl);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.compare-legend > span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.compare-legend-line {
+  width: 18px;
+  border-top: 2px solid var(--color-reference);
+}
+
+.compare-legend-line--prior {
+  border-top-style: dotted;
+}
+
 /* ToggleGroup's compact form */
 .toggle-select {
   flex-shrink: 0;

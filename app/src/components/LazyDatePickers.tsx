@@ -1,5 +1,5 @@
 import { lazy, startTransition, Suspense, useState } from 'react'
-import type { DatePickerProps, DateRangePickerProps } from './DatePickers'
+import type { CompareCalendarProps, DatePickerProps, DateRangePickerProps } from './DatePickers'
 import { rangeLabel } from './dateLabels'
 import { CalendarIcon } from './icons'
 
@@ -8,6 +8,22 @@ import { CalendarIcon } from './icons'
 const loadPickers = () => import('./DatePickers')
 const LoadedRangePicker = lazy(() => loadPickers().then((m) => ({ default: m.DateRangePicker })))
 const LoadedDatePicker = lazy(() => loadPickers().then((m) => ({ default: m.DatePicker })))
+const LoadedCompareCalendar = lazy(() => loadPickers().then((m) => ({ default: m.CompareCalendar })))
+
+// CompareMenu's calendar, only there once a custom start is picked, so it loads then
+export function CompareCalendar(props: CompareCalendarProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="status-text" style={{ padding: 'var(--space-md)' }}>
+          Loading…
+        </div>
+      }
+    >
+      <LoadedCompareCalendar {...props} />
+    </Suspense>
+  )
+}
 
 // PeriodToggle's calendar button is always shown, so it loads on hover, focus or open
 export function DateRangePicker(props: DateRangePickerProps) {

@@ -230,6 +230,47 @@ export function DatePicker({ value, onChange, min, max, isOpen, onOpenChange, is
   )
 }
 
+export interface CompareCalendarProps {
+  // The first day of the period compared with
+  value: string
+  onChange: (date: string) => void
+  min: string
+  max: string
+  // How many days the period runs, shown after the day picked
+  days: number
+}
+
+// CompareMenu's calendar, picking the day a custom period compared with
+// starts. The days it runs on to are shown as a band after it.
+export function CompareCalendar({ value, onChange, min, max, days }: CompareCalendarProps) {
+  const date = useMemo(() => parseDate(value), [value])
+  const [minValue, maxValue] = useBounds(min, max)
+  const last = useMemo(() => date.add({ days: days - 1 }), [date, days])
+
+  return (
+    <I18nProvider locale={LOCALE}>
+      <Calendar
+        aria-label="Compare from"
+        value={date}
+        onChange={(d) => onChange(d.toString())}
+        minValue={minValue}
+        maxValue={maxValue}
+        className="calendar calendar--compare"
+      >
+        <CalendarHeader />
+        <CalendarGrid className="calendar-grid" weekdayStyle="narrow">
+          {(d) => (
+            <CalendarCell
+              date={d}
+              className={d.compare(date) > 0 && d.compare(last) <= 0 ? 'calendar-cell is-in-span' : 'calendar-cell'}
+            />
+          )}
+        </CalendarGrid>
+      </Calendar>
+    </I18nProvider>
+  )
+}
+
 function useBounds(min: string, max: string): [CalendarDate, CalendarDate] {
   return useMemo(() => [parseDate(min), parseDate(max)], [min, max])
 }

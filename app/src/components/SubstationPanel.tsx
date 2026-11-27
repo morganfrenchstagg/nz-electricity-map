@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import type Highcharts from 'highcharts'
 import type { RecentData, SubstationNode, Unit } from '../types'
 import { useDefinitions } from '../hooks/useDefinitions'
-import { useCodeSelection, useNodeData } from '../hooks/useNodeData'
+import { useCodeSelection, useNodeData, usePriorNodeData } from '../hooks/useNodeData'
+import { alignPrior, priorDescription, priorLine, priorTooltip } from '../utils/compareChart'
+import { CompareLegend } from './CompareMenu'
 import {
   chartKind,
   useDistributedSolar,
@@ -139,6 +141,9 @@ export default function SubstationPanel({
   onClear,
   dateMode,
   onDateModeChange,
+  compare,
+  onCompareChange,
+  prior,
   recentData,
   loading,
   error,
@@ -203,6 +208,9 @@ export default function SubstationPanel({
     getCodes,
   })
   const { effectiveCodes, setActiveCodes, toggleCode } = useCodeSelection(allCodes, node)
+  // The earlier period the view's compared with, charted as dotted lines
+  const priorNode = usePriorNodeData(prior, dateMode, { queryNodes: siteIds, getCodes })
+  const priorChartData = prior && priorNode.chartData
 
   // With several substations, buses are prefixed with their substation's name.
   // Generator units already carry theirs.
@@ -277,9 +285,10 @@ export default function SubstationPanel({
   // A lone code's Total would just repeat it
   const hasTotal = allCodes.length > 1
   // Until toggled, Total shows only with generators or distributed solar: with no
-  // generators, Total is the demand the dashed line adds the estimate to
+  // generators, Total is the demand the dashed line adds the estimate to. It also
+  // shows when compared, as the line the earlier period's is charted for.
   const [totalToggled, setTotalToggled] = useState<boolean | null>(null)
-  const totalShown = hasTotal && (totalToggled ?? (hasGenerators || hasSolar))
+  const totalShown = hasTotal && (totalToggled ?? (hasGenerators || hasSolar || prior !== null))
   const [solarToggled, setSolarToggled] = useState<boolean | null>(null)
   const solarShown = hasSolar && (solarToggled ?? true)
   const [solarDemandToggled, setSolarDemandToggled] = useState<boolean | null>(null)
@@ -366,6 +375,44 @@ export default function SubstationPanel({
         )
       : MW_UNIT
 
+    // The earlier period's lines: its Total, or with three or fewer series
+    // showing (or Total hidden), each series it shares with the view. Each
+    // has its load at each earlier row, and the view's at each of its own.
+    const twinEach = shownCodes.length + (totalShown ? 1 : 0) <= 3 || !totalShown
+    const viewMs = chartData.rows.map((row) => nzLocalMs(row.time))
+    const priorMs = priorChartData?.rows.map((row) => nzLocalMs(row.time)) ?? []
+    const aligned = prior && priorChartData ? alignPrior(priorMs, prior.period, viewMs, isAggregate) : null
+    const twins = !priorChartData
+      ? []
+      : [
+          ...(totalShown
+            ? [{ name: TOTAL, colour: TOTAL_COLOUR, before: totalLoads(priorChartData), now: totals }]
+            : []),
+          ...(!twinEach
+            ? []
+            : shownCodes
+                .filter((code) => priorChartData.codes.includes(code))
+                .map((code) => ({
+                  name: labelFor(code),
+                  colour: colourFor(code),
+                  before: priorChartData.rows.map((row) => toLoad(row[code] as number)),
+                  now: chartData.rows.map((row) => toLoad(row[code] as number)),
+                }))),
+        ]
+    const priorSeries =
+      aligned && prior
+        ? twins.map((twin) =>
+            priorLine({
+              name: `${twin.name}, ${prior.period.label}`,
+              colour: twin.colour,
+              data: aligned.points(twin.before.map((load) => load / unit.size)),
+              aggregate: isAggregate,
+              lineWidth: twin.name === TOTAL ? 2 : 1.5,
+            }),
+          )
+        : []
+    const rowByMs = new Map(viewMs.map((ms, i) => [ms, i]))
+
     return nodeChartOptions({
       chartData,
       aggregatePeriod,
@@ -379,6 +426,7 @@ export default function SubstationPanel({
         ...(solar
           ? distributedSolarSeries(chartData, solar, demand, { solar: solarShown, demand: solarDemandShown }, unit.size)
           : []),
+        ...priorSeries,
       ],
       yAxis: {
         title: { text: `Load (${unit.label})` },
@@ -424,14 +472,29 @@ export default function SubstationPanel({
           const note = solarPeriodNote(solarEstimate?.periods[solarPoints[0].index])
           if (note) rows += `<tr><td colspan="3" style="color:var(--color-text-muted)">${note}</td></tr>`
         }
-        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>`
+        // The earlier period's values at the same time, and how they've changed
+        const r = rowByMs.get(this.x)
+        const p = aligned?.indexAt(this.x)
+        const earlier = priorTooltip(
+          p === undefined ? undefined : priorMs[p],
+          twins.map((twin) => ({
+            name: twin.name,
+            colour: twin.colour,
+            before: p === undefined ? null : twin.before[p] / unit.size,
+            now: r === undefined ? null : twin.now[r] / unit.size,
+          })),
+          formatValue,
+          aggregatePeriod,
+        )
+        return `<b>${tooltipTime(this.x, aggregatePeriod)}</b><br/><table>${rows}</table>${earlier}`
       },
       accessibility: timeChartAccessibility(
         `${title} load`,
         (hasGenerators ? 'Load on each bus, with generation as negative load' : 'Load on each bus') +
           (solar
             ? ", and embedded solar estimated from the weather, both on its own and added back onto the buses' load"
-            : ''),
+            : '') +
+          priorDescription(priorSeries.length > 0 ? (prior?.period ?? null) : null),
         aggregatePeriod,
         unit,
         dataInterval(chartData.rows.map((row) => row.time)),
@@ -453,7 +516,13 @@ export default function SubstationPanel({
     aggregatePeriod,
     title,
     hasGenerators,
+    prior,
+    priorChartData,
   ])
+
+  // Which lines the earlier period is charted for, for the legend
+  const priorShownCodes = allCodes.filter((code) => effectiveCodes.has(code)).length
+  const priorNote = totalShown && priorShownCodes + 1 > 3 ? `${TOTAL} only` : undefined
 
   const showUnitSelector = allCodes.length > 1
   const leadButtons = [
@@ -557,10 +626,13 @@ export default function SubstationPanel({
         <DateControls
           dateMode={dateMode}
           picker={datePicker}
+          compare={compare}
+          onCompareChange={onCompareChange}
           compact={compactToolbar}
           lastUpdated={lastUpdated}
-          loading={dataLoading || waitingForSolar}
+          loading={dataLoading || waitingForSolar || priorNode.loading}
           error={dataError}
+          priorError={priorNode.error !== null}
           empty={allCodes.length === 0}
         />
       </PanelToolbar>
@@ -580,6 +652,9 @@ export default function SubstationPanel({
       )}
 
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
+        {prior && priorChartData && chartOptions && (
+          <CompareLegend dateMode={dateMode} period={prior.period} note={priorNote} />
+        )}
         <NodeChart
           chartKey={`${siteKey}-${String(panel.expanded)}-${aggregatePeriod ?? 'live'}`}
           options={chartOptions}

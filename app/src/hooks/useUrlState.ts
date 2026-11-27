@@ -6,6 +6,8 @@ import { FIRST_DAY } from './useAggregates'
 import { CHART_SETTING_PARAMS, readChartSettings, writeChartSettings } from '../utils/chartSettings'
 import type { ChartSettings } from '../utils/chartSettings'
 import { generatorSlug, isHistoricPath, nodeParamOfPath, stationPath, substationSlug } from '../utils/stationPaths'
+import { parseCompare } from '../utils/compare'
+import type { Compare } from '../utils/compare'
 
 export type ViewMode = 'generation' | 'offers'
 
@@ -23,6 +25,8 @@ export type ViewMode = 'generation' | 'offers'
 //                   monthly or quarterly (All), or instead
 //   ?date=          a single day, or
 //   ?from=&to=      a custom range
+//   ?compare=       the earlier period the view is compared with: prev | week |
+//                   year, or the "YYYY-MM-DD" day it starts (see utils/compare)
 //   ?view=offers    the generator panel's Offers view, with
 //   ?tp=            its trading period
 //   ?fuels=         the grid overview's fuels, when not all
@@ -38,6 +42,7 @@ const PARAMS = [
   'date',
   'from',
   'to',
+  'compare',
   'view',
   'tp',
   'fuels',
@@ -52,6 +57,7 @@ interface UrlState {
   // The open station's page, when it has one
   nodePath: string | null
   dateMode: DateMode
+  compare: Compare | null
   viewMode: ViewMode
   tradingPeriod: number
   activeFuels: Set<string> | null
@@ -90,6 +96,7 @@ function readUrl(): UrlState {
         : date
           ? { kind: 'date', date }
           : periodMode(period, p.get('aggregation')),
+    compare: parseCompare(p.get('compare')),
     viewMode,
     tradingPeriod: viewMode === 'offers' && !isNaN(tp) ? tp : 1,
     activeFuels: fuels ? new Set(fuels.split(',').filter(Boolean)) : null,
@@ -116,6 +123,7 @@ function writeUrl(state: UrlState) {
       p.set('aggregation', dateMode.aggregation)
     }
   }
+  if (state.compare) p.set('compare', state.compare)
   if (state.viewMode === 'offers') {
     p.set('view', 'offers')
     p.set('tp', String(state.tradingPeriod))
@@ -188,6 +196,7 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
   const [linkedPath, setLinkedPath] = useState(initial.nodePath)
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null)
   const [dateMode, setDateMode] = useState(initial.dateMode)
+  const [compare, setCompare] = useState(initial.compare)
   const [viewMode, setViewModeState] = useState(initial.viewMode)
   const [tradingPeriod, setTradingPeriod] = useState(initial.tradingPeriod)
   const [activeFuels, setActiveFuels] = useState(initial.activeFuels)
@@ -238,8 +247,19 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
       ? linkedPath
       : selectedNode && stationPath(selectedNode, generators, substations, dateMode.kind === 'all')
   useEffect(() => {
-    writeUrl({ node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen })
-  }, [node, nodePath, dateMode, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
+    writeUrl({
+      node,
+      nodePath,
+      dateMode,
+      compare,
+      viewMode,
+      tradingPeriod,
+      activeFuels,
+      chartSettings,
+      expanded,
+      pipelineOpen,
+    })
+  }, [node, nodePath, dateMode, compare, viewMode, tradingPeriod, activeFuels, chartSettings, expanded, pipelineOpen])
 
   return {
     selectedNode,
@@ -247,6 +267,8 @@ export function useUrlState(generators: Generator[], substations: Substation[]) 
     openedGenerator,
     dateMode,
     setDateMode,
+    compare,
+    setCompare,
     viewMode,
     setViewMode,
     tradingPeriod,

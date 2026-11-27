@@ -104,6 +104,15 @@ export function ExternalLink({ size }: Props) {
   )
 }
 
+// Two arrows passing, for comparing with an earlier period
+export function Compare({ size }: Props) {
+  return (
+    <Icon size={size}>
+      <path d="M2 5h10M9 2l3 3-3 3M14 11H4M7 8l-3 3 3 3" />
+    </Icon>
+  )
+}
+
 export function CalendarIcon({ size }: Props) {
   return (
     <Icon size={size}>

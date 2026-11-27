@@ -10,7 +10,12 @@ import {
   useDistributedSolarEnergy,
   useShownWithSolar,
 } from '../hooks/useDistributedSolar'
-import type { RecentData, SelectedNode, Unit } from '../types'
+import type { Generator, RecentData, SelectedNode, Unit } from '../types'
+import type { SolarEnergy, SolarProduction } from '../api'
+import type { Period } from '../utils/time'
+import type { Compare, PriorData } from '../utils/compare'
+import { alignPrior, changeText, priorDescription, priorLine, priorTotalLines } from '../utils/compareChart'
+import { CompareLegend } from './CompareMenu'
 import { inServiceAt, inServiceDuring, isCommissioning } from '../utils/generators'
 import { useDefinitions } from '../hooks/useDefinitions'
 import {
@@ -112,9 +117,111 @@ const FOSSIL_TOOLTIP_GROUP: (typeof TOOLTIP_GROUPS)[number] = {
   parts: ['GAS', 'CLG', 'DIE'].map((fuel) => [fuelCodeLabel(fuel), fuelCodeLabel(fuel)]),
 }
 
+// What the HVDC brought into the island shown, and took out of it, at each of
+// the data's rows, with its limits each way: MW at each time, or on the
+// aggregate views MWh over each period, in which it can have flowed both ways.
+// The 3d view only has em6's last day of it (see HvdcData). Null for all of NZ.
+type HvdcRow = { in: number; out: number; inLimit: number; outLimit: number } | null
+
+function hvdcRowsOf(data: RecentData | null, island: Island, isAggregate: boolean): HvdcRow[] | null {
+  if (island === 'all' || !data?.hvdc) return null
+  const times = data.data.map((row) => row[0] as string)
+  return isAggregate
+    ? hvdcEnergyInto(island, data.hvdc, times).map((energy) => energy && { ...energy, inLimit: 0, outLimit: 0 })
+    : hvdcInto(island, data.hvdc, times).map(
+        (t) => t && { in: Math.max(t.mw, 0), out: Math.max(-t.mw, 0), inLimit: t.inLimit, outLimit: t.outLimit },
+      )
+}
+
+// The estimated output of solar that isn't dispatched, at the GXPs kept,
+// charted as a fuel of its own: its MW at each of the data's times, or on the
+// aggregate views its MWh in each period, with today's estimate so far added
+// to the period so far, null where there's no estimate. Null when the estimate
+// covers none of them.
+function distributedSolarOf(
+  data: RecentData | null,
+  solarDays: SolarProduction[] | undefined,
+  solarEnergyFiles: SolarEnergy[] | undefined,
+  includeGxp: (gxp: string) => boolean,
+  isAggregate: boolean,
+): { values: (number | null)[]; capacityByDate: Map<string, number> } | null {
+  if (!data || !solarDays || !solarEnergyFiles || (isAggregate ? solarEnergyFiles : solarDays).length === 0) return null
+  if (isAggregate) {
+    const today = todayNZ()
+    const energy = distributedSolarEnergy(
+      solarEnergyFiles,
+      includeGxp,
+      today,
+      solarSoFar(solarDays, today, nzNowMs(), includeGxp),
+    )
+    const values = data.data.map((row) => energy.get((row[0] as string).slice(0, 10))?.mwh ?? null)
+    return values.some((v) => v !== null) ? { values, capacityByDate: new Map<string, number>() } : null
+  }
+  const values = distributedSolarAt(
+    solarDays,
+    data.data.map((row) => nzLocalMs(row[0] as string)),
+    includeGxp,
+  )
+  return values.some((v) => v !== null)
+    ? { values, capacityByDate: distributedSolarCapacities(solarDays, includeGxp) }
+    : null
+}
+
+// Each fuel's columns in the data, of the units on the island shown. The live
+// views also chart units still being commissioned once they're dispatching,
+// though they don't count towards capacity, and the aggregate views include
+// retired units' history.
+function fuelIndicesOf(
+  data: RecentData,
+  generators: Generator[],
+  island: Island,
+  period: Period,
+  live: boolean,
+  isAggregate: boolean,
+): Map<string, number[]> {
+  const fuelToIndices = new Map<string, number[]>()
+  for (const gen of generators) {
+    if (island !== 'all' && gen.island !== island) continue
+    for (const unit of gen.units) {
+      if (!inServiceDuring(unit, period) && !(live && isCommissioning(unit, period.to)) && !isAggregate) continue
+      const idx = data.series.indexOf(unit.node)
+      if (idx === -1) continue
+      fuelToIndices.set(unit.fuelCode, [...(fuelToIndices.get(unit.fuelCode) ?? []), idx + 1])
+    }
+  }
+  return fuelToIndices
+}
+
+// A fuel's total at a row of the data. The HVDC's is what flowed in, or out
+// (as a negative), and null where there's none. Stacked, distributed solar is
+// charted at 0 where there's no estimate, as nulls part way up a stack draw
+// from 0 instead. Its line just breaks.
+function fuelTotalOf(
+  data: RecentData,
+  fuelToIndices: Map<string, number[]>,
+  hvdc: HvdcRow[] | null,
+  solarValues: (number | null)[],
+  stacked: boolean,
+) {
+  const hvdcPart = (fuel: string, r: number) => {
+    const transfer = hvdc?.[r]
+    return !transfer ? null : fuel === HVDC_IMPORT_CODE ? transfer.in : -transfer.out || 0 // 0, not -0
+  }
+  return (fuel: string, r: number): number | null =>
+    fuel === DISTRIBUTED_SOLAR_FUEL_CODE
+      ? (solarValues[r] ?? (stacked ? 0 : null))
+      : fuelToIndices.has(fuel)
+        ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + ((data.data[r][i] as number) || 0), 0)
+        : hvdcPart(fuel, r)
+}
+
 interface Props extends PanelProps {
   dateMode: DateMode
   onDateModeChange: (m: DateMode) => void
+  // The earlier period the view is compared with, and its data (see utils/compare)
+  compare: Compare | null
+  onCompareChange: (compare: Compare | null) => void
+  prior: PriorData | null
   onNodeSelect: (node: NonNullable<SelectedNode>) => void
   visible: boolean
   recentData: RecentData | null
@@ -132,6 +239,9 @@ interface Props extends PanelProps {
 export default function GridOverviewPanel({
   dateMode,
   onDateModeChange,
+  compare,
+  onCompareChange,
+  prior,
   onNodeSelect,
   visible,
   recentData,
@@ -181,68 +291,62 @@ export default function GridOverviewPanel({
 
   const datePicker = useDateRangePicker(dateMode, onDateModeChange, compactToolbar)
 
-  // HVDC flow into and out of the shown island per row, with its limits: MW, or
-  // MWh per period on aggregate views (where it can flow both ways in one period).
-  // The 3d view only has em6's last day of it (see HvdcData).
-  const hvdc = useMemo(() => {
-    if (island === 'all' || !data?.hvdc) return null
-    const times = data.data.map((row) => row[0] as string)
-    return isAggregate
-      ? hvdcEnergyInto(island, data.hvdc, times).map((energy) => energy && { ...energy, inLimit: 0, outLimit: 0 })
-      : hvdcInto(island, data.hvdc, times).map(
-          (t) => t && { in: Math.max(t.mw, 0), out: Math.max(-t.mw, 0), inLimit: t.inLimit, outLimit: t.outLimit },
-        )
-  }, [data, island, isAggregate])
-
-  // Estimated undispatched solar on the shown island, charted as its own fuel: MW
-  // per row, or MWh per period on aggregate views (today's estimate so far added
-  // to the current period). Null per row with no estimate, or entirely if none has one.
-  const distributedSolar = useMemo(() => {
-    if (!data || !solarDays || !solarEnergyFiles || (isAggregate ? solarEnergyFiles : solarDays).length === 0)
-      return null
+  // GXPs on the shown island, for its distributed solar estimate
+  const includeGxp = useMemo(() => {
     const islandOf = new Map(substations.map((s) => [s.siteId, s.island === 'north' ? 'NI' : 'SI']))
-    const includeGxp = (gxp: string) => island === 'all' || islandOf.get(gxp) === island
-    if (isAggregate) {
-      const today = todayNZ()
-      const energy = distributedSolarEnergy(
-        solarEnergyFiles,
-        includeGxp,
-        today,
-        solarSoFar(solarDays, today, nzNowMs(), includeGxp),
-      )
-      const values = data.data.map((row) => energy.get((row[0] as string).slice(0, 10))?.mwh ?? null)
-      return values.some((v) => v !== null) ? { values, capacityByDate: new Map<string, number>() } : null
+    return (gxp: string) => island === 'all' || islandOf.get(gxp) === island
+  }, [substations, island])
+
+  const hvdc = useMemo(() => hvdcRowsOf(data, island, isAggregate), [data, island, isAggregate])
+  const distributedSolar = useMemo(
+    () => distributedSolarOf(data, solarDays, solarEnergyFiles, includeGxp, isAggregate),
+    [data, isAggregate, solarDays, solarEnergyFiles, includeGxp],
+  )
+
+  // The earlier period the view's compared with, charted once its data and its
+  // distributed solar estimate have loaded: App's dispatch data for it, or every
+  // node's totals that far back. Not fetched while the panel is hidden.
+  const priorMode = prior?.period.mode ?? null
+  const priorAggregateMode = priorMode && isAggregateMode(priorMode) && visible ? priorMode : null
+  const priorDispatchMode = priorMode && !isAggregateMode(priorMode) ? priorMode : null
+  const priorAggregates = useAggregates('all', priorAggregateMode, prior?.period.shift)
+  const priorSolar = useDistributedSolar(priorDispatchMode ?? dateMode, visible && priorDispatchMode !== null)
+  const priorSolarEnergy = useDistributedSolarEnergy(
+    priorAggregateMode ?? dateMode,
+    priorAggregateMode !== null,
+    prior?.period.shift,
+  )
+  const priorLoaded = priorSolar.loaded && priorSolarEnergy.loaded
+  const priorData =
+    !prior || !priorLoaded ? null : priorAggregateMode ? priorAggregates.aggregateData : prior.recentData
+  const priorLoading = prior !== null && (priorAggregateMode ? priorAggregates.loading : prior.loading)
+  const priorError = prior !== null && (priorAggregateMode ? priorAggregates.error : prior.error) !== null
+  const priorFuels = useMemo(() => {
+    if (!priorData || !priorMode || generators.length === 0) return null
+    // The earlier period's own units, in service then
+    const fuelToIndices = fuelIndicesOf(priorData, generators, island, periodOf(priorMode), false, isAggregate)
+    const solar = distributedSolarOf(priorData, priorSolar.days, priorSolarEnergy.files, includeGxp, isAggregate)
+    return {
+      data: priorData,
+      fuelToIndices,
+      hvdc: hvdcRowsOf(priorData, island, isAggregate),
+      solarValues: solar?.values ?? [],
     }
-    const values = distributedSolarAt(
-      solarDays,
-      data.data.map((row) => nzLocalMs(row[0] as string)),
-      includeGxp,
-    )
-    return values.some((v) => v !== null)
-      ? { values, capacityByDate: distributedSolarCapacities(solarDays, includeGxp) }
-      : null
-  }, [data, isAggregate, solarDays, solarEnergyFiles, substations, island])
+  }, [priorData, priorMode, generators, island, isAggregate, priorSolar.days, priorSolarEnergy.files, includeGxp])
 
   const { fuels, fuelToIndices, fuelToUnits } = useMemo(() => {
     if (!data || generators.length === 0)
       return { fuels: [], fuelToIndices: new Map<string, number[]>(), fuelToUnits: new Map<string, Unit[]>() }
     const period = periodOf(dateMode)
-    const live = isLiveMode(dateMode)
-    const fuelToIndices = new Map<string, number[]>()
+    const fuelToIndices = fuelIndicesOf(data, generators, island, period, isLiveMode(dateMode), isAggregate)
+    // Capacity counts every unit in service, including those that didn't
+    // dispatch, which the data leaves out
     const fuelToUnits = new Map<string, Unit[]>()
     for (const gen of generators) {
       if (island !== 'all' && gen.island !== island) continue
       for (const unit of gen.units) {
-        const inPeriod = inServiceDuring(unit, period)
-        // Capacity counts units in service that didn't dispatch, which the data omits
-        if (inPeriod) fuelToUnits.set(unit.fuelCode, [...(fuelToUnits.get(unit.fuelCode) ?? []), unit])
-        // Live views also chart commissioning units once dispatching (not counted in
-        // capacity); aggregate views include retired units' history
-        if (!inPeriod && !(live && isCommissioning(unit, period.to)) && !isAggregate) continue
-        const idx = data.series.indexOf(unit.node)
-        if (idx === -1) continue
-        const existing = fuelToIndices.get(unit.fuelCode) ?? []
-        fuelToIndices.set(unit.fuelCode, [...existing, idx + 1])
+        if (inServiceDuring(unit, period))
+          fuelToUnits.set(unit.fuelCode, [...(fuelToUnits.get(unit.fuelCode) ?? []), unit])
       }
     }
     // Each HVDC direction with any flow
@@ -309,39 +413,46 @@ export default function GridOverviewPanel({
     // Shown series, and each one's shown fuels
     const shownFuels = seriesFuels.filter(isShown)
     const shownFuelsOf = (fuel: string) => fuelsOf(fuel, fuels, combineSolar).filter((f) => effectiveFuels.has(f))
-    // Stacked, missing solar estimates are charted as 0 (a null mid-stack draws
-    // from 0) but left out of the tooltip. As a line it just breaks.
+    // Left out of the tooltip where there's no solar estimate (see fuelTotalOf)
     const solarValues = distributedSolar?.values ?? []
     const noSolarEstimateMs = new Set(
       data.data.filter((_, r) => solarValues[r] === null).map((row) => nzLocalMs(row[0] as string)),
     )
-    const hvdcPart = (fuel: string, r: number) => {
-      const transfer = hvdc?.[r]
-      return !transfer ? null : fuel === HVDC_IMPORT_CODE ? transfer.in : -transfer.out || 0 // 0, not -0
-    }
-    // The HVDC's total is its inflow, or outflow as a negative; null where there's none
-    const fuelTotal = (fuel: string, r: number): number | null =>
-      fuel === DISTRIBUTED_SOLAR_FUEL_CODE
-        ? (solarValues[r] ?? (stacked ? 0 : null))
-        : fuelToIndices.has(fuel)
-          ? fuelToIndices.get(fuel)!.reduce((sum, i) => sum + ((data.data[r][i] as number) || 0), 0)
-          : hvdcPart(fuel, r)
+    const fuelTotal = fuelTotalOf(data, fuelToIndices, hvdc, solarValues, stacked)
     // Per row, each shown series' total; null where all its shown fuels are null
-    const fuelTotals = data.data.map((_, r) =>
-      shownFuels.map((fuel) => {
-        const totals = shownFuelsOf(fuel).map((f) => fuelTotal(f, r))
-        return totals.every((t) => t === null) ? null : totals.reduce((sum: number, t) => sum + (t ?? 0), 0)
-      }),
-    )
+    const seriesTotals = (total: typeof fuelTotal, rows: number) =>
+      Array.from({ length: rows }, (_, r) =>
+        shownFuels.map((fuel) => {
+          const totals = shownFuelsOf(fuel).map((f) => total(f, r))
+          return totals.every((t) => t === null) ? null : totals.reduce((sum: number, t) => sum + (t ?? 0), 0)
+        }),
+      )
+    const fuelTotals = seriesTotals(fuelTotal, data.data.length)
+    // The earlier period's, by its own rows, with their times on the view's axis
+    const priorFuelTotal =
+      priorFuels &&
+      fuelTotalOf(priorFuels.data, priorFuels.fuelToIndices, priorFuels.hvdc, priorFuels.solarValues, stacked)
+    const priorTotals = priorFuels && priorFuelTotal ? seriesTotals(priorFuelTotal, priorFuels.data.data.length) : null
+    const priorMs = priorFuels?.data.data.map((row) => nzLocalMs(row[0] as string)) ?? []
+    const aligned =
+      prior && priorTotals
+        ? alignPrior(
+            priorMs,
+            prior.period,
+            data.data.map((row) => nzLocalMs(row[0] as string)),
+            isAggregate,
+          )
+        : null
     // Aggregate totals are MWh, charted in GWh unless the columns stay small
     const unit = isAggregate ? energyUnit(chartReach(fuelTotals, stacked)) : MW_UNIT
     // Live MW past 2 GW is labelled in GW on the axis to keep labels short. Data
     // and tooltip stay in MW, matching the capacities.
     const axisInGW = !isAggregate && !proportion && chartReach(fuelTotals, stacked) > 2000
     // Total generation per row, as in the tooltip: everything stacked above zero
-    const generationTotals = fuelTotals.map((totals) =>
-      totals.reduce((sum: number, total) => sum + Math.max(total ?? 0, 0), 0),
-    )
+    const generationOf = (totals: (number | null)[]) =>
+      totals.reduce((sum: number, total) => sum + Math.max(total ?? 0, 0), 0)
+    const generationTotals = fuelTotals.map(generationOf)
+    const priorGeneration = priorTotals?.map(generationOf) ?? []
     const shareOf = (total: number, r: number) => (generationTotals[r] > 0 ? (total / generationTotals[r]) * 100 : 0)
 
     // Stacked aggregates are columns, which stack negatives (battery charging)
@@ -356,6 +467,9 @@ export default function GridOverviewPanel({
       const colour = fuelCodeColour(fuel)
       return {
         type: !stacked ? 'line' : columns ? 'column' : 'area',
+        // Each fuel's own, so an update in place matches series by fuel rather
+        // than by position, which the earlier period's dotted lines can take
+        id: fuel,
         name: fuelLabel(fuel, island),
         color: colour,
         // Covers 1px rounding gaps between columns (see nodeChartOptions)
@@ -380,6 +494,33 @@ export default function GridOverviewPanel({
         animation: false,
       }
     })
+
+    // The earlier period's dotted lines: its total over the stack, or each fuel's as
+    // lines. Shares always add to 100%, so proportion only has it in the tooltip.
+    if (aligned && prior && priorTotals) {
+      const label = prior.period.label
+      if (stacked && !proportion) {
+        series.push(
+          ...priorTotalLines({
+            name: `Total, ${label}`,
+            colour: 'var(--color-reference)',
+            data: aligned.points(priorGeneration.map((total) => total / unit.size)),
+            aggregate: isAggregate,
+          }),
+        )
+      } else if (!stacked) {
+        series.push(
+          ...shownFuels.map((fuel, f) =>
+            priorLine({
+              name: `${fuelLabel(fuel, island)}, ${label}`,
+              colour: fuelCodeColour(fuel),
+              data: aligned.points(priorTotals.map((totals) => (totals[f] === null ? null : totals[f] / unit.size))),
+              aggregate: isAggregate,
+            }),
+          ),
+        )
+      }
+    }
 
     // Row index per time, for the tooltip's fuel totals
     const rowByMs = new Map(data.data.map((row, r) => [nzLocalMs(row[0] as string), r]))
@@ -441,11 +582,11 @@ export default function GridOverviewPanel({
       title: { text: undefined },
       ...timeChartAccessibility(
         `${island === 'all' ? 'New Zealand' : island === 'NI' ? 'North Island' : 'South Island'} generation by fuel`,
-        proportion
+        (proportion
           ? "Each fuel's share of the total generation, stacked"
           : stacked
             ? 'Generation from each fuel, stacked'
-            : 'Generation from each fuel',
+            : 'Generation from each fuel') + priorDescription(aligned && !proportion ? (prior?.period ?? null) : null),
         aggregatePeriod,
         proportion ? PERCENT_UNIT : unit,
         dataInterval(data.data.map((row) => row[0] as string)),
@@ -502,12 +643,27 @@ export default function GridOverviewPanel({
           // Generation per fuel comes from fuelTotal, not the point: proportion
           // points are shares, and a combined series' point sums its fuels.
           const r = rowByMs.get(x)
+          // The earlier period's row at the same time, whose values take the
+          // capacity column's place
+          const pr = aligned?.indexAt(x)
+          const comparing = aligned !== null
+          const beforeOf = (fuel: string) => {
+            const before = pr === undefined || !priorFuelTotal ? null : priorFuelTotal(fuel, pr)
+            return before === null ? null : before / unit.size
+          }
           const fuelPoints = points.flatMap((p) =>
             shownFuelsOf(shownFuels[p.series.index]).flatMap((fuel) => {
               const total = r === undefined ? null : fuelTotal(fuel, r)
               return total === null || (fuel === DISTRIBUTED_SOLAR_FUEL_CODE && noSolarEstimateMs.has(x))
                 ? []
-                : [{ name: fuelLabel(fuel, island), colour: fuelCodeColour(fuel), y: total / unit.size }]
+                : [
+                    {
+                      name: fuelLabel(fuel, island),
+                      colour: fuelCodeColour(fuel),
+                      y: total / unit.size,
+                      before: beforeOf(fuel),
+                    },
+                  ]
             }),
           )
           // The total is what's stacked above zero: generation plus, for an island,
@@ -516,17 +672,28 @@ export default function GridOverviewPanel({
           const total = fuelPoints.reduce((sum, p) => sum + Math.max(p.y, 0), 0)
 
           // Group parts are indented and not bold, to set the heading apart
-          const row = (label: string, colour: string, y: number, cap: number, indent = false) => {
+          const row = (
+            label: string,
+            colour: string,
+            y: number,
+            cap: number,
+            before: number | null,
+            indent = false,
+          ) => {
             const bold = (text: string) => (indent ? text : `<b>${text}</b>`)
             const val = formatValue(y)
             const formatted = y === 0 ? val : bold(val)
             const ratioOfTotal = total > 0 ? y / total : 0
             const percentageStr =
               ratioOfTotal !== 0 ? bold(`${(ratioOfTotal * 100).toFixed(1)}%`) : total > 0 ? '0%' : '–'
-            // No capacity comparison for aggregate totals
-            const capCell = isAggregate
-              ? ''
-              : `<td style="color:var(--color-text-muted);padding-left:var(--space-lg)">${cap > 0 ? formatMW(cap) : '–'}</td>`
+            // Compared, the earlier period's value; otherwise capacity, but
+            // not for aggregate totals
+            const muted = 'color:var(--color-text-muted);padding-left:var(--space-lg)'
+            const capCell = comparing
+              ? `<td style="${muted}">${before !== null ? formatValue(before) : '–'}</td>`
+              : isAggregate
+                ? ''
+                : `<td style="${muted}">${cap > 0 ? formatMW(cap) : '–'}</td>`
             const labelStyle = indent ? ' style="padding-left:var(--space-lg)"' : ''
             return `<tr><td${labelStyle}><span style="color:${colour}">●</span> ${label}</td><td> ${formatted}</td>${capCell}<td style="padding-left:var(--space-lg)">${percentageStr}</td></tr>`
           }
@@ -548,20 +715,25 @@ export default function GridOverviewPanel({
           const rows = fuelPoints
             .map((p) => {
               const grouped = groupOf(p)
-              if (!grouped) return row(p.name, p.colour, p.y, capacityAt(p.name, x))
+              if (!grouped) return row(p.name, p.colour, p.y, capacityAt(p.name, x), p.before)
               if (fuelPoints.filter((s) => groupOf(s) === grouped).pop() !== p) return ''
               const { group, points: parts } = grouped
               const colour = fuelCodeColour(group.colourFuel)
+              const partsBefore = parts.every(({ p }) => p.before === null)
+                ? null
+                : parts.reduce((sum, { p }) => sum + (p.before ?? 0), 0)
               const heading = group.totals
                 ? row(
                     group.label,
                     colour,
                     parts.reduce((sum, { p }) => sum + p.y, 0),
                     parts.reduce((sum, { p }) => sum + capacityAt(p.name, x), 0),
+                    partsBefore,
                   )
                 : `<tr><td><span style="color:${colour}">●</span> ${group.label}</td></tr>`
               return (
-                heading + parts.map(({ p, label }) => row(label, p.colour, p.y, capacityAt(p.name, x), true)).join('')
+                heading +
+                parts.map(({ p, label }) => row(label, p.colour, p.y, capacityAt(p.name, x), p.before, true)).join('')
               )
             })
             .join('')
@@ -575,12 +747,26 @@ export default function GridOverviewPanel({
           const renewablePct = renewablePctByMs.get(this.x)
           const renewableRow =
             renewablePct != null ? `<br/><span>Renewable: <b>${Math.round(renewablePct)}%</b></span>` : ''
-          const capHeader = isAggregate ? '' : '<th style="padding-left:var(--space-lg)">Capacity</th>'
+          const priorTime = pr === undefined ? null : tooltipTime(priorMs[pr], aggregatePeriod)
+          const capHeader = comparing
+            ? `<th style="padding-left:var(--space-lg)">${priorTime ?? prior?.period.label ?? ''}</th>`
+            : isAggregate
+              ? ''
+              : '<th style="padding-left:var(--space-lg)">Capacity</th>'
+          // The earlier period's total of the same fuels, and the change since
+          const totalBefore = pr === undefined ? null : priorGeneration[pr] / unit.size
+          const totalChange =
+            totalBefore !== null
+              ? ` <span style="color:var(--color-text-muted)">· ${changeText(total, totalBefore, formatValue)} on ${priorTime}</span>`
+              : ''
           // One line per row, or long labels wrap the table on a narrow panel
-          return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${renewableRow}${priceRow}`
+          return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${totalChange}${renewableRow}${priceRow}`
         },
       },
-      series,
+      // Each in its place, which is the order they stack in. The fuels are
+      // matched by id when the chart's updated in place, and one shown again
+      // would otherwise be added after the rest, at the bottom of the stack.
+      series: series.map((s, index) => ({ ...s, index })),
     }
   }, [
     data,
@@ -600,6 +786,8 @@ export default function GridOverviewPanel({
     distributedSolar,
     stacked,
     proportion,
+    prior,
+    priorFuels,
   ])
 
   // On the narrowest panels the title truncates to keep the picker's chevron in view
@@ -666,10 +854,13 @@ export default function GridOverviewPanel({
         <DateControls
           dateMode={dateMode}
           picker={datePicker}
+          compare={compare}
+          onCompareChange={onCompareChange}
           compact={compactToolbar}
           lastUpdated={lastUpdated}
-          loading={dataLoading || waitingForSolar}
+          loading={dataLoading || waitingForSolar || priorLoading}
           error={dataError}
+          priorError={priorError}
           empty={!data}
         />
         {/* At the toolbar's end, under the header's Close */}
@@ -708,6 +899,13 @@ export default function GridOverviewPanel({
       )}
 
       <div style={{ paddingTop: 'var(--space-md)', flex: 1, minHeight: 0, height: '100%' }}>
+        {prior && priorFuels && chartOptions && (
+          <CompareLegend
+            dateMode={dateMode}
+            period={prior.period}
+            note={chartType === 'proportion' ? 'in the tooltip' : chartType === 'line' ? 'each fuel' : undefined}
+          />
+        )}
         {(dataLoading || waitingForSolar) && !data && (
           <div
             style={{

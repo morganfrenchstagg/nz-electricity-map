@@ -123,31 +123,53 @@ function monthlyYearsBetween(from: string, to: string): string[] {
   return years
 }
 
-// An aggregate view's dates, and the aggregate files holding them (see fetchAggregates)
-export function aggregateWindow(mode: AggregateMode): { from: string; to: string; paths: string[] } {
+// How far back a view's earlier period is (see utils/compare): whole days for the
+// 5-minute views and daily and weekly totals, otherwise whole months
+export type Shift = { days: number } | { months: number }
+
+// A "YYYY-MM-DD" date `shift` earlier, or later with `sign` 1
+export function shiftDate(date: string, shift: Shift, sign: 1 | -1 = -1): string {
+  const ms = Date.parse(`${date}T00:00:00Z`)
+  if ('days' in shift) return isoDate(ms + sign * shift.days * DAY_MS)
+  const d = new Date(ms)
+  d.setUTCMonth(d.getUTCMonth() + sign * shift.months)
+  return isoDate(d.getTime())
+}
+
+// The dates an aggregate view's chart covers, before any shift
+function viewWindow(mode: AggregateMode): { from: string; to: string } {
   if (mode.kind === 'last90' || mode.kind === 'lastYear') {
-    const { from, to } = weekWindow(mode.kind === 'last90' ? NINETY_DAY_RANGE_WEEKS : WEEKLY_RANGE_WEEKS)
-    // Daily totals cover the same weeks, to today
-    if (mode.aggregation === 'daily') return { from, to: todayNZ(), paths: monthsBetween(from, todayNZ()) }
-    return { from, to, paths: weeklyYearsBetween(from, to) }
+    const weeks = weekWindow(mode.kind === 'last90' ? NINETY_DAY_RANGE_WEEKS : WEEKLY_RANGE_WEEKS)
+    // Daily totals cover the same weeks, by day, to today
+    return mode.aggregation === 'daily' ? { from: weeks.from, to: todayNZ() } : weeks
   }
   if (mode.kind === '5y') {
-    const { from, to } = monthWindow(MONTHLY_RANGE_MONTHS)
-    if (mode.aggregation === 'weekly') {
-      // Weekly totals cover the weeks starting in the same months
-      const weeks = { from: firstMondayFrom(from), to: isoDate(thisMonday()) }
-      return { ...weeks, paths: weeklyYearsBetween(weeks.from, weeks.to) }
-    }
-    return { from, to, paths: monthlyYearsBetween(from, to) }
+    const months = monthWindow(MONTHLY_RANGE_MONTHS)
+    // Weekly totals cover the same months, by the weeks starting in them
+    return mode.aggregation === 'weekly' ? { from: firstMondayFrom(months.from), to: isoDate(thisMonday()) } : months
   }
-  if (mode.aggregation === 'annual') {
-    // Every year's totals are in one file
-    return { ...yearWindow(), paths: ['annual'] }
+  if (mode.aggregation === 'annual') return yearWindow()
+  return mode.aggregation === 'monthly' ? allMonthsWindow() : quarterWindow()
+}
+
+// An aggregate view's dates, `shift` earlier for the period compared with, and the
+// aggregate files holding them (see fetchAggregates)
+export function aggregateWindow(mode: AggregateMode, shift?: Shift): { from: string; to: string; paths: string[] } {
+  const window = viewWindow(mode)
+  const { from, to } = shift ? { from: shiftDate(window.from, shift), to: shiftDate(window.to, shift) } : window
+  switch (mode.aggregation) {
+    case 'daily':
+      return { from, to, paths: monthsBetween(from, to) }
+    case 'weekly':
+      return { from, to, paths: weeklyYearsBetween(from, to) }
+    // Every year's totals are in the one file
+    case 'annual':
+      return { from, to, paths: ['annual'] }
+    // Quarters are summed from monthly totals, as there's no quarterly API (see
+    // sumQuarters). Years with no data yet 404, and come back empty (see fetchAggregates).
+    default:
+      return { from, to, paths: monthlyYearsBetween(from, to) }
   }
-  // Quarters are summed from monthly totals, as there's no quarterly API (see
-  // sumQuarters). Years with no data yet 404, and come back empty (see fetchAggregates).
-  const { from, to } = mode.aggregation === 'monthly' ? allMonthsWindow() : quarterWindow()
-  return { from, to, paths: monthlyYearsBetween(from, to) }
 }
 
 // Sums ordered monthly rows into quarters, keyed by first day. A quarter
@@ -199,17 +221,20 @@ export function foldMovedNodes(data: RecentData, movedNodes: Record<string, stri
  * are shaped like dispatch data, timestamped at local midnight at each period's
  * start, so they share the chart helpers. HVDC totals each way come as `hvdc`.
  * Pass 'all' for every node, or null to skip fetching.
+ * `shift` fetches the window that much earlier, for the period compared with
+ * (see utils/compare).
  */
 export function useAggregates(
   nodes: string[] | 'all' | null,
   mode: AggregateMode | null,
+  shift?: Shift,
 ): {
   aggregateData: RecentData | null
   loading: boolean
   error: string | null
 } {
   // A new dateMode object for the same view doesn't refetch
-  const modeKey = mode && JSON.stringify(mode)
+  const modeKey = mode && JSON.stringify([mode, shift ?? null])
   // Tagged with its view so switching (e.g. 90d to 1y) doesn't briefly chart one
   // view's rows formatted as the other's
   const [result, setResult] = useState<{ modeKey: string; data: RecentData } | null>(null)
@@ -226,7 +251,7 @@ export function useAggregates(
     setLoading(true)
     setError(null)
 
-    const { from, to, paths } = aggregateWindow(mode)
+    const { from, to, paths } = aggregateWindow(mode, shift)
     // Rows within the window (summed into quarters if needed), timestamped at local midnight
     const windowRows = (rows: (string | number)[][]) =>
       (aggregatePeriodOf(mode) === 'quarterly' ? sumQuarters(rows) : rows)
