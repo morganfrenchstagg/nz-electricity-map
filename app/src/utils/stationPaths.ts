@@ -34,11 +34,19 @@ function uniqueSlug(name: string, code: string, names: string[]): string {
 }
 
 export function generatorSlug(g: Generator, generators: Generator[]): string {
-  return uniqueSlug(g.name, g.site, generators.map((o) => o.name))
+  return uniqueSlug(
+    g.name,
+    g.site,
+    generators.map((o) => o.name),
+  )
 }
 
 export function substationSlug(s: Substation, substations: Substation[]): string {
-  return uniqueSlug(s.description, s.siteId, substations.map((o) => o.description))
+  return uniqueSlug(
+    s.description,
+    s.siteId,
+    substations.map((o) => o.description),
+  )
 }
 
 export function generatorPath(g: Generator, generators: Generator[]): string {
@@ -62,8 +70,14 @@ export function substationPath(s: Substation, substations: Substation[]): string
 
 // The page of the station a node is, or null for several stations. A generator
 // shown at All (`historic`) is on its history's page.
-export function stationPath(node: NonNullable<SelectedNode>, generators: Generator[], substations: Substation[], historic = false): string | null {
-  if (node.kind === 'generator') return historic ? generatorHistoricPath(node.generator, generators) : generatorPath(node.generator, generators)
+export function stationPath(
+  node: NonNullable<SelectedNode>,
+  generators: Generator[],
+  substations: Substation[],
+  historic = false,
+): string | null {
+  if (node.kind === 'generator')
+    return historic ? generatorHistoricPath(node.generator, generators) : generatorPath(node.generator, generators)
   if (node.kind === 'substation') return substationPath(node.substation, substations)
   if (node.kind === 'hvdc') return HVDC_PATH
   return null
@@ -74,10 +88,16 @@ export function stationPath(node: NonNullable<SelectedNode>, generators: Generat
 export function nodeParamOfPath(pathname: string): string | null {
   const path = pathname.replace(/\/+$/, '')
   if (path === HVDC_PATH) return 'hvdc'
-  const match = /^\/(generator|substation)\/([^/]+)$/.exec(isHistoricPath(path) ? path.slice(0, -HISTORIC.length) : path)
+  const match = /^\/(generator|substation)\/([^/]+)$/.exec(
+    isHistoricPath(path) ? path.slice(0, -HISTORIC.length) : path,
+  )
   if (!match) return null
   let slug: string
-  try { slug = decodeURIComponent(match[2]).toLowerCase() } catch { return null }
+  try {
+    slug = decodeURIComponent(match[2]).toLowerCase()
+  } catch {
+    return null
+  }
   return `${match[1]}:${slug}`
 }
 

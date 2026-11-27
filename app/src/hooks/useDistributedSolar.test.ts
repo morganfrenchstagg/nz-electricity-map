@@ -18,7 +18,12 @@ describe('solarDatesOf', () => {
 
   it('is each day of a past day or range', () => {
     expect(solarDatesOf({ kind: 'date', date: '2026-10-01' })).toEqual(['2026-10-01'])
-    expect(solarDatesOf({ kind: 'range', from: '2026-09-29', to: '2026-10-02' })).toEqual(['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02'])
+    expect(solarDatesOf({ kind: 'range', from: '2026-09-29', to: '2026-10-02' })).toEqual([
+      '2026-09-29',
+      '2026-09-30',
+      '2026-10-01',
+      '2026-10-02',
+    ])
   })
 
   it('reaches back as far as a view does, leaving the API to 404 a day it has no estimate for', () => {
@@ -63,7 +68,9 @@ describe('chartKind', () => {
   it('is the same for every 5-minute view, but each aggregate view’s own', () => {
     expect(chartKind({ kind: 'today' })).toBe(chartKind({ kind: 'date', date: '2026-10-01' }))
     expect(chartKind({ kind: 'last90', aggregation: 'daily' })).not.toBe(chartKind({ kind: 'today' }))
-    expect(chartKind({ kind: 'last90', aggregation: 'daily' })).not.toBe(chartKind({ kind: 'last90', aggregation: 'weekly' }))
+    expect(chartKind({ kind: 'last90', aggregation: 'daily' })).not.toBe(
+      chartKind({ kind: 'last90', aggregation: 'weekly' }),
+    )
   })
 
   it('keeps one node’s apart from another’s', () => {
@@ -77,12 +84,18 @@ describe('shownWithSolar', () => {
   const today: View = { data: 'today', solar: 'estimate' }
 
   it('charts the value once it isn’t waiting on its estimate, and holds it for its kind of chart', () => {
-    expect(shownWithSolar(today, 'dispatch', true, false, null)).toEqual({ shown: today, held: { kind: 'dispatch', value: today } })
+    expect(shownWithSolar(today, 'dispatch', true, false, null)).toEqual({
+      shown: today,
+      held: { kind: 'dispatch', value: today },
+    })
   })
 
   it('charts what’s held for the same kind of chart while it waits', () => {
     const held = { kind: 'dispatch', value: today }
-    expect(shownWithSolar<View>({ data: '3d', solar: null }, 'dispatch', true, true, held)).toEqual({ shown: today, held })
+    expect(shownWithSolar<View>({ data: '3d', solar: null }, 'dispatch', true, true, held)).toEqual({
+      shown: today,
+      held,
+    })
   })
 
   it('charts nothing while it waits, rather than another kind of chart', () => {

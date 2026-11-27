@@ -1,10 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecentData } from '../types'
-import { aggregatePeriodOf, aggregateWindow, foldMovedNodes, MONTHLY_RANGE_MONTHS, NINETY_DAY_RANGE_WEEKS, sumQuarters, WEEKLY_RANGE_WEEKS, yesterdayNZ } from './useAggregates'
+import {
+  aggregatePeriodOf,
+  aggregateWindow,
+  foldMovedNodes,
+  MONTHLY_RANGE_MONTHS,
+  NINETY_DAY_RANGE_WEEKS,
+  sumQuarters,
+  WEEKLY_RANGE_WEEKS,
+  yesterdayNZ,
+} from './useAggregates'
 import { daysBetween } from './useDispatchData'
 
-beforeEach(() => { vi.useFakeTimers() })
-afterEach(() => { vi.useRealTimers() })
+beforeEach(() => {
+  vi.useFakeTimers()
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('yesterdayNZ', () => {
   it('is the day before NZ today', () => {
@@ -26,7 +39,7 @@ describe('yesterdayNZ', () => {
 })
 
 describe('aggregatePeriodOf', () => {
-  it('is the period each of an aggregate view\'s totals covers', () => {
+  it("is the period each of an aggregate view's totals covers", () => {
     expect(aggregatePeriodOf({ kind: 'last90', aggregation: 'weekly' })).toBe('weekly')
     expect(aggregatePeriodOf({ kind: 'last90', aggregation: 'daily' })).toBe('daily')
     expect(aggregatePeriodOf({ kind: 'lastYear', aggregation: 'weekly' })).toBe('weekly')
@@ -55,7 +68,11 @@ describe('aggregateWindow', () => {
 
     it('fetches each week from the year its Thursday falls in', () => {
       vi.setSystemTime('2026-01-14T01:00:00Z') // 2pm NZDT on Wednesday the 14th
-      expect(aggregateWindow({ kind: 'last90', aggregation: 'weekly' })).toEqual({ from: '2025-10-20', to: '2026-01-12', paths: ['2025/weekly', '2026/weekly'] })
+      expect(aggregateWindow({ kind: 'last90', aggregation: 'weekly' })).toEqual({
+        from: '2025-10-20',
+        to: '2026-01-12',
+        paths: ['2025/weekly', '2026/weekly'],
+      })
     })
   })
 
@@ -97,10 +114,18 @@ describe('aggregateWindow', () => {
     it('fetches each week from the year its Thursday falls in', () => {
       // Week 1 of 2025 starts on Monday 30 December 2024
       vi.setSystemTime('2025-12-24T01:00:00Z') // 2pm NZDT on Wednesday the 24th
-      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({ from: '2024-12-30', to: '2025-12-22', paths: ['2025/weekly'] })
+      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({
+        from: '2024-12-30',
+        to: '2025-12-22',
+        paths: ['2025/weekly'],
+      })
       // ...and week 1 of 2026 on Monday 29 December 2025
       vi.setSystemTime('2025-12-31T01:00:00Z') // 2pm NZDT on Wednesday the 31st
-      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({ from: '2025-01-06', to: '2025-12-29', paths: ['2025/weekly', '2026/weekly'] })
+      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'weekly' })).toEqual({
+        from: '2025-01-06',
+        to: '2025-12-29',
+        paths: ['2025/weekly', '2026/weekly'],
+      })
     })
   })
 
@@ -110,15 +135,29 @@ describe('aggregateWindow', () => {
       const window = aggregateWindow({ kind: 'lastYear', aggregation: 'daily' })
       expect(window).toMatchObject({ from: '2025-10-20', to: '2026-10-14' })
       expect(window.paths).toEqual([
-        '2025/10', '2025/11', '2025/12', '2026/01', '2026/02', '2026/03', '2026/04',
-        '2026/05', '2026/06', '2026/07', '2026/08', '2026/09', '2026/10',
+        '2025/10',
+        '2025/11',
+        '2025/12',
+        '2026/01',
+        '2026/02',
+        '2026/03',
+        '2026/04',
+        '2026/05',
+        '2026/06',
+        '2026/07',
+        '2026/08',
+        '2026/09',
+        '2026/10',
       ])
       expect(window.from).toBe(aggregateWindow({ kind: 'lastYear', aggregation: 'weekly' }).from)
     })
 
     it("ends on NZ's today, while it's still yesterday in UTC", () => {
       vi.setSystemTime('2026-10-11T11:30:00Z') // 12:30am NZDT on Monday the 12th
-      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'daily' })).toMatchObject({ from: '2025-10-20', to: '2026-10-12' })
+      expect(aggregateWindow({ kind: 'lastYear', aggregation: 'daily' })).toMatchObject({
+        from: '2025-10-20',
+        to: '2026-10-12',
+      })
     })
   })
 
@@ -143,9 +182,15 @@ describe('aggregateWindow', () => {
 
     it("starts a new month from NZ's 1st, while it's still the month before in UTC", () => {
       vi.setSystemTime('2026-10-31T10:30:00Z') // 11:30pm NZDT on 31 October
-      expect(aggregateWindow({ kind: '5y', aggregation: 'monthly' })).toMatchObject({ from: '2021-11-01', to: '2026-10-01' })
+      expect(aggregateWindow({ kind: '5y', aggregation: 'monthly' })).toMatchObject({
+        from: '2021-11-01',
+        to: '2026-10-01',
+      })
       vi.setSystemTime('2026-10-31T11:30:00Z') // 12:30am NZDT on 1 November
-      expect(aggregateWindow({ kind: '5y', aggregation: 'monthly' })).toMatchObject({ from: '2021-12-01', to: '2026-11-01' })
+      expect(aggregateWindow({ kind: '5y', aggregation: 'monthly' })).toMatchObject({
+        from: '2021-12-01',
+        to: '2026-11-01',
+      })
     })
   })
 
@@ -174,7 +219,11 @@ describe('aggregateWindow', () => {
   describe('All, yearly', () => {
     it('covers every complete NZ year since data begins to this one, by their 1 Januarys, from the one file', () => {
       vi.setSystemTime('2026-10-13T01:00:00Z') // 2pm NZDT on the 13th
-      expect(aggregateWindow({ kind: 'all', aggregation: 'annual' })).toEqual({ from: '1998-01-01', to: '2026-01-01', paths: ['annual'] })
+      expect(aggregateWindow({ kind: 'all', aggregation: 'annual' })).toEqual({
+        from: '1998-01-01',
+        to: '2026-01-01',
+        paths: ['annual'],
+      })
     })
 
     it("starts a new year from NZ's 1 January, while it's still the year before in UTC", () => {
@@ -228,25 +277,29 @@ describe('aggregateWindow', () => {
 })
 
 describe('sumQuarters', () => {
-  it('sums each calendar quarter\'s months, keyed by its first day', () => {
-    expect(sumQuarters([
-      ['2025-10-01', 1, 10],
-      ['2025-11-01', 2, 20],
-      ['2025-12-01', 3, 30],
-      ['2026-01-01', 4, 40],
-      ['2026-02-01', 5, 50],
-    ])).toEqual([
+  it("sums each calendar quarter's months, keyed by its first day", () => {
+    expect(
+      sumQuarters([
+        ['2025-10-01', 1, 10],
+        ['2025-11-01', 2, 20],
+        ['2025-12-01', 3, 30],
+        ['2026-01-01', 4, 40],
+        ['2026-02-01', 5, 50],
+      ]),
+    ).toEqual([
       ['2025-10-01', 6, 60],
       ['2026-01-01', 9, 90],
     ])
   })
 
   it('keeps quarters apart across a gap in the data', () => {
-    expect(sumQuarters([
-      ['2007-12-01', 1],
-      ['2020-09-01', 2],
-      ['2020-10-01', 3],
-    ])).toEqual([
+    expect(
+      sumQuarters([
+        ['2007-12-01', 1],
+        ['2020-09-01', 2],
+        ['2020-10-01', 3],
+      ]),
+    ).toEqual([
       ['2007-10-01', 1],
       ['2020-07-01', 2],
       ['2020-10-01', 3],

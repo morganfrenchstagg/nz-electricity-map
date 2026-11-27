@@ -18,6 +18,18 @@ VITE_API_BASE=http://localhost:8787/v1 npm run dev
 
 Or put it in `app/.env.local` (gitignored) to keep it set. A local `wrangler dev` starts with no dispatch data, so a branch's preview deployment, which reads the real data, is often more useful.
 
+### Checks
+
+CI runs these on every PR, and again before deploying `main`:
+
+```
+cd app
+npm run lint
+npm run format:check   # `npm run format` fixes it
+npm test
+npm run build          # type-checks too
+```
+
 ### Embedded solar
 
 The generation chart adds an estimate of embedded (rooftop and other undispatched, also called distributed) solar, as a fuel of its own, Embedded Solar (est.), from [nz-solar-stats-api](https://github.com/morganfrenchstagg/nz-solar-stats-api)'s `/solar-production/{date}`. It uses the production deployment by default. To use another, such as a local copy, set `VITE_SOLAR_API_BASE` to its root URL:

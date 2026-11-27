@@ -41,8 +41,12 @@ describe('hvdcChartOptions', () => {
   })
 
   it('labels each limit at its end', () => {
-    const labels = (name: string) => (seriesNamed(hvdcChartOptions(hvdc)!, name).data as Highcharts.PointOptionsObject[])
-      .map((point) => (point.dataLabels as Highcharts.DataLabelsOptions).enabled && (point.dataLabels as Highcharts.DataLabelsOptions).format)
+    const labels = (name: string) =>
+      (seriesNamed(hvdcChartOptions(hvdc)!, name).data as Highcharts.PointOptionsObject[]).map(
+        (point) =>
+          (point.dataLabels as Highcharts.DataLabelsOptions).enabled &&
+          (point.dataLabels as Highcharts.DataLabelsOptions).format,
+      )
     expect(labels('North limit')).toEqual([false, false, 'North limit: 1,100 MW'])
     expect(labels('South limit')).toEqual([false, false, 'South limit: 660 MW'])
   })
@@ -89,7 +93,9 @@ describe('hvdcEnergyChartOptions', () => {
 
   it('stays in MWh while the columns are small', () => {
     const small = { ...totals, data: [['2026-11-02T00:00:00', 1200, 300]] }
-    expect((hvdcEnergyChartOptions(small, 'daily')!.yAxis as Highcharts.YAxisOptions).title?.text).toBe('Transfer (MWh)')
+    expect((hvdcEnergyChartOptions(small, 'daily')!.yAxis as Highcharts.YAxisOptions).title?.text).toBe(
+      'Transfer (MWh)',
+    )
   })
 
   it('has no chart without totals', () => {

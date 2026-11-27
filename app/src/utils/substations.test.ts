@@ -3,7 +3,13 @@ import type { Substation } from '../types'
 import { substationsOf, substationsTitle } from './substations'
 
 const sub = (siteId: string, description: string): Substation => ({
-  siteId, description, lat: 0, long: 0, type: 'ACSTN', gridZone: 2, island: 'north',
+  siteId,
+  description,
+  lat: 0,
+  long: 0,
+  type: 'ACSTN',
+  gridZone: 2,
+  island: 'north',
 })
 const ota = sub('OTA', 'Ōtāhuhu')
 const pen = sub('PEN', 'Penrose')

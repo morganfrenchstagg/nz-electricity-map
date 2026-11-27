@@ -10,7 +10,12 @@ const NZ_EXTREMES: [number, number][] = [[172.68, -34.43], EAST_CAPE, WEST_CAPE,
 const mercatorY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI)
 
 // Where a point lands on screen with the map's centre in the middle of the room beside the panel
-function onScreen([lng, lat]: [number, number], { panelWidth, center, zoom }: InitialView, width: number, height: number) {
+function onScreen(
+  [lng, lat]: [number, number],
+  { panelWidth, center, zoom }: InitialView,
+  width: number,
+  height: number,
+) {
   const worldPx = 512 * 2 ** zoom
   return {
     x: panelWidth + (width - panelWidth) / 2 + ((lng - center[0]) / 360) * worldPx,

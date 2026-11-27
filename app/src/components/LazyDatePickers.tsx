@@ -6,8 +6,8 @@ import { CalendarIcon, rangeLabel } from './dateLabels'
 // it), loads once a picker is wanted rather than with the page. Until then each
 // picker has a stand-in that looks the same.
 const loadPickers = () => import('./DatePickers')
-const LoadedRangePicker = lazy(() => loadPickers().then(m => ({ default: m.DateRangePicker })))
-const LoadedDatePicker = lazy(() => loadPickers().then(m => ({ default: m.DatePicker })))
+const LoadedRangePicker = lazy(() => loadPickers().then((m) => ({ default: m.DateRangePicker })))
+const LoadedDatePicker = lazy(() => loadPickers().then((m) => ({ default: m.DatePicker })))
 
 // PeriodToggle's calendar button, which is always there, so it loads when the
 // pointer comes over it, it takes focus or it's opened
@@ -24,9 +24,15 @@ export function DateRangePicker(props: DateRangePickerProps) {
       aria-expanded={props.isOpen}
       className={props.isActive ? 'calendar-button is-active' : 'calendar-button'}
       onPointerEnter={want}
-      onFocus={() => { setFocused(true); want() }}
+      onFocus={() => {
+        setFocused(true)
+        want()
+      }}
       onBlur={() => setFocused(false)}
-      onClick={() => { want(); props.onOpenChange(true) }}
+      onClick={() => {
+        want()
+        props.onOpenChange(true)
+      }}
     >
       <CalendarIcon />
     </button>
@@ -53,7 +59,9 @@ function DateFieldStandIn({ value }: { value: string }) {
   return (
     <div className="date-field" aria-busy="true">
       <span className="date-field-input">{value ? `${d}/${m}/${y}` : 'dd/mm/yyyy'}</span>
-      <span className="date-field-button"><CalendarIcon /></span>
+      <span className="date-field-button">
+        <CalendarIcon />
+      </span>
     </div>
   )
 }

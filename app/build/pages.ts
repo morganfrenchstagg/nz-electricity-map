@@ -4,17 +4,63 @@ import { underConstruction } from '../src/data/underConstruction'
 import { fuelColour } from '../src/utils/colours'
 import { isCharging, isCommissioning, isDecommissioned, isRetired } from '../src/utils/generators'
 import {
-  generatorCapacity, generatorHistoricPath, generatorHistoricTitle, generatorPath, generatorTitle, HOME_TITLE, HVDC_PATH, HVDC_TITLE,
-  PIPELINE_TITLE, SITE_NAME, stationKind, substationPath, substationTitle,
+  generatorCapacity,
+  generatorHistoricPath,
+  generatorHistoricTitle,
+  generatorPath,
+  generatorTitle,
+  HOME_TITLE,
+  HVDC_PATH,
+  HVDC_TITLE,
+  PIPELINE_TITLE,
+  SITE_NAME,
+  stationKind,
+  substationPath,
+  substationTitle,
 } from '../src/utils/stationPaths'
 import {
-  API_URL, article, breadcrumbs, capitalise, CC_BY, CREATOR, esc, fitDescription, fuelsText, graph, gwh, island,
-  FOOTER, header, kindPhrase, link, linkList, MCP_URL, mw, nzDate, nzYear, ordinal, ORIGIN, pct, primaryFuel, sortByName, webPage,
+  API_URL,
+  article,
+  breadcrumbs,
+  capitalise,
+  CC_BY,
+  CREATOR,
+  esc,
+  fitDescription,
+  fuelsText,
+  graph,
+  gwh,
+  island,
+  FOOTER,
+  header,
+  kindPhrase,
+  link,
+  linkList,
+  MCP_URL,
+  mw,
+  nzDate,
+  nzYear,
+  ordinal,
+  ORIGIN,
+  pct,
+  primaryFuel,
+  sortByName,
+  webPage,
 } from './html'
 import type { Definitions, Page } from './html'
 import { generationNodes, hoursIn, parseStats, RENEWABLE_FUELS, substationDemand, sumNodes } from './stats'
 import type { AnnualAggregates, Stats } from './stats'
-import { FUEL_TOPICS, fuelPath, fuelTopic, islandPath, operatorPath, operatorsWithPages, RENEWABLE_PATH, topicNav, topicPages } from './topics'
+import {
+  FUEL_TOPICS,
+  fuelPath,
+  fuelTopic,
+  islandPath,
+  operatorPath,
+  operatorsWithPages,
+  RENEWABLE_PATH,
+  topicNav,
+  topicPages,
+} from './topics'
 import { buildContext, firstYear, gridShare, yearlyChart, yearlyTable } from './yearly'
 import type { Context } from './yearly'
 
@@ -41,7 +87,8 @@ function stationFigures(ctx: Context): StationFigures {
   const yearly = new Map<Generator, number[]>()
   if (!ctx.stats) return { yearly, rank: new Map() }
   for (const g of ctx.defs.generators) yearly.set(g, sumNodes(ctx.stats, generationNodes(g.units)))
-  const ranked = ctx.full < 0 ? [] : [...yearly].filter(([, v]) => v[ctx.full] > 0).sort((a, b) => b[1][ctx.full] - a[1][ctx.full])
+  const ranked =
+    ctx.full < 0 ? [] : [...yearly].filter(([, v]) => v[ctx.full] > 0).sort((a, b) => b[1][ctx.full] - a[1][ctx.full])
   return { yearly, rank: new Map(ranked.map(([g], i) => [g, i + 1])) }
 }
 
@@ -50,7 +97,9 @@ function stationFigures(ctx: Context): StationFigures {
 function capacityFactor(g: Generator, year: number, energy: number): number | null {
   if (stationKind(g) === 'Battery') return null
   const units = g.units.filter((u) => !isCharging(u) && u.capacity > 0)
-  const changed = units.some((u) => (u.commissioned && nzYear(u.commissioned) >= year) || (u.decomissioned && nzYear(u.decomissioned) >= year))
+  const changed = units.some(
+    (u) => (u.commissioned && nzYear(u.commissioned) >= year) || (u.decomissioned && nzYear(u.decomissioned) >= year),
+  )
   if (changed) return null
   const capacity = units.filter((u) => !u.decomissioned).reduce((sum, u) => sum + u.capacity, 0)
   const factor = capacity > 0 ? (energy * 1000) / (capacity * hoursIn(year)) : 0
@@ -69,21 +118,30 @@ function generatorStats(g: Generator, ctx: Context, figures: StationFigures): st
     const year = stats.years[full]
     const rank = figures.rank.get(g)
     const factor = capacityFactor(g, year, values[full])
-    sentences.push(`In ${year}, ${g.name} generated ${gwh(values[full])}, ${pct(values[full] / total[full])} of New Zealand's grid generation`
-      + (rank ? `, the ${rank === 1 ? '' : `${ordinal(rank)} `}most of any station` : '')
-      + (factor ? `, at a capacity factor of ${pct(factor)}` : '') + '.')
+    sentences.push(
+      `In ${year}, ${g.name} generated ${gwh(values[full])}, ${pct(values[full] / total[full])} of New Zealand's grid generation` +
+        (rank ? `, the ${rank === 1 ? '' : `${ordinal(rank)} `}most of any station` : '') +
+        (factor ? `, at a capacity factor of ${pct(factor)}` : '') +
+        '.',
+    )
   }
   const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
   if (fullYears.length > 1) {
-    const best = fullYears.reduce((b, i) => values[i] > values[b] ? i : b, fullYears[0])
+    const best = fullYears.reduce((b, i) => (values[i] > values[b] ? i : b), fullYears[0])
     sentences.push(`Its best year was ${stats.years[best]}, with ${gwh(values[best])}.`)
   }
-  if (!retired && current >= 0 && values[current] > 0) sentences.push(`So far in ${stats.years[current]}, it's generated ${gwh(values[current])}.`)
+  if (!retired && current >= 0 && values[current] > 0)
+    sentences.push(`So far in ${stats.years[current]}, it's generated ${gwh(values[current])}.`)
   return `<h2>Generation by year</h2>
 ${sentences.length ? `<p>${esc(sentences.join(' '))}</p>` : ''}
 ${yearlyChart(stats, values, from, {
-    colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh, name: 'Generation', more: [gridShare(ctx, values)],
-  })}
+  colour: fuelColour(primaryFuel(g)),
+  unit: 'GWh',
+  label: `${g.name}'s generation each year, in GWh`,
+  format: gwh,
+  name: 'Generation',
+  more: [gridShare(ctx, values)],
+})}
 ${yearlyTable(stats, [{ head: 'Generation', values }], from)}`
 }
 
@@ -92,7 +150,9 @@ function seeAlso(ctx: Context, g: Generator): string {
   const topic = fuelTopic(primaryFuel(g))
   const links = [
     topic ? link(fuelPath(topic), topic.heading) : '',
-    operatorsWithPages(ctx.defs.generators).includes(g.operator) ? link(operatorPath(g.operator), `${g.operator}'s power stations`) : '',
+    operatorsWithPages(ctx.defs.generators).includes(g.operator)
+      ? link(operatorPath(g.operator), `${g.operator}'s power stations`)
+      : '',
     link(islandPath(g.island), `Electricity in the ${island(g.island)}`),
   ].filter(Boolean)
   return `<p>See also: ${links.join(' · ')}</p>`
@@ -104,21 +164,40 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
   const retired = isRetired(g)
   const capacity = generatorCapacity(g)
   const operator = g.secondaryOperator ? `${g.operator} and ${g.secondaryOperator}` : g.operator
-  const commissioned = g.units.map((u) => u.commissioned).filter((d): d is string => !!d).sort()[0]
-  const decommissioned = g.units.map((u) => u.decomissioned).filter((d): d is string => !!d).sort().pop()
+  const commissioned = g.units
+    .map((u) => u.commissioned)
+    .filter((d): d is string => !!d)
+    .sort()[0]
+  const decommissioned = g.units
+    .map((u) => u.decomissioned)
+    .filter((d): d is string => !!d)
+    .sort()
+    .pop()
   const kind = stationKind(g)
   const heading = `${g.name} ${kind}`
   // Some, such as an aggregated fleet of home batteries, have no capacity of their own
   const sized = capacity > 0 ? `${article(capacity)} ${mw(capacity)} ${kindPhrase(g)}` : `a ${kindPhrase(g)}`
   const [about, more] = retired
-    ? [`${g.name} was ${sized} in the ${island(g.island)}, operated by ${operator}${decommissioned ? ` until ${nzYear(decommissioned)}` : ''}.`, 'See its historical generation.']
-    : [`${g.name} is ${sized} in the ${island(g.island)}, operated by ${operator}.`, 'See its live and historical generation, offers and prices.']
+    ? [
+        `${g.name} was ${sized} in the ${island(g.island)}, operated by ${operator}${decommissioned ? ` until ${nzYear(decommissioned)}` : ''}.`,
+        'See its historical generation.',
+      ]
+    : [
+        `${g.name} is ${sized} in the ${island(g.island)}, operated by ${operator}.`,
+        'See its live and historical generation, offers and prices.',
+      ]
   const description = fitDescription(about, more)
   const fuel = primaryFuel(g)
   const topic = fuelTopic(fuel)
-  const others = sortByName(defs.generators.filter((o) => o !== g && primaryFuel(o) === fuel), (o) => o.name)
+  const others = sortByName(
+    defs.generators.filter((o) => o !== g && primaryFuel(o) === fuel),
+    (o) => o.name,
+  )
   const substation = defs.substations.find((s) => g.units.some((u) => u.node.slice(0, 3) === s.siteId))
-  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
+  const crumbs = breadcrumbs([
+    { name: SITE_NAME, path: '/' },
+    { name: heading, path },
+  ])
 
   const facts: [string, string][] = [
     ['Operator', operator],
@@ -131,10 +210,13 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
     ['Site code', g.site],
   ]
   // Not a battery's charging unit, nor one standing in for units only metered together
-  const unitRows = g.units.filter((u) => !isCharging(u) && !u.combines).map((u) => {
-    const status = isDecommissioned(u) ? 'Retired' : isCommissioning(u) ? 'Commissioning' : 'In service'
-    return `<tr><td>${esc(u.name)} (${esc(u.unitCode)})</td><td>${esc(u.fuel)}</td><td>${u.capacity ? esc(mw(u.capacity)) : '–'}</td><td>${u.commissioned ? esc(nzDate(u.commissioned)) : '–'}</td><td>${status}</td></tr>`
-  }).join('')
+  const unitRows = g.units
+    .filter((u) => !isCharging(u) && !u.combines)
+    .map((u) => {
+      const status = isDecommissioned(u) ? 'Retired' : isCommissioning(u) ? 'Commissioning' : 'In service'
+      return `<tr><td>${esc(u.name)} (${esc(u.unitCode)})</td><td>${esc(u.fuel)}</td><td>${u.capacity ? esc(mw(u.capacity)) : '–'}</td><td>${u.commissioned ? esc(nzDate(u.commissioned)) : '–'}</td><td>${status}</td></tr>`
+    })
+    .join('')
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
@@ -150,21 +232,33 @@ ${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} station
 
   const place = generatorPlace(g, defs)
   return {
-    path, title: generatorTitle(g), description, body,
-    jsonLd: graph(webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }), place),
+    path,
+    title: generatorTitle(g),
+    description,
+    body,
+    jsonLd: graph(
+      webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
+      place,
+    ),
   }
 }
 
 // The station its page and its history's page are about
 function generatorPlace(g: Generator, defs: Definitions) {
   return {
-    '@type': 'Place', '@id': `${ORIGIN}${generatorPath(g, defs.generators)}#station`, name: `${g.name} ${stationKind(g)}`,
+    '@type': 'Place',
+    '@id': `${ORIGIN}${generatorPath(g, defs.generators)}#station`,
+    name: `${g.name} ${stationKind(g)}`,
     geo: { '@type': 'GeoCoordinates', latitude: g.location.lat, longitude: g.location.long },
     address: { '@type': 'PostalAddress', addressCountry: 'NZ' },
     additionalProperty: [
       { '@type': 'PropertyValue', name: 'Capacity', value: generatorCapacity(g), unitText: 'MW' },
       { '@type': 'PropertyValue', name: 'Fuel', value: fuelsText(g) },
-      { '@type': 'PropertyValue', name: 'Operator', value: g.secondaryOperator ? `${g.operator} and ${g.secondaryOperator}` : g.operator },
+      {
+        '@type': 'PropertyValue',
+        name: 'Operator',
+        value: g.secondaryOperator ? `${g.operator} and ${g.secondaryOperator}` : g.operator,
+      },
     ],
   }
 }
@@ -176,11 +270,17 @@ function historicRecords(g: Generator, ctx: Context, values: number[], from: num
   if (!stats) return []
   const records: [string, string][] = []
   const first = stats.years[from]
-  records.push(['On record since', from === 0 && stats.partial.has(first) ? `August ${first}, when the records begin` : String(first)])
+  records.push([
+    'On record since',
+    from === 0 && stats.partial.has(first) ? `August ${first}, when the records begin` : String(first),
+  ])
   const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
   if (fullYears.length > 0) {
-    const best = fullYears.reduce((b, i) => values[i] > values[b] ? i : b, fullYears[0])
-    records.push(['Best year', `${stats.years[best]}, with ${gwh(values[best])} (${pct(values[best] / total[best])} of the grid's generation)`])
+    const best = fullYears.reduce((b, i) => (values[i] > values[b] ? i : b), fullYears[0])
+    records.push([
+      'Best year',
+      `${stats.years[best]}, with ${gwh(values[best])} (${pct(values[best] / total[best])} of the grid's generation)`,
+    ])
   }
   records.push(['Generated on record', gwh(values.slice(from).reduce((sum, v) => sum + v, 0))])
   const last = values.findLastIndex((v) => Math.abs(v) >= 0.05)
@@ -206,29 +306,60 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
   // for the longest name, Te Puna Mauri ō Omaru's
   const description = `${g.name}'s generation${since}${yearly ? ", its share of New Zealand's grid" : ','}${records}.`
   const intro = `${g.name}'s electricity generation${since}${yearly ? ", its share of New Zealand's grid generation," : ','}${records}.`
-  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: station, path: stationPath }, { name: 'Historical generation', path }])
+  const crumbs = breadcrumbs([
+    { name: SITE_NAME, path: '/' },
+    { name: station, path: stationPath },
+    { name: 'Historical generation', path },
+  ])
   const facts = yearly ? historicRecords(g, ctx, yearly.values, from) : []
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
 <p>${esc(intro)}</p>
-${facts.length ? `<h2>Records</h2>
-<dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
-${yearly ? `<h2>Generation by year</h2>
+${
+  facts.length
+    ? `<h2>Records</h2>
+<dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`
+    : ''
+}
+${
+  yearly
+    ? `<h2>Generation by year</h2>
 ${yearlyChart(yearly.stats, yearly.values, from, {
-    colour: fuelColour(primaryFuel(g)), unit: 'GWh', label: `${g.name}'s generation each year, in GWh`, format: gwh, name: 'Generation', more: [gridShare(ctx, yearly.values)],
-  })}
-${yearlyTable(yearly.stats, [
+  colour: fuelColour(primaryFuel(g)),
+  unit: 'GWh',
+  label: `${g.name}'s generation each year, in GWh`,
+  format: gwh,
+  name: 'Generation',
+  more: [gridShare(ctx, yearly.values)],
+})}
+${yearlyTable(
+  yearly.stats,
+  [
     { head: 'Generation', values: yearly.values },
-    { head: "Share of the grid's generation", values: yearly.values.map((v, i) => total[i] > 0 ? v / total[i] : 0), share: true },
-  ], from)}` : ''}
+    {
+      head: "Share of the grid's generation",
+      values: yearly.values.map((v, i) => (total[i] > 0 ? v / total[i] : 0)),
+      share: true,
+    },
+  ],
+  from,
+)}`
+    : ''
+}
 <p>${link(stationPath, station)}: its units, capacity, and ${isRetired(g) ? 'when it was retired' : 'live generation, offers and prices'}.</p>
 ${seeAlso(ctx, g)}`
 
   const place = generatorPlace(g, defs)
   return {
-    path, title: generatorHistoricTitle(g), description, body,
-    jsonLd: graph(webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }), place),
+    path,
+    title: generatorHistoricTitle(g),
+    description,
+    body,
+    jsonLd: graph(
+      webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
+      place,
+    ),
   }
 }
 
@@ -240,13 +371,23 @@ function substationStats(s: Substation, ctx: Context): string {
   const from = firstYear(values)
   const before = full - 10 >= from && values[full - 10] > 0 ? full - 10 : -1
   const change = before >= 0 ? values[full] / values[before] - 1 : 0
-  const sentence = `In ${stats.years[full]}, ${gwh(values[full])} was taken from the grid at ${s.description}`
-    + (before < 0 ? '' : Math.abs(change) < 0.005 ? `, about the same as in ${stats.years[before]}` : `, ${change > 0 ? 'up' : 'down'} ${pct(Math.abs(change))} on ${stats.years[before]}`) + '.'
+  const sentence =
+    `In ${stats.years[full]}, ${gwh(values[full])} was taken from the grid at ${s.description}` +
+    (before < 0
+      ? ''
+      : Math.abs(change) < 0.005
+        ? `, about the same as in ${stats.years[before]}`
+        : `, ${change > 0 ? 'up' : 'down'} ${pct(Math.abs(change))} on ${stats.years[before]}`) +
+    '.'
   return `<h2>Demand by year</h2>
 <p>${esc(sentence)}</p>
 ${yearlyChart(stats, values, from, {
-    colour: ACCENT, unit: 'GWh', label: `Electricity taken from the grid at ${s.description} each year, in GWh`, format: gwh, name: 'Taken from the grid',
-  })}
+  colour: ACCENT,
+  unit: 'GWh',
+  label: `Electricity taken from the grid at ${s.description} each year, in GWh`,
+  format: gwh,
+  name: 'Taken from the grid',
+})}
 ${yearlyTable(stats, [{ head: 'Taken from the grid', values }], from)}`
 }
 
@@ -255,9 +396,18 @@ function substationPage(s: Substation, ctx: Context): Page {
   const path = substationPath(s, defs.substations)
   const heading = `${s.description} Substation`
   const intro = `Live electricity demand and nodal prices at ${s.description} substation (${s.siteId}) on New Zealand's national grid, in the ${island(s.island)}. Updated every five minutes, with history.`
-  const description = fitDescription(`${s.description} substation (${s.siteId}), ${island(s.island)}: live electricity demand and nodal prices on New Zealand's national grid.`, 'Updated every five minutes, with history.')
-  const generators = sortByName(defs.generators.filter((g) => g.units.some((u) => u.node.slice(0, 3) === s.siteId)), (g) => g.name)
-  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
+  const description = fitDescription(
+    `${s.description} substation (${s.siteId}), ${island(s.island)}: live electricity demand and nodal prices on New Zealand's national grid.`,
+    'Updated every five minutes, with history.',
+  )
+  const generators = sortByName(
+    defs.generators.filter((g) => g.units.some((u) => u.node.slice(0, 3) === s.siteId)),
+    (g) => g.name,
+  )
+  const crumbs = breadcrumbs([
+    { name: SITE_NAME, path: '/' },
+    { name: heading, path },
+  ])
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
 <p>${esc(intro)}</p>
@@ -266,13 +416,21 @@ ${substationStats(s, ctx)}
 ${generators.length ? `<h2>Generation connected here</h2>${linkList(generators.map((g) => ({ href: generatorPath(g, defs.generators), text: g.name })))}` : ''}
 <p>See also: ${link(islandPath(s.island === 'north' ? 'NI' : 'SI'), `Electricity in the ${island(s.island)}`)}</p>`
   const place = {
-    '@type': 'Place', '@id': `${ORIGIN}${path}#substation`, name: heading,
+    '@type': 'Place',
+    '@id': `${ORIGIN}${path}#substation`,
+    name: heading,
     geo: { '@type': 'GeoCoordinates', latitude: s.lat, longitude: s.long },
     address: { '@type': 'PostalAddress', addressCountry: 'NZ' },
   }
   return {
-    path, title: substationTitle(s), description, body,
-    jsonLd: graph(webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }), place),
+    path,
+    title: substationTitle(s),
+    description,
+    body,
+    jsonLd: graph(
+      webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
+      place,
+    ),
   }
 }
 
@@ -282,13 +440,19 @@ function hvdcStats(ctx: Context): string {
   if (!stats || !hvdc || full < 0) return ''
   return `<h2>Flows by year</h2>
 <p>In ${stats.years[full]}, the link sent ${esc(gwh(hvdc.north[full]))} north and ${esc(gwh(hvdc.south[full]))} south.</p>
-${yearlyTable(stats, [{ head: 'Sent north', values: hvdc.north }, { head: 'Sent south', values: hvdc.south }])}`
+${yearlyTable(stats, [
+  { head: 'Sent north', values: hvdc.north },
+  { head: 'Sent south', values: hvdc.south },
+])}`
 }
 
 function hvdcPage(ctx: Context): Page {
   const heading = 'HVDC Inter-Island Link'
   const description = `Live power flows north and south across New Zealand's HVDC Inter-Island link between Benmore and Haywards, with its transfer limits and history.`
-  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path: HVDC_PATH }])
+  const crumbs = breadcrumbs([
+    { name: SITE_NAME, path: '/' },
+    { name: heading, path: HVDC_PATH },
+  ])
   const body = `${crumbs.html}
 <h1>${heading}</h1>
 <p>${esc(description)}</p>
@@ -296,7 +460,13 @@ function hvdcPage(ctx: Context): Page {
 ${hvdcStats(ctx)}
 <p>Flows from EMI's metered HVDC data, and from <a href="https://www.em6.co.nz">em6</a> for the days since EMI's latest month. Transfer limits from em6.</p>
 <p>See also: ${link(islandPath('NI'), 'Electricity in the North Island')} · ${link(islandPath('SI'), 'Electricity in the South Island')}</p>`
-  return { path: HVDC_PATH, title: HVDC_TITLE, description, body, jsonLd: graph(webPage(HVDC_PATH, heading, description, { breadcrumb: crumbs.jsonLd })) }
+  return {
+    path: HVDC_PATH,
+    title: HVDC_TITLE,
+    description,
+    body,
+    jsonLd: graph(webPage(HVDC_PATH, heading, description, { breadcrumb: crumbs.jsonLd })),
+  }
 }
 
 function projectCapacity(n: UnderConstructionNode): number {
@@ -308,33 +478,55 @@ function pipelinePage(projects: UnderConstructionNode[]): Page {
   const heading = 'New Zealand Generation Pipeline'
   const total = projects.reduce((sum, n) => sum + projectCapacity(n), 0)
   const description = `${projects.length} new generation projects being built or committed in New Zealand, ${mw(Math.round(total))} in all: their fuel, capacity, operator, status and when they're due to open.`
-  const crumbs = breadcrumbs([{ name: SITE_NAME, path: '/' }, { name: heading, path }])
-  const rows = sortByName(projects, (n) => n.name).map((n) => `<tr><td>${esc(n.name)}${n.locationDescription ? ` (${esc(n.locationDescription)})` : ''}</td><td>${esc(n.fuel)}</td><td>${projectCapacity(n) ? esc(n.capacityMW ? mw(n.capacityMW) : `${mw(projectCapacity(n))}p`) : '–'}</td><td>${esc(n.operator)}</td><td>${esc(n.status)}</td><td>${n.openBy ? esc(n.openBy.slice(0, 7)) : '–'}</td></tr>`).join('')
+  const crumbs = breadcrumbs([
+    { name: SITE_NAME, path: '/' },
+    { name: heading, path },
+  ])
+  const rows = sortByName(projects, (n) => n.name)
+    .map(
+      (n) =>
+        `<tr><td>${esc(n.name)}${n.locationDescription ? ` (${esc(n.locationDescription)})` : ''}</td><td>${esc(n.fuel)}</td><td>${projectCapacity(n) ? esc(n.capacityMW ? mw(n.capacityMW) : `${mw(projectCapacity(n))}p`) : '–'}</td><td>${esc(n.operator)}</td><td>${esc(n.status)}</td><td>${n.openBy ? esc(n.openBy.slice(0, 7)) : '–'}</td></tr>`,
+    )
+    .join('')
   const body = `${crumbs.html}
 <h1>${heading}</h1>
 <p>${esc(description)} Compiled for this site from public sources, such as the developers' announcements.</p>
 <table><thead><tr><th>Project</th><th>Fuel</th><th>Capacity</th><th>Operator</th><th>Status</th><th>Due</th></tr></thead><tbody>${rows}</tbody></table>`
-  return { path, title: PIPELINE_TITLE, description, body, jsonLd: graph(webPage(path, heading, description, { breadcrumb: crumbs.jsonLd })) }
+  return {
+    path,
+    title: PIPELINE_TITLE,
+    description,
+    body,
+    jsonLd: graph(webPage(path, heading, description, { breadcrumb: crumbs.jsonLd })),
+  }
 }
 
 // The renewable share in the latest full year, for the home page to lead with
 function renewableLead(ctx: Context): string {
   const { stats, total, full } = ctx
   if (!stats || full < 0 || !(total[full] > 0)) return ''
-  const nodes = ctx.defs.generators.flatMap((g) => generationNodes(g.units.filter((u) => RENEWABLE_FUELS.includes(u.fuel))))
+  const nodes = ctx.defs.generators.flatMap((g) =>
+    generationNodes(g.units.filter((u) => RENEWABLE_FUELS.includes(u.fuel))),
+  )
   const share = sumNodes(stats, nodes)[full] / total[full]
-  return `<p>In ${stats.years[full]}, ${pct(share)} of the electricity generated on New Zealand's national grid was renewable. ${link(RENEWABLE_PATH, 'How renewable is New Zealand\'s electricity?')}</p>`
+  return `<p>In ${stats.years[full]}, ${pct(share)} of the electricity generated on New Zealand's national grid was renewable. ${link(RENEWABLE_PATH, "How renewable is New Zealand's electricity?")}</p>`
 }
 
 function homePage(ctx: Context): Page {
   const { defs } = ctx
-  const description = 'Live map of New Zealand\'s electricity grid: every power station\'s output, the generation mix, nodal prices, offers, HVDC flows and outages, every five minutes.'
+  const description =
+    "Live map of New Zealand's electricity grid: every power station's output, the generation mix, nodal prices, offers, HVDC flows and outages, every five minutes."
   const byFuel = new Map<string, Generator[]>()
   for (const g of defs.generators) byFuel.set(primaryFuel(g), [...(byFuel.get(primaryFuel(g)) ?? []), g])
   const order = FUEL_TOPICS.map((t) => t.fuel)
   const fuels = [...byFuel.keys()].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
-  const substationLinks = (code: string) => linkList(sortByName(defs.substations.filter((s) => s.island === code), (s) => s.description)
-    .map((s) => ({ href: substationPath(s, defs.substations), text: s.description })))
+  const substationLinks = (code: string) =>
+    linkList(
+      sortByName(
+        defs.substations.filter((s) => s.island === code),
+        (s) => s.description,
+      ).map((s) => ({ href: substationPath(s, defs.substations), text: s.description })),
+    )
   const fuelHeading = (fuel: string) => {
     const topic = fuelTopic(fuel)
     return topic ? link(fuelPath(topic), topic.name) : esc(fuel)
@@ -357,32 +549,63 @@ ${fuels.map((f) => `<h3>${fuelHeading(f)}</h3>${linkList(sortByName(byFuel.get(f
 <h3>North Island</h3>${substationLinks('north')}
 <h3>South Island</h3>${substationLinks('south')}`
   return {
-    path: '/', title: HOME_TITLE, description, body,
+    path: '/',
+    title: HOME_TITLE,
+    description,
+    body,
     jsonLd: graph(
-      { '@type': 'WebSite', '@id': `${ORIGIN}/#website`, url: `${ORIGIN}/`, name: SITE_NAME, description, inLanguage: 'en-NZ', creator: { '@id': CREATOR['@id'] } },
       {
-        '@type': 'WebApplication', '@id': `${ORIGIN}/#app`, url: `${ORIGIN}/`, name: SITE_NAME, description,
-        applicationCategory: 'ReferenceApplication', operatingSystem: 'Any', isAccessibleForFree: true,
-        offers: { '@type': 'Offer', price: 0, priceCurrency: 'NZD' }, creator: { '@id': CREATOR['@id'] },
+        '@type': 'WebSite',
+        '@id': `${ORIGIN}/#website`,
+        url: `${ORIGIN}/`,
+        name: SITE_NAME,
+        description,
+        inLanguage: 'en-NZ',
+        creator: { '@id': CREATOR['@id'] },
       },
       {
-        '@type': 'Dataset', '@id': `${ORIGIN}/#dataset`, url: `${ORIGIN}/`,
+        '@type': 'WebApplication',
+        '@id': `${ORIGIN}/#app`,
+        url: `${ORIGIN}/`,
+        name: SITE_NAME,
+        description,
+        applicationCategory: 'ReferenceApplication',
+        operatingSystem: 'Any',
+        isAccessibleForFree: true,
+        offers: { '@type': 'Offer', price: 0, priceCurrency: 'NZD' },
+        creator: { '@id': CREATOR['@id'] },
+      },
+      {
+        '@type': 'Dataset',
+        '@id': `${ORIGIN}/#dataset`,
+        url: `${ORIGIN}/`,
         name: 'New Zealand electricity generation, prices and offers',
-        description: 'Five-minute generation by power station and fuel, nodal prices, offers, substation demand, HVDC flows and planned outages for New Zealand\'s national grid, reshaped from the Electricity Authority\'s EMI data and Transpower\'s.',
+        description:
+          "Five-minute generation by power station and fuel, nodal prices, offers, substation demand, HVDC flows and planned outages for New Zealand's national grid, reshaped from the Electricity Authority's EMI data and Transpower's.",
         keywords: ['New Zealand', 'electricity', 'generation', 'renewable energy', 'wholesale prices', 'national grid'],
-        creator: { '@id': CREATOR['@id'] }, license: CC_BY, isAccessibleForFree: true,
+        creator: { '@id': CREATOR['@id'] },
+        license: CC_BY,
+        isAccessibleForFree: true,
         isBasedOn: ['https://www.emi.ea.govt.nz', 'https://www.transpower.co.nz'],
         spatialCoverage: { '@type': 'Place', name: 'New Zealand' },
         distribution: [
           { '@type': 'DataDownload', encodingFormat: 'application/json', contentUrl: `${API_URL}/definitions` },
-          { '@type': 'DataDownload', encodingFormat: 'application/json', contentUrl: `${API_URL}/dispatch/aggregates/annual` },
+          {
+            '@type': 'DataDownload',
+            encodingFormat: 'application/json',
+            contentUrl: `${API_URL}/dispatch/aggregates/annual`,
+          },
         ],
       },
     ),
   }
 }
 
-export function buildPages(defs: Definitions, projects: UnderConstructionNode[] = underConstruction, stats: Stats | null = null): Page[] {
+export function buildPages(
+  defs: Definitions,
+  projects: UnderConstructionNode[] = underConstruction,
+  stats: Stats | null = null,
+): Page[] {
   const ctx = buildContext(defs, stats)
   const figures = stationFigures(ctx)
   return [
@@ -423,7 +646,9 @@ export function renderPage(template: string, page: Page, chartScript?: string): 
   const html = fillBlock(fillBlock(template, 'page-head', head), 'page-body', body)
   if (!page.standalone) return html
   // A page of its own keeps the stylesheet but not the app, which would replace its content
-  const own = html.replace(/\s*<script type="module"[^>]*><\/script>/g, '').replace(/\s*<link rel="modulepreload"[^>]*>/g, '')
+  const own = html
+    .replace(/\s*<script type="module"[^>]*><\/script>/g, '')
+    .replace(/\s*<link rel="modulepreload"[^>]*>/g, '')
   return chartScript && page.body.includes('class="prerender__chart"')
     ? own.replace('</head>', `  <script type="module" src="${esc(chartScript)}"></script>\n  </head>`)
     : own
@@ -446,7 +671,7 @@ const DEFINITIONS_REPO = 'https://raw.githubusercontent.com/morganfrenchstagg/nz
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-  return await response.json() as T
+  return (await response.json()) as T
 }
 
 async function loadDefinitions(apiBase?: string): Promise<Definitions> {
@@ -482,11 +707,15 @@ export function stationPages(apiBase?: string): Plugin {
     async generateBundle(_options, bundle) {
       const index = bundle['index.html']
       if (!index || index.type !== 'asset') throw new Error('station-pages: no index.html in the bundle')
-      const [defs, stats] = await Promise.all([loadDefinitions(apiBase), loadStats(apiBase)])
-        .catch((error: Error) => { throw new Error(`station-pages: ${error.message}`) })
-      if (!defs.generators?.length || !defs.substations?.length) throw new Error('station-pages: the definitions have no generators or substations')
+      const [defs, stats] = await Promise.all([loadDefinitions(apiBase), loadStats(apiBase)]).catch((error: Error) => {
+        throw new Error(`station-pages: ${error.message}`)
+      })
+      if (!defs.generators?.length || !defs.substations?.length)
+        throw new Error('station-pages: the definitions have no generators or substations')
 
-      const tooltips = Object.values(bundle).find((file) => file.type === 'chunk' && file.isEntry && file.name === 'chartTooltip')
+      const tooltips = Object.values(bundle).find(
+        (file) => file.type === 'chunk' && file.isEntry && file.name === 'chartTooltip',
+      )
       if (!tooltips) throw new Error('station-pages: no chartTooltip entry in the bundle (see vite.config.ts)')
 
       const template = String(index.source)

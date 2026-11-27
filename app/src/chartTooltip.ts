@@ -44,7 +44,10 @@ function show(column: HTMLElement) {
   // Over the bar, or the mark across it where that's higher, or the column's foot where the year has neither
   const tops = [...column.children].map((c) => c.getBoundingClientRect().top)
   const top = tops.length ? Math.min(...tops) : rect.bottom
-  const { left, top: y } = tipPosition(rect, top, tooltip.getBoundingClientRect(), { width: innerWidth, height: innerHeight })
+  const { left, top: y } = tipPosition(rect, top, tooltip.getBoundingClientRect(), {
+    width: innerWidth,
+    height: innerHeight,
+  })
   tooltip.style.left = `${left}px`
   tooltip.style.top = `${y}px`
 }
@@ -56,7 +59,8 @@ function hide() {
 
 // The pointer moving onto another column, or off them all, or a tap elsewhere
 document.addEventListener('pointerover', (event) => {
-  const column = event.target instanceof Element ? event.target.closest<HTMLElement>('.prerender__chart [data-tip]') : null
+  const column =
+    event.target instanceof Element ? event.target.closest<HTMLElement>('.prerender__chart [data-tip]') : null
   if (column === shownFor) return
   if (column) show(column)
   else hide()

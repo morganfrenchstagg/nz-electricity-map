@@ -21,7 +21,13 @@ describe('hvdcInto', () => {
   })
 
   it('interpolates the flow between half hours, with the limits of the half hour before', () => {
-    const times = ['2026-10-28T20:05:00', '2026-10-28T20:15:00', '2026-10-28T20:25:00', '2026-10-28T20:30:00', '2026-10-28T20:45:00']
+    const times = [
+      '2026-10-28T20:05:00',
+      '2026-10-28T20:15:00',
+      '2026-10-28T20:25:00',
+      '2026-10-28T20:30:00',
+      '2026-10-28T20:45:00',
+    ]
     expect(hvdcInto('NI', hvdc, times)).toEqual([
       { mw: 550, inLimit: 1200, outLimit: 650 },
       { mw: 450, inLimit: 1200, outLimit: 650 },
@@ -42,12 +48,15 @@ describe('hvdcInto', () => {
   })
 
   it('has nothing before the first half hour', () => {
-    expect(hvdcInto('NI', hvdc, ['2026-10-28T19:55:00', '2026-10-28T20:00:00']).map(t => t?.mw)).toEqual([undefined, 600])
+    expect(hvdcInto('NI', hvdc, ['2026-10-28T19:55:00', '2026-10-28T20:00:00']).map((t) => t?.mw)).toEqual([
+      undefined,
+      600,
+    ])
   })
 
   it('holds the last half hour for the dispatch since, for up to 2 hours', () => {
     const times = ['2026-10-28T21:35:00', '2026-10-28T23:00:00', '2026-10-28T23:05:00']
-    expect(hvdcInto('SI', hvdc, times).map(t => t?.mw)).toEqual([300, 300, undefined])
+    expect(hvdcInto('SI', hvdc, times).map((t) => t?.mw)).toEqual([300, 300, undefined])
   })
 
   it("holds rather than interpolates across a gap of more than 2 hours, e.g. days there's no HVDC for", () => {
@@ -58,8 +67,14 @@ describe('hvdcInto', () => {
         ['2026-10-30T14:00:00', 400, 0, 1200, -650],
       ],
     }
-    const times = ['2026-09-30T23:55:00', '2026-10-01T01:30:00', '2026-10-01T01:35:00', '2026-10-30T13:55:00', '2026-10-30T14:00:00']
-    expect(hvdcInto('NI', gappy, times).map(t => t?.mw)).toEqual([600, 600, undefined, undefined, 400])
+    const times = [
+      '2026-09-30T23:55:00',
+      '2026-10-01T01:30:00',
+      '2026-10-01T01:35:00',
+      '2026-10-30T13:55:00',
+      '2026-10-30T14:00:00',
+    ]
+    expect(hvdcInto('NI', gappy, times).map((t) => t?.mw)).toEqual([600, 600, undefined, undefined, 400])
   })
 
   it('has no limits where em6 has none, as before October 2026', () => {
@@ -128,7 +143,10 @@ describe('mergeHvdc', () => {
     const metered = { series: ['northFlow', 'southFlow'], data: [['2025-06-15T00:00:00', 0, 250]] }
     expect(mergeHvdc([metered, day1])).toEqual({
       series: ['northFlow', 'southFlow', 'northLimit', 'southLimit'],
-      data: [['2025-06-15T00:00:00', 0, 250, null, null], ['2026-10-30T23:30:00', 385, 0, 1200, -650]],
+      data: [
+        ['2025-06-15T00:00:00', 0, 250, null, null],
+        ['2026-10-30T23:30:00', 385, 0, 1200, -650],
+      ],
     })
   })
 
@@ -139,10 +157,14 @@ describe('mergeHvdc', () => {
 })
 
 describe('latestHvdcNorth', () => {
-  const recent = (times: string[]) => ({ series: [], data: times.map(t => [t]), pricing: [], hvdc })
+  const recent = (times: string[]) => ({ series: [], data: times.map((t) => [t]), pricing: [], hvdc })
 
   it("is the HVDC's transfer north at the newest interval", () => {
-    expect(latestHvdcNorth(recent(['2026-10-28T20:00:00', '2026-10-28T20:15:00']))).toEqual({ mw: 450, inLimit: 1200, outLimit: 650 })
+    expect(latestHvdcNorth(recent(['2026-10-28T20:00:00', '2026-10-28T20:15:00']))).toEqual({
+      mw: 450,
+      inLimit: 1200,
+      outLimit: 650,
+    })
   })
 
   it('has nothing without intervals, or without the HVDC, as on past days', () => {
