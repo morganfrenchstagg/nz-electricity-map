@@ -25,6 +25,7 @@ NZ Electricity Map was created by [Morgan French-Stagg](https://www.linkedin.com
 
 ## Data for agents
 
+- Every page as Markdown: ask for it at the page's address with `Accept: text/markdown`, or add `.md` to its path (the home page's is /index.md)
 - MCP server: https://api.electricitymap.frenchsta.gg/mcp (Streamable HTTP, no sign-in), with read-only tools:
   - `get_current_state`: the latest five-minute dispatch, by fuel, island, operator or station, against capacity in service and out for outages, with demand, HVDC flows and prices
   - `get_energy`: GWh generated, taken from the grid or sent over the HVDC, by year, month, week or day since August 1997

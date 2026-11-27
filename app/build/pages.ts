@@ -63,6 +63,8 @@ import {
 } from './topics'
 import { buildContext, firstYear, gridShare, yearlyChart, yearlyTable } from './yearly'
 import type { Context } from './yearly'
+import { pageMarkdown } from './markdown'
+import { markdownPath } from '../edge/markdown'
 
 // The pages the build writes from index.html, each with its own title,
 // description, canonical link and structured data, and its content as plain
@@ -623,6 +625,14 @@ export function pageFile(path: string): string {
   return path === '/' ? 'index.html' : `${path.slice(1)}.html`
 }
 
+// The file its Markdown is written to, which edge/markdown.ts serves at its
+// path to agents that ask for Markdown
+export function markdownFile(path: string): string {
+  const file = markdownPath(path)
+  if (!file) throw new Error(`station-pages: no Markdown file for ${path}`)
+  return file.slice(1)
+}
+
 function fillBlock(html: string, marker: string, content: string): string {
   const block = new RegExp(`<!--${marker}-->[\\s\\S]*?<!--/${marker}-->`)
   if (!block.test(html)) throw new Error(`index.html has no <!--${marker}--> block`)
@@ -637,6 +647,7 @@ export function renderPage(template: string, page: Page, chartScript?: string): 
     `<title>${esc(page.title)}</title>`,
     `<meta name="description" content="${esc(page.description)}" />`,
     `<link rel="canonical" href="${esc(url)}" />`,
+    `<link rel="alternate" type="text/markdown" href="/${esc(markdownFile(page.path))}" />`,
     `<meta property="og:title" content="${esc(page.title)}" />`,
     `<meta property="og:description" content="${esc(page.description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
@@ -695,8 +706,8 @@ async function loadStats(apiBase?: string): Promise<Stats> {
   return stats
 }
 
-// Writes every page, and the sitemap, from the built index.html, the
-// definitions and the yearly totals. The build fails if either can't be
+// Writes every page and its Markdown, and the sitemap, from the built
+// index.html, the definitions and the yearly totals. The build fails if either can't be
 // fetched, so a deploy never replaces the pages with ones that lack their
 // figures, or drops the pages that are nothing but figures.
 export function stationPages(apiBase?: string): Plugin {
@@ -724,6 +735,7 @@ export function stationPages(apiBase?: string): Plugin {
         const html = renderPage(template, page, `/${tooltips.fileName}`)
         if (page.path === '/') index.source = html
         else this.emitFile({ type: 'asset', fileName: pageFile(page.path), source: html })
+        this.emitFile({ type: 'asset', fileName: markdownFile(page.path), source: pageMarkdown(page) })
       }
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemap(pages) })
     },

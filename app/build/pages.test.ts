@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Generator, Substation, Unit } from '../src/types'
-import { buildPages, esc, pageFile, renderPage, sitemap } from './pages'
+import { buildPages, esc, markdownFile, pageFile, renderPage, sitemap } from './pages'
 import type { Definitions } from './pages'
 import { barChart } from './charts'
 import { figures, fitDescription, shareCell } from './html'
@@ -8,6 +8,7 @@ import { parseStats, sumNodes, totalGeneration, substationDemand } from './stats
 import type { AnnualAggregates } from './stats'
 import type { ChartTip } from '../src/utils/chartTip'
 import { yearlyTable } from './yearly'
+import { pageMarkdown } from './markdown'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
   return {
@@ -233,6 +234,7 @@ describe('renderPage', () => {
   it('fills the head and #root of the template', () => {
     const html = renderPage(TEMPLATE, home)
     expect(html).toContain('<link rel="canonical" href="https://electricitymap.frenchsta.gg/" />')
+    expect(html).toContain('<link rel="alternate" type="text/markdown" href="/index.md" />')
     expect(html).toContain('<script type="application/ld+json">')
     expect(html).toContain('<div id="root"><div class="prerender">')
     expect(html).toContain('<a class="prerender__cta" href="/">Open live map</a>')
@@ -255,6 +257,12 @@ describe('files', () => {
     expect(pageFile('/')).toBe('index.html')
     expect(pageFile('/generator/huntly')).toBe('generator/huntly.html')
     expect(pageFile('/generator/huntly/historic')).toBe('generator/huntly/historic.html')
+  })
+
+  it("names each page's Markdown file as edge/markdown.ts serves it", () => {
+    expect(markdownFile('/')).toBe('index.md')
+    expect(markdownFile('/generator/huntly')).toBe('generator/huntly.md')
+    expect(markdownFile('/analysis/fuel/hydro')).toBe('analysis/fuel/hydro.md')
   })
 
   it('lists every page in the sitemap', () => {
@@ -338,6 +346,16 @@ describe('yearly figures', () => {
 describe('pages with yearly figures', () => {
   const pages = buildPages(withHydro, [], stats)
   const page = (path: string) => pages.find((p) => p.path === path)!
+
+  it("writes a station's page as Markdown, its figures in a table rather than a chart", () => {
+    const markdown = pageMarkdown(page('/generator/manapouri'))
+    expect(markdown).toContain('\n# Manapōuri Power Station\n')
+    expect(markdown).toContain('\n- **Operator:** Meridian Energy\n')
+    expect(markdown).toContain('\n## Generation by year\n\nIn 2025, Manapōuri generated 4,552 GWh')
+    expect(markdown).toContain('\n| Year | Generation (GWh) |\n| --- | ---: |\n| 2026 so far |')
+    expect(markdown).toContain("[Manapōuri's historical generation and records](/generator/manapouri/historic)")
+    expect(markdown).not.toMatch(/<|&[a-z]+;|prerender/)
+  })
 
   it('gives a station its yearly generation, share, rank, capacity factor and best year', () => {
     const body = page('/generator/manapouri').body
