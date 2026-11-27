@@ -775,7 +775,10 @@ export default function GridOverviewPanel({
           return `<table style="white-space:nowrap"><tr><th>${time}</th><th>Generation</th>${capHeader}<th>% of total gen</th></tr>${rows}</table><br/>Total: <b>${formatValue(total)}</b>${totalChange}${renewableRow}${priceRow}`
         },
       },
-      series,
+      // Each in its place, which is the order they stack in. The fuels are
+      // matched by id when the chart's updated in place, and one shown again
+      // would otherwise be added after the rest, at the bottom of the stack.
+      series: series.map((s, index) => ({ ...s, index })),
     }
   }, [
     data,
