@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  "name": "gg.frenchsta/nz-electricity-stats",
+  "title": "NZ Electricity Stats",
+  "version": "1.0.0",
+  "description": "New Zealand's electricity grid: generation, demand, prices, outages and offers, live and since 1997",
+  "websiteUrl": "https://electricitymap.frenchsta.gg",
+  "repository": {
+    "url": "https://github.com/morganfrenchstagg/nz-electricity-stats-api",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://electricitymap.frenchsta.gg/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.electricitymap.frenchsta.gg/mcp",
+      "supportedProtocolVersions": ["2025-11-25", "2025-06-18", "2025-03-26"]
+    }
+  ],
+  "serverInfo": {
+    "name": "nz-electricity-stats",
+    "title": "NZ Electricity Stats",
+    "version": "1.0.0"
+  },
+  "protocolVersion": "2025-11-25",
+  "transport": {
+    "type": "streamable-http",
+    "endpoint": "https://api.electricitymap.frenchsta.gg/mcp"
+  },
+  "capabilities": {
+    "tools": {
+      "listChanged": true
+    }
+  }
+}

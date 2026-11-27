@@ -8,6 +8,17 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+# The MCP server card's CORS and caching, as the spec asks
+# (https://github.com/modelcontextprotocol/ext-server-card/blob/main/docs/discovery.md).
+# Pages already sends Access-Control-Allow-Origin: * and an ETag. It joins a
+# header that more than one rule sets, so the ! drops /*'s Cache-Control first.
+/.well-known/mcp/server-card.json
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Methods: GET
+  Access-Control-Allow-Headers: Content-Type, If-None-Match
+  Access-Control-Expose-Headers: ETag
+
 # The pages.dev copy of the site isn't for search engines: its pages' canonical
 # links point at the custom domain
 https://:project.pages.dev/*
