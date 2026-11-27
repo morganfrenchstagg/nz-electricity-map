@@ -29,7 +29,12 @@ const ROW_HEIGHT = 52
 
 // "3 Mar 2020"
 function formatDay(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-NZ', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-NZ', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 // A record's day, or its month until that month's daily totals load
@@ -48,8 +53,14 @@ function recordTiles(r: DatedRecords): Tile[] {
     {
       label: 'Best year',
       value: r.bestYear.year,
-      details: [formatEnergy(r.bestYear.mwh)
-        + (r.bestYear.year === today.slice(0, 4) ? ' so far' : r.bestYear.year === AGGREGATES_FIRST_DAY.slice(0, 4) ? ' from August' : '')],
+      details: [
+        formatEnergy(r.bestYear.mwh) +
+          (r.bestYear.year === today.slice(0, 4)
+            ? ' so far'
+            : r.bestYear.year === AGGREGATES_FIRST_DAY.slice(0, 4)
+              ? ' from August'
+              : ''),
+      ],
     },
     {
       label: 'Best month',
@@ -70,28 +81,66 @@ function recordTiles(r: DatedRecords): Tile[] {
 export default function GenerationRecords({ queryNodes, movedNodes, codes, someUnits, chartLoading }: Props) {
   const { records, loaded, error } = useGenerationRecords(queryNodes, movedNodes, codes)
   const headingId = useId()
-  const message = error ? 'Failed to load records'
-    : !loaded || (codes.length === 0 && chartLoading) ? 'Loading…'
-      : !records ? (codes.length === 0 ? 'No units shown' : 'No generation on record')
+  const message = error
+    ? 'Failed to load records'
+    : !loaded || (codes.length === 0 && chartLoading)
+      ? 'Loading…'
+      : !records
+        ? codes.length === 0
+          ? 'No units shown'
+          : 'No generation on record'
         : null
 
   return (
-    <section aria-labelledby={headingId} className="section" style={{ flexShrink: 0, borderTop: '1px solid var(--color-divider)', borderBottom: 'none' }}>
+    <section
+      aria-labelledby={headingId}
+      className="section"
+      style={{ flexShrink: 0, borderTop: '1px solid var(--color-divider)', borderBottom: 'none' }}
+    >
       <h2 id={headingId} className="eyebrow" style={{ margin: 0 }}>
         Records{someUnits ? ' · Units shown' : ''}
       </h2>
       {message !== null || records === null ? (
-        <p className={error ? 'status-text is-error' : 'status-text'} style={{ display: 'flex', alignItems: 'center', minHeight: ROW_HEIGHT, margin: 'var(--space-sm) 0 0' }}>
+        <p
+          className={error ? 'status-text is-error' : 'status-text'}
+          style={{ display: 'flex', alignItems: 'center', minHeight: ROW_HEIGHT, margin: 'var(--space-sm) 0 0' }}
+        >
           {message}
         </p>
       ) : (
-        <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(124px, 1fr))', gap: 'var(--space-md) var(--space-xl)', minHeight: ROW_HEIGHT, margin: 'var(--space-sm) 0 0' }}>
+        <dl
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(124px, 1fr))',
+            gap: 'var(--space-md) var(--space-xl)',
+            minHeight: ROW_HEIGHT,
+            margin: 'var(--space-sm) 0 0',
+          }}
+        >
           {recordTiles(records).map((tile) => (
             <div key={tile.label} style={{ minWidth: 0 }}>
               <dt style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>{tile.label}</dt>
-              <dd style={{ margin: 'var(--space-2xs) 0 0', fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--color-text-strong)' }}>{tile.value}</dd>
+              <dd
+                style={{
+                  margin: 'var(--space-2xs) 0 0',
+                  fontSize: 'var(--font-size-lg)',
+                  fontWeight: 600,
+                  color: 'var(--color-text-strong)',
+                }}
+              >
+                {tile.value}
+              </dd>
               {tile.details?.map((detail) => (
-                <dd key={detail} style={{ margin: 'var(--space-2xs) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{detail}</dd>
+                <dd
+                  key={detail}
+                  style={{
+                    margin: 'var(--space-2xs) 0 0',
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {detail}
+                </dd>
               ))}
             </div>
           ))}

@@ -17,7 +17,7 @@ export function useCompactWhenOverflowing<T extends HTMLElement>() {
     const { left, width } = el.getBoundingClientRect()
     if (!compact) {
       // Measured from the children, as scrollWidth leaves out the right padding
-      const childrenRight = Math.max(left, ...Array.from(el.children, c => c.getBoundingClientRect().right))
+      const childrenRight = Math.max(left, ...Array.from(el.children, (c) => c.getBoundingClientRect().right))
       const neededWidth = childrenRight - left + parseFloat(getComputedStyle(el).paddingRight)
       // Half a pixel's slack for subpixel rounding
       if (neededWidth > width + 0.5) {

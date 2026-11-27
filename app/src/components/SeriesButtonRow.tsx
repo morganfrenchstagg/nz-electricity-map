@@ -21,8 +21,10 @@ export function SeriesButton({ colour, active, onClick, onIsolate, reference = f
       className={reference ? 'series-button series-button--reference' : 'series-button'}
       aria-pressed={active}
       // Stops shift-click extending the page's text selection
-      onMouseDown={e => { if (e.shiftKey && onIsolate) e.preventDefault() }}
-      onClick={e => e.shiftKey && onIsolate ? onIsolate() : onClick()}
+      onMouseDown={(e) => {
+        if (e.shiftKey && onIsolate) e.preventDefault()
+      }}
+      onClick={(e) => (e.shiftKey && onIsolate ? onIsolate() : onClick())}
       style={{ '--series-colour': colour } as React.CSSProperties}
     >
       {children}
@@ -75,7 +77,16 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
       const lineWidth = (ws: number[]) => ws.reduce((sum, w) => sum + w, 0) + GAP * Math.max(0, ws.length - 1)
       const available = row.getBoundingClientRect().width
       let count = itemWidths.length
-      while (count > 0 && lineWidth([...leadWidths, ...itemWidths.slice(0, count), ...(count < itemWidths.length ? [moreWidth] : []), ...trailWidths]) > available) count--
+      while (
+        count > 0 &&
+        lineWidth([
+          ...leadWidths,
+          ...itemWidths.slice(0, count),
+          ...(count < itemWidths.length ? [moreWidth] : []),
+          ...trailWidths,
+        ]) > available
+      )
+        count--
       setFitCount(count)
     }
     updateFitRef.current()
@@ -88,11 +99,14 @@ export default function SeriesButtonRow({ lead = [], items, trail = [] }: Props)
 
   const hiddenCount = items.length - fitCount
   return (
-    <div ref={rowRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: GAP }}>
+    <div
+      ref={rowRef}
+      style={{ position: 'relative', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: GAP }}
+    >
       {lead}
       {expanded || hiddenCount <= 0 ? items : items.slice(0, fitCount)}
       {hiddenCount > 0 && (
-        <button onClick={() => setExpanded(v => !v)} className={NEUTRAL_CLASS}>
+        <button onClick={() => setExpanded((v) => !v)} className={NEUTRAL_CLASS}>
           {expanded ? 'Show fewer ▲' : `+${hiddenCount} more ▼`}
         </button>
       )}

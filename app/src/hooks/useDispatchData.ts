@@ -39,11 +39,16 @@ export type AllAggregation = 'monthly' | 'quarterly' | 'annual'
 // rather than carrying over totals picked for the last one.
 export function periodMode(kind: Exclude<DateMode['kind'], 'date' | 'range'>, aggregation?: string | null): DateMode {
   switch (kind) {
-    case 'last90': return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'daily' }
-    case 'lastYear': return { kind, aggregation: aggregation === 'daily' ? 'daily' : 'weekly' }
-    case '5y': return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'monthly' }
-    case 'all': return { kind, aggregation: aggregation === 'monthly' || aggregation === 'quarterly' ? aggregation : 'annual' }
-    default: return { kind }
+    case 'last90':
+      return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'daily' }
+    case 'lastYear':
+      return { kind, aggregation: aggregation === 'daily' ? 'daily' : 'weekly' }
+    case '5y':
+      return { kind, aggregation: aggregation === 'weekly' ? 'weekly' : 'monthly' }
+    case 'all':
+      return { kind, aggregation: aggregation === 'monthly' || aggregation === 'quarterly' ? aggregation : 'annual' }
+    default:
+      return { kind }
   }
 }
 
@@ -82,11 +87,16 @@ export function periodOf(mode: DateMode): Period {
   const now = nzNowMs()
   const dayStart = (date: string) => nzLocalMs(`${date}T00:00:00`)
   switch (mode.kind) {
-    case 'recent': return { from: now - RECENT_DAYS * DAY_MS, to: now }
-    case 'today': return { from: dayStart(todayNZ()), to: now }
-    case 'date': return { from: dayStart(mode.date), to: dayStart(mode.date) + DAY_MS - 1 }
-    case 'range': return { from: dayStart(mode.from), to: dayStart(mode.to) + DAY_MS - 1 }
-    default: return { from: dayStart(aggregateWindow(mode).from), to: now }
+    case 'recent':
+      return { from: now - RECENT_DAYS * DAY_MS, to: now }
+    case 'today':
+      return { from: dayStart(todayNZ()), to: now }
+    case 'date':
+      return { from: dayStart(mode.date), to: dayStart(mode.date) + DAY_MS - 1 }
+    case 'range':
+      return { from: dayStart(mode.from), to: dayStart(mode.to) + DAY_MS - 1 }
+    default:
+      return { from: dayStart(aggregateWindow(mode).from), to: now }
   }
 }
 
@@ -115,7 +125,10 @@ export function mergeData(days: RecentData[]): RecentData {
   const seen = new Set<string>()
   for (const day of days) {
     for (const s of day.series) {
-      if (!seen.has(s)) { seen.add(s); seriesUnion.push(s) }
+      if (!seen.has(s)) {
+        seen.add(s)
+        seriesUnion.push(s)
+      }
     }
   }
 
@@ -123,21 +136,20 @@ export function mergeData(days: RecentData[]): RecentData {
   const allPricing: (string | number | null)[][] = []
 
   for (const day of days) {
-    const idxMap = seriesUnion.map(s => day.series.indexOf(s))
+    const idxMap = seriesUnion.map((s) => day.series.indexOf(s))
     // A series missing from a day generated 0 MW, but its price is unknown
     const remap = <T>(row: T[], missing: T): T[] => {
       const out: T[] = [row[0]]
       for (const idx of idxMap) out.push(idx >= 0 ? row[idx + 1] : missing)
       return out
     }
-    allData.push(...day.data.map(row => remap(row, 0)))
-    allPricing.push(...(day.pricing ?? []).map(row => remap(row, null)))
+    allData.push(...day.data.map((row) => remap(row, 0)))
+    allPricing.push(...(day.pricing ?? []).map((row) => remap(row, null)))
   }
 
-  const byTs = (a: (string | number | null)[], b: (string | number | null)[]) =>
-    String(a[0]) < String(b[0]) ? -1 : 1
+  const byTs = (a: (string | number | null)[], b: (string | number | null)[]) => (String(a[0]) < String(b[0]) ? -1 : 1)
 
-  const hvdc = mergeHvdc(days.map(day => day.hvdc))
+  const hvdc = mergeHvdc(days.map((day) => day.hvdc))
   return { series: seriesUnion, data: allData.sort(byTs), pricing: allPricing.sort(byTs), ...(hvdc && { hvdc }) }
 }
 
@@ -154,7 +166,8 @@ export function useDispatchData(mode: DateMode): {
     let cancelled = false
     let shown: RecentData[] | null = null
     const live = isLiveMode(mode)
-    const keys = live || isAggregateMode(mode) ? ['recent'] : mode.kind === 'date' ? [mode.date] : datesBetween(mode.from, mode.to)
+    const keys =
+      live || isAggregateMode(mode) ? ['recent'] : mode.kind === 'date' ? [mode.date] : datesBetween(mode.from, mode.to)
 
     function show(days: RecentData[]) {
       const prev = shown
@@ -178,11 +191,14 @@ export function useDispatchData(mode: DateMode): {
     }
 
     async function load() {
-      const cached = keys.map(k => peekDispatch(k))
-      if (cached.every(d => d !== undefined)) show(cached as RecentData[])
-      else { setLoading(true); setError(null) }
+      const cached = keys.map((k) => peekDispatch(k))
+      if (cached.every((d) => d !== undefined)) show(cached as RecentData[])
+      else {
+        setLoading(true)
+        setError(null)
+      }
       try {
-        const days = await Promise.all(keys.map(k => fetchDispatch(k)))
+        const days = await Promise.all(keys.map((k) => fetchDispatch(k)))
         if (!cancelled) show(days)
       } catch (err) {
         if (!cancelled) {

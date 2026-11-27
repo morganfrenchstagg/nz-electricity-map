@@ -24,7 +24,13 @@ export function tipPosition(
   size: { width: number; height: number },
   viewport: { width: number; height: number },
 ): { left: number; top: number } {
-  const left = Math.max(MARGIN, Math.min(column.left + column.width / 2 - size.width / 2, viewport.width - size.width - MARGIN))
+  const left = Math.max(
+    MARGIN,
+    Math.min(column.left + column.width / 2 - size.width / 2, viewport.width - size.width - MARGIN),
+  )
   const above = top - size.height - MARGIN
-  return { left, top: above >= MARGIN ? above : Math.max(MARGIN, Math.min(top + MARGIN, viewport.height - size.height - MARGIN)) }
+  return {
+    left,
+    top: above >= MARGIN ? above : Math.max(MARGIN, Math.min(top + MARGIN, viewport.height - size.height - MARGIN)),
+  }
 }

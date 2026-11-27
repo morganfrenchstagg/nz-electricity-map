@@ -18,10 +18,13 @@ beforeEach(async () => {
   vi.setSystemTime('2026-10-14T09:10:00Z') // 10:10pm NZDT, so the 22:00 interval's next one is overdue
   responses = []
   requested = []
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    requested.push(new URL(url))
-    return Response.json(responses.shift(), { headers: { 'Cache-Control': 'max-age=30' } })
-  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      requested.push(new URL(url))
+      return Response.json(responses.shift(), { headers: { 'Cache-Control': 'max-age=30' } })
+    }),
+  )
   // a fresh copy of the module each time, so nothing is cached from the last test
   vi.resetModules()
   api = await import('./api')
@@ -55,7 +58,9 @@ describe('fetchDispatch("recent")', () => {
     const updated = await refetchRecent()
 
     expect(requested[1].searchParams.get('since')).toBe('2026-10-14T21:55:00')
-    expect(updated).toEqual(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
+    expect(updated).toEqual(
+      recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]),
+    )
     expect(api.peekDispatch('recent')).toBe(updated)
   })
 
@@ -65,7 +70,9 @@ describe('fetchDispatch("recent")', () => {
 
     responses.push(recent(['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
 
-    expect(await refetchRecent()).toEqual(recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]))
+    expect(await refetchRecent()).toEqual(
+      recent(['2026-10-14T21:55:00', 48], ['2026-10-14T22:00:00', 50], ['2026-10-14T22:05:00', 52]),
+    )
   })
 
   it('keeps the same data when nothing new has arrived', async () => {
@@ -82,26 +89,35 @@ describe('fetchDispatch("recent")', () => {
 
     const reorganised = {
       series: ['ARI1101 ARI0', ...series],
-      data: [['2026-10-14T22:00:00', 0, 50], ['2026-10-14T22:05:00', 5, 52]],
-      pricing: [['2026-10-14T22:00:00', 0, 100], ['2026-10-14T22:05:00', 90, 100]],
+      data: [
+        ['2026-10-14T22:00:00', 0, 50],
+        ['2026-10-14T22:05:00', 5, 52],
+      ],
+      pricing: [
+        ['2026-10-14T22:00:00', 0, 100],
+        ['2026-10-14T22:05:00', 90, 100],
+      ],
     }
     responses.push({ ...reorganised, data: reorganised.data.slice(1), pricing: reorganised.pricing.slice(1) })
     responses.push(reorganised)
 
     expect(await refetchRecent()).toEqual(reorganised)
-    expect(requested.map(url => url.search)).toEqual(['', '?since=2026-10-14T22%3A00%3A00', ''])
+    expect(requested.map((url) => url.search)).toEqual(['', '?since=2026-10-14T22%3A00%3A00', ''])
   })
 })
 
 // Serves the solar API's files by path, as their results, and 404s any other
 function stubSolarApi(files: Record<string, unknown>) {
-  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    requested.push(new URL(url))
-    const path = new URL(url).pathname.slice(1)
-    return path in files
-      ? Response.json({ result: files[path] }, { headers: { 'Cache-Control': 'max-age=30' } })
-      : new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
-  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => {
+      requested.push(new URL(url))
+      const path = new URL(url).pathname.slice(1)
+      return path in files
+        ? Response.json({ result: files[path] }, { headers: { 'Cache-Control': 'max-age=30' } })
+        : new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    }),
+  )
 }
 
 const solarPaths = () => requested.map((url) => url.pathname)
@@ -113,9 +129,16 @@ describe('fetchSolarEnergy', () => {
   const energy = { series: [], data: [] }
 
   it('fetches the solar API’s file for the same periods as an aggregates path', async () => {
-    stubSolarApi({ 'solar-energy': coverage, 'solar-energy/daily/2026-09': energy, 'solar-energy/weekly/2026': energy, 'solar-energy/monthly/2026': energy, 'solar-energy/annual': energy })
+    stubSolarApi({
+      'solar-energy': coverage,
+      'solar-energy/daily/2026-09': energy,
+      'solar-energy/weekly/2026': energy,
+      'solar-energy/monthly/2026': energy,
+      'solar-energy/annual': energy,
+    })
 
-    for (const path of ['2026/09', '2026/weekly', '2026/monthly', 'annual']) expect(await api.fetchSolarEnergy(path)).toEqual(energy)
+    for (const path of ['2026/09', '2026/weekly', '2026/monthly', 'annual'])
+      expect(await api.fetchSolarEnergy(path)).toEqual(energy)
     expect(requested.map((url) => `${url.origin}${url.pathname}`)).toEqual([
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy',
       'https://api-solar.electricitymap.frenchsta.gg/solar-energy/daily/2026-09',
@@ -128,7 +151,8 @@ describe('fetchSolarEnergy', () => {
   it('doesn’t ask for a file without any of the days the API has estimated', async () => {
     stubSolarApi({ 'solar-energy': coverage })
 
-    for (const path of ['2014/monthly', '2015/06', '2026/11', '2027/weekly', '2027/monthly']) expect(await api.fetchSolarEnergy(path)).toBeNull()
+    for (const path of ['2014/monthly', '2015/06', '2026/11', '2027/weekly', '2027/monthly'])
+      expect(await api.fetchSolarEnergy(path)).toBeNull()
     for (const path of ['2015/monthly', '2015/07', '2026/10', '2015/weekly']) await api.fetchSolarEnergy(path)
     expect(solarPaths()).toEqual([
       '/solar-energy',

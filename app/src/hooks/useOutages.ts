@@ -36,17 +36,22 @@ export function useOutages(mode: DateMode): OutageData | null {
     let cancelled = false
     const days = key ? key.split(',') : []
     function load() {
-      const outages = days.length > 0
-        ? Promise.all(days.map((day) => fetchOutages(day))).then(mergeOutageDays)
-        : fetchOutages()
+      const outages =
+        days.length > 0 ? Promise.all(days.map((day) => fetchOutages(day))).then(mergeOutageDays) : fetchOutages()
       outages
         // Most polls hand back the same cached outages, which would re-render for nothing
-        .then((data) => { if (!cancelled) setShown((prev) => prev.key === key && prev.outages === data ? prev : { key, outages: data }) })
+        .then((data) => {
+          if (!cancelled)
+            setShown((prev) => (prev.key === key && prev.outages === data ? prev : { key, outages: data }))
+        })
         .catch(() => {})
     }
     load()
     const stopPolling = live ? pollWhileVisible(load, REFRESH_MS) : undefined
-    return () => { cancelled = true; stopPolling?.() }
+    return () => {
+      cancelled = true
+      stopPolling?.()
+    }
   }, [key, live])
 
   return shown.key === key ? shown.outages : null

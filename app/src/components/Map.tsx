@@ -24,7 +24,8 @@ import { substationsOf } from '../utils/substations'
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
-const LINZ_AERIAL_URL = 'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
+const LINZ_AERIAL_URL =
+  'https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=c01kw0f06zmga8j2dmxg0fjz0ny'
 const INITIAL_CENTER: [number, number] = [172.5, -41.3]
 const INITIAL_ZOOM = 5
 // How far in the map opens on a generator's page, enough to see the station and what's around it
@@ -64,21 +65,23 @@ const HVDC_CHEVRONS_MIN_ZOOM = 7.5
 
 // Three chevrons pointing east, each over a white halo to stand out on the cables and
 // the satellite map. They're lit in turn the way they point (see index.css).
-const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
-  [7, 18, 29].map((x) => {
+const HVDC_CHEVRONS_SVG = `<svg width="44" height="20" viewBox="0 0 44 20" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${[
+  7, 18, 29,
+]
+  .map((x) => {
     const d = `M${x} 4 L${x + 8} 10 L${x} 16`
     return `<g><path d="${d}" stroke="${HVDC_HALO}" stroke-width="7"/><path d="${d}" stroke="${HVDC_CHEVRON_COLOUR}" stroke-width="3.5"/></g>`
-  }).join('')
-}</svg>`
+  })
+  .join('')}</svg>`
 
 // The generation pipeline is what's being built now, so past days and ranges leave it off the map
-const pipelineFor = (mode: DateMode) => isPastMode(mode) ? [] : underConstruction
+const pipelineFor = (mode: DateMode) => (isPastMode(mode) ? [] : underConstruction)
 
 // Where each of the selected generators or substations is, as [lng, lat]
 function selectionPoints(node: GeneratorNode | SubstationNode): [number, number][] {
   if (node.kind === 'generator') return [[node.generator.location.long, node.generator.location.lat]]
-  if (node.kind === 'generators') return node.generators.map(g => [g.location.long, g.location.lat])
-  return substationsOf(node).map(s => [s.long, s.lat])
+  if (node.kind === 'generators') return node.generators.map((g) => [g.location.long, g.location.lat])
+  return substationsOf(node).map((s) => [s.long, s.lat])
 }
 
 interface Props {
@@ -100,7 +103,20 @@ interface Props {
   isMobile?: boolean
 }
 
-export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, onClear, selectedNode, openedGenerator, leftPanelOpen, panelWidth, initialView, recentData, dateMode, isMobile = false }: Props) {
+export default function Map({
+  onGeneratorClick,
+  onSubstationClick,
+  onHvdcClick,
+  onClear,
+  selectedNode,
+  openedGenerator,
+  leftPanelOpen,
+  panelWidth,
+  initialView,
+  recentData,
+  dateMode,
+  isMobile = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   // Whether the map has zoomed in on openedGenerator
@@ -119,16 +135,25 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   const hvdcFlowMarkerRef = useRef<maplibregl.Marker | null>(null)
   // Runs `update` once the sources are added. Not isStyleLoaded(), which is false again
   // while a source reloads after setData, and 'load' doesn't fire again to run it then.
-  const whenLoaded = (map: maplibregl.Map, update: () => void) => mapLoadedRef.current ? update() : map.once('load', update)
+  const whenLoaded = (map: maplibregl.Map, update: () => void) =>
+    mapLoadedRef.current ? update() : map.once('load', update)
   const leftPanelOpenRef = useRef(leftPanelOpen)
-  useEffect(() => { leftPanelOpenRef.current = leftPanelOpen }, [leftPanelOpen])
+  useEffect(() => {
+    leftPanelOpenRef.current = leftPanelOpen
+  }, [leftPanelOpen])
   const panelWidthRef = useRef(panelWidth)
-  useEffect(() => { panelWidthRef.current = panelWidth }, [panelWidth])
+  useEffect(() => {
+    panelWidthRef.current = panelWidth
+  }, [panelWidth])
   const isMobileRef = useRef(isMobile)
-  useEffect(() => { isMobileRef.current = isMobile }, [isMobile])
+  useEffect(() => {
+    isMobileRef.current = isMobile
+  }, [isMobile])
   // Ahead of recentData's, so a popup refreshed for a new day's data shows that day's units
   const dateModeRef = useRef(dateMode)
-  useEffect(() => { dateModeRef.current = dateMode }, [dateMode])
+  useEffect(() => {
+    dateModeRef.current = dateMode
+  }, [dateMode])
   useEffect(() => {
     recentDataRef.current = recentData
     refreshHoverRef.current()
@@ -136,7 +161,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
   const outages = useOutages(dateMode)
   // The nodes dispatching in the live views, where units still being commissioned are shown once they are
   const dispatching = useMemo(
-    () => isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined,
+    () => (isLiveMode(dateMode) && recentData ? new Set(recentData.series) : undefined),
     [dateMode, recentData],
   )
   const outagesRef = useRef<OutageData | null>(outages)
@@ -145,19 +170,33 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     refreshHoverRef.current()
   }, [outages])
 
-  useEffect(() => { generatorsRef.current = generators }, [generators])
-  useEffect(() => { substationsRef.current = substations }, [substations])
-  useEffect(() => { unitsByNodeRef.current = nodeUnits }, [nodeUnits])
+  useEffect(() => {
+    generatorsRef.current = generators
+  }, [generators])
+  useEffect(() => {
+    substationsRef.current = substations
+  }, [substations])
+  useEffect(() => {
+    unitsByNodeRef.current = nodeUnits
+  }, [nodeUnits])
 
   // Keep callback refs so map event handlers always see the latest callbacks
   const onGeneratorClickRef = useRef(onGeneratorClick)
   const onSubstationClickRef = useRef(onSubstationClick)
   const onHvdcClickRef = useRef(onHvdcClick)
   const onClearRef = useRef(onClear)
-  useEffect(() => { onGeneratorClickRef.current = onGeneratorClick }, [onGeneratorClick])
-  useEffect(() => { onSubstationClickRef.current = onSubstationClick }, [onSubstationClick])
-  useEffect(() => { onHvdcClickRef.current = onHvdcClick }, [onHvdcClick])
-  useEffect(() => { onClearRef.current = onClear }, [onClear])
+  useEffect(() => {
+    onGeneratorClickRef.current = onGeneratorClick
+  }, [onGeneratorClick])
+  useEffect(() => {
+    onSubstationClickRef.current = onSubstationClick
+  }, [onSubstationClick])
+  useEffect(() => {
+    onHvdcClickRef.current = onHvdcClick
+  }, [onHvdcClick])
+  useEffect(() => {
+    onClearRef.current = onClear
+  }, [onClear])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -183,7 +222,9 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const chevrons = document.createElement('div')
     chevrons.className = 'hvdc-flow'
     chevrons.innerHTML = HVDC_CHEVRONS_SVG
-    hvdcFlowMarkerRef.current = new maplibregl.Marker({ element: chevrons, rotationAlignment: 'map' }).setLngLat(HVDC_CABLE_MIDDLE)
+    hvdcFlowMarkerRef.current = new maplibregl.Marker({ element: chevrons, rotationAlignment: 'map' }).setLngLat(
+      HVDC_CABLE_MIDDLE,
+    )
     const showChevrons = () => chevrons.classList.toggle('is-hidden', map.getZoom() < HVDC_CHEVRONS_MIN_ZOOM)
     showChevrons()
     map.on('zoom', showChevrons)
@@ -220,9 +261,26 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         type: 'geojson',
         data: { type: 'Feature', geometry: { type: 'LineString', coordinates: HVDC_CABLE }, properties: {} },
       })
-      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#ffffff', 'line-width': 3.5, 'line-opacity': 0.5 }
-      map.addLayer({ id: 'hvdc-line-outline-layer', type: 'line', source: 'transmission-lines', filter: HVDC_LINE_FILTER, layout: { 'line-cap': 'round' }, paint: hvdcOutline })
-      map.addLayer({ id: 'hvdc-cables-outline-layer', type: 'line', source: 'hvdc-cables', layout: { 'line-cap': 'round' }, paint: hvdcOutline })
+      const hvdcOutline: maplibregl.LineLayerSpecification['paint'] = {
+        'line-color': '#ffffff',
+        'line-width': 3.5,
+        'line-opacity': 0.5,
+      }
+      map.addLayer({
+        id: 'hvdc-line-outline-layer',
+        type: 'line',
+        source: 'transmission-lines',
+        filter: HVDC_LINE_FILTER,
+        layout: { 'line-cap': 'round' },
+        paint: hvdcOutline,
+      })
+      map.addLayer({
+        id: 'hvdc-cables-outline-layer',
+        type: 'line',
+        source: 'hvdc-cables',
+        layout: { 'line-cap': 'round' },
+        paint: hvdcOutline,
+      })
       map.addLayer({
         id: 'hvdc-line-layer',
         type: 'line',
@@ -250,7 +308,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       })
       // Hovering anywhere along the HVDC shows its flow. Unseen, and wider than its lines
       // to be easier to find (wider again on mobile, see HVDC_HOVER_WIDTH).
-      const hvdcHoverPaint: maplibregl.LineLayerSpecification['paint'] = { 'line-color': '#000000', 'line-width': HVDC_HOVER_WIDTH.mouse, 'line-opacity': 0 }
+      const hvdcHoverPaint: maplibregl.LineLayerSpecification['paint'] = {
+        'line-color': '#000000',
+        'line-width': HVDC_HOVER_WIDTH.mouse,
+        'line-opacity': 0,
+      }
       map.addLayer({
         id: 'hvdc-line-hover-layer',
         type: 'line',
@@ -341,7 +403,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         if (genFeatures.length > 0) {
           const site = genFeatures[0].properties?.site as string | undefined
           const generator = generatorsRef.current.find((g) => g.site === site)
-          if (generator) { onGeneratorClickRef.current(generator); return }
+          if (generator) {
+            onGeneratorClickRef.current(generator)
+            return
+          }
         }
 
         const subFeatures = map.queryRenderedFeatures(e.point, { layers: ['substations-layer'] })
@@ -361,14 +426,29 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         onClearRef.current()
       })
 
-      const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, maxWidth: '380px' })
+      const hoverPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        maxWidth: '380px',
+      })
       let hovered: maplibregl.MapGeoJSONFeature | undefined
 
       const hoverHtml = (feature: maplibregl.MapGeoJSONFeature): string | null => {
         const p = feature.properties
         if (feature.layer.id === 'generators-layer') {
-          const generator = generatorsRef.current.find(g => g.site === p.site)
-          return generator ? generatorPopupHtml(generator, recentDataRef.current, outagesRef.current, periodOf(dateModeRef.current), isLiveMode(dateModeRef.current), pipelineFor(dateModeRef.current), unitsByNodeRef.current) : null
+          const generator = generatorsRef.current.find((g) => g.site === p.site)
+          return generator
+            ? generatorPopupHtml(
+                generator,
+                recentDataRef.current,
+                outagesRef.current,
+                periodOf(dateModeRef.current),
+                isLiveMode(dateModeRef.current),
+                pipelineFor(dateModeRef.current),
+                unitsByNodeRef.current,
+              )
+            : null
         }
         if (feature.layer.id === 'under-construction-layer') {
           return underConstructionPopupHtml(String(p.name ?? ''), JSON.parse(p.units ?? '[]'))
@@ -378,7 +458,7 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
           const transfer = latestHvdcNorth(recentDataRef.current)
           return transfer && hvdcPopupHtml(transfer)
         }
-        const substation = substationsRef.current.find(s => s.siteId === p.siteId)
+        const substation = substationsRef.current.find((s) => s.siteId === p.siteId)
         return substation ? substationPopupHtml(substation, recentDataRef.current, unitsByNodeRef.current) : null
       }
 
@@ -386,15 +466,20 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       const renderHover = () => {
         const html = hovered && hoverHtml(hovered)
         map.getCanvas().style.cursor = html ? 'pointer' : ''
-        if (!html) { hoverPopup.remove(); return }
+        if (!html) {
+          hoverPopup.remove()
+          return
+        }
         hoverPopup.setHTML(html)
         if (!hoverPopup.isOpen()) hoverPopup.addTo(map)
       }
-      refreshHoverRef.current = () => { if (hovered) renderHover() }
+      refreshHoverRef.current = () => {
+        if (hovered) renderHover()
+      }
 
       map.on('mousemove', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: HOVER_LAYERS })
-        const feature = HOVER_LAYERS.map(layer => features.find(f => f.layer.id === layer)).find(f => f)
+        const feature = HOVER_LAYERS.map((layer) => features.find((f) => f.layer.id === layer)).find((f) => f)
         // Following the cursor is cheap; the popup is rebuilt only when the cursor reaches another feature
         hoverPopup.setLngLat(e.lngLat)
         if (hoverKey(feature) === hoverKey(hovered)) return
@@ -442,7 +527,10 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     const marker = hvdcFlowMarkerRef.current
     if (!map || !marker) return
-    if (!hvdcFlow) { marker.remove(); return }
+    if (!hvdcFlow) {
+      marker.remove()
+      return
+    }
     // Marker rotation is clockwise, and the cables run anticlockwise of east
     marker.setRotation((hvdcFlow === 'north' ? 0 : 180) - HVDC_CABLE_ANGLE).addTo(map)
   }, [hvdcFlow])
@@ -465,12 +553,20 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
       if (!src) return
       // The HVDC is picked out in the selection's blue rather than circled
       const hvdcColour = selectedNode?.kind === 'hvdc' ? SELECTED_COLOUR : HVDC_COLOUR
-      for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer']) map.setPaintProperty(layer, 'line-color', hvdcColour)
+      for (const layer of ['hvdc-line-layer', 'hvdc-cables-layer'])
+        map.setPaintProperty(layer, 'line-color', hvdcColour)
       if (!selectedNode || selectedNode.kind === 'hvdc') {
         src.setData({ type: 'FeatureCollection', features: [] })
         return
       }
-      src.setData({ type: 'FeatureCollection', features: selectionPoints(selectedNode).map(coords => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coords }, properties: {} })) })
+      src.setData({
+        type: 'FeatureCollection',
+        features: selectionPoints(selectedNode).map((coords) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: coords },
+          properties: {},
+        })),
+      })
     }
     whenLoaded(map, update)
   }, [selectedNode])
@@ -479,7 +575,9 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map) return
 
-    const panelPadding = isMobile ? { left: 0, right: 0, top: 0, bottom: 0 } : { left: panelWidthRef.current, right: 0, top: 0, bottom: 0 }
+    const panelPadding = isMobile
+      ? { left: 0, right: 0, top: 0, bottom: 0 }
+      : { left: panelWidthRef.current, right: 0, top: 0, bottom: 0 }
     const zeroPadding = { left: 0, right: 0, top: 0, bottom: 0 }
 
     // The HVDC runs the length of the South Island, so the map stays where it was clicked
@@ -513,15 +611,25 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
     const map = mapRef.current
     if (!map) return
     whenLoaded(map, () => {
-      for (const layer of HVDC_HOVER_LAYERS) map.setPaintProperty(layer, 'line-width', isMobile ? HVDC_HOVER_WIDTH.touch : HVDC_HOVER_WIDTH.mouse)
+      for (const layer of HVDC_HOVER_LAYERS)
+        map.setPaintProperty(layer, 'line-width', isMobile ? HVDC_HOVER_WIDTH.touch : HVDC_HOVER_WIDTH.mouse)
     })
   }, [isMobile])
 
   // How much of the map's left side the panel covers
-  const panelInset = (!isMobile && leftPanelOpen) ? panelWidth : 0
+  const panelInset = !isMobile && leftPanelOpen ? panelWidth : 0
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', '--map-panel-inset': `${panelInset}px` } as React.CSSProperties}>
+    <div
+      style={
+        {
+          position: 'relative',
+          width: '100%',
+          height: '100vh',
+          '--map-panel-inset': `${panelInset}px`,
+        } as React.CSSProperties
+      }
+    >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       <div
         role="group"
@@ -530,7 +638,11 @@ export default function Map({ onGeneratorClick, onSubstationClick, onHvdcClick, 
         style={{ position: 'absolute', top: 10, left: panelInset + 10, zIndex: 10 }}
       >
         {(['street', 'aerial'] as const).map((mode) => (
-          <button key={mode} onClick={() => setShowAerial(mode === 'aerial')} aria-pressed={(mode === 'aerial') === showAerial}>
+          <button
+            key={mode}
+            onClick={() => setShowAerial(mode === 'aerial')}
+            aria-pressed={(mode === 'aerial') === showAerial}
+          >
             {mode === 'street' ? 'Street' : 'Satellite'}
           </button>
         ))}

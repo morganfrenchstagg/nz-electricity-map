@@ -22,8 +22,16 @@ interface Props {
 // GeneratorPanel's Offers view has its own.
 export default function DateControls({ dateMode, picker, compact, lastUpdated, loading, error, empty }: Props) {
   const {
-    pickerRange, pickerOpen, setPickerOpen, customDates, showDateInputs, rangeError,
-    handleRangeChange, handlePeriodClick, handleAggregationClick, handleCustomClick,
+    pickerRange,
+    pickerOpen,
+    setPickerOpen,
+    customDates,
+    showDateInputs,
+    rangeError,
+    handleRangeChange,
+    handlePeriodClick,
+    handleAggregationClick,
+    handleCustomClick,
   } = picker
 
   const rangePicker = (
@@ -57,7 +65,12 @@ export default function DateControls({ dateMode, picker, compact, lastUpdated, l
       )}
       {/* Left out of the compact toolbar, where it would take a line of its own */}
       {lastUpdated && !loading && !compact && (
-        <><div className="divider" /><span className="status-text" style={{ marginLeft: 4 }}>{lastUpdated}</span></>
+        <>
+          <div className="divider" />
+          <span className="status-text" style={{ marginLeft: 4 }}>
+            {lastUpdated}
+          </span>
+        </>
       )}
       {loading && <span className="status-text">Loading…</span>}
       {error && !empty && <span className="status-text is-error">Failed to load data</span>}

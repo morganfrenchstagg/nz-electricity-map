@@ -23,7 +23,7 @@ function apply(theme: Theme) {
   root.dataset.theme = theme
   root.classList.toggle('highcharts-dark', theme === 'dark')
   root.classList.toggle('highcharts-light', theme === 'light')
-  listeners.forEach(listener => listener())
+  listeners.forEach((listener) => listener())
 }
 
 export function currentTheme(): Theme {
@@ -45,11 +45,8 @@ export function initTheme() {
 }
 
 export function useTheme(): Theme {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    currentTheme,
-  )
+  return useSyncExternalStore((listener) => {
+    listeners.add(listener)
+    return () => listeners.delete(listener)
+  }, currentTheme)
 }

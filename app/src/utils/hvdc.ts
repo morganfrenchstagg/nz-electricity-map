@@ -4,14 +4,20 @@ import { nzLocalMs } from './time'
 // Where the HVDC's cables come ashore either side of Cook Strait: Fighting Bay,
 // and Oteranga Bay, at the ends of the overhead line in the transmission lines.
 // They're drawn straight across between the two.
-export const HVDC_CABLE: [number, number][] = [[174.2021, -41.3097], [174.6300, -41.2937]]
+export const HVDC_CABLE: [number, number][] = [
+  [174.2021, -41.3097],
+  [174.63, -41.2937],
+]
 
 // How far the cables run anticlockwise of due east, from Fighting Bay to Oteranga
 // Bay, in degrees. On the ground, which the map's projection keeps it at.
-export const HVDC_CABLE_ANGLE = (Math.atan2(
-  HVDC_CABLE[1][1] - HVDC_CABLE[0][1],
-  (HVDC_CABLE[1][0] - HVDC_CABLE[0][0]) * Math.cos((HVDC_CABLE[0][1] * Math.PI) / 180),
-) * 180) / Math.PI
+export const HVDC_CABLE_ANGLE =
+  (Math.atan2(
+    HVDC_CABLE[1][1] - HVDC_CABLE[0][1],
+    (HVDC_CABLE[1][0] - HVDC_CABLE[0][0]) * Math.cos((HVDC_CABLE[0][1] * Math.PI) / 180),
+  ) *
+    180) /
+  Math.PI
 
 // The middle of the cables, where the map shows which way the HVDC's flowing
 export const HVDC_CABLE_MIDDLE: [number, number] = [
@@ -61,12 +67,14 @@ export function hvdcPoints(hvdc: HvdcData): HvdcPoint[] {
     const north = num(row[northFlow])
     const south = num(row[southFlow])
     if (north === null && south === null) return []
-    return [{
-      ms: nzLocalMs(row[0] as string),
-      north: (north ?? 0) - Math.abs(south ?? 0),
-      northLimit: num(row[northLimit]),
-      southLimit: num(row[southLimit]),
-    }]
+    return [
+      {
+        ms: nzLocalMs(row[0] as string),
+        north: (north ?? 0) - Math.abs(south ?? 0),
+        northLimit: num(row[northLimit]),
+        southLimit: num(row[southLimit]),
+      },
+    ]
   })
 }
 
@@ -107,13 +115,21 @@ export function hvdcEnergies(hvdc: HvdcData): HvdcEnergy[] {
   const col = (name: string) => hvdc.series.indexOf(name) + 1
   const [north, south] = [col('northFlow'), col('southFlow')]
   const num = (value: string | number | null | undefined) => (typeof value === 'number' ? value : 0)
-  return hvdc.data.map((row) => ({ ms: nzLocalMs(row[0] as string), north: num(row[north]), south: Math.abs(num(row[south])) }))
+  return hvdc.data.map((row) => ({
+    ms: nzLocalMs(row[0] as string),
+    north: num(row[north]),
+    south: Math.abs(num(row[south])),
+  }))
 }
 
 // The MWh the HVDC brought into `island`, and took out of it, in each of an
 // aggregate view's periods, by their rows' timestamps. Over a period it can have
 // flowed both ways. Null for a period without a total.
-export function hvdcEnergyInto(island: 'NI' | 'SI', hvdc: HvdcData | undefined, times: string[]): ({ in: number; out: number } | null)[] {
+export function hvdcEnergyInto(
+  island: 'NI' | 'SI',
+  hvdc: HvdcData | undefined,
+  times: string[],
+): ({ in: number; out: number } | null)[] {
   const byMs = new Map((hvdc ? hvdcEnergies(hvdc) : []).map((energy) => [energy.ms, energy]))
   return times.map((time) => {
     const energy = byMs.get(nzLocalMs(time))
@@ -130,7 +146,7 @@ export function mergeHvdc(days: (HvdcData | undefined)[]): HvdcData | undefined 
   const series = [...new Set(present.flatMap((day) => day.series))]
   const data = present.flatMap((day) => {
     const columns = series.map((name) => day.series.indexOf(name) + 1)
-    return day.data.map((row) => [row[0], ...columns.map((c) => (c > 0 ? row[c] ?? null : null))])
+    return day.data.map((row) => [row[0], ...columns.map((c) => (c > 0 ? (row[c] ?? null) : null))])
   })
   // Timestamps are all NZ times in the same format, so they sort as strings
   return { series, data: data.sort((a, b) => (a[0] as string).localeCompare(b[0] as string)) }

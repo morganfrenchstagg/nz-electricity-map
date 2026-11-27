@@ -1,7 +1,16 @@
 import type Highcharts from 'highcharts'
 import type { HvdcData } from '../types'
 import type { AggregatePeriod } from '../hooks/useAggregates'
-import { chartReach, columnFillEvents, DATETIME_LABEL_FORMATS, FIT_TO_CONTAINER, midnightPlotLines, timeChartAccessibility, tooltipTime, withGaps } from './chart'
+import {
+  chartReach,
+  columnFillEvents,
+  DATETIME_LABEL_FORMATS,
+  FIT_TO_CONTAINER,
+  midnightPlotLines,
+  timeChartAccessibility,
+  tooltipTime,
+  withGaps,
+} from './chart'
 import { fuelCodeColour, HVDC_IMPORT_CODE } from './colours'
 import { energyUnit, formatMW, MW_UNIT } from './format'
 import { hvdcEnergies, hvdcPoints } from './hvdc'
@@ -15,7 +24,12 @@ const HALF_HOUR_MS = 30 * 60 * 1000
 // A limit's step line, each half hour's held until the next, labelled at its end
 // as GeneratorPanel's capacity line is. The south limit's label goes `below` its
 // line, away from the transfer above it.
-function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoint) => number | null, below = false): Highcharts.SeriesLineOptions {
+function limitSeries(
+  points: HvdcPoint[],
+  name: string,
+  limitOf: (point: HvdcPoint) => number | null,
+  below = false,
+): Highcharts.SeriesLineOptions {
   const data = points.map((point) => [point.ms, limitOf(point)] as [number, number | null])
   const lastMs = [...data].reverse().find(([, y]) => y !== null)?.[0]
   return {
@@ -24,17 +38,25 @@ function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoi
     data: withGaps(data).map(([x, y]) => ({
       x,
       y,
-      dataLabels: x === lastMs && y !== null ? {
-        enabled: true,
-        format: `${name}: ${formatMW(Math.abs(y))}`,
-        align: 'right',
-        verticalAlign: below ? 'top' : 'bottom',
-        y: below ? 2 : -2,
-        style: { color: LIMIT_COLOUR, fontSize: 'var(--font-size-2xs)', fontWeight: 'normal', textOutline: 'none' },
-        crop: false,
-        overflow: 'allow' as const,
-        x: -4,
-      } : { enabled: false },
+      dataLabels:
+        x === lastMs && y !== null
+          ? {
+              enabled: true,
+              format: `${name}: ${formatMW(Math.abs(y))}`,
+              align: 'right',
+              verticalAlign: below ? 'top' : 'bottom',
+              y: below ? 2 : -2,
+              style: {
+                color: LIMIT_COLOUR,
+                fontSize: 'var(--font-size-2xs)',
+                fontWeight: 'normal',
+                textOutline: 'none',
+              },
+              crop: false,
+              overflow: 'allow' as const,
+              x: -4,
+            }
+          : { enabled: false },
     })),
     color: LIMIT_COLOUR,
     lineWidth: 1.5,
@@ -49,18 +71,27 @@ function limitSeries(points: HvdcPoint[], name: string, limitOf: (point: HvdcPoi
 // zero and south below it, between step lines of its limits each way where em6
 // has them. It spans `times`, the view's dispatch timestamps, so days without
 // the HVDC are left blank rather than cut off. Null with no flows.
-export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => row[0] as string)): Highcharts.Options | null {
+export function hvdcChartOptions(
+  hvdc: HvdcData,
+  times = hvdc.data.map((row) => row[0] as string),
+): Highcharts.Options | null {
   const points = hvdcPoints(hvdc)
   if (points.length === 0) return null
   const byMs = new Map(points.map((point) => [point.ms, point]))
   const colour = fuelCodeColour(HVDC_IMPORT_CODE)
 
   return {
-    chart: { ...FIT_TO_CONTAINER, type: 'line', height: null, animation: false, backgroundColor: 'var(--color-surface)' },
+    chart: {
+      ...FIT_TO_CONTAINER,
+      type: 'line',
+      height: null,
+      animation: false,
+      backgroundColor: 'var(--color-surface)',
+    },
     title: { text: undefined },
     ...timeChartAccessibility(
       'HVDC transfer',
-      'The HVDC\'s transfer between the islands, flowing north above zero and south below it, with its limit each way',
+      "The HVDC's transfer between the islands, flowing north above zero and south below it, with its limit each way",
       null,
       MW_UNIT,
       HALF_HOUR_MS,
@@ -89,11 +120,13 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
         const transfer = mw === 0 ? 'No transfer' : `<b>${formatMW(Math.abs(mw))}</b> ${mw > 0 ? 'north' : 'south'}`
         const limit = (name: string, value: number | null) =>
           value === null ? '' : `<tr><td>${name}</td><td>${formatMW(Math.abs(value))}</td></tr>`
-        return `<b>${tooltipTime(point.ms, null)}</b><br/><table>`
-          + `<tr><td><span style="color:${colour}">●</span> Transfer</td><td>${transfer}</td></tr>`
-          + limit('North limit', point.northLimit)
-          + limit('South limit', point.southLimit)
-          + '</table>'
+        return (
+          `<b>${tooltipTime(point.ms, null)}</b><br/><table>` +
+          `<tr><td><span style="color:${colour}">●</span> Transfer</td><td>${transfer}</td></tr>` +
+          limit('North limit', point.northLimit) +
+          limit('South limit', point.southLimit) +
+          '</table>'
+        )
       },
     },
     series: [
@@ -107,7 +140,12 @@ export function hvdcChartOptions(hvdc: HvdcData, times = hvdc.data.map((row) => 
         animation: false,
       },
       limitSeries(points, 'North limit', (point) => point.northLimit),
-      limitSeries(points, 'South limit', (point) => (point.southLimit === null ? null : -Math.abs(point.southLimit)), true),
+      limitSeries(
+        points,
+        'South limit',
+        (point) => (point.southLimit === null ? null : -Math.abs(point.southLimit)),
+        true,
+      ),
     ],
   }
 }
@@ -121,9 +159,17 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod):
   const byMs = new Map(energies.map((energy) => [energy.ms, energy]))
   const colour = fuelCodeColour(HVDC_IMPORT_CODE)
   // In GWh unless the columns stay small
-  const unit = energyUnit(chartReach(energies.map((energy) => [energy.north, -energy.south]), true))
+  const unit = energyUnit(
+    chartReach(
+      energies.map((energy) => [energy.north, -energy.south]),
+      true,
+    ),
+  )
 
-  const columns = (name: string, mwhOf: (energy: typeof energies[number]) => number): Highcharts.SeriesColumnOptions => ({
+  const columns = (
+    name: string,
+    mwhOf: (energy: (typeof energies)[number]) => number,
+  ): Highcharts.SeriesColumnOptions => ({
     type: 'column',
     name,
     color: colour,
@@ -140,7 +186,10 @@ export function hvdcEnergyChartOptions(hvdc: HvdcData, period: AggregatePeriod):
   return {
     chart: {
       ...FIT_TO_CONTAINER,
-      type: 'column', height: null, animation: false, backgroundColor: 'var(--color-surface)',
+      type: 'column',
+      height: null,
+      animation: false,
+      backgroundColor: 'var(--color-surface)',
       className: 'aggregate-columns', // see index.css
     },
     title: { text: undefined },

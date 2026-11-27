@@ -85,19 +85,31 @@
   --space-3xl: 32px;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   color-scheme: dark;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    'Noto Sans',
+    Arial,
+    sans-serif;
 }
 
 /* Buttons and inputs don't inherit this, so their classes set their own size */
@@ -265,7 +277,7 @@ a.button-secondary {
 }
 
 .icon-button[data-hovered],
-.icon-button[aria-expanded="true"] {
+.icon-button[aria-expanded='true'] {
   background: var(--color-surface-muted);
 }
 
@@ -296,7 +308,7 @@ a.button-secondary {
   border-right: 1px solid var(--color-border);
 }
 
-.toggle-group > button[aria-pressed="true"],
+.toggle-group > button[aria-pressed='true'],
 .toggle-group > .calendar-button.is-active {
   background: var(--color-accent-strong);
   color: var(--color-text-inverse);
@@ -309,7 +321,7 @@ a.button-secondary {
   align-items: center;
 }
 
-.toggle-group > .calendar-button[aria-expanded="true"]:not(.is-active) {
+.toggle-group > .calendar-button[aria-expanded='true']:not(.is-active) {
   background: var(--color-surface-muted);
 }
 
@@ -418,11 +430,15 @@ a.button-secondary {
   color: var(--color-text-secondary);
 }
 
-.maplibregl-map :is(.maplibregl-popup-anchor-top, .maplibregl-popup-anchor-top-left, .maplibregl-popup-anchor-top-right) .maplibregl-popup-tip {
+.maplibregl-map
+  :is(.maplibregl-popup-anchor-top, .maplibregl-popup-anchor-top-left, .maplibregl-popup-anchor-top-right)
+  .maplibregl-popup-tip {
   border-bottom-color: var(--color-surface);
 }
 
-.maplibregl-map :is(.maplibregl-popup-anchor-bottom, .maplibregl-popup-anchor-bottom-left, .maplibregl-popup-anchor-bottom-right) .maplibregl-popup-tip {
+.maplibregl-map
+  :is(.maplibregl-popup-anchor-bottom, .maplibregl-popup-anchor-bottom-left, .maplibregl-popup-anchor-bottom-right)
+  .maplibregl-popup-tip {
   border-top-color: var(--color-surface);
 }
 
@@ -435,7 +451,7 @@ a.button-secondary {
 }
 
 /* Its icons are dark grey SVGs */
-:root[data-theme="dark"] .maplibregl-map :is(.maplibregl-ctrl-icon, .maplibregl-ctrl-attrib-button) {
+:root[data-theme='dark'] .maplibregl-map :is(.maplibregl-ctrl-icon, .maplibregl-ctrl-attrib-button) {
   filter: invert(1);
 }
 
@@ -457,7 +473,7 @@ a.button-secondary {
   border-right-color: var(--color-border-strong);
 }
 
-.toggle-group--map > button[aria-pressed="true"] {
+.toggle-group--map > button[aria-pressed='true'] {
   font-weight: 500;
 }
 
@@ -497,7 +513,9 @@ a.button-secondary {
 }
 
 @keyframes hvdc-flow-nudge {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateX(0);
   }
 
@@ -507,7 +525,9 @@ a.button-secondary {
 }
 
 @keyframes hvdc-flow-light {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0.3;
   }
 
@@ -537,13 +557,13 @@ a.button-secondary {
   cursor: pointer;
 }
 
-.series-button[aria-pressed="true"] {
+.series-button[aria-pressed='true'] {
   background: var(--series-colour);
   color: var(--color-text-inverse);
 }
 
 /* The substation's Total, in --color-reference, which is near white in dark mode */
-.series-button--reference[aria-pressed="true"] {
+.series-button--reference[aria-pressed='true'] {
   color: var(--color-surface);
 }
 
@@ -594,7 +614,7 @@ a.button-secondary {
 }
 
 .date-segment[data-placeholder],
-.date-segment[data-type="literal"],
+.date-segment[data-type='literal'],
 .date-field-dash {
   color: var(--color-text-muted);
 }

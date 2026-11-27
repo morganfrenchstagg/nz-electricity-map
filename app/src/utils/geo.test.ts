@@ -4,11 +4,25 @@ import { nzLocalMs } from './time'
 import type { Generator, Substation, UnderConstructionNode, Unit } from '../types'
 
 // In service since EMI's register began, unless given other dates
-const unit = (node: string, capacity: number, extra: Partial<Unit> = {}): Unit =>
-  ({ name: node, unitCode: node.split(' ')[1], node, capacity, fuel: 'Wind', fuelCode: 'WIN', commissioned: '1899-12-31T12:30:00.000Z', ...extra })
+const unit = (node: string, capacity: number, extra: Partial<Unit> = {}): Unit => ({
+  name: node,
+  unitCode: node.split(' ')[1],
+  node,
+  capacity,
+  fuel: 'Wind',
+  fuelCode: 'WIN',
+  commissioned: '1899-12-31T12:30:00.000Z',
+  ...extra,
+})
 
 const generator = (site: string, units: Unit[]): Generator => ({
-  site, name: site, units, location: { lat: -40, long: 175 }, gridZone: '1', island: 'NI', operator: 'Operator',
+  site,
+  name: site,
+  units,
+  location: { lat: -40, long: 175 },
+  gridZone: '1',
+  island: 'NI',
+  operator: 'Operator',
 })
 
 // Kaiwera Downs' second stage came into service at noon on 1 April 2026 (NZDT)
@@ -20,11 +34,15 @@ const KWD = generator('KWD', [
 const TCC = generator('TCC', [unit('SFD2201 SPL0', 350, { decomissioned: '2025-09-05T07:30:00.000Z' })])
 
 const day = (date: string) => ({ from: nzLocalMs(`${date}T00:00:00`), to: nzLocalMs(`${date}T23:59:59`) })
-const sites = (collection: GeoJSON.FeatureCollection) => collection.features.map((f) => [f.properties!.site, f.properties!.totalCapacityMW])
+const sites = (collection: GeoJSON.FeatureCollection) =>
+  collection.features.map((f) => [f.properties!.site, f.properties!.totalCapacityMW])
 
 describe('generatorsToGeoJson', () => {
   it('maps the generators in service during the period, counting the capacity of their units in service', () => {
-    expect(sites(generatorsToGeoJson([KWD, TCC], day('2025-09-05')))).toEqual([['KWD', 43], ['TCC', 350]])
+    expect(sites(generatorsToGeoJson([KWD, TCC], day('2025-09-05')))).toEqual([
+      ['KWD', 43],
+      ['TCC', 350],
+    ])
     expect(sites(generatorsToGeoJson([KWD, TCC], day('2025-09-06')))).toEqual([['KWD', 43]])
     expect(sites(generatorsToGeoJson([KWD, TCC], day('2026-04-01')))).toEqual([['KWD', 198]])
   })
@@ -47,17 +65,35 @@ describe('generatorsToGeoJson', () => {
 })
 
 describe('substationsToGeoJson', () => {
-  const substation = (siteId: string, type: Substation['type']): Substation =>
-    ({ siteId, description: siteId, lat: -40, long: 175, type, gridZone: 1, island: 'north' })
+  const substation = (siteId: string, type: Substation['type']): Substation => ({
+    siteId,
+    description: siteId,
+    lat: -40,
+    long: 175,
+    type,
+    gridZone: 1,
+    island: 'north',
+  })
 
   it('puts the tees first so the other substations draw on top of them', () => {
-    const collection = substationsToGeoJson([substation('OTA', 'ACSTN'), substation('TEE1', 'TEE'), substation('HAY', 'ACSTN'), substation('TEE2', 'TEE')])
+    const collection = substationsToGeoJson([
+      substation('OTA', 'ACSTN'),
+      substation('TEE1', 'TEE'),
+      substation('HAY', 'ACSTN'),
+      substation('TEE2', 'TEE'),
+    ])
     expect(collection.features.map((f) => f.properties!.siteId)).toEqual(['TEE1', 'TEE2', 'OTA', 'HAY'])
   })
 })
 
 describe('underConstructionToGeoJson', () => {
-  const node = { name: 'Taranaki', site: 'TCC', fuel: 'Gas', operator: 'Contact', status: 'Consented' } as UnderConstructionNode
+  const node = {
+    name: 'Taranaki',
+    site: 'TCC',
+    fuel: 'Gas',
+    operator: 'Contact',
+    status: 'Consented',
+  } as UnderConstructionNode
 
   it('maps a site under construction itself once its generator is off the map', () => {
     expect(underConstructionToGeoJson([node], [TCC], day('2025-09-05')).features).toHaveLength(0)

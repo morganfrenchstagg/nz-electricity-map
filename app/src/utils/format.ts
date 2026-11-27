@@ -12,23 +12,23 @@ function formatWithUnit(value: number, unit: string): string {
   const abs = Math.abs(value)
 
   if (abs >= 1000) {
-    return `${Math.round(value).toLocaleString('en-NZ')} ${unit}`;
+    return `${Math.round(value).toLocaleString('en-NZ')} ${unit}`
   }
 
   if (Number.isInteger(value)) {
-    return `${value} ${unit}`;
+    return `${value} ${unit}`
   }
 
   if (abs >= 100) {
-    return `${value.toFixed(1)} ${unit}`;
+    return `${value.toFixed(1)} ${unit}`
   }
 
   if (abs >= 5) {
-    return `${value.toFixed(2)} ${unit}`;
+    return `${value.toFixed(2)} ${unit}`
   }
 
   if (abs > 0) {
-    return `${value.toFixed(3)} ${unit}`;
+    return `${value.toFixed(3)} ${unit}`
   }
 
   return `${value} ${unit}`
@@ -39,8 +39,11 @@ function formatWithUnit(value: number, unit: string): string {
  * so it doesn't land on the month before in browsers west of UTC.
  */
 export function formatMonthYear(isoDate: string): string {
-  return new Date(`${isoDate.slice(0, 7)}-01T00:00:00Z`)
-    .toLocaleDateString('en-NZ', { timeZone: 'UTC', month: 'short', year: 'numeric' })
+  return new Date(`${isoDate.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-NZ', {
+    timeZone: 'UTC',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 /**

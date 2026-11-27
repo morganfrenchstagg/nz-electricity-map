@@ -7,15 +7,18 @@ function data(series: string[], rows: (string | number)[][]): RecentData {
 }
 
 // Two units, the second commissioned in 2024, and a battery's charging unit
-const monthly = data(['ABC2201 ABC1', 'ABC2201 ABC2', 'ABC2201 ABC9'], [
-  ['2023-11-01', -2, 0, 0],
-  ['2023-12-01', 300, 0, -50],
-  ['2024-01-01', 500, 0, 0],
-  ['2024-02-01', 400, 600, 0],
-  ['2024-03-01', 0, 900, 0],
-  ['2025-01-01', 200, 200, 0],
-  ['2025-02-01', 0, 0, 0],
-])
+const monthly = data(
+  ['ABC2201 ABC1', 'ABC2201 ABC2', 'ABC2201 ABC9'],
+  [
+    ['2023-11-01', -2, 0, 0],
+    ['2023-12-01', 300, 0, -50],
+    ['2024-01-01', 500, 0, 0],
+    ['2024-02-01', 400, 600, 0],
+    ['2024-03-01', 0, 900, 0],
+    ['2025-01-01', 200, 200, 0],
+    ['2025-02-01', 0, 0, 0],
+  ],
+)
 
 describe('generationRecords', () => {
   it('finds the first and last months generated in, and the best month and year', () => {
@@ -34,7 +37,18 @@ describe('generationRecords', () => {
   })
 
   it('gives the earlier of two months that tie the record', () => {
-    expect(generationRecords(data(['A'], [['2020-01-01', 5], ['2020-02-01', 5]]), ['A'])?.bestMonth.month).toBe('2020-01-01')
+    expect(
+      generationRecords(
+        data(
+          ['A'],
+          [
+            ['2020-01-01', 5],
+            ['2020-02-01', 5],
+          ],
+        ),
+        ['A'],
+      )?.bestMonth.month,
+    ).toBe('2020-01-01')
   })
 
   it('has none for codes that never generated', () => {
@@ -44,7 +58,15 @@ describe('generationRecords', () => {
 })
 
 describe('first and last days', () => {
-  const daily = data(['A', 'B'], [['2024-02-01', 0, 0], ['2024-02-02', 0, 3], ['2024-02-03', 1, 0], ['2024-02-04', 0, 0]])
+  const daily = data(
+    ['A', 'B'],
+    [
+      ['2024-02-01', 0, 0],
+      ['2024-02-02', 0, 3],
+      ['2024-02-03', 1, 0],
+      ['2024-02-04', 0, 0],
+    ],
+  )
 
   it('finds the first and last days the codes generated on', () => {
     expect(firstDayGenerated(daily, ['A', 'B'])).toBe('2024-02-02')

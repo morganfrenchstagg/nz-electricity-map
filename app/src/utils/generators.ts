@@ -13,7 +13,7 @@ function instantMs(iso: string): number {
     const instant = Date.parse(iso)
     // nzWallClockMs goes by the second, so the milliseconds go back on (an end at 1:59:59.999pm
     // must stay before a start at 2pm)
-    ms = nzWallClockMs(instant) + ((instant % 1000) + 1000) % 1000
+    ms = nzWallClockMs(instant) + (((instant % 1000) + 1000) % 1000)
     instants.set(iso, ms)
   }
   return ms
@@ -53,9 +53,7 @@ export function isCommissioning(unit: Unit, atMs = nzNowMs()): boolean {
 // Where any of the units come into or go out of service between `from` and `to`,
 // stepping their total capacity
 export function serviceChangesBetween(units: Unit[], from: number, to: number): number[] {
-  return units
-    .flatMap((u) => [serviceStart(u), serviceEnd(u) + 1])
-    .filter((ms) => ms > from && ms <= to)
+  return units.flatMap((u) => [serviceStart(u), serviceEnd(u) + 1]).filter((ms) => ms > from && ms <= to)
 }
 
 // A generator is retired once all of its units are decommissioned. One whose units
