@@ -1,7 +1,11 @@
 /*
   Cache-Control: public, max-age=0, must-revalidate
 
+# Pages joins a header set by more than one matching rule with a comma, so
+# without the detach line hashed assets get both values and browsers take the
+# first max-age (0)
 /assets/*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
 # The pages.dev copy of the site isn't for search engines: its pages' canonical
