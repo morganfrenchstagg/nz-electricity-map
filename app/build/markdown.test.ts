@@ -59,6 +59,11 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown('<p>*not* [a] _link_</p>')).toBe('\\*not\\* \\[a\\] \\_link\\_')
   })
 
+  it('leaves an underscore inside a word, which Markdown never takes for emphasis', () => {
+    expect(htmlToMarkdown('<td>Te Awamutu (te_awamutu)</td>')).toBe('Te Awamutu (te_awamutu)')
+    expect(htmlToMarkdown('<p>ō_ā _x x_</p>')).toBe('ō_ā \\_x x\\_')
+  })
+
   it('keeps bare text between blocks as a paragraph of its own', () => {
     expect(htmlToMarkdown('<div>Before<h2>Heading</h2>after <b>bold</b></div>')).toBe(
       'Before\n\n## Heading\n\nafter **bold**',

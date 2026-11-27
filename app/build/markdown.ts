@@ -65,9 +65,10 @@ function isElement(node: Node): node is Element {
   return typeof node !== 'string'
 }
 
-// Text that Markdown would otherwise take for emphasis, a link or code
+// Text that Markdown would otherwise take for emphasis, a link or code. An
+// underscore inside a word, as in a unit's code (te_awamutu), can't be emphasis.
 function escapeText(text: string): string {
-  return text.replace(/[\\`*_[\]]/g, '\\$&')
+  return text.replace(/[\\`*[\]]|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/gu, '\\$&')
 }
 
 function inline(nodes: Node[]): string {
