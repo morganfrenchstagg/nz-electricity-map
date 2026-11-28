@@ -302,6 +302,7 @@ describe('renderPage', () => {
     const html = renderPage(TEMPLATE, home)
     expect(html).toContain('<link rel="canonical" href="https://electricitymap.frenchsta.gg/" />')
     expect(html).toContain('<link rel="alternate" type="text/markdown" href="/index.md" />')
+    expect(html).toContain('<link rel="describedby" type="text/plain" href="/llms.txt" title="llms.txt" />')
     expect(html).toContain('<script type="application/ld+json">')
     expect(html).toContain('<div id="root"><div class="prerender">')
     expect(html).toContain('<a class="prerender__cta" href="/">Open live map</a>')

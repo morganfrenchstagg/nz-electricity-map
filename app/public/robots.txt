@@ -12,3 +12,6 @@ Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 
 Sitemap: https://electricitymap.frenchsta.gg/sitemap.xml
+
+# A guide to the site for AI agents, with its pages, MCP server and API:
+# https://electricitymap.frenchsta.gg/llms.txt
