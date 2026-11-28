@@ -7,13 +7,14 @@
 // Markdown, get the HTML as before. frontend/_routes.json runs it for the
 // pages' paths only, so their assets are served without it. The home page and
 // a station's, asked for either way or at their .md, have generation so far
-// today filled in (see today.ts).
+// today filled in, as does a station's page's HTML (see today.ts).
 
-import { withToday } from './today'
+import { hasTodayHtml, withToday, withTodayHtml } from './today'
 
 interface PagesContext {
   request: Request
-  next: () => Promise<Response>
+  // The page's static file, or another's if given a request for it
+  next: (request?: Request) => Promise<Response>
   env: { ASSETS: { fetch: (request: Request) => Promise<Response> } }
 }
 
@@ -106,6 +107,27 @@ async function markdownResponse(request: Request, path: string, assets: PagesCon
   return varyOnAccept(new Response(request.method === 'HEAD' ? null : text, { status: 200, headers: responseHeaders }))
 }
 
+// The pages whose HTML has today's generation filled in: a station's, /generator/huntly
+const LIVE_HTML = /^\/generator\/[^/]+$/
+
+// A station's page with today's generation streamed into its HTML (see
+// withTodayHtml). Without its ETag and Last-Modified once it's filled in, as
+// it isn't the file, so a browser never revalidates it by them. A retired
+// station's, which has none to fill in, is the file. A HEAD request gets the
+// headers a GET would.
+async function htmlResponse(request: Request, next: PagesContext['next']): Promise<Response> {
+  const page = await (request.method === 'HEAD' ? next(new Request(request, { method: 'GET' })) : next())
+  if (page.status !== 200 || !page.headers.get('Content-Type')?.startsWith('text/html')) return page
+  const html = await page.text()
+  const live = hasTodayHtml(html)
+  const headers = new Headers(page.headers)
+  headers.delete('Content-Length')
+  headers.delete('Content-Encoding')
+  if (live) for (const name of ['ETag', 'Last-Modified']) headers.delete(name)
+  const body = request.method === 'HEAD' ? null : live ? withTodayHtml(html) : html
+  return new Response(body, { status: 200, headers })
+}
+
 export async function onRequest({ request, next, env }: PagesContext): Promise<Response> {
   const { pathname } = new URL(request.url)
   // A page's .md, or the page itself for a client that prefers Markdown
@@ -122,5 +144,7 @@ export async function onRequest({ request, next, env }: PagesContext): Promise<R
     const markdown = await markdownResponse(request, path, env.ASSETS)
     if (markdown) return markdown
   }
+  if ((request.method === 'GET' || request.method === 'HEAD') && LIVE_HTML.test(pathname))
+    return varyOnAccept(await htmlResponse(request, next))
   return varyOnAccept(await next())
 }

@@ -506,7 +506,16 @@ describe('pages with yearly figures', () => {
     )
     expect(pageMarkdown(page('/generator/otahuhu'))).not.toContain('## Today')
     expect(pageMarkdown(page('/generator/manapouri/historic'))).not.toContain('## Today')
-    expect(page('/generator/manapouri').body).not.toContain('Today')
+  })
+
+  it("marks where today's generation goes in a live station's HTML, after its facts, for the edge to fill in", () => {
+    expect(page('/generator/manapouri').body).toContain(
+      '</dl>\n<!--today {"station":["MAN"]}-->\n<h2>Generation by year</h2>',
+    )
+    expect(page('/generator/otahuhu').body).not.toContain('<!--today')
+    expect(page('/generator/manapouri/historic').body).not.toContain('<!--today')
+    // Comments don't reach the Markdown, which has its own Today section
+    expect(pageMarkdown(page('/generator/manapouri'))).not.toContain('<!--')
   })
 
   it("writes a station's page as Markdown, its figures in a table rather than a chart", () => {

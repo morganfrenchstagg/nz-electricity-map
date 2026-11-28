@@ -5,11 +5,21 @@
 // energy so far, the peak and when it was, the latest reading, and a station's
 // every 5 minutes, or the grid's each half hour's mean. If the API can't be
 // reached, the placeholder stays.
+//
+// A station's page's HTML has it too, in place of a comment the build writes
+// (todayHtmlPlaceholder), with its latest hour's readings and the rest behind a
+// toggle. If the API can't be reached, the page goes without it.
+
+import { esc, table } from '../build/html'
 
 const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
 // How long the figures are kept, in seconds. The dispatch is every 5 minutes.
 const CACHE_SECONDS = 60
 const TIMEOUT_MS = 5000
+// A page's scripts run once all its HTML has come, so it waits on the server for less
+const HTML_TIMEOUT_MS = 2000
+// The readings a station's HTML shows before its toggle for the rest: its latest hour's
+const RECENT_READINGS = 12
 
 // A station's, by its site code, or the grid's split by fuel
 export type TodayArgs = { station: string[] } | { group_by: 'fuel' }
@@ -21,6 +31,18 @@ export function todayPlaceholder(subject: string, args: TodayArgs): string {
 
 // The placeholder, and the arguments it names
 const PLACEHOLDER = /^## Today\n\n.*`get_day_profile` with `(\{[^`]*\})`\.$/m
+
+// Where a station's page's HTML has its Today section: a comment, so the page
+// shows nothing there until it's filled in
+export function todayHtmlPlaceholder(site: string): string {
+  return `<!--today ${JSON.stringify({ station: [site] })}-->`
+}
+
+const HTML_PLACEHOLDER = /<!--today (\{[^>]*\})-->/
+
+export function hasTodayHtml(html: string): boolean {
+  return HTML_PLACEHOLDER.test(html)
+}
 
 interface Summary {
   peakMW: number
@@ -81,31 +103,59 @@ function tableMarkdown(head: string[], rows: string[][]): string {
   return [line(head), line(head.map((_, i) => (i === 0 ? '---' : '---:'))), ...rows.map(line)].join('\n')
 }
 
-// A station's day: its energy, peak and latest reading, and every 5 minutes,
-// with a dash for one it has no reading for
-export function stationToday(profile: DayProfile): string {
-  const day = dayName(profile.date)
+// A station's day: its energy, peak and latest reading, and every 5 minutes'
+// time and MW, with a dash for one it has no reading for. Null if it hasn't
+// generated today.
+function stationDay(profile: DayProfile): { facts: [string, string][]; readings: [string, string][] } | null {
   const station = profile.columns[1]
   const summary = station === undefined ? undefined : profile.summary[station]
   const readings = profile.rows.filter((row): row is [string, number] => typeof row[1] === 'number')
-  if (!summary || readings.length === 0) return `## Today\n\nIt hasn't generated so far today, ${day} (NZ time).`
+  if (!summary || readings.length === 0) return null
   const [latestAt, latest] = readings[readings.length - 1]
   // The API gives the energy to the MWh
   const mwh = summary.energyGWh * 1000
   const energy = mwh < 0.5 && readings.some(([, mw]) => mw > 0) ? 'under 1' : figure(mwh)
+  return {
+    facts: [
+      ['Generated', `${energy} MWh`],
+      ['Peak', `${figure(summary.peakMW)} MW at ${time(summary.peakAt)}`],
+      ['Latest', `${figure(latest)} MW at ${time(latestAt)}`],
+    ],
+    readings: profile.rows.map(([period, mw]) => [time(String(period)), typeof mw === 'number' ? figure(mw) : '–']),
+  }
+}
+
+export function stationToday(profile: DayProfile): string {
+  const day = dayName(profile.date)
+  const station = stationDay(profile)
+  if (!station) return `## Today\n\nIt hasn't generated so far today, ${day} (NZ time).`
   return [
     '## Today',
     `So far on ${day}, in NZ time:`,
-    [
-      `- Generated: ${energy} MWh`,
-      `- Peak: ${figure(summary.peakMW)} MW at ${time(summary.peakAt)}`,
-      `- Latest: ${figure(latest)} MW at ${time(latestAt)}`,
-    ].join('\n'),
-    tableMarkdown(
-      ['Time', 'Generation (MW)'],
-      profile.rows.map(([period, mw]) => [time(String(period)), typeof mw === 'number' ? figure(mw) : '–']),
-    ),
+    station.facts.map(([name, value]) => `- ${name}: ${value}`).join('\n'),
+    tableMarkdown(['Time', 'Generation (MW)'], station.readings),
   ].join('\n\n')
+}
+
+// The same, in a station's page's HTML, its readings newest first, as the
+// page's other tables are, and those before the latest hour behind a toggle
+export function stationTodayHtml(profile: DayProfile): string {
+  const day = esc(dayName(profile.date))
+  const station = stationDay(profile)
+  if (!station) return `<h2>Today</h2>\n<p>It hasn't generated so far today, ${day} (NZ time).</p>`
+  const rows = station.readings.map((cells) => cells.map(esc)).reverse()
+  const head = ['Time', 'Generation (MW)']
+  const readings =
+    rows.length <= RECENT_READINGS + 2
+      ? table(head, rows, 1)
+      : table(head, rows.slice(0, RECENT_READINGS), 1, {
+          label: `Earlier today, ${rows[rows.length - 1][0]}–${rows[RECENT_READINGS][0]}`,
+          rows: rows.slice(RECENT_READINGS),
+        })
+  return `<h2>Today</h2>
+<p>So far on ${day}, in NZ time:</p>
+<dl class="prerender__facts">${station.facts.map(([name, value]) => `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>`).join('')}</dl>
+${readings}`
 }
 
 // The grid's day, a group (fuel) at a time and in total: each one's energy and
@@ -145,7 +195,7 @@ export function groupsToday(profile: DayProfile, group: string): string {
   ].join('\n\n')
 }
 
-async function dayProfile(args: TodayArgs): Promise<DayProfile> {
+async function dayProfile(args: TodayArgs, timeoutMs: number): Promise<DayProfile> {
   const response = await fetch(MCP_URL, {
     method: 'POST',
     headers: {
@@ -162,7 +212,7 @@ async function dayProfile(args: TodayArgs): Promise<DayProfile> {
         arguments: { ...('station' in args ? { ...args, group_by: 'station' } : args), resolution: '5min' },
       },
     }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   })
   if (!response.ok) throw new Error(`the MCP server answered ${response.status}`)
   const body = (await response.json()) as { result?: { isError?: boolean; content?: { text?: string }[] } }
@@ -171,17 +221,16 @@ async function dayProfile(args: TodayArgs): Promise<DayProfile> {
   return JSON.parse(text) as DayProfile
 }
 
-// The Today section, kept for a minute in the Cache API where there is one (not
-// under Node, in the tests)
-async function today(args: TodayArgs): Promise<string> {
+// The day so far, kept for a minute in the Cache API where there is one (not
+// under Node, in the tests), for a page's Markdown and its HTML alike
+async function today(args: TodayArgs, timeoutMs: number): Promise<DayProfile> {
   const cache = typeof caches === 'undefined' ? null : await caches.open('today')
-  const key = `https://electricitymap.frenchsta.gg/today/${encodeURIComponent(JSON.stringify(args))}`
+  const key = `https://electricitymap.frenchsta.gg/today/profile/${encodeURIComponent(JSON.stringify(args))}`
   const cached = await cache?.match(key)
-  if (cached) return cached.text()
-  const profile = await dayProfile(args)
-  const section = 'station' in args ? stationToday(profile) : groupsToday(profile, 'Fuel')
-  await cache?.put(key, new Response(section, { headers: { 'Cache-Control': `max-age=${CACHE_SECONDS}` } }))
-  return section
+  if (cached) return (await cached.json()) as DayProfile
+  const profile = await dayProfile(args, timeoutMs)
+  await cache?.put(key, Response.json(profile, { headers: { 'Cache-Control': `max-age=${CACHE_SECONDS}` } }))
+  return profile
 }
 
 // The Markdown with its Today section filled in. As it is if it has none, or
@@ -190,10 +239,36 @@ export async function withToday(markdown: string): Promise<string> {
   const match = PLACEHOLDER.exec(markdown)
   if (!match) return markdown
   try {
-    const section = await today(JSON.parse(match[1]) as TodayArgs)
+    const args = JSON.parse(match[1]) as TodayArgs
+    const profile = await today(args, TIMEOUT_MS)
+    const section = 'station' in args ? stationToday(profile) : groupsToday(profile, 'Fuel')
     return markdown.replace(match[0], () => section)
   } catch (error) {
     console.error(`Today's generation for ${match[1]}:`, error)
     return markdown
   }
+}
+
+// A station's page's HTML with its Today section filled in, as a stream: the
+// HTML before the section goes at once, so the browser fetches the page's
+// styles and scripts while the section waits on the MCP server. If the server
+// can't answer in time, the page goes without it. The HTML as it is if it has
+// no placeholder.
+export function withTodayHtml(html: string): ReadableStream<Uint8Array> | string {
+  const match = HTML_PLACEHOLDER.exec(html)
+  if (!match) return html
+  const encoder = new TextEncoder()
+  return new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(html.slice(0, match.index)))
+      let section = ''
+      try {
+        section = stationTodayHtml(await today(JSON.parse(match[1]) as TodayArgs, HTML_TIMEOUT_MS))
+      } catch (error) {
+        console.error(`Today's generation for ${match[1]}:`, error)
+      }
+      controller.enqueue(encoder.encode(section + html.slice(match.index + match[0].length)))
+      controller.close()
+    },
+  })
 }
