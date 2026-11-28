@@ -71,6 +71,9 @@ export interface Page {
   live?: string
   // HTML for its Markdown only, after its content: for agents, where its data is
   agentData?: string
+  // A station's site code, when its Markdown has its generation so far today,
+  // which edge/today.ts fills in as it's served
+  today?: string
 }
 
 // A page's description: Bing flags one over 160 characters, and search engines

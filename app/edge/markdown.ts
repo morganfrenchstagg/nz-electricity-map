@@ -5,7 +5,11 @@
 // (functions/_middleware.ts) serves it at the page's own address to a request
 // whose Accept header prefers text/markdown. Browsers, which don't name
 // Markdown, get the HTML as before. frontend/_routes.json runs it for the
-// pages' paths only, so their assets are served without it.
+// pages' paths only, so their assets are served without it. A station's page,
+// asked for either way or at its .md, has its generation so far today filled
+// in (see today.ts).
+
+import { withToday } from './today'
 
 interface PagesContext {
   request: Request
@@ -76,30 +80,43 @@ function tokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 4)
 }
 
+// A station's page, /generator/huntly.md, which has today's generation filled in
+const STATION_PAGE = /^\/generator\/[^/]+\.md$/
+
 async function markdownResponse(request: Request, path: string, assets: PagesContext['env']['ASSETS']) {
   // Always a GET, so a HEAD request gets its token count too. The request's
-  // headers go with it, so a conditional request is answered by the file's ETag.
-  const file = await assets.fetch(new Request(new URL(path, request.url), { headers: request.headers }))
+  // headers go with it, so a conditional request is answered by the file's
+  // ETag, but for a station's page, which isn't the file once it's filled in
+  const live = STATION_PAGE.test(path)
+  const headers = new Headers(request.headers)
+  if (live) for (const name of ['If-None-Match', 'If-Modified-Since']) headers.delete(name)
+  const file = await assets.fetch(new Request(new URL(path, request.url), { headers }))
   if (file.status === 304) return varyOnAccept(file)
   if (!file.ok) return null
-  const text = await file.text()
+  const text = live ? await withToday(await file.text()) : await file.text()
   // The file's own headers, from _headers, but for those that described its
   // body as it came, which the new response works out for itself
-  const headers = new Headers(file.headers)
-  headers.delete('Content-Length')
-  headers.delete('Content-Encoding')
-  headers.set('Content-Type', 'text/markdown; charset=utf-8')
-  headers.set('X-Markdown-Tokens', String(tokens(text)))
-  return varyOnAccept(new Response(request.method === 'HEAD' ? null : text, { status: 200, headers }))
+  const responseHeaders = new Headers(file.headers)
+  responseHeaders.delete('Content-Length')
+  responseHeaders.delete('Content-Encoding')
+  if (live) for (const name of ['ETag', 'Last-Modified']) responseHeaders.delete(name)
+  responseHeaders.set('Content-Type', 'text/markdown; charset=utf-8')
+  responseHeaders.set('X-Markdown-Tokens', String(tokens(text)))
+  return varyOnAccept(new Response(request.method === 'HEAD' ? null : text, { status: 200, headers: responseHeaders }))
 }
 
 export async function onRequest({ request, next, env }: PagesContext): Promise<Response> {
-  const path = markdownPath(new URL(request.url).pathname)
-  if (
-    path &&
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    prefersMarkdown(request.headers.get('Accept'))
-  ) {
+  const { pathname } = new URL(request.url)
+  // A page's .md, or the page itself for a client that prefers Markdown
+  const path =
+    request.method !== 'GET' && request.method !== 'HEAD'
+      ? null
+      : pathname.endsWith('.md')
+        ? pathname
+        : prefersMarkdown(request.headers.get('Accept'))
+          ? markdownPath(pathname)
+          : null
+  if (path) {
     // A path that isn't a page's has no Markdown, and gets the HTML's 404
     const markdown = await markdownResponse(request, path, env.ASSETS)
     if (markdown) return markdown

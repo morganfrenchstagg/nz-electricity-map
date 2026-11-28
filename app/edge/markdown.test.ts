@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { markdownPath, onRequest, prefersMarkdown } from './markdown'
+import { todayPlaceholder } from './today'
 
 const BROWSER = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
 
@@ -40,12 +41,15 @@ describe('prefersMarkdown', () => {
 
 describe('onRequest', () => {
   const MARKDOWN = '# HVDC Inter-Island Link\n\nFlows north and south.\n'
+  const STATION = `# Manapōuri Power Station\n\n${todayPlaceholder('MAN')}\n`
+  const FILES: Record<string, string> = { '/hvdc.md': MARKDOWN, '/generator/manapouri.md': STATION }
 
   // Pages' static files: the Markdown, with its ETag and the Cache-Control from _headers
   const assets = {
     fetch: (request: Request) => {
       const { pathname } = new URL(request.url)
-      if (pathname !== '/hvdc.md') return Promise.resolve(new Response('Not found', { status: 404 }))
+      const file = FILES[pathname]
+      if (file === undefined) return Promise.resolve(new Response('Not found', { status: 404 }))
       const headers = {
         'Content-Type': 'text/markdown',
         'Cache-Control': 'public, max-age=0, must-revalidate',
@@ -53,7 +57,7 @@ describe('onRequest', () => {
       }
       if (request.headers.get('If-None-Match') === '"md"')
         return Promise.resolve(new Response(null, { status: 304, headers }))
-      return Promise.resolve(new Response(MARKDOWN, { headers }))
+      return Promise.resolve(new Response(file, { headers }))
     },
   }
   const html = (status = 200) =>
@@ -104,5 +108,40 @@ describe('onRequest', () => {
     expect(missing.headers.get('Content-Type')).toBe('text/html; charset=utf-8')
     const post = await get('/hvdc', { Accept: 'text/markdown' }, 'POST')
     expect(post.headers.get('Content-Type')).toBe('text/html; charset=utf-8')
+  })
+
+  describe("a station's page", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    // The MCP server's day so far at Manapōuri
+    function mcp() {
+      const profile = {
+        date: '2026-11-28',
+        columns: ['period', 'Manapōuri'],
+        rows: [['2026-11-28T00:00', 620]],
+        summary: { Manapōuri: { peakMW: 620, peakAt: '2026-11-28T00:00', energyGWh: 0.0517 } },
+      }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(Response.json({ result: { content: [{ text: JSON.stringify(profile) }] } }))),
+      )
+    }
+
+    it("has today's generation filled in, and no ETag, as it isn't the file", async () => {
+      mcp()
+      const response = await get('/generator/manapouri', { Accept: 'text/markdown', 'If-None-Match': '"md"' })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('ETag')).toBeNull()
+      const text = await response.text()
+      expect(text).toContain('## Today\n\nSo far on 28 November 2026, in NZ time:\n\n- Generated: 51.7 MWh')
+      expect(text).not.toContain('get_day_profile')
+    })
+
+    it('has it at its .md too, whatever the Accept header', async () => {
+      mcp()
+      const response = await get('/generator/manapouri.md', { Accept: '*/*' })
+      expect(response.headers.get('Content-Type')).toBe('text/markdown; charset=utf-8')
+      expect(await response.text()).toContain('- Peak: 620 MW at 00:00')
+    })
   })
 })

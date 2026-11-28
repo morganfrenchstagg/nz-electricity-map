@@ -4,7 +4,7 @@ import { buildPages, esc, markdownFile, pageFile, renderPage, sitemap } from './
 import type { Definitions } from './pages'
 import { barChart } from './charts'
 import { figures, fitDescription, shareCell } from './html'
-import { parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
+import { parseMonthly, parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
 import type { AnnualAggregates } from './stats'
 import type { ChartTip } from '../src/utils/chartTip'
 import { yearlyTable } from './yearly'
@@ -381,6 +381,17 @@ const aggregates: AnnualAggregates = {
   hvdc: { series: ['northFlow', 'southFlow'], data: [['2025-01-01', 2065000, 592000]] },
 }
 const stats = parseStats(aggregates, 2026)
+// Monthly totals for 2025 and 2026 to February so far: Manapōuri's from August
+// 2025, and Ōtāhuhu's to March 2025
+const months = (values: number[], year: number) =>
+  values.map((v, i) => [`${year}-${String(i + 1).padStart(2, '0')}-01`, v, i < 3 ? 1000 * (i + 1) : 0])
+const monthly = parseMonthly([
+  {
+    series: ['MAN2201 MAN0', 'OTA2201 OTB'],
+    data: months([0, 0, 0, 0, 0, 0, 0, 300000, 420000, 480000, 410000, 390000], 2025),
+  },
+  { series: ['MAN2201 MAN0', 'OTA2201 OTB'], data: months([400000, 350000], 2026).map((row) => [row[0], row[1], 0]) },
+])
 
 describe('yearly figures', () => {
   it("reads each node's MWh a year, and which years are only partly covered", () => {
@@ -404,8 +415,44 @@ describe('yearly figures', () => {
 })
 
 describe('pages with yearly figures', () => {
-  const pages = buildPages(withHydro, [], stats)
+  const pages = buildPages(withHydro, [], stats, monthly)
   const page = (path: string) => pages.find((p) => p.path === path)!
+
+  it("gives a station's history its generation every month, newest year first, and its best month", () => {
+    const history = page('/generator/manapouri/historic')
+    expect(history.body).toContain(
+      "<h2>Generation by month</h2>\n<p>Manapōuri's generation each month, in GWh, February 2026 only so far.</p>",
+    )
+    const markdown = pageMarkdown(history)
+    expect(markdown).toContain(
+      [
+        '| Year | Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec |',
+        '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+        '| 2026 | 400 | 350 |  |  |  |  |  |  |  |  |  |  |',
+        '| 2025 |  |  |  |  |  |  |  | 300 | 420 | 480 | 410 | 390 |',
+      ].join('\n'),
+    )
+    // Of the whole months, not February 2026 so far
+    expect(markdown).toContain('- **Best month:** October 2025, with 480 GWh\n')
+    expect(markdown.indexOf('## Generation by year')).toBeLessThan(markdown.indexOf('## Generation by month'))
+  })
+
+  it("stops a retired station's months at its last, and leaves out a station's with none", () => {
+    const markdown = pageMarkdown(page('/generator/otahuhu/historic'))
+    expect(markdown).toContain("Ōtāhuhu's generation each month, in GWh.\n")
+    expect(markdown).toContain('| 2025 | 1.0 | 2.0 | 3.0 |  |')
+    expect(markdown).not.toContain('| 2026 |')
+    expect(page('/generator/huntly/historic').body).not.toContain('Generation by month')
+  })
+
+  it("puts today's generation in a live station's Markdown, after its facts, for the edge to fill in", () => {
+    expect(pageMarkdown(page('/generator/manapouri'))).toContain(
+      '- **Site code:** MAN\n\n## Today\n\nIts generation so far today, every 5 minutes: the MCP tool `get_day_profile` with `{"station":["MAN"]}`.\n\n## Generation by year\n',
+    )
+    expect(pageMarkdown(page('/generator/otahuhu'))).not.toContain('## Today')
+    expect(pageMarkdown(page('/generator/manapouri/historic'))).not.toContain('## Today')
+    expect(page('/generator/manapouri').body).not.toContain('Today')
+  })
 
   it("writes a station's page as Markdown, its figures in a table rather than a chart", () => {
     const markdown = pageMarkdown(page('/generator/manapouri'))

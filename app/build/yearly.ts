@@ -3,13 +3,14 @@ import type { ChartOptions } from './charts'
 import { esc, figures, list, shareCell, shareText, table } from './html'
 import type { Definitions } from './html'
 import { currentYear, lastFullYear, totalGeneration } from './stats'
-import type { Stats } from './stats'
+import type { MonthlyStats, Stats } from './stats'
 
 // What every page's yearly figures are worked out from, once for the build
 
 export interface Context {
   defs: Definitions
   stats: Stats | null
+  monthly: MonthlyStats | null
   // The grid's generation in each year (GWh)
   total: number[]
   // The latest year wholly covered, and the current one so far, as indices into stats.years, or -1
@@ -17,10 +18,11 @@ export interface Context {
   current: number
 }
 
-export function buildContext(defs: Definitions, stats: Stats | null): Context {
+export function buildContext(defs: Definitions, stats: Stats | null, monthly: MonthlyStats | null = null): Context {
   return {
     defs,
     stats,
+    monthly,
     total: stats ? totalGeneration(stats, defs) : [],
     full: stats ? lastFullYear(stats) : -1,
     current: stats ? currentYear(stats) : -1,
@@ -66,6 +68,48 @@ export function yearlyTable(stats: Stats, columns: Column[], from = 0): string {
   return table(head, rows.slice(0, RECENT_YEARS), 1, {
     label: `Earlier years, ${stats.years[from]}–${stats.years[stats.years.length - 1 - RECENT_YEARS]}`,
     rows: earlier,
+  })
+}
+
+export const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+// "July 2008", from "2008-07"
+export function monthName(month: string): string {
+  return `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
+}
+
+// A row a year, newest first, of each month's GWh, from the first month with
+// any to the `to`th. A month before it or after it is blank. Past a dozen
+// years, those before the latest ten wait behind a toggle, as yearlyTable's do.
+export function monthlyTable(monthly: MonthlyStats, values: number[], to = values.length - 1): string {
+  const from = firstYear(values)
+  if (from > to) return ''
+  const cells = figures(values.slice(from, to + 1))
+  const years = new Map<string, string[]>()
+  monthly.months.slice(from, to + 1).forEach((month, i) => {
+    const row = years.get(month.slice(0, 4)) ?? MONTH_NAMES.map(() => '')
+    row[Number(month.slice(5, 7)) - 1] = cells[i]
+    years.set(month.slice(0, 4), row)
+  })
+  const rows = [...years].reverse().map(([year, row]) => [year, ...row])
+  const head = ['Year', ...MONTH_NAMES.map((m) => m.slice(0, 3))]
+  if (rows.length <= RECENT_YEARS + 2) return table(head, rows, 1)
+  return table(head, rows.slice(0, RECENT_YEARS), 1, {
+    label: `Earlier years, ${rows[rows.length - 1][0]}–${rows[RECENT_YEARS][0]}`,
+    rows: rows.slice(RECENT_YEARS),
   })
 }
 

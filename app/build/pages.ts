@@ -48,8 +48,17 @@ import {
   webPage,
 } from './html'
 import type { Definitions, Page } from './html'
-import { generationNodes, hoursIn, parseStats, RENEWABLE_FUELS, substationDemand, sumNodes } from './stats'
-import type { AnnualAggregates, Stats } from './stats'
+import {
+  generationNodes,
+  hoursIn,
+  parseMonthly,
+  parseStats,
+  RENEWABLE_FUELS,
+  substationDemand,
+  sumMonthly,
+  sumNodes,
+} from './stats'
+import type { AnnualAggregates, MonthlyStats, Stats } from './stats'
 import {
   FUEL_TOPICS,
   fuelPath,
@@ -61,7 +70,7 @@ import {
   topicNav,
   topicPages,
 } from './topics'
-import { buildContext, firstYear, gridShare, yearlyChart, yearlyTable } from './yearly'
+import { buildContext, firstYear, gridShare, monthlyTable, monthName, yearlyChart, yearlyTable } from './yearly'
 import type { Context } from './yearly'
 import { pageMarkdown } from './markdown'
 import { markdownPath } from '../edge/markdown'
@@ -278,6 +287,7 @@ ${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} station
     description,
     body,
     agentData: stationData(g),
+    today: retired ? undefined : g.site,
     jsonLd: graph(
       webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
       place,
@@ -307,7 +317,13 @@ function generatorPlace(g: Generator, defs: Definitions) {
 
 // What a history's page says of the years: when it's on record from, its
 // best full year, its total, and for a retired station the last year it generated
-function historicRecords(g: Generator, ctx: Context, values: number[], from: number): [string, string][] {
+function historicRecords(
+  g: Generator,
+  ctx: Context,
+  values: number[],
+  from: number,
+  months: number[] | null,
+): [string, string][] {
   const { stats, total } = ctx
   if (!stats) return []
   const records: [string, string][] = []
@@ -324,14 +340,34 @@ function historicRecords(g: Generator, ctx: Context, values: number[], from: num
       `${stats.years[best]}, with ${gwh(values[best])} (${pct(values[best] / total[best])} of the grid's generation)`,
     ])
   }
+  // Of the months wholly covered: all but this one so far
+  if (ctx.monthly && months) {
+    const whole = months.slice(0, -1)
+    const best = whole.reduce((b, v, i) => (v > whole[b] ? i : b), 0)
+    if (whole[best] >= 0.05)
+      records.push(['Best month', `${monthName(ctx.monthly.months[best])}, with ${gwh(whole[best])}`])
+  }
   records.push(['Generated on record', gwh(values.slice(from).reduce((sum, v) => sum + v, 0))])
   const last = values.findLastIndex((v) => Math.abs(v) >= 0.05)
   if (isRetired(g) && last >= from) records.push(['Last generated', String(stats.years[last])])
   return records
 }
 
+// Its generation every month, to this one so far, or for a retired station to
+// the last it generated in
+function monthlySection(g: Generator, monthly: MonthlyStats, months: number[]): string {
+  const retired = isRetired(g)
+  const to = retired ? months.findLastIndex((v) => Math.abs(v) >= 0.05) : months.length - 1
+  const table = monthlyTable(monthly, months, to)
+  if (!table) return ''
+  const current = retired ? '' : `, ${monthName(monthly.months[months.length - 1])} only so far`
+  return `<h2>Generation by month</h2>
+<p>${esc(`${g.name}'s generation each month, in GWh${current}.`)}</p>
+${table}`
+}
+
 // A generator's history: its records and its generation and share of the grid's
-// every year. The app opens it at All, with the records it finds by month and day.
+// every year and month. The app opens it at All, with the records it finds by month and day.
 function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigures): Page {
   const { defs, stats, total } = ctx
   const stationPath = generatorPath(g, defs.generators)
@@ -353,7 +389,9 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
     { name: station, path: stationPath },
     { name: 'Historical generation', path },
   ])
-  const facts = yearly ? historicRecords(g, ctx, yearly.values, from) : []
+  const months = ctx.monthly ? sumMonthly(ctx.monthly, generationNodes(g.units)) : null
+  const facts = yearly ? historicRecords(g, ctx, yearly.values, from, months) : []
+  const byMonth = ctx.monthly && months ? monthlySection(g, ctx.monthly, months) : ''
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
@@ -389,6 +427,7 @@ ${yearlyTable(
 )}`
     : ''
 }
+${byMonth}
 <p>${link(stationPath, station)}: its units, capacity, and ${isRetired(g) ? 'when it was retired' : 'live generation, offers and prices'}.</p>
 ${seeAlso(ctx, g)}`
 
@@ -647,8 +686,9 @@ export function buildPages(
   defs: Definitions,
   projects: UnderConstructionNode[] = underConstruction,
   stats: Stats | null = null,
+  monthly: MonthlyStats | null = null,
 ): Page[] {
-  const ctx = buildContext(defs, stats)
+  const ctx = buildContext(defs, stats, monthly)
   const figures = stationFigures(ctx)
   return [
     homePage(ctx),
@@ -746,10 +786,21 @@ async function loadStats(apiBase?: string): Promise<Stats> {
   return stats
 }
 
+// The monthly totals, a year at a time, from 1997, when the records begin
+async function loadMonthly(apiBase?: string): Promise<MonthlyStats> {
+  const base = (apiBase ?? BUILD_API_URL).replace(/\/$/, '')
+  const years = Array.from({ length: nzYear(new Date()) - 1996 }, (_, i) => 1997 + i)
+  const monthly = parseMonthly(
+    await Promise.all(years.map((y) => getJson<AnnualAggregates>(`${base}/dispatch/aggregates/${y}/monthly`))),
+  )
+  console.log(`station-pages: monthly figures for ${monthly.months[0]} to ${monthly.months[monthly.months.length - 1]}`)
+  return monthly
+}
+
 // Writes every page and its Markdown, and the sitemap, from the built
-// index.html, the definitions and the yearly totals. The build fails if either can't be
-// fetched, so a deploy never replaces the pages with ones that lack their
-// figures, or drops the pages that are nothing but figures.
+// index.html, the definitions and the yearly and monthly totals. The build
+// fails if any can't be fetched, so a deploy never replaces the pages with ones
+// that lack their figures, or drops the pages that are nothing but figures.
 export function stationPages(apiBase?: string): Plugin {
   return {
     name: 'station-pages',
@@ -758,7 +809,11 @@ export function stationPages(apiBase?: string): Plugin {
     async generateBundle(_options, bundle) {
       const index = bundle['index.html']
       if (!index || index.type !== 'asset') throw new Error('station-pages: no index.html in the bundle')
-      const [defs, stats] = await Promise.all([loadDefinitions(apiBase), loadStats(apiBase)]).catch((error: Error) => {
+      const [defs, stats, monthly] = await Promise.all([
+        loadDefinitions(apiBase),
+        loadStats(apiBase),
+        loadMonthly(apiBase),
+      ]).catch((error: Error) => {
         throw new Error(`station-pages: ${error.message}`)
       })
       if (!defs.generators?.length || !defs.substations?.length)
@@ -770,7 +825,7 @@ export function stationPages(apiBase?: string): Plugin {
       if (!tooltips) throw new Error('station-pages: no chartTooltip entry in the bundle (see vite.config.ts)')
 
       const template = String(index.source)
-      const pages = buildPages(defs, underConstruction, stats)
+      const pages = buildPages(defs, underConstruction, stats, monthly)
       for (const page of pages) {
         const html = renderPage(template, page, `/${tooltips.fileName}`)
         if (page.path === '/') index.source = html
