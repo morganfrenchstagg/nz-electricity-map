@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/", "/hvdc", "/pipeline", "/analysis", "/analysis/*", "/generator/*", "/substation/*"],
+  "include": ["/", "/index.md", "/hvdc", "/pipeline", "/analysis", "/analysis/*", "/generator/*", "/substation/*"],
   "exclude": []
 }

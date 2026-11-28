@@ -277,6 +277,13 @@ describe("stations' data for agents", () => {
     expect(markdown).toContain('- Right now:')
   })
 
+  it("puts today's generation by fuel in the home page's Markdown, before its first section", () => {
+    expect(pageMarkdown(page('/'))).toContain(
+      '\n\n## Today\n\nNew Zealand\'s generation by fuel so far today, every 5 minutes: the MCP tool `get_day_profile` with `{"group_by":"fuel"}`.\n\n## Analysis\n',
+    )
+    expect(page('/').body).not.toContain('get_day_profile')
+  })
+
   it("links the MCP server's and the API's docs once on every page's Markdown, the home page's in its content", () => {
     for (const path of ['/', '/hvdc', '/generator/huntly', '/substation/huntly']) {
       const markdown = pageMarkdown(page(path))

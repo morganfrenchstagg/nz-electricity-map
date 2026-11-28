@@ -74,6 +74,7 @@ import { buildContext, firstYear, gridShare, monthlyTable, monthName, yearlyChar
 import type { Context } from './yearly'
 import { pageMarkdown } from './markdown'
 import { markdownPath } from '../edge/markdown'
+import { todayPlaceholder } from '../edge/today'
 
 // The pages the build writes from index.html, each with its own title,
 // description, canonical link and structured data, and its content as plain
@@ -312,7 +313,7 @@ ${others.length ? `<h2>Other ${esc((topic?.name ?? fuel).toLowerCase())} station
     description,
     body,
     agentData: stationData(g),
-    today: retired ? undefined : g.site,
+    today: retired ? undefined : todayPlaceholder('Its generation', { station: [g.site] }),
     jsonLd: graph(
       webPage(path, heading, description, { about: { '@id': place['@id'] }, breadcrumb: crumbs.jsonLd }),
       place,
@@ -678,6 +679,7 @@ ${fuels.map((f) => `<h3>${fuelHeading(f)}</h3>${linkList(sortByName(byFuel.get(f
     title: HOME_TITLE,
     description,
     body,
+    today: todayPlaceholder("New Zealand's generation by fuel", { group_by: 'fuel' }),
     jsonLd: graph(
       {
         '@type': 'WebSite',

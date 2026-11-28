@@ -5,9 +5,9 @@
 // (functions/_middleware.ts) serves it at the page's own address to a request
 // whose Accept header prefers text/markdown. Browsers, which don't name
 // Markdown, get the HTML as before. frontend/_routes.json runs it for the
-// pages' paths only, so their assets are served without it. A station's page,
-// asked for either way or at its .md, has its generation so far today filled
-// in (see today.ts).
+// pages' paths only, so their assets are served without it. The home page and
+// a station's, asked for either way or at their .md, have generation so far
+// today filled in (see today.ts).
 
 import { withToday } from './today'
 
@@ -80,14 +80,15 @@ function tokens(text: string): number {
   return Math.ceil(new TextEncoder().encode(text).length / 4)
 }
 
-// A station's page, /generator/huntly.md, which has today's generation filled in
-const STATION_PAGE = /^\/generator\/[^/]+\.md$/
+// The pages that have today's generation filled in: the home page's, by fuel,
+// and a station's, /generator/huntly.md
+const LIVE_PAGE = /^\/(index|generator\/[^/]+)\.md$/
 
 async function markdownResponse(request: Request, path: string, assets: PagesContext['env']['ASSETS']) {
   // Always a GET, so a HEAD request gets its token count too. The request's
   // headers go with it, so a conditional request is answered by the file's
-  // ETag, but for a station's page, which isn't the file once it's filled in
-  const live = STATION_PAGE.test(path)
+  // ETag, but for a page with today's generation, which isn't the file once it's filled in
+  const live = LIVE_PAGE.test(path)
   const headers = new Headers(request.headers)
   if (live) for (const name of ['If-None-Match', 'If-Modified-Since']) headers.delete(name)
   const file = await assets.fetch(new Request(new URL(path, request.url), { headers }))

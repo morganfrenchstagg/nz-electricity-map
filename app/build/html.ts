@@ -71,8 +71,8 @@ export interface Page {
   live?: string
   // HTML for its Markdown only, after its content: for agents, where its data is
   agentData?: string
-  // A station's site code, when its Markdown has its generation so far today,
-  // which edge/today.ts fills in as it's served
+  // Its Markdown's Today section, where to get its generation so far today,
+  // which edge/today.ts fills in as it's served (see todayPlaceholder)
   today?: string
 }
 

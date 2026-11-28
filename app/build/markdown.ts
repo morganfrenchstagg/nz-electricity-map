@@ -1,6 +1,5 @@
 import { AGENT_DATA, FOOTER, ORIGIN } from './html'
 import type { Page } from './html'
-import { todayPlaceholder } from '../edge/today'
 
 // Each page as Markdown, for AI agents that ask for it (see edge/markdown.ts):
 // its title, description and address as front matter, then its content, where
@@ -202,10 +201,10 @@ export function pageMarkdown(page: Page): string {
   const agents = page.body.includes(AGENT_DATA) ? '' : AGENT_DATA
   const html = [page.body, page.agentData ?? '', agents, FOOTER].join('\n')
   let content = htmlToMarkdown(html)
-  // A station's generation today goes before its first section, after its facts
+  // Today's generation goes before its first section, e.g. after a station's facts
   if (page.today) {
     const at = content.indexOf('\n\n## ')
-    const today = `\n\n${todayPlaceholder(page.today)}`
+    const today = `\n\n${page.today}`
     content = at < 0 ? content + today : content.slice(0, at) + today + content.slice(at)
   }
   return `${frontMatter}\n\n${content}\n`

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { todayMarkdown, todayPlaceholder, withToday } from './today'
+import { groupsToday, stationToday, todayPlaceholder, withToday } from './today'
 import type { DayProfile } from './today'
 
 const PROFILE: DayProfile = {
@@ -15,9 +15,9 @@ const PROFILE: DayProfile = {
   summary: { Manapōuri: { peakMW: 715.25, peakAt: '2026-11-28T00:35', energyGWh: 0.4321 } },
 }
 
-describe('todayMarkdown', () => {
+describe('stationToday', () => {
   it("gives the energy so far, the peak and when it was, the latest reading, and each half hour's mean", () => {
-    expect(todayMarkdown(PROFILE)).toBe(
+    expect(stationToday(PROFILE)).toBe(
       [
         '## Today',
         'So far on 28 November 2026, in NZ time:',
@@ -33,18 +33,59 @@ describe('todayMarkdown', () => {
       rows: [['2026-11-28T00:00', 0.3]],
       summary: { Manapōuri: { ...PROFILE.summary.Manapōuri, energyGWh: 0 } },
     }
-    expect(todayMarkdown(little)).toContain('- Generated: under 1 MWh\n')
+    expect(stationToday(little)).toContain('- Generated: under 1 MWh\n')
   })
 
   it("says so when a station hasn't generated today", () => {
-    expect(todayMarkdown({ ...PROFILE, columns: ['period'], rows: [['2026-11-28T00:00']], summary: {} })).toBe(
+    expect(stationToday({ ...PROFILE, columns: ['period'], rows: [['2026-11-28T00:00']], summary: {} })).toBe(
       "## Today\n\nIt hasn't generated so far today, 28 November 2026 (NZ time).",
     )
   })
 })
 
+// The grid's day by fuel, with its total, and a missing reading
+const BY_FUEL: DayProfile = {
+  date: '2026-11-28',
+  columns: ['period', 'Hydro', 'Wind', 'total'],
+  rows: [
+    ['2026-11-28T00:00', 3000, 100, 3100],
+    ['2026-11-28T00:05', 3100, null, 3200],
+    ['2026-11-28T00:30', 2900, 300.25, 3200.25],
+  ],
+  summary: {
+    Hydro: { peakMW: 3100, peakAt: '2026-11-28T00:05', energyGWh: 0.75 },
+    Wind: { peakMW: 300.25, peakAt: '2026-11-28T00:30', energyGWh: 0.0167 },
+    total: { peakMW: 3200.25, peakAt: '2026-11-28T00:30', energyGWh: 0.7667 },
+  },
+}
+
+describe('groupsToday', () => {
+  it("gives each fuel's and the total's energy, share, peak and latest reading, and their half hours", () => {
+    expect(groupsToday(BY_FUEL, 'Fuel')).toBe(
+      [
+        '## Today',
+        'So far on 28 November 2026, in NZ time, with the latest readings at 00:30:',
+        [
+          '| Fuel | Generated (MWh) | Share | Peak (MW) | Peak at | Latest (MW) |',
+          '| --- | ---: | ---: | ---: | ---: | ---: |',
+          '| Hydro | 750 | 97.8% | 3,100 | 00:05 | 2,900 |',
+          '| Wind | 16.7 | 2.2% | 300.3 | 00:30 | 300.3 |',
+          '| Total | 766.7 | 100% | 3,200.3 | 00:30 | 3,200.3 |',
+        ].join('\n'),
+        [
+          '| Half hour (mean MW) | Hydro | Wind | Total |',
+          '| --- | ---: | ---: | ---: |',
+          // Wind's missing reading left out of its mean, not taken as 0
+          '| 00:00 | 3,050 | 100 | 3,150 |',
+          '| 00:30 | 2,900 | 300.3 | 3,200.3 |',
+        ].join('\n'),
+      ].join('\n\n'),
+    )
+  })
+})
+
 describe('withToday', () => {
-  const page = `# Manapōuri Power Station\n\n${todayPlaceholder('MAN')}\n\n## Generation by year\n`
+  const page = `# Manapōuri Power Station\n\n${todayPlaceholder('Its generation', { station: ['MAN'] })}\n\n## Generation by year\n`
 
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -60,12 +101,22 @@ describe('withToday', () => {
   it("fills in the placeholder with the station's day from the MCP server", async () => {
     const fetch = answer(Response.json({ result: { content: [{ type: 'text', text: JSON.stringify(PROFILE) }] } }))
     const filled = await withToday(page)
-    expect(filled).toBe(`# Manapōuri Power Station\n\n${todayMarkdown(PROFILE)}\n\n## Generation by year\n`)
+    expect(filled).toBe(`# Manapōuri Power Station\n\n${stationToday(PROFILE)}\n\n## Generation by year\n`)
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://api.electricitymap.frenchsta.gg/mcp')
     expect(JSON.parse(init.body as string)).toMatchObject({
       method: 'tools/call',
       params: { name: 'get_day_profile', arguments: { station: ['MAN'], group_by: 'station', resolution: '5min' } },
+    })
+  })
+
+  it("fills in the home page's by fuel", async () => {
+    const fetch = answer(Response.json({ result: { content: [{ type: 'text', text: JSON.stringify(BY_FUEL) }] } }))
+    const home = `# NZ Electricity Map\n\n${todayPlaceholder("New Zealand's generation by fuel", { group_by: 'fuel' })}\n\n## Analysis\n`
+    expect(await withToday(home)).toBe(`# NZ Electricity Map\n\n${groupsToday(BY_FUEL, 'Fuel')}\n\n## Analysis\n`)
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      params: { name: 'get_day_profile', arguments: { group_by: 'fuel', resolution: '5min' } },
     })
   })
 

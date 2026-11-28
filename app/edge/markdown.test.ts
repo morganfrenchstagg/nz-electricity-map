@@ -41,8 +41,9 @@ describe('prefersMarkdown', () => {
 
 describe('onRequest', () => {
   const MARKDOWN = '# HVDC Inter-Island Link\n\nFlows north and south.\n'
-  const STATION = `# Manapōuri Power Station\n\n${todayPlaceholder('MAN')}\n`
-  const FILES: Record<string, string> = { '/hvdc.md': MARKDOWN, '/generator/manapouri.md': STATION }
+  const STATION = `# Manapōuri Power Station\n\n${todayPlaceholder('Its generation', { station: ['MAN'] })}\n`
+  const HOME = `# NZ Electricity Map\n\n${todayPlaceholder("New Zealand's generation by fuel", { group_by: 'fuel' })}\n`
+  const FILES: Record<string, string> = { '/hvdc.md': MARKDOWN, '/generator/manapouri.md': STATION, '/index.md': HOME }
 
   // Pages' static files: the Markdown, with its ETag and the Cache-Control from _headers
   const assets = {
@@ -135,6 +136,25 @@ describe('onRequest', () => {
       const text = await response.text()
       expect(text).toContain('## Today\n\nSo far on 28 November 2026, in NZ time:\n\n- Generated: 51.7 MWh')
       expect(text).not.toContain('get_day_profile')
+    })
+
+    it("has the home page's today by fuel too", async () => {
+      const profile = {
+        date: '2026-11-28',
+        columns: ['period', 'Hydro', 'total'],
+        rows: [['2026-11-28T00:00', 3000, 3000]],
+        summary: {
+          Hydro: { peakMW: 3000, peakAt: '2026-11-28T00:00', energyGWh: 0.25 },
+          total: { peakMW: 3000, peakAt: '2026-11-28T00:00', energyGWh: 0.25 },
+        },
+      }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(Response.json({ result: { content: [{ text: JSON.stringify(profile) }] } }))),
+      )
+      const response = await get('/', { Accept: 'text/markdown' })
+      expect(response.headers.get('ETag')).toBeNull()
+      expect(await response.text()).toContain('| Hydro | 250 | 100% | 3,000 | 00:00 | 3,000 |')
     })
 
     it('has it at its .md too, whatever the Accept header', async () => {
