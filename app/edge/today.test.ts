@@ -13,7 +13,6 @@ const PROFILE: DayProfile = {
     ['2026-11-28T00:35', 715.25],
   ],
   summary: { Manapōuri: { peakMW: 715.25, peakAt: '2026-11-28T00:35', energyGWh: 0.4321 } },
-  notes: ["EMI hasn't published this day yet, so it's from the live dispatch, and today only so far."],
 }
 
 describe('todayMarkdown', () => {
@@ -24,7 +23,6 @@ describe('todayMarkdown', () => {
         'So far on 28 November 2026, in NZ time:',
         '- Generated: 432.1 MWh\n- Peak: 715.3 MW at 00:35\n- Latest: 715.3 MW at 00:35',
         '| Half hour | Mean generation (MW) |\n| --- | ---: |\n| 00:00 | 610 |\n| 00:30 | 707.6 |',
-        "EMI hasn't published this day yet, so it's from the live dispatch, and today only so far.",
       ].join('\n\n'),
     )
   })
@@ -39,9 +37,9 @@ describe('todayMarkdown', () => {
   })
 
   it("says so when a station hasn't generated today", () => {
-    expect(
-      todayMarkdown({ ...PROFILE, columns: ['period'], rows: [['2026-11-28T00:00']], summary: {}, notes: [] }),
-    ).toBe("## Today\n\nIt hasn't generated so far today, 28 November 2026 (NZ time).")
+    expect(todayMarkdown({ ...PROFILE, columns: ['period'], rows: [['2026-11-28T00:00']], summary: {} })).toBe(
+      "## Today\n\nIt hasn't generated so far today, 28 November 2026 (NZ time).",
+    )
   })
 })
 

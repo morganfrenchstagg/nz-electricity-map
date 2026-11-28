@@ -117,12 +117,29 @@ function capacityFactor(g: Generator, year: number, energy: number): number | nu
   return factor > 0 && factor <= 1 ? factor : null
 }
 
+// The year a station's figures end: for a retired one, the year it last
+// generated in, and for one in service, this year. A retired battery's years of
+// charging more than it discharged don't count.
+function lastYear(g: Generator, ctx: Context, values: number[]): number {
+  if (!ctx.stats || !isRetired(g)) return values.length - 1
+  const day = ctx.lastGenerated.get(g.site)
+  const i = day ? ctx.stats.years.indexOf(Number(day.slice(0, 4))) : -1
+  return i >= 0 ? i : values.findLastIndex((v) => v >= 0.05)
+}
+
+// That a retired station is decommissioned, and when it last generated
+function decommissionedNote(g: Generator, ctx: Context): string {
+  const day = ctx.lastGenerated.get(g.site)
+  return day ? `It's now decommissioned, and last generated on ${nzDate(day)}.` : "It's now decommissioned."
+}
+
 function generatorStats(g: Generator, ctx: Context, figures: StationFigures): string {
   const { stats, total, full, current } = ctx
   const values = figures.yearly.get(g)
   if (!stats || !values) return ''
   const from = firstYear(values)
-  if (from >= values.length) return ''
+  const to = lastYear(g, ctx, values)
+  if (from > to) return ''
   const retired = isRetired(g)
   const sentences: string[] = []
   if (!retired && full >= 0 && values[full] > 0) {
@@ -136,7 +153,9 @@ function generatorStats(g: Generator, ctx: Context, figures: StationFigures): st
         '.',
     )
   }
-  const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
+  const fullYears = stats.years
+    .map((_, i) => i)
+    .filter((i) => i >= from && i <= to && !stats.partial.has(stats.years[i]))
   if (fullYears.length > 1) {
     const best = fullYears.reduce((b, i) => (values[i] > values[b] ? i : b), fullYears[0])
     sentences.push(`Its best year was ${stats.years[best]}, with ${gwh(values[best])}.`)
@@ -152,8 +171,9 @@ ${yearlyChart(stats, values, from, {
   format: gwh,
   name: 'Generation',
   more: [gridShare(ctx, values)],
+  to,
 })}
-${yearlyTable(stats, [{ head: 'Generation', values }], from)}`
+${yearlyTable(stats, [{ head: 'Generation', values }], from, to)}`
 }
 
 // Links to the pages about its fuel, operator and island
@@ -252,11 +272,16 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
   const facts: [string, string][] = [
     ['Operator', operator],
     ['Fuel', capitalise(fuelsText(g))],
-    ...(capacity > 0 ? [[retired ? 'Capacity (when retired)' : 'Capacity', mw(capacity)] as [string, string]] : []),
+    ...(capacity > 0
+      ? [[retired ? 'Capacity (when decommissioned)' : 'Capacity', mw(capacity)] as [string, string]]
+      : []),
     ['Island', island(g.island)],
     ...(g.scheme ? [['Scheme', g.scheme] as [string, string]] : []),
     ...(commissioned ? [['First commissioned', nzDate(commissioned)] as [string, string]] : []),
-    ...(retired && decommissioned ? [['Retired', nzDate(decommissioned)] as [string, string]] : []),
+    ...(retired && decommissioned ? [['Decommissioned', nzDate(decommissioned)] as [string, string]] : []),
+    ...(retired && ctx.lastGenerated.has(g.site)
+      ? [['Last generated', nzDate(ctx.lastGenerated.get(g.site) ?? '')] as [string, string]]
+      : []),
     ['Site code', g.site],
   ]
   // Not a battery's charging unit, nor one standing in for units only metered together
@@ -270,7 +295,7 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(`${about} ${more}`)}</p>
+<p>${esc(retired ? `${about} ${decommissionedNote(g, ctx)} ${more}` : `${about} ${more}`)}</p>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 ${generatorStats(g, ctx, figures)}
 <p>${link(generatorHistoricPath(g, defs.generators), `${g.name}'s historical generation and records`)}</p>
@@ -328,11 +353,14 @@ function historicRecords(
   if (!stats) return []
   const records: [string, string][] = []
   const first = stats.years[from]
+  const to = lastYear(g, ctx, values)
   records.push([
     'On record since',
     from === 0 && stats.partial.has(first) ? `August ${first}, when the records begin` : String(first),
   ])
-  const fullYears = stats.years.map((_, i) => i).filter((i) => i >= from && !stats.partial.has(stats.years[i]))
+  const fullYears = stats.years
+    .map((_, i) => i)
+    .filter((i) => i >= from && i <= to && !stats.partial.has(stats.years[i]))
   if (fullYears.length > 0) {
     const best = fullYears.reduce((b, i) => (values[i] > values[b] ? i : b), fullYears[0])
     records.push([
@@ -347,17 +375,25 @@ function historicRecords(
     if (whole[best] >= 0.05)
       records.push(['Best month', `${monthName(ctx.monthly.months[best])}, with ${gwh(whole[best])}`])
   }
-  records.push(['Generated on record', gwh(values.slice(from).reduce((sum, v) => sum + v, 0))])
-  const last = values.findLastIndex((v) => Math.abs(v) >= 0.05)
-  if (isRetired(g) && last >= from) records.push(['Last generated', String(stats.years[last])])
+  records.push(['Generated on record', gwh(values.slice(from, to + 1).reduce((sum, v) => sum + v, 0))])
+  if (isRetired(g)) {
+    const day = ctx.lastGenerated.get(g.site)
+    if (day) records.push(['Last generated', nzDate(day)])
+    else if (to >= from) records.push(['Last generated', String(stats.years[to])])
+  }
   return records
 }
 
 // Its generation every month, to this one so far, or for a retired station to
 // the last it generated in
-function monthlySection(g: Generator, monthly: MonthlyStats, months: number[]): string {
+function monthlySection(g: Generator, ctx: Context, monthly: MonthlyStats, months: number[]): string {
   const retired = isRetired(g)
-  const to = retired ? months.findLastIndex((v) => Math.abs(v) >= 0.05) : months.length - 1
+  const day = ctx.lastGenerated.get(g.site)
+  const to = !retired
+    ? months.length - 1
+    : day
+      ? monthly.months.indexOf(day.slice(0, 7))
+      : months.findLastIndex((v) => v >= 0.05)
   const table = monthlyTable(monthly, months, to)
   if (!table) return ''
   const current = retired ? '' : `, ${monthName(monthly.months[months.length - 1])} only so far`
@@ -377,8 +413,14 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
   const values = figures.yearly.get(g)
   const from = values ? firstYear(values) : 0
   // Left out for a station with nothing on record yet
-  const yearly = stats && values && from < values.length ? { stats, values } : null
-  const since = yearly ? ` every year since ${yearly.stats.years[from]}` : ' by year, quarter and month'
+  const to = values ? lastYear(g, ctx, values) : -1
+  const yearly = stats && values && from <= to ? { stats, values } : null
+  const retired = isRetired(g)
+  const since = !yearly
+    ? ' by year, quarter and month'
+    : retired
+      ? ` every year from ${yearly.stats.years[from]} to ${yearly.stats.years[to]}`
+      : ` every year since ${yearly.stats.years[from]}`
   const records = ' and its records, from its best year to when it first generated'
   // Shorter than the page's intro, to stay within 160 characters (see fitDescription)
   // for the longest name, Te Puna Mauri ō Omaru's
@@ -391,11 +433,11 @@ function generatorHistoricPage(g: Generator, ctx: Context, figures: StationFigur
   ])
   const months = ctx.monthly ? sumMonthly(ctx.monthly, generationNodes(g.units)) : null
   const facts = yearly ? historicRecords(g, ctx, yearly.values, from, months) : []
-  const byMonth = ctx.monthly && months ? monthlySection(g, ctx.monthly, months) : ''
+  const byMonth = ctx.monthly && months ? monthlySection(g, ctx, ctx.monthly, months) : ''
 
   const body = `${crumbs.html}
 <h1>${esc(heading)}</h1>
-<p>${esc(intro)}</p>
+<p>${esc(retired ? `${intro} ${decommissionedNote(g, ctx)}` : intro)}</p>
 ${
   facts.length
     ? `<h2>Records</h2>
@@ -412,6 +454,7 @@ ${yearlyChart(yearly.stats, yearly.values, from, {
   format: gwh,
   name: 'Generation',
   more: [gridShare(ctx, yearly.values)],
+  to,
 })}
 ${yearlyTable(
   yearly.stats,
@@ -424,11 +467,12 @@ ${yearlyTable(
     },
   ],
   from,
+  to,
 )}`
     : ''
 }
 ${byMonth}
-<p>${link(stationPath, station)}: its units, capacity, and ${isRetired(g) ? 'when it was retired' : 'live generation, offers and prices'}.</p>
+<p>${link(stationPath, station)}: its units, capacity, and ${retired ? 'when it was decommissioned' : 'live generation, offers and prices'}.</p>
 ${seeAlso(ctx, g)}`
 
   const place = generatorPlace(g, defs)
@@ -687,8 +731,9 @@ export function buildPages(
   projects: UnderConstructionNode[] = underConstruction,
   stats: Stats | null = null,
   monthly: MonthlyStats | null = null,
+  lastGenerated: ReadonlyMap<string, string> = new Map(),
 ): Page[] {
-  const ctx = buildContext(defs, stats, monthly)
+  const ctx = buildContext(defs, stats, monthly, lastGenerated)
   const figures = stationFigures(ctx)
   return [
     homePage(ctx),
@@ -797,8 +842,54 @@ async function loadMonthly(apiBase?: string): Promise<MonthlyStats> {
   return monthly
 }
 
+// The last day a station generated at least a MWh on, as YYYY-MM-DD: the last
+// such day of the last month with that much, from `days`, which gives a month's
+// days' MWh at these nodes. A meter records a little now and then for years
+// after a station shuts, which doesn't count.
+export async function lastGeneratedDay(
+  nodes: string[],
+  monthly: MonthlyStats,
+  days: (month: string) => Promise<AnnualAggregates>,
+): Promise<string | null> {
+  const months = sumMonthly(monthly, nodes)
+  for (let i = months.length - 1; i >= 0; i--) {
+    if (months[i] < 0.001) continue
+    const { series, data } = await days(monthly.months[i])
+    const columns = series.flatMap((node, j) => (nodes.includes(node) ? [j + 1] : []))
+    const day = data.findLast((row) => columns.reduce((sum, j) => sum + (Number(row[j]) || 0), 0) >= 1)
+    if (day) return String(day[0]).slice(0, 10)
+  }
+  return null
+}
+
+// When each retired station last generated, by its site code, from the API's
+// daily totals for its last month (/v1/dispatch/aggregates/{year}/{month})
+async function loadLastGenerated(
+  defs: Definitions,
+  monthly: MonthlyStats,
+  apiBase?: string,
+): Promise<Map<string, string>> {
+  const base = (apiBase ?? BUILD_API_URL).replace(/\/$/, '')
+  const retired = await Promise.all(
+    defs.generators
+      .filter((g) => isRetired(g))
+      .map(async (g) => {
+        const nodes = generationNodes(g.units)
+        const query = nodes.map(encodeURIComponent).join(',')
+        const day = await lastGeneratedDay(nodes, monthly, (month) =>
+          getJson<AnnualAggregates>(
+            `${base}/dispatch/aggregates/${month.slice(0, 4)}/${Number(month.slice(5, 7))}?nodes=${query}`,
+          ),
+        )
+        return day ? [[g.site, day] as [string, string]] : []
+      }),
+  )
+  return new Map(retired.flat())
+}
+
 // Writes every page and its Markdown, and the sitemap, from the built
-// index.html, the definitions and the yearly and monthly totals. The build
+// index.html, the definitions, the yearly and monthly totals and when retired
+// stations last generated. The build
 // fails if any can't be fetched, so a deploy never replaces the pages with ones
 // that lack their figures, or drops the pages that are nothing but figures.
 export function stationPages(apiBase?: string): Plugin {
@@ -816,6 +907,9 @@ export function stationPages(apiBase?: string): Plugin {
       ]).catch((error: Error) => {
         throw new Error(`station-pages: ${error.message}`)
       })
+      const lastGenerated = await loadLastGenerated(defs, monthly, apiBase).catch((error: Error) => {
+        throw new Error(`station-pages: ${error.message}`)
+      })
       if (!defs.generators?.length || !defs.substations?.length)
         throw new Error('station-pages: the definitions have no generators or substations')
 
@@ -825,7 +919,7 @@ export function stationPages(apiBase?: string): Plugin {
       if (!tooltips) throw new Error('station-pages: no chartTooltip entry in the bundle (see vite.config.ts)')
 
       const template = String(index.source)
-      const pages = buildPages(defs, underConstruction, stats, monthly)
+      const pages = buildPages(defs, underConstruction, stats, monthly, lastGenerated)
       for (const page of pages) {
         const html = renderPage(template, page, `/${tooltips.fileName}`)
         if (page.path === '/') index.source = html

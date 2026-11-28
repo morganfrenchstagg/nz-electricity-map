@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Generator, Substation, Unit } from '../src/types'
-import { buildPages, esc, markdownFile, pageFile, renderPage, sitemap } from './pages'
+import { buildPages, esc, lastGeneratedDay, markdownFile, pageFile, renderPage, sitemap } from './pages'
 import type { Definitions } from './pages'
 import { barChart } from './charts'
 import { figures, fitDescription, shareCell } from './html'
@@ -312,6 +312,53 @@ describe('renderPage', () => {
   })
 })
 
+describe('lastGeneratedDay', () => {
+  const monthly = parseMonthly([
+    {
+      series: ['OTA2201 OTB'],
+      data: [
+        ['2025-01-01', 900000],
+        ['2025-02-01', 2000],
+        ['2025-03-01', 0.5],
+        ['2025-04-01', 0],
+      ],
+    },
+  ])
+  const month = (rows: (string | number)[][]) => ({ series: ['OTA2201 OTB', 'OTA2201 OTHER'], data: rows })
+
+  it("is the last day of a station's last month with a MWh that it generated a MWh on, not counting a meter's specks", async () => {
+    const asked: string[] = []
+    const day = await lastGeneratedDay(['OTA2201 OTB'], monthly, (m) => {
+      asked.push(m)
+      return Promise.resolve(
+        month([
+          ['2025-02-19', 1900, 0],
+          ['2025-02-20', 100, 50],
+          ['2025-02-21', 0.4, 9],
+        ]),
+      )
+    })
+    expect(day).toBe('2025-02-20')
+    // March's half a MWh is too little to look at
+    expect(asked).toEqual(['2025-02'])
+  })
+
+  it("looks back a month when none of the last one's days had a MWh", async () => {
+    const days: Record<string, (string | number)[][]> = {
+      '2025-02': [['2025-02-03', 0.9, 0]],
+      '2025-01': [
+        ['2025-01-30', 30000, 0],
+        ['2025-01-31', 0, 0],
+      ],
+    }
+    expect(await lastGeneratedDay(['OTA2201 OTB'], monthly, (m) => Promise.resolve(month(days[m])))).toBe('2025-01-30')
+  })
+
+  it('is null for a station with nothing on record', async () => {
+    expect(await lastGeneratedDay(['NOPE'], monthly, () => Promise.reject(new Error('unused')))).toBeNull()
+  })
+})
+
 describe('files', () => {
   it('names each page file as Pages serves it', () => {
     expect(pageFile('/')).toBe('index.html')
@@ -511,7 +558,35 @@ describe('pages with yearly figures', () => {
 
   it("counts a retired station's years before it was retired, the combined units' among them", () => {
     expect(page('/generator/huntly').body).toContain('<td>1997&nbsp;(Aug–Dec)</td><td class="num">1,500</td>')
-    expect(page('/generator/otahuhu').body).toContain('Its best year was 2015, with 100 GWh.')
+    expect(page('/generator/otahuhu').body).toContain('<td>2015</td><td class="num">100</td>')
+  })
+
+  it("ends a retired station's years at the last it generated in", () => {
+    const station = pageMarkdown(page('/generator/otahuhu'))
+    expect(station).toContain('| 2015 | 100 |\n| 1997 (Aug–Dec) | 500 |')
+    expect(station).not.toMatch(/\| 202[456]/)
+    // Its one whole year isn't a best
+    expect(station).not.toContain('best year')
+    const history = pageMarkdown(page('/generator/otahuhu/historic'))
+    expect(history).toContain("Ōtāhuhu's electricity generation every year from 1997 to 2015,")
+    expect(history).not.toMatch(/\| 202[456] \| [^|]* \| [^|]* \|\n/)
+  })
+
+  it('says a retired station is decommissioned, and when it last generated', () => {
+    const withDay = buildPages(withHydro, [], stats, monthly, new Map([['OTA', '2015-09-21']]))
+    const find = (path: string) => pageMarkdown(withDay.find((p) => p.path === path)!)
+    const station = find('/generator/otahuhu')
+    expect(station).toContain(
+      "Ōtāhuhu was a 380 MW gas power station in the North Island, operated by Contact until 2015. It's now decommissioned, and last generated on 21 Sept 2015. See its historical generation.",
+    )
+    expect(station).toContain('- **Decommissioned:** 1 Oct 2015\n- **Last generated:** 21 Sept 2015\n')
+    const history = find('/generator/otahuhu/historic')
+    expect(history).toContain("It's now decommissioned, and last generated on 21 Sept 2015.\n")
+    expect(history).toContain('- **Last generated:** 21 Sept 2015\n')
+    // Without the day, the year
+    expect(page('/generator/otahuhu').body).toContain("It's now decommissioned. See its")
+    expect(pageMarkdown(page('/generator/otahuhu/historic'))).toContain('- **Last generated:** 2015\n')
+    expect(find('/generator/manapouri')).not.toContain('decommissioned')
   })
 
   it('gives a substation its yearly demand', () => {

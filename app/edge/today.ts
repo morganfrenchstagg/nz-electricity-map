@@ -30,7 +30,6 @@ export interface DayProfile {
   columns: string[]
   rows: (string | number | null)[][]
   summary: Record<string, Summary>
-  notes?: string[]
 }
 
 function figure(n: number): string {
@@ -49,12 +48,10 @@ export function todayMarkdown(profile: DayProfile): string {
     year: 'numeric',
     timeZone: 'UTC',
   })
-  const notes = (profile.notes ?? []).join(' ')
   const station = profile.columns[1]
   const summary = station === undefined ? undefined : profile.summary[station]
   const readings = profile.rows.filter((row): row is [string, number] => typeof row[1] === 'number')
-  if (!summary || readings.length === 0)
-    return ['## Today', `It hasn't generated so far today, ${day} (NZ time).`, notes].filter(Boolean).join('\n\n')
+  if (!summary || readings.length === 0) return `## Today\n\nIt hasn't generated so far today, ${day} (NZ time).`
 
   // Each half hour's 5-minute readings, by when it starts
   const halfHours = new Map<string, number[]>()
@@ -81,10 +78,7 @@ export function todayMarkdown(profile: DayProfile): string {
         ([start, mws]) => `| ${start} | ${figure(mws.reduce((sum, mw) => sum + mw, 0) / mws.length)} |`,
       ),
     ].join('\n'),
-    notes,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
+  ].join('\n\n')
 }
 
 async function dayProfile(site: string): Promise<DayProfile> {
