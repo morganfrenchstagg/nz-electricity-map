@@ -296,7 +296,9 @@ describe("stations' data for agents", () => {
 })
 
 describe('renderPage', () => {
-  const [home] = buildPages(defs, [])
+  const pages = buildPages(defs, [])
+  const [home] = pages
+  const page = (path: string) => pages.find((p) => p.path === path)!
 
   it('fills the head and #root of the template', () => {
     const html = renderPage(TEMPLATE, home)
@@ -317,6 +319,46 @@ describe('renderPage', () => {
 
   it('fails on a template without the blocks', () => {
     expect(() => renderPage('<html></html>', home)).toThrow(/page-head/)
+  })
+
+  // The URLs the script in a page's head preloads, for a visit with `search`
+  function scriptPreloads(html: string, search: string): string[] {
+    const script = /<script>(\s*;\(function \(\) \{\s*var p = new URLSearchParams[\s\S]*?)<\/script>/.exec(html)
+    if (!script) throw new Error('no preload script')
+    const links: { href?: string; rel?: string; as?: string; crossOrigin?: string }[] = []
+    const document = { createElement: () => ({}), head: { appendChild: (link: object) => links.push(link) } }
+    // Runs the page's own script, as the browser would, with a stand-in location and document
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const run = new Function('location', 'document', script[1]) as (location: object, doc: object) => void
+    run({ search }, document)
+    for (const link of links) expect(link).toMatchObject({ rel: 'preload', as: 'fetch', crossOrigin: 'anonymous' })
+    return links.map((link) => link.href ?? '')
+  }
+
+  it("preloads the app's first data from the API it fetches from", () => {
+    const html = renderPage(TEMPLATE, home)
+    expect(html).toContain(
+      '<link rel="preload" href="https://api.electricitymap.frenchsta.gg/v1/definitions" as="fetch" crossorigin />',
+    )
+    expect(scriptPreloads(html, '')).toEqual(['https://api.electricitymap.frenchsta.gg/v1/dispatch/recent'])
+    expect(scriptPreloads(html, '?mode=lastYear&aggregation=daily')).toHaveLength(1)
+    const local = renderPage(TEMPLATE, page('/generator/huntly'), undefined, 'http://localhost:8787/v1/')
+    expect(local).toContain('<link rel="preload" href="http://localhost:8787/v1/definitions"')
+    expect(scriptPreloads(local, '')).toEqual(['http://localhost:8787/v1/dispatch/recent'])
+  })
+
+  it("doesn't preload the last 3 days for a past day or range", () => {
+    const html = renderPage(TEMPLATE, home)
+    expect(scriptPreloads(html, '?date=2026-01-05')).toEqual([])
+    expect(scriptPreloads(html, '?from=2026-01-05&to=2026-01-08')).toEqual([])
+    // A range needs both ends, or the app opens its period
+    expect(scriptPreloads(html, '?from=2026-01-05')).toHaveLength(1)
+  })
+
+  it("doesn't preload the app's data on a page without it", () => {
+    const topic = renderPage(TEMPLATE, { ...home, standalone: true })
+    expect(topic).not.toContain('rel="preload"')
+    expect(topic).not.toContain('dispatch/recent')
   })
 })
 

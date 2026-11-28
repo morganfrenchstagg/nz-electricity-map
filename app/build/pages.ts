@@ -768,9 +768,36 @@ function fillBlock(html: string, marker: string, content: string): string {
   return html.replace(block, () => content)
 }
 
+// What the app fetches first, asked for while its JS loads rather than once it
+// runs (see api.ts): the definitions, and the last 3 days' dispatch, which
+// every view fetches but a past day or range (see useDispatchData). A link to
+// one of those (?date=, or ?from= and ?to=, see useUrlState) doesn't need it, so
+// a script asks for it only without one. Each must be the request the app
+// makes, with its URL and CORS mode (crossorigin's anonymous is fetch()'s
+// default), or the browser downloads it twice.
+function appPreloads(api: string): string {
+  const base = api.replace(/\/$/, '')
+  const recent = JSON.stringify(`${base}/dispatch/recent`).replace(/</g, '\\u003c')
+  return `<link rel="preload" href="${esc(base)}/definitions" as="fetch" crossorigin />
+    <script>
+      ;(function () {
+        var p = new URLSearchParams(location.search)
+        if (p.has('date') || (p.has('from') && p.has('to'))) return
+        var link = document.createElement('link')
+        link.rel = 'preload'
+        link.as = 'fetch'
+        link.crossOrigin = 'anonymous'
+        link.href = ${recent}
+        document.head.appendChild(link)
+      })()
+    </script>`
+}
+
 // A page from the built index.html. A page of its own with a chart loads
-// `chartScript`, the charts' tooltips (see src/chartTooltip.ts), in place of the app.
-export function renderPage(template: string, page: Page, chartScript?: string): string {
+// `chartScript`, the charts' tooltips (see src/chartTooltip.ts), in place of the
+// app. A page with the app preloads its first data from `api`, the API it
+// fetches from (VITE_API_BASE, or the production API).
+export function renderPage(template: string, page: Page, chartScript?: string, api?: string): string {
   const url = ORIGIN + page.path
   const head = [
     `<title>${esc(page.title)}</title>`,
@@ -782,6 +809,7 @@ export function renderPage(template: string, page: Page, chartScript?: string): 
     `<meta property="og:description" content="${esc(page.description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
     `<script type="application/ld+json">${JSON.stringify(page.jsonLd).replace(/</g, '\\u003c')}</script>`,
+    ...(page.standalone ? [] : [appPreloads(api || API_URL)]),
   ].join('\n    ')
   const body = `<div class="prerender">\n${header(page.live ?? '/', page.path)}\n<main class="prerender__main">\n${page.body}\n</main>\n${FOOTER}\n</div>`
   const html = fillBlock(fillBlock(template, 'page-head', head), 'page-body', body)
@@ -926,7 +954,7 @@ export function stationPages(apiBase?: string): Plugin {
       const template = String(index.source)
       const pages = buildPages(defs, underConstruction, stats, monthly, lastGenerated)
       for (const page of pages) {
-        const html = renderPage(template, page, `/${tooltips.fileName}`)
+        const html = renderPage(template, page, `/${tooltips.fileName}`, apiBase)
         if (page.path === '/') index.source = html
         else this.emitFile({ type: 'asset', fileName: pageFile(page.path), source: html })
         this.emitFile({ type: 'asset', fileName: markdownFile(page.path), source: pageMarkdown(page) })
