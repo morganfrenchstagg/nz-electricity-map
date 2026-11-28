@@ -8,6 +8,7 @@ const PROFILE: DayProfile = {
   rows: [
     ['2026-11-28T00:00', 600],
     ['2026-11-28T00:05', 610],
+    ['2026-11-28T00:10', null],
     ['2026-11-28T00:25', 620],
     ['2026-11-28T00:30', 700],
     ['2026-11-28T00:35', 715.25],
@@ -16,13 +17,23 @@ const PROFILE: DayProfile = {
 }
 
 describe('stationToday', () => {
-  it("gives the energy so far, the peak and when it was, the latest reading, and each half hour's mean", () => {
+  it('gives the energy so far, the peak and when it was, the latest reading, and every 5 minutes', () => {
     expect(stationToday(PROFILE)).toBe(
       [
         '## Today',
         'So far on 28 November 2026, in NZ time:',
         '- Generated: 432.1 MWh\n- Peak: 715.3 MW at 00:35\n- Latest: 715.3 MW at 00:35',
-        '| Half hour | Mean generation (MW) |\n| --- | ---: |\n| 00:00 | 610 |\n| 00:30 | 707.6 |',
+        [
+          '| Time | Generation (MW) |',
+          '| --- | ---: |',
+          '| 00:00 | 600 |',
+          '| 00:05 | 610 |',
+          // A missing reading
+          '| 00:10 | – |',
+          '| 00:25 | 620 |',
+          '| 00:30 | 700 |',
+          '| 00:35 | 715.3 |',
+        ].join('\n'),
       ].join('\n\n'),
     )
   })
