@@ -75,7 +75,7 @@ import { buildContext, firstYear, gridShare, monthlyTable, monthName, yearlyChar
 import type { Context } from './yearly'
 import { pageMarkdown } from './markdown'
 import { markdownPath } from '../edge/markdown'
-import { todayPlaceholder } from '../edge/today'
+import { todayHtmlPlaceholder, todayPlaceholder } from '../edge/today'
 
 // The pages the build writes from index.html, each with its own title,
 // description, canonical link and structured data, and its content as plain
@@ -299,6 +299,7 @@ function generatorPage(g: Generator, ctx: Context, figures: StationFigures): Pag
 <h1>${esc(heading)}</h1>
 <p>${esc(retired ? `${about} ${decommissionedNote(g, ctx)} ${more}` : `${about} ${more}`)}</p>
 <dl class="prerender__facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+${retired ? '' : todayHtmlPlaceholder(g.site)}
 ${generatorStats(g, ctx, figures)}
 <p>${link(generatorHistoricPath(g, defs.generators), `${g.name}'s historical generation and records`)}</p>
 <h2>Units</h2>
