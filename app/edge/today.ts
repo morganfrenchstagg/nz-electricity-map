@@ -2,8 +2,9 @@
 // the grid's by fuel on the home page. The build writes a Today section with
 // where to get it (todayPlaceholder), naming get_day_profile's arguments, and
 // markdown.ts fills it in from the API's MCP server as it serves the page: the
-// energy so far, the peak and when it was, the latest reading, and each half
-// hour's mean. If the API can't be reached, the placeholder stays.
+// energy so far, the peak and when it was, the latest reading, and a station's
+// every 5 minutes, or the grid's each half hour's mean. If the API can't be
+// reached, the placeholder stays.
 
 const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
 // How long the figures are kept, in seconds. The dispatch is every 5 minutes.
@@ -80,7 +81,8 @@ function tableMarkdown(head: string[], rows: string[][]): string {
   return [line(head), line(head.map((_, i) => (i === 0 ? '---' : '---:'))), ...rows.map(line)].join('\n')
 }
 
-// A station's day: its energy, peak and latest reading, and its half hours
+// A station's day: its energy, peak and latest reading, and every 5 minutes,
+// with a dash for one it has no reading for
 export function stationToday(profile: DayProfile): string {
   const day = dayName(profile.date)
   const station = profile.columns[1]
@@ -100,8 +102,8 @@ export function stationToday(profile: DayProfile): string {
       `- Latest: ${figure(latest)} MW at ${time(latestAt)}`,
     ].join('\n'),
     tableMarkdown(
-      ['Half hour', 'Mean generation (MW)'],
-      halfHours(readings, 1).map(([start, [mw]]) => [start, mw === null ? '–' : figure(mw)]),
+      ['Time', 'Generation (MW)'],
+      profile.rows.map(([period, mw]) => [time(String(period)), typeof mw === 'number' ? figure(mw) : '–']),
     ),
   ].join('\n\n')
 }
