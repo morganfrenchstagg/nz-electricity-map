@@ -14,6 +14,13 @@
       "runtimeArgs": ["-c", "cd app && D=\"${TMPDIR:-/tmp}/nz-electricity-map-built\" && npx vite build --outDir \"$D\" --emptyOutDir && npx vite preview --outDir \"$D\" --port \"${PORT:-4199}\" --strictPort"],
       "port": 4199,
       "autoPort": true
+    },
+    {
+      "name": "pages-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npx --yes wrangler@4 pages dev frontend --port \"${PORT:-8788}\""],
+      "port": 8788,
+      "autoPort": true
     }
   ]
 }

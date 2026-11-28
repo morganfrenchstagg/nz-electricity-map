@@ -2,10 +2,11 @@ node_modules
 __pycache__
 backend/output/*
 # frontend/ is the Cloudflare publish root; the built React app lands at its
-# root. Only the routing and caching config is source-controlled.
+# root. Only the routing, caching and Functions config is source-controlled.
 frontend/*
 !frontend/_redirects
 !frontend/_headers
+!frontend/_routes.json
 # Local overrides, e.g. VITE_API_BASE (see README)
 *.local
 

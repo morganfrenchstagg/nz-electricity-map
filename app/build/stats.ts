@@ -58,6 +58,42 @@ export function sumNodes(stats: Stats, nodes: Iterable<string>): number[] {
   return total.map((v) => v / 1000)
 }
 
+// Monthly figures for the built pages, from the API's monthly totals, which come
+// a year at a time (/v1/dispatch/aggregates/{year}/monthly), each like the
+// yearly totals with a row a month
+export interface MonthlyStats {
+  // From August 1997 to this month so far, as YYYY-MM
+  months: string[]
+  // Each node's MWh in each of the months
+  mwh: Map<string, number[]>
+}
+
+// The years' monthly totals, in order, as one series of months
+export function parseMonthly(years: AnnualAggregates[]): MonthlyStats {
+  const months = years.flatMap((year) => year.data.map((row) => String(row[0]).slice(0, 7)))
+  const mwh = new Map<string, number[]>()
+  let offset = 0
+  for (const year of years) {
+    year.series.forEach((node, i) => {
+      const values = mwh.get(node) ?? months.map(() => 0)
+      year.data.forEach((row, j) => (values[offset + j] = Number(row[i + 1]) || 0))
+      mwh.set(node, values)
+    })
+    offset += year.data.length
+  }
+  return { months, mwh }
+}
+
+// The GWh in each month at these nodes, each counted once
+export function sumMonthly(monthly: MonthlyStats, nodes: Iterable<string>): number[] {
+  const total = monthly.months.map(() => 0)
+  for (const node of new Set(nodes))
+    monthly.mwh.get(node)?.forEach((v, i) => {
+      total[i] += v
+    })
+  return total.map((v) => v / 1000)
+}
+
 // The nodes units generate at: each one's but a battery's charging unit, which draws power
 export function generationNodes(units: Unit[]): string[] {
   return [...new Set(units.filter((u) => !isCharging(u)).map((u) => u.node))]

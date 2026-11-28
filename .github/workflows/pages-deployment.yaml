@@ -6,6 +6,7 @@ on:
     paths:
       - 'frontend/**'
       - 'app/**'
+      - 'functions/**'
       - '.github/workflows/pages-deployment.yaml'
   # Daily, so a station added to the API's definitions gets its page (see
   # app/build/pages.ts)

@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'build/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'build/**/*.test.ts', 'edge/**/*.test.ts'],
     env: {
       // Run the tests somewhere that is neither UTC (CI) nor NZ (where the app
       // is developed), so code that reads the machine's own timezone fails

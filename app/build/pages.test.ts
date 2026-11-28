@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Generator, Substation, Unit } from '../src/types'
-import { buildPages, esc, pageFile, renderPage, sitemap } from './pages'
+import { buildPages, esc, lastGeneratedDay, markdownFile, pageFile, renderPage, sitemap } from './pages'
 import type { Definitions } from './pages'
 import { barChart } from './charts'
 import { figures, fitDescription, shareCell } from './html'
-import { parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
+import { parseMonthly, parseStats, sumNodes, totalGeneration, substationDemand } from './stats'
 import type { AnnualAggregates } from './stats'
 import type { ChartTip } from '../src/utils/chartTip'
 import { yearlyTable } from './yearly'
+import { pageMarkdown } from './markdown'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
   return {
@@ -227,12 +228,80 @@ describe('buildPages', () => {
   })
 })
 
+describe("stations' data for agents", () => {
+  const pages = buildPages(defs, [])
+  const page = (path: string) => pages.find((p) => p.path === path)!
+
+  it("tells agents in a station's Markdown that its 5-minute and daily data are there, and how to get them", () => {
+    const markdown = pageMarkdown(page('/generator/huntly'))
+    expect(markdown).toContain(
+      "\n## Daily and 5-minute data\n\nThe MCP server and the API have Huntly's generation every 5 minutes from 11 September 2020, and every half hour before that back to August 1997, unit by unit, and its daily totals.\n",
+    )
+    expect(markdown).toContain(
+      '- Through a day: the MCP tool `get_day_profile` with `{"station":["HLY"],"date":"YYYY-MM-DD","resolution":"5min","group_by":"unit"}`, or every node\'s from the API\'s `https://api.electricitymap.frenchsta.gg/v1/dispatch/YYYY-MM-DD`',
+    )
+    expect(markdown).toContain(
+      '- Day by day: the MCP tool `get_energy` with `{"station":["HLY"],"resolution":"daily","from":"YYYY-MM-DD","to":"YYYY-MM-DD"}`, or each day of a month, in MWh, from `https://api.electricitymap.frenchsta.gg/v1/dispatch/aggregates/YYYY/MM?nodes=HLY2201%20HLY5,HLY2201%20HLY6,',
+    )
+    expect(markdown).toContain(
+      '- Right now: the MCP tool `get_current_state` with `{"station":["HLY"],"group_by":"unit"}`, or the latest 5 minutes from `https://api.electricitymap.frenchsta.gg/v1/dispatch/latest`',
+    )
+    expect(markdown).toContain("Its units' nodes in the API's data: `HLY2201 HLY5`, `HLY2201 HLY6`")
+    expect(pageMarkdown(page('/generator/huntly/historic'))).toContain('\n## Daily and 5-minute data\n')
+    // In the Markdown only
+    expect(page('/generator/huntly').body).not.toContain('get_day_profile')
+  })
+
+  it('gives a station retired before the 5-minute data began its half-hourly data, and nothing live', () => {
+    const markdown = pageMarkdown(page('/generator/otahuhu'))
+    expect(markdown).toContain(
+      "\n## Daily and half-hourly data\n\nThe MCP server and the API have Ōtāhuhu's generation every half hour while it ran, back to August 1997 (the 5-minute data starts on 11 September 2020, after it was retired), unit by unit, and its daily totals.\n",
+    )
+    expect(markdown).toContain('"resolution":"30min"')
+    expect(markdown).not.toContain('Right now')
+  })
+
+  it('gives a station commissioned since the 5-minute data began only that', () => {
+    const solar: Generator = {
+      ...otahuhu,
+      site: 'KHA',
+      name: 'Kōwhai Park',
+      units: [
+        unit({ name: 'Kōwhai Park', unitCode: 'KHA0', node: 'KHA0331 KHA0', commissioned: '2025-03-01T12:00:00.000Z' }),
+      ],
+    }
+    const [markdown] = buildPages({ generators: [solar], substations: [] }, [])
+      .filter((p) => p.path === '/generator/kowhai-park')
+      .map(pageMarkdown)
+    expect(markdown).toContain("have Kōwhai Park's generation every 5 minutes, unit by unit, and its daily totals.")
+    expect(markdown).toContain('- Right now:')
+  })
+
+  it("puts today's generation by fuel in the home page's Markdown, before its first section", () => {
+    expect(pageMarkdown(page('/'))).toContain(
+      '\n\n## Today\n\nNew Zealand\'s generation by fuel so far today, every 5 minutes: the MCP tool `get_day_profile` with `{"group_by":"fuel"}`.\n\n## Analysis\n',
+    )
+    expect(page('/').body).not.toContain('get_day_profile')
+  })
+
+  it("links the MCP server's and the API's docs once on every page's Markdown, the home page's in its content", () => {
+    for (const path of ['/', '/hvdc', '/generator/huntly', '/substation/huntly']) {
+      const markdown = pageMarkdown(page(path))
+      expect(markdown.match(/\n## For developers and AI agents\n/g)).toHaveLength(1)
+      expect(markdown).toContain('[docs](https://api.electricitymap.frenchsta.gg/docs)')
+      expect(markdown).toContain('[server card](/.well-known/mcp/server-card.json)')
+    }
+    expect(page('/').body).toContain('<h2>For developers and AI agents</h2>')
+  })
+})
+
 describe('renderPage', () => {
   const [home] = buildPages(defs, [])
 
   it('fills the head and #root of the template', () => {
     const html = renderPage(TEMPLATE, home)
     expect(html).toContain('<link rel="canonical" href="https://electricitymap.frenchsta.gg/" />')
+    expect(html).toContain('<link rel="alternate" type="text/markdown" href="/index.md" />')
     expect(html).toContain('<script type="application/ld+json">')
     expect(html).toContain('<div id="root"><div class="prerender">')
     expect(html).toContain('<a class="prerender__cta" href="/">Open live map</a>')
@@ -250,11 +319,64 @@ describe('renderPage', () => {
   })
 })
 
+describe('lastGeneratedDay', () => {
+  const monthly = parseMonthly([
+    {
+      series: ['OTA2201 OTB'],
+      data: [
+        ['2025-01-01', 900000],
+        ['2025-02-01', 2000],
+        ['2025-03-01', 0.5],
+        ['2025-04-01', 0],
+      ],
+    },
+  ])
+  const month = (rows: (string | number)[][]) => ({ series: ['OTA2201 OTB', 'OTA2201 OTHER'], data: rows })
+
+  it("is the last day of a station's last month with a MWh that it generated a MWh on, not counting a meter's specks", async () => {
+    const asked: string[] = []
+    const day = await lastGeneratedDay(['OTA2201 OTB'], monthly, (m) => {
+      asked.push(m)
+      return Promise.resolve(
+        month([
+          ['2025-02-19', 1900, 0],
+          ['2025-02-20', 100, 50],
+          ['2025-02-21', 0.4, 9],
+        ]),
+      )
+    })
+    expect(day).toBe('2025-02-20')
+    // March's half a MWh is too little to look at
+    expect(asked).toEqual(['2025-02'])
+  })
+
+  it("looks back a month when none of the last one's days had a MWh", async () => {
+    const days: Record<string, (string | number)[][]> = {
+      '2025-02': [['2025-02-03', 0.9, 0]],
+      '2025-01': [
+        ['2025-01-30', 30000, 0],
+        ['2025-01-31', 0, 0],
+      ],
+    }
+    expect(await lastGeneratedDay(['OTA2201 OTB'], monthly, (m) => Promise.resolve(month(days[m])))).toBe('2025-01-30')
+  })
+
+  it('is null for a station with nothing on record', async () => {
+    expect(await lastGeneratedDay(['NOPE'], monthly, () => Promise.reject(new Error('unused')))).toBeNull()
+  })
+})
+
 describe('files', () => {
   it('names each page file as Pages serves it', () => {
     expect(pageFile('/')).toBe('index.html')
     expect(pageFile('/generator/huntly')).toBe('generator/huntly.html')
     expect(pageFile('/generator/huntly/historic')).toBe('generator/huntly/historic.html')
+  })
+
+  it("names each page's Markdown file as edge/markdown.ts serves it", () => {
+    expect(markdownFile('/')).toBe('index.md')
+    expect(markdownFile('/generator/huntly')).toBe('generator/huntly.md')
+    expect(markdownFile('/analysis/fuel/hydro')).toBe('analysis/fuel/hydro.md')
   })
 
   it('lists every page in the sitemap', () => {
@@ -313,6 +435,17 @@ const aggregates: AnnualAggregates = {
   hvdc: { series: ['northFlow', 'southFlow'], data: [['2025-01-01', 2065000, 592000]] },
 }
 const stats = parseStats(aggregates, 2026)
+// Monthly totals for 2025 and 2026 to February so far: Manapōuri's from August
+// 2025, and Ōtāhuhu's to March 2025
+const months = (values: number[], year: number) =>
+  values.map((v, i) => [`${year}-${String(i + 1).padStart(2, '0')}-01`, v, i < 3 ? 1000 * (i + 1) : 0])
+const monthly = parseMonthly([
+  {
+    series: ['MAN2201 MAN0', 'OTA2201 OTB'],
+    data: months([0, 0, 0, 0, 0, 0, 0, 300000, 420000, 480000, 410000, 390000], 2025),
+  },
+  { series: ['MAN2201 MAN0', 'OTA2201 OTB'], data: months([400000, 350000], 2026).map((row) => [row[0], row[1], 0]) },
+])
 
 describe('yearly figures', () => {
   it("reads each node's MWh a year, and which years are only partly covered", () => {
@@ -336,8 +469,54 @@ describe('yearly figures', () => {
 })
 
 describe('pages with yearly figures', () => {
-  const pages = buildPages(withHydro, [], stats)
+  const pages = buildPages(withHydro, [], stats, monthly)
   const page = (path: string) => pages.find((p) => p.path === path)!
+
+  it("gives a station's history its generation every month, newest year first, and its best month", () => {
+    const history = page('/generator/manapouri/historic')
+    expect(history.body).toContain(
+      "<h2>Generation by month</h2>\n<p>Manapōuri's generation each month, in GWh, February 2026 only so far.</p>",
+    )
+    const markdown = pageMarkdown(history)
+    expect(markdown).toContain(
+      [
+        '| Year | Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec |',
+        '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+        '| 2026 | 400 | 350 |  |  |  |  |  |  |  |  |  |  |',
+        '| 2025 |  |  |  |  |  |  |  | 300 | 420 | 480 | 410 | 390 |',
+      ].join('\n'),
+    )
+    // Of the whole months, not February 2026 so far
+    expect(markdown).toContain('- **Best month:** October 2025, with 480 GWh\n')
+    expect(markdown.indexOf('## Generation by year')).toBeLessThan(markdown.indexOf('## Generation by month'))
+  })
+
+  it("stops a retired station's months at its last, and leaves out a station's with none", () => {
+    const markdown = pageMarkdown(page('/generator/otahuhu/historic'))
+    expect(markdown).toContain("Ōtāhuhu's generation each month, in GWh.\n")
+    expect(markdown).toContain('| 2025 | 1.0 | 2.0 | 3.0 |  |')
+    expect(markdown).not.toContain('| 2026 |')
+    expect(page('/generator/huntly/historic').body).not.toContain('Generation by month')
+  })
+
+  it("puts today's generation in a live station's Markdown, after its facts, for the edge to fill in", () => {
+    expect(pageMarkdown(page('/generator/manapouri'))).toContain(
+      '- **Site code:** MAN\n\n## Today\n\nIts generation so far today, every 5 minutes: the MCP tool `get_day_profile` with `{"station":["MAN"]}`.\n\n## Generation by year\n',
+    )
+    expect(pageMarkdown(page('/generator/otahuhu'))).not.toContain('## Today')
+    expect(pageMarkdown(page('/generator/manapouri/historic'))).not.toContain('## Today')
+    expect(page('/generator/manapouri').body).not.toContain('Today')
+  })
+
+  it("writes a station's page as Markdown, its figures in a table rather than a chart", () => {
+    const markdown = pageMarkdown(page('/generator/manapouri'))
+    expect(markdown).toContain('\n# Manapōuri Power Station\n')
+    expect(markdown).toContain('\n- **Operator:** Meridian Energy\n')
+    expect(markdown).toContain('\n## Generation by year\n\nIn 2025, Manapōuri generated 4,552 GWh')
+    expect(markdown).toContain('\n| Year | Generation (GWh) |\n| --- | ---: |\n| 2026 so far |')
+    expect(markdown).toContain("[Manapōuri's historical generation and records](/generator/manapouri/historic)")
+    expect(markdown).not.toMatch(/<|&[a-z]+;|prerender/)
+  })
 
   it('gives a station its yearly generation, share, rank, capacity factor and best year', () => {
     const body = page('/generator/manapouri').body
@@ -386,7 +565,35 @@ describe('pages with yearly figures', () => {
 
   it("counts a retired station's years before it was retired, the combined units' among them", () => {
     expect(page('/generator/huntly').body).toContain('<td>1997&nbsp;(Aug–Dec)</td><td class="num">1,500</td>')
-    expect(page('/generator/otahuhu').body).toContain('Its best year was 2015, with 100 GWh.')
+    expect(page('/generator/otahuhu').body).toContain('<td>2015</td><td class="num">100</td>')
+  })
+
+  it("ends a retired station's years at the last it generated in", () => {
+    const station = pageMarkdown(page('/generator/otahuhu'))
+    expect(station).toContain('| 2015 | 100 |\n| 1997 (Aug–Dec) | 500 |')
+    expect(station).not.toMatch(/\| 202[456]/)
+    // Its one whole year isn't a best
+    expect(station).not.toContain('best year')
+    const history = pageMarkdown(page('/generator/otahuhu/historic'))
+    expect(history).toContain("Ōtāhuhu's electricity generation every year from 1997 to 2015,")
+    expect(history).not.toMatch(/\| 202[456] \| [^|]* \| [^|]* \|\n/)
+  })
+
+  it('says a retired station is decommissioned, and when it last generated', () => {
+    const withDay = buildPages(withHydro, [], stats, monthly, new Map([['OTA', '2015-09-21']]))
+    const find = (path: string) => pageMarkdown(withDay.find((p) => p.path === path)!)
+    const station = find('/generator/otahuhu')
+    expect(station).toContain(
+      "Ōtāhuhu was a 380 MW gas power station in the North Island, operated by Contact until 2015. It's now decommissioned, and last generated on 21 Sept 2015. See its historical generation.",
+    )
+    expect(station).toContain('- **Decommissioned:** 1 Oct 2015\n- **Last generated:** 21 Sept 2015\n')
+    const history = find('/generator/otahuhu/historic')
+    expect(history).toContain("It's now decommissioned, and last generated on 21 Sept 2015.\n")
+    expect(history).toContain('- **Last generated:** 21 Sept 2015\n')
+    // Without the day, the year
+    expect(page('/generator/otahuhu').body).toContain("It's now decommissioned. See its")
+    expect(pageMarkdown(page('/generator/otahuhu/historic'))).toContain('- **Last generated:** 2015\n')
+    expect(find('/generator/manapouri')).not.toContain('decommissioned')
   })
 
   it('gives a substation its yearly demand', () => {

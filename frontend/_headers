@@ -35,6 +35,7 @@
   Link: <https://api.electricitymap.frenchsta.gg/openapi.json>; rel="service-desc"; type="application/json"
   Link: <https://api.electricitymap.frenchsta.gg/docs>; rel="service-doc"; type="text/html"
   Link: </llms.txt>; rel="describedby"; type="text/plain"
+  Link: </index.md>; rel="alternate"; type="text/markdown"
 
 # The pages.dev copy of the site isn't for search engines: its pages' canonical
 # links point at the custom domain

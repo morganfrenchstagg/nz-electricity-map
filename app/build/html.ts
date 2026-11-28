@@ -7,6 +7,8 @@ import { ANALYSIS_PATH, capacityUnits, SITE_NAME, stationKind } from '../src/uti
 export const ORIGIN = 'https://electricitymap.frenchsta.gg'
 export const API_URL = 'https://api.electricitymap.frenchsta.gg/v1'
 export const MCP_URL = 'https://api.electricitymap.frenchsta.gg/mcp'
+const API_DOCS_URL = 'https://api.electricitymap.frenchsta.gg/docs'
+const OPENAPI_URL = 'https://api.electricitymap.frenchsta.gg/openapi.json'
 export const CC_BY = 'https://creativecommons.org/licenses/by/4.0/'
 const LINKEDIN = 'https://www.linkedin.com/in/morganfrenchstagg'
 export const CREATOR = {
@@ -25,6 +27,16 @@ and <a href="https://www.em6.co.nz">em6</a>. This site is independent and isn't 
 <a href="${LINKEDIN}" rel="author">Morgan French-Stagg</a>. Questions or feedback?
 Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p>
 </footer>`
+
+// Where agents can get the data, with the MCP server's and the API's docs: on
+// the home page, and near the foot of every page's Markdown (see markdown.ts).
+// The API's docs are its routes'. The server card and llms.txt describe the MCP
+// server and its tools.
+export const AGENT_DATA = `<h2>For developers and AI agents</h2>
+<ul>
+<li>MCP server: ${MCP_URL} (Streamable HTTP, no sign-in), described by its <a href="/.well-known/mcp/server-card.json">server card</a>, with its tools listed in <a href="/llms.txt">llms.txt</a></li>
+<li>JSON API: ${API_URL}, with <a href="${API_DOCS_URL}">docs</a> and an <a href="${OPENAPI_URL}">OpenAPI description</a></li>
+</ul>`
 
 // The site's icon, as public/favicon.svg draws it
 const ICON =
@@ -57,6 +69,11 @@ export interface Page {
   standalone?: boolean
   // Where its header's Open live map button goes, if not the map as it opens
   live?: string
+  // HTML for its Markdown only, after its content: for agents, where its data is
+  agentData?: string
+  // Its Markdown's Today section, where to get its generation so far today,
+  // which edge/today.ts fills in as it's served (see todayPlaceholder)
+  today?: string
 }
 
 // A page's description: Bing flags one over 160 characters, and search engines
