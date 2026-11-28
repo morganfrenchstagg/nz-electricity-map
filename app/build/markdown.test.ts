@@ -89,10 +89,9 @@ describe('pageMarkdown', () => {
   it('leads with front matter, and ends with where agents get the data, then the footer', () => {
     const markdown = pageMarkdown(page)
     expect(markdown).toMatch(
-      /^---\ntitle: "HVDC: Inter-Island Link \| NZ Electricity Map"\ndescription: "Flows \\"north\\" and south."\nurl: "https:\/\/electricitymap.frenchsta.gg\/hvdc"\n---\n\n# HVDC Inter-Island Link\n\nFlows north and south.\n\n## For developers and AI agents\n\n- MCP server: https:\/\/api.electricitymap.frenchsta.gg\/mcp /,
+      /^---\ntitle: "HVDC: Inter-Island Link \| NZ Electricity Map"\ndescription: "Flows \\"north\\" and south."\nurl: "https:\/\/electricitymap.frenchsta.gg\/hvdc"\n---\n\n# HVDC Inter-Island Link\n\nFlows north and south.\n\n## For developers and AI agents\n\n- \[llms.txt\]\(\/llms.txt\): a guide to the site for AI agents, .*\n- MCP server: https:\/\/api.electricitymap.frenchsta.gg\/mcp /,
     )
     expect(markdown).toContain('[server card](/.well-known/mcp/server-card.json)')
-    expect(markdown).toContain('[llms.txt](/llms.txt)')
     expect(markdown).toContain(
       '- JSON API: https://api.electricitymap.frenchsta.gg/v1, with [docs](https://api.electricitymap.frenchsta.gg/docs) and an [OpenAPI description](https://api.electricitymap.frenchsta.gg/openapi.json)\n\nData from',
     )

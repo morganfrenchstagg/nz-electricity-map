@@ -28,13 +28,18 @@ and <a href="https://www.em6.co.nz">em6</a>. This site is independent and isn't 
 Get in touch with Morgan on <a href="${LINKEDIN}">LinkedIn</a>.</p>
 </footer>`
 
-// Where agents can get the data, with the MCP server's and the API's docs: on
-// the home page, and near the foot of every page's Markdown (see markdown.ts).
-// The API's docs are its routes'. The server card and llms.txt describe the MCP
-// server and its tools.
+// In every page's head, for agents that read it rather than the home page's
+// Link header, which has the same relation
+export const LLMS_TXT_LINK = '<link rel="describedby" type="text/plain" href="/llms.txt" title="llms.txt" />'
+
+// Where agents can get the data, with llms.txt and the MCP server's and the
+// API's docs: on the home page, and near the foot of every page's Markdown (see
+// markdown.ts). llms.txt lists the pages, the MCP server's tools and the API's
+// routes, the server card describes the MCP server, and the API's docs its routes.
 export const AGENT_DATA = `<h2>For developers and AI agents</h2>
 <ul>
-<li>MCP server: ${MCP_URL} (Streamable HTTP, no sign-in), described by its <a href="/.well-known/mcp/server-card.json">server card</a>, with its tools listed in <a href="/llms.txt">llms.txt</a></li>
+<li><a href="/llms.txt">llms.txt</a>: a guide to the site for AI agents, with its pages, the MCP server's tools and the API's routes</li>
+<li>MCP server: ${MCP_URL} (Streamable HTTP, no sign-in), described by its <a href="/.well-known/mcp/server-card.json">server card</a></li>
 <li>JSON API: ${API_URL}, with <a href="${API_DOCS_URL}">docs</a> and an <a href="${OPENAPI_URL}">OpenAPI description</a></li>
 </ul>`
 
